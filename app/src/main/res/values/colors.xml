@@ -31,5 +31,5 @@
     <color name="OnDark_Text">#FFFFFF</color>
 
     <!-- Background -->
-    <color name="white_bg">#FFFFFFFF</color>
+    <color name="White_bg">#FFFFFFFF</color>
 </resources>
