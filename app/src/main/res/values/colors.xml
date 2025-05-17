@@ -1,5 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <!-- Primary -->
+    <color name="Purple_900">#3B38C2</color>
+    <color name="Purple_700">#4945E0</color>
+    <color name="Purple_Main_500">#5955FF</color>
+    <color name="Purple_300">#B3B1FF</color>
+    <color name="Purple_200">#D8D7FF</color>
+    <color name="Purple_100">#E8E7FF</color>
+
+    <!-- Secondary -->
+    <color name="Grey_1000">#000000</color>
+    <color name="Grey_900">#1A1A23</color>
+    <color name="Grey_700">#2F2F38</color>
+    <color name="Grey_500">#595962</color>
+    <color name="Grey_Main_300">#84848D</color>
+    <color name="Grey_200">#AFAFB8</color>
+    <color name="Grey_Main_100">#C5C5CE</color>
+    <color name="Grey_50">#DADAE3</color>
+    <color name="Grey_30">#E5E4EB</color>
+    <color name="Grey_20">#D8D7FF</color>
+    <color name="Grey_10">#F9F9FA</color>
+    <color name="Grey_5">#FDFDFF</color>
+    <color name="Grey_0">#FFFFFF</color>
+
+    <!-- Error -->
+    <color name="Pink_Error">#FFA6A6</color>
+
+    <!-- Text -->
+    <color name="Default_Text">#333339</color>
+    <color name="OnDark_Text">#FFFFFF</color>
+
+    <!-- Background -->
+    <color name="white_bg">#FFFFFFFF</color>
 </resources>
