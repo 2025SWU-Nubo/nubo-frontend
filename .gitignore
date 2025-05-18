@@ -1,15 +1,77 @@
+# ======================================
+# Android Studio & IntelliJ project files
+# ======================================
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+.idea/
+.idea/caches
+.idea/libraries
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/tasks.xml
+.idea/usage.statistics.xml
+.idea/dictionaries/
+misc.xml
+deploymentTargetDropDown.xml
+render.experimental.xml
+
+# ======================================
+# Build & Generated files
+# ======================================
+build/
+*/build/
+.gradle/
+.gradle/cache/
+.gradle/daemon/
+.gradle/registry/
+.cxx/
+captures/
+.externalNativeBuild/
+*.apk
+*.app
+output.json
+
+# ======================================
+# Local configuration files
+# ======================================
 local.properties
+
+# ======================================
+# Keystore files (Never commit!)
+# ======================================
+*.jks
+*.keystore
+
+# ======================================
+# OS and log files
+# ======================================
+*.DS_Store
+*.log
+*.hprof
+Thumbs.db
+
+# ======================================
+# Google Services / Firebase
+# ======================================
+google-services.json
+crashlytics.properties
+fabric.properties
+
+# ======================================
+# Binary files
+# ======================================
+*.so
+
+# ======================================
+# Environment settings
+# ======================================
+.env
+
+# ======================================
+# Fastlane outputs
+# ======================================
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
