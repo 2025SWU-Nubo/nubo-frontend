@@ -35,21 +35,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.databinding.adapters.AdapterViewBindingAdapter.OnItemSelected
-import com.example.nubo.ui.theme.AppFonts
 import com.example.nubo.ui.theme.NuboAppTheme
 
 class MainActivity : AppCompatActivity() {
@@ -74,23 +66,37 @@ fun HomeScreen(){
             selectedIndex = selectedIndex.value,
             onItemSelected = {selectedIndex.value = it}
         )}
-    ){  innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-                .background(Color.White),
+    ){ innerPadding ->
+        when (selectedIndex.value) {
+            0 -> {
+                // 홈 화면
+                LazyColumn(
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .fillMaxSize()
+                        .background(Color.White),
+                    contentPadding = PaddingValues(bottom = 60.dp)
+                ) {
+                    item { Spacer(modifier = Modifier.height(12.dp)) }
+                    item { RecentBoardSection() }
+                    item { Spacer(modifier = Modifier.height(24.dp)) }
+                    item { RecommendedCardsSection() }
+                    item { Spacer(modifier = Modifier.height(24.dp)) }
+                    item { RecommendedVideosSection() }
+                }
+            }
 
-            contentPadding = PaddingValues(bottom = 60.dp)
-        ){
-            item { Spacer(modifier = Modifier.height(12.dp)) }
-            item { RecentBoardSection() }
-            item { Spacer(modifier = Modifier.height(24.dp)) }
-            item { RecommendedCardsSection() }
-            item { Spacer(modifier = Modifier.height(24.dp)) }
-            item { RecommendedVideosSection() }
+            1 -> {
+                // 나의 보드 화면
+                Box(modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize()) {
+                    MyBoardScreen()
+                }
+            }
+
+            // 추후에 다른 화면들 추가
         }
-
     }
 }
 
