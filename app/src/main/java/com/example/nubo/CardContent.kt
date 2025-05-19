@@ -14,15 +14,16 @@ import androidx.compose.ui.text.style.TextOverflow
 
 @Composable
 fun CardContent() {
+    // 화면 테스트용 더미 리스트
     val dummyList = List(20) { it }
 
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 140.dp),
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(bottom = 80.dp)
     ) {
         items(dummyList) { index ->
@@ -46,7 +47,8 @@ fun CardContent() {
                     modifier = Modifier.padding(8.dp),
                     color = Color.Black,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodyLarge
                 )
             }
         }
