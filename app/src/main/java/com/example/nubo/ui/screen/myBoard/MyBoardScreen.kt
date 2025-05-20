@@ -24,45 +24,28 @@ import androidx.compose.ui.Alignment
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Icon
-import com.example.nubo.ui.component.CardContent
 import com.example.nubo.R
+import com.example.nubo.ui.component.CardContent
 
 
 @Composable
 fun MyBoardScreen() {
     var selectedTab by remember { mutableStateOf(0) } // 카드탭 상태 기억
 
-    LazyColumn(
-        modifier = Modifier
-        .fillMaxSize()
-        .background(Color.White),
-        contentPadding = PaddingValues(bottom = 60.dp)) {
-        item {
-            TabHeader(
-                selectedTabIndex = selectedTab,
-                onTabSelected = { selectedTab = it }
-            )
-        }
+    Column(modifier = Modifier.fillMaxSize()) {
+        TabHeader(
+            selectedTabIndex = selectedTab,         // 현재 선택된 탭 인덱스
+            onTabSelected = { selectedTab = it }    // 탭 클릭 시 상태 업데이트
+        )
 
-        item {
-            TitleBar()
-        }
+        TitleBar()
+        FilterButtons()
 
-        item {
-            FilterButtons()
-        }
-
-        item {
-            if (selectedTab == 0) {
-                CardContent() // 스크롤 가능 레이아웃 내의 콘텐츠로 안전하게 작동
-            } else {
-                Text(
-                    text = "다른 콘텐츠 영역입니다",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    style = MaterialTheme.typography.bodyLarge
-                )
+        // 하단 스크롤 가능한 콘텐츠
+        Box(modifier = Modifier.weight(1f)) {
+            when (selectedTab) {
+                0 -> ScrollableCardContent()
+                1 -> {/* BoardContent() */}
             }
         }
     }
@@ -128,7 +111,7 @@ fun TitleBar() {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(start = 16.dp, end = 16.dp, bottom = 20.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             // 나의 보드 텍스트
@@ -156,7 +139,7 @@ fun FilterButtons() {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .padding(start = 16.dp, end = 16.dp, bottom = 20.dp)
     ) {
         filters.forEach { label ->
             val isSelected = selected == label
@@ -177,13 +160,13 @@ fun FilterButtons() {
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
             ) {
                 if (label == "즐겨찾기") {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_star), // 별 아이콘 리소스 연결
-                            contentDescription = "즐겨찾기",
-                            modifier = Modifier.size(18.dp),
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_star), // 별 아이콘 리소스 연결
+                        contentDescription = "즐겨찾기",
+                        modifier = Modifier.size(18.dp),
 
-                            )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        )
+                    Spacer(modifier = Modifier.width(2.dp))
                 } else {
                     Text(
                         text = label,
@@ -192,6 +175,23 @@ fun FilterButtons() {
                     )
                 }
             }
+        }
+    }
+}
+
+// 카드 콘텐츠 영역 스크롤 가능하도록
+@Composable
+fun ScrollableCardContent() {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White),
+        contentPadding = PaddingValues(bottom = 15.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        // 카드 두 열을 하나의 Row로 넣어줌
+        item {
+            CardContent()
         }
     }
 }
