@@ -1,17 +1,13 @@
-package com.example.nubo
+package com.example.nubo.ui.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
@@ -24,9 +20,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.GreyMain300
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 
 
 @Composable
@@ -48,41 +41,30 @@ fun CardContent() {
     val leftItems = allItems.filterIndexed { i, _ -> i % 2 == 0 }
     val rightItems = allItems.filterIndexed { i, _ -> i % 2 != 0 }
 
-    // 스크롤 상태 공유
-    val scrollState = rememberScrollState()
-
-    // 단일 스크롤 가능한 내부 두 Column
-    Column(
+    // Masonry 형태로 두 열 배치
+    Row(
         modifier = Modifier
-            .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp)
-            .fillMaxSize()
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Spacer(modifier = Modifier.height(10.dp)) // top padding
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                leftItems.forEach { item ->
-                    MasonryCard(height = item.height)
-                }
-            }
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                rightItems.forEach { item ->
-                    MasonryCard(height = item.height)
-                }
+            leftItems.forEach { item ->
+                MasonryCard(height = item.height)
             }
         }
 
-        Spacer(modifier = Modifier.height(50.dp)) // bottom padding
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            rightItems.forEach { item ->
+                MasonryCard(height = item.height)
+            }
+        }
     }
 }
 

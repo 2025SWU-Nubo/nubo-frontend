@@ -1,4 +1,4 @@
-package com.example.nubo
+package com.example.nubo.ui.screen.myBoard
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -22,26 +22,48 @@ import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.Purple200
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Icon
+import com.example.nubo.ui.component.CardContent
+import com.example.nubo.R
 
 
 @Composable
 fun MyBoardScreen() {
     var selectedTab by remember { mutableStateOf(0) } // 카드탭 상태 기억
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        TabHeader(
-            selectedTabIndex = selectedTab,         // 현재 선택된 탭 인덱스
-            onTabSelected = { selectedTab = it }    // 탭 클릭 시 상태 업데이트
-        )
+    LazyColumn(
+        modifier = Modifier
+        .fillMaxSize()
+        .background(Color.White),
+        contentPadding = PaddingValues(bottom = 60.dp)) {
+        item {
+            TabHeader(
+                selectedTabIndex = selectedTab,
+                onTabSelected = { selectedTab = it }
+            )
+        }
 
-        TitleBar()
-        FilterButtons()
+        item {
+            TitleBar()
+        }
 
-        if (selectedTab == 0) {
-            CardContent()
-        } else {
-            // BoardContent() 또는 다른 콘텐츠
+        item {
+            FilterButtons()
+        }
+
+        item {
+            if (selectedTab == 0) {
+                CardContent() // 스크롤 가능 레이아웃 내의 콘텐츠로 안전하게 작동
+            } else {
+                Text(
+                    text = "다른 콘텐츠 영역입니다",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
         }
     }
 }
