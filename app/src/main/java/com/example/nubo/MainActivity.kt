@@ -3,19 +3,22 @@ package com.example.nubo
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.example.nubo.ui.screen.add.AddScreen
 import com.example.nubo.ui.screen.home.HomeScreen
 import com.example.nubo.ui.screen.learn.LearnScreen
 import com.example.nubo.ui.screen.myBoard.MyBoardScreen
 import com.example.nubo.ui.screen.profile.ProfileScreen
 import com.example.nubo.ui.component.BottomNavBar
+import com.example.nubo.ui.screen.myBoard.BoardDetailScreen
 import com.example.nubo.ui.theme.NuboAppTheme
 
 
@@ -31,32 +34,74 @@ class MainActivity : AppCompatActivity() {
 }
 
 @Composable
-fun MainScreen(){
-    val selectedIndex = remember { mutableIntStateOf(0) }
+fun MainScreen() {
+    val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    // 상세 화면에서는 BottomNavBar 숨기기
+    val showBottomBar = currentRoute in listOf("home", "myboard", "add", "learn", "profile")
 
     Scaffold(
         bottomBar = {
-            BottomNavBar(
-                selectedIndex = selectedIndex.intValue,
-                onItemSelected = { selectedIndex.intValue = it }
-            )
+            if (showBottomBar) {
+                BottomNavBar(
+                    selectedIndex = getSelectedIndex(currentRoute),
+                    onItemSelected = { index ->
+                        val route = when (index) {
+                            0 -> "home"
+                            1 -> "myboard"
+                            2 -> "add"
+                            3 -> "learn"
+                            4 -> "profile"
+                            else -> "home"
+                        }
+                        navController.navigate(route) {
+                            popUpTo("home") { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            }
         }
     ) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding)) {
-            when (selectedIndex.intValue) {
-                0 -> HomeScreen(onMoreClick = { selectedIndex.intValue = 3})
-                1 -> MyBoardScreen()
-                2 -> AddScreen()
-                3 -> LearnScreen()
-                4 -> ProfileScreen()
+        NavHost(
+            navController = navController,
+            startDestination = "home",
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            composable("home") {
+                HomeScreen(onMoreClick = { navController.navigate("learn") })
+            }
+            composable("myboard") {
+                MyBoardScreen(navController) // 👈 NavController 전달
+            }
+            composable("add") {
+                AddScreen()
+            }
+            composable("learn") {
+                LearnScreen()
+            }
+            composable("profile") {
+                ProfileScreen()
+            }
+
+            // 나의 보드 상세 화면
+            composable("board_detail/{boardId}") { backStackEntry ->
+                val boardId = backStackEntry.arguments?.getString("boardId") ?: ""
+                BoardDetailScreen(boardId = boardId, navController = navController)
             }
         }
     }
 }
 
-
-
-
-
-
-
+fun getSelectedIndex(route: String?): Int {
+    return when (route) {
+        "home" -> 0
+        "myboard" -> 1
+        "add" -> 2
+        "learn" -> 3
+        "profile" -> 4
+        else -> -1
+    }
+}
