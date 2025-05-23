@@ -79,3 +79,7 @@ fastlane/test_output/
 # ktlint reports
 **/build/reports/ktlint/
 
+# 잘못된 복사본 방지
+**/* 2.*
+
+

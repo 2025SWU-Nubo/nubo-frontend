@@ -53,6 +53,10 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.ui.tooling.preview)
 
     // 테스트 라이브러리
     testImplementation(libs.junit)                          // JUnit 단위 테스트
@@ -65,7 +69,9 @@ dependencies {
     implementation(libs.androidx.activity.compose)          // Compose 지원 Activity
     implementation(libs.androidx.lifecycle.runtime.compose) // Compose에서 Lifecycle 상태 관리를 위한 라이브러리
     implementation(libs.androidx.material.icons.extended)   // Material 아이콘 확장 (filled, outlined 등)
-    implementation(libs.navigation.compose)                 // Navigation Compose
+    implementation(libs.navigation.compose)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.ui.test.junit4)                 // Navigation Compose
 
 
     // Compose Preview 및 디버깅용 도구
@@ -76,5 +82,8 @@ dependencies {
     implementation(libs.coil.compose)
     //composeViewModel
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    debugImplementation(libs.androidx.ui.test.manifest)
+
+    implementation (libs.play.services.auth)
 
 }
