@@ -65,6 +65,8 @@ dependencies {
     implementation(libs.androidx.activity.compose)          // Compose 지원 Activity
     implementation(libs.androidx.lifecycle.runtime.compose) // Compose에서 Lifecycle 상태 관리를 위한 라이브러리
     implementation(libs.androidx.material.icons.extended)   // Material 아이콘 확장 (filled, outlined 등)
+    implementation(libs.navigation.compose)                 // Navigation Compose
+
 
     // Compose Preview 및 디버깅용 도구
     debugImplementation(libs.androidx.ui.tooling)           // Compose UI 툴링 지원 (디버깅용)
