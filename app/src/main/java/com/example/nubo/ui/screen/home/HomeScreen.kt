@@ -113,7 +113,8 @@ fun RecentBoardSection() {
         BoardThumbnailCardItem("엔터테인먼트",imageResId = R.drawable.thumbnail_entertainment),
         BoardThumbnailCardItem("AI 및 개발", imageResId = R.drawable.thumbnail_it),
         BoardThumbnailCardItem("기초 디자인", imageResId = R.drawable.thumbnail_design),
-        BoardThumbnailCardItem("요리 레시피", imageResId = R.drawable.thumbnail_recipe)
+        BoardThumbnailCardItem("요리 레시피", imageResId = R.drawable.thumbnail_recipe),
+        BoardThumbnailCardItem("아이돌",imageResId = R.drawable.thumbnail_entertainment),
     )
 
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {

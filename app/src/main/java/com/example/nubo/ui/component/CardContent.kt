@@ -29,10 +29,10 @@ fun CardContent() {
     //  더미 데이터 + 셔플
     val allItems = List(20) { index ->
         val height = when (index % 4) {
-            0 -> 210.dp
-            1 -> 180.dp
-            2 -> 260.dp
-            else -> 200.dp
+            0 -> 300.dp
+            1 -> 130.dp
+//            2 -> 230.dp
+            else -> 180.dp
         }
         CardItem(id = index, height = height)
     }.shuffled()
@@ -46,11 +46,11 @@ fun CardContent() {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(20.dp)
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             leftItems.forEach { item ->
                 MasonryCard(height = item.height)
@@ -59,7 +59,7 @@ fun CardContent() {
 
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             rightItems.forEach { item ->
                 MasonryCard(height = item.height)
