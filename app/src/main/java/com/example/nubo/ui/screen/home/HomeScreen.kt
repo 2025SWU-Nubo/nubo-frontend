@@ -145,7 +145,7 @@ fun RecommendedCardsSection(onMoreClick: () -> Unit = {}) {
             ) {
                 Text(
                     text = "더보기",
-                    style = AppTextStyles.body_regular_14,
+                    style = AppTextStyles.b3_regular_14,
                     color = GreyMain100
                 )
                 Icon(
@@ -183,7 +183,7 @@ fun RecommendedCardsSection(onMoreClick: () -> Unit = {}) {
                     ) {
                         Text(
                             text = "봉골레 파스타 레시피",
-                            style = AppTextStyles.body_semibold_14
+                            style = AppTextStyles.b3_semibold_14
                         )
                         Spacer(modifier = Modifier.height(5.dp))
                         Text(
