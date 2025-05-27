@@ -66,7 +66,7 @@ fun TabHeader(
 ) {
     val tabs = listOf("영상", "보드")
 
-    Column(modifier = Modifier.padding(top = 40.dp)) {
+    Column(modifier = Modifier.padding(top = 20.dp)) {
         // 탭 전체 중앙 정렬
         Row(
             modifier = Modifier.fillMaxWidth(),

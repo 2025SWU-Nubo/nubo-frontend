@@ -32,9 +32,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.nubo.R
+import com.example.nubo.model.BoardItem
+import com.example.nubo.model.CardItem
+import com.example.nubo.ui.component.BoardDetailContent
 import com.example.nubo.ui.theme.AppTextStyles.button_medium_12
 import com.example.nubo.ui.theme.AppTextStyles.head_regular_26
+import com.example.nubo.ui.theme.AppTextStyles.subtitle_medium_16
 import com.example.nubo.ui.theme.Grey200
+import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.Purple200
 import com.example.nubo.ui.theme.PurpleMain500
@@ -51,26 +56,33 @@ fun BoardDetailScreen(boardId: String, navController: NavController) {
         // 필터 + 보라 버튼
         BoardFilterButton()
 
-        // 카드 스크롤 콘텐츠
-        ScrollableCardContent()
+        // 보드 + 카드 콘텐츠
+        BoardDetailSection()
     }
 }
 
 @Composable
 fun DetailTopBar(onBack: () -> Unit) {
+    val titleText = "포토샵"
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 27.dp, bottom = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+            .padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            painter = painterResource(id = R.drawable.ic_arrow_left), // ← ← 아이콘 파일 필요
+            painter = painterResource(id = R.drawable.ic_arrow_back), // ← ← 아이콘 파일 필요
             contentDescription = "뒤로가기",
+            tint= GreyMain300,
             modifier = Modifier
-                .size(30.dp)
                 .clickable { onBack() }
+        )
+        Spacer(modifier = Modifier.width(5.dp))
+        Text(
+            text = titleText,
+            style = subtitle_medium_16,
+            color = GreyMain300
         )
     }
 }
@@ -105,7 +117,7 @@ fun BoardFilterButton() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, bottom = 20.dp),
+            .padding(start = 16.dp, end = 16.dp, bottom = 18.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -163,12 +175,12 @@ fun BoardFilterButton() {
                     onClick = { /* TODO */ },
                     shape = RoundedCornerShape(5.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Purple100,
+                        containerColor = Purple100.copy(alpha = 0.3f),
                         contentColor = PurpleMain500
                     ),
-                    border = BorderStroke(0.8.dp, PurpleMain500),
+                    border = BorderStroke(0.5.dp, PurpleMain500),
                     contentPadding = PaddingValues(horizontal = 10.dp),
-                    modifier = Modifier.height(28.dp)
+                    modifier = Modifier.height(32.dp)
                 ) {
                     if (label == "+") {
                         Icon(
@@ -187,4 +199,21 @@ fun BoardFilterButton() {
             }
         }
     }
+}
+// 샘플 더미 데이터
+@Composable
+fun BoardDetailSection() {
+    val boardItems = List(5) {
+        BoardItem(id = it, title = "포토샵", subtitle = "3 카드", createdAt = "1개월 전", isBookmarked = it % 2 == 0, imageUrl = "")
+    }
+    val cardItems = List(7) {
+        val height = listOf(130.dp, 180.dp, 230.dp)[it % 3]
+        CardItem(id = it, height = height)
+    }
+
+    BoardDetailContent(
+        boardItems = boardItems,
+        cardItems = cardItems,
+        onBoardClick = { id -> /* TODO */ }
+    )
 }
