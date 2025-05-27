@@ -46,7 +46,7 @@ fun CardContent() {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Column(
             modifier = Modifier.weight(1f),

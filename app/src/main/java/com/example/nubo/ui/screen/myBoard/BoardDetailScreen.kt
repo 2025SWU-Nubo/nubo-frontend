@@ -32,8 +32,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.nubo.R
-import com.example.nubo.ui.theme.AppTextStyles.button_medium_12
-import com.example.nubo.ui.theme.AppTextStyles.head_regular_26
+import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.Purple200
@@ -89,7 +88,7 @@ fun BoardTitleBar() {
         ) {
             Text(
                 text = titleText,
-                style = head_regular_26,
+                style = AppTextStyles.headline_regular_26,
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
@@ -129,7 +128,7 @@ fun BoardFilterButton() {
                         Spacer(modifier = Modifier.width(2.dp))
                         Text(
                             text = label,
-                            style = button_medium_12,
+                            style = AppTextStyles.label_medium_12,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         when (label) {
@@ -179,7 +178,7 @@ fun BoardFilterButton() {
                     } else {
                         Text(
                             text = label,
-                            style = button_medium_12,
+                            style = AppTextStyles.label_medium_12,
                             color = PurpleMain500
                         )
                     }
