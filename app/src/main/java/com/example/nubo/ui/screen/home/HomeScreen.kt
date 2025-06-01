@@ -37,7 +37,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import coil.compose.AsyncImage
-import com.example.nubo.model.BoardThumbnailCardItem
+import com.example.nubo.data.model.BoardThumbnailCardItem
 import com.example.nubo.ui.component.CardContent
 import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles

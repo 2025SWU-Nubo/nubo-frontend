@@ -54,7 +54,7 @@ Thumbs.db
 # ======================================
 # Google Services / Firebase
 # ======================================
-google-services.json
+app/google-services.json
 crashlytics.properties
 fabric.properties
 

@@ -33,7 +33,7 @@ fun BottomNavBar(selectedIndex: Int = 0, onItemSelected: (Int) -> Unit = {}) {
                 unselectedIconColor = Color.Gray,
                 selectedTextColor = MaterialTheme.colorScheme.primary,
                 unselectedTextColor = Color.Gray,
-                indicatorColor = Color.Transparent 
+                indicatorColor = Color.Transparent
             )
         )
 
