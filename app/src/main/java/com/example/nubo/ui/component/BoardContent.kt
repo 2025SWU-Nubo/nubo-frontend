@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
@@ -32,10 +31,9 @@ import androidx.compose.ui.res.painterResource
 import com.example.nubo.R
 import com.example.nubo.model.BoardItem
 import com.example.nubo.ui.theme.AppTextStyles.b2_semibold_16
-import com.example.nubo.ui.theme.AppTextStyles.button_medium_12
+import com.example.nubo.ui.theme.AppTextStyles.label_medium_12
 import com.example.nubo.ui.theme.DefaultText
 import com.example.nubo.ui.theme.Grey200
-import com.example.nubo.data.model.BoardItem
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.GreyMain300
 import kotlin.collections.chunked
@@ -45,22 +43,9 @@ import kotlin.random.Random
 
 @Composable
 fun BoardContent(
+    boards: List<BoardItem>,
     onCardClick: (Int) -> Unit
 ) {
-    val allItems = List(10) { index ->
-        BoardItem(
-            id = index,
-            title = "포토샵",
-            subtitle = "3 카드 3 섹션",
-            createdAt = "1개월 전",
-            isBookmarked = index % 2 == 0,
-            imageUrl = ""
-        )
-    }
-
-    // 아이템 순서 섞기
-    val shuffledItems = allItems.shuffled()
-
     LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
@@ -68,21 +53,13 @@ fun BoardContent(
         verticalArrangement = Arrangement.spacedBy(20.dp),
         contentPadding = PaddingValues(bottom = 20.dp)
     ) {
-        items(shuffledItems.chunked(2)) { rowItems ->
+        items(boards.chunked(2)) { rowItems ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 rowItems.forEach { item ->
-                    // 랜덤으로 카드 타입 결정
-                    val isSimple = Random.nextBoolean()
-                    if (isSimple) {
-                        BoardCardWithText(
-                            board = item,
-                            onClick = { onCardClick(item.id) }
-                        )
+                    if (item.source == "AI") {
+                        BoardCardWithText(board = item, onClick = { onCardClick(item.serverBoardId) })
                     } else {
-                        FullBoardCard(
-                            board = item,
-                            onClick = { onCardClick(item.id) }
-                        )
+                        FullBoardCard(board = item, onClick = { onCardClick(item.serverBoardId) })
                     }
                 }
                 if (rowItems.size < 2) {
@@ -93,7 +70,7 @@ fun BoardContent(
     }
 }
 
-@Composable
+    @Composable
 fun BoardCardWithText(
     board: BoardItem,
     onClick: () -> Unit
@@ -157,13 +134,13 @@ fun BoardCardWithText(
                 Row {
                     Text(
                         text = "${board.subtitle}",
-                        style = button_medium_12,
+                        style = label_medium_12,
                         color = DefaultText,
                         maxLines = 1
                     )
                     Text(
                         text = " • ${board.createdAt}",
-                        style = button_medium_12,
+                        style = label_medium_12,
                         color = Grey200,
                         maxLines = 1
                     )
@@ -238,13 +215,13 @@ fun FullBoardCard(
                 Row {
                     Text(
                         text = "${board.subtitle}",
-                        style = button_medium_12,
+                        style = label_medium_12,
                         color = DefaultText,
                         maxLines = 1
                     )
                     Text(
                         text = " • ${board.createdAt}",
-                        style = button_medium_12,
+                        style = label_medium_12,
                         color = Grey200,
                         maxLines = 1
                     )

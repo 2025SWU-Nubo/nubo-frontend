@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.nubo.model.BoardItem
 import com.example.nubo.model.CardItem
@@ -30,10 +32,26 @@ fun BoardDetailContent(
     LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
         contentPadding = PaddingValues(bottom = 20.dp)
     ) {
+        // [1] 보드: 2열 그리드
+        items(boardItems.chunked(2)) { rowItems ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                rowItems.forEach { item ->
+                    BoardCardWithText(
+                        board = item,
+                        onClick = { onBoardClick(item.id) }
+                    )
+                }
+                if (rowItems.size < 2) {
+                    Spacer(modifier = Modifier.width(190.dp))
+                }
+            }
         }
 
+        // [2] 카드: Masonry 그대로
         item {
             TwoColumnCardMasonry(cardItems)
         }
@@ -50,13 +68,12 @@ fun TwoColumnBoardGrid(
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         for (i in leftItems.indices) {
-                BoardCardWithText(board = leftItems[i], onClick = { onBoardClick(leftItems[i].id) })
+            BoardCardWithText(board = leftItems[i], onClick = { onBoardClick(leftItems[i].id) })
 
-                if (i < rightItems.size) {
-                    BoardCardWithText(board = rightItems[i], onClick = { onBoardClick(rightItems[i].id) })
-                } else {
-                    Spacer(modifier = Modifier.width(180.dp)) // 우측 빈칸
-                }
+            if (i < rightItems.size) {
+                BoardCardWithText(board = rightItems[i], onClick = { onBoardClick(rightItems[i].id) })
+            } else {
+                Spacer(modifier = Modifier.width(180.dp)) // 우측 빈칸
             }
         }
     }
@@ -67,15 +84,30 @@ fun TwoColumnCardMasonry(cardItems: List<CardItem>) {
     val left = cardItems.filterIndexed { i, _ -> i % 2 == 0 }
     val right = cardItems.filterIndexed { i, _ -> i % 2 != 0 }
 
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            left.forEach { MasonryCard(it.height) }
+    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            left.forEach { item ->
+                val height = randomCardHeight(item.id)
+                MasonryCard(height = height)
+            }
         }
 
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            right.forEach { MasonryCard(it.height) }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            right.forEach { item ->
+                val height = randomCardHeight(item.id)
+                MasonryCard(height = height)
+            }
         }
     }
+}
+
+fun randomCardHeight(id: Int): Dp {
+    val heights = listOf(130.dp, 180.dp, 230.dp)
+    return heights[id % heights.size]
 }
