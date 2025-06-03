@@ -14,12 +14,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.ui.Alignment
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
@@ -36,7 +37,10 @@ import com.example.nubo.ui.theme.DefaultText
 import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.GreyMain300
+import kotlin.collections.chunked
 
+
+import kotlin.random.Random
 
 @Composable
 fun BoardContent(
@@ -52,32 +56,38 @@ fun BoardContent(
             imageUrl = ""
         )
     }
-    val leftItems = allItems.filterIndexed { i, _ -> i % 2 == 0 }
-    val rightItems = allItems.filterIndexed { i, _ -> i % 2 != 0 }
+
+    // 아이템 순서 섞기
+    val shuffledItems = allItems.shuffled()
 
     LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 12.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
         contentPadding = PaddingValues(bottom = 20.dp)
     ) {
-        items(leftItems.size) { index ->
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                BoardCardWithText(
-                    board = leftItems[index],
-                    onClick = { onCardClick(leftItems[index].id) }
-                )
-                if (index < rightItems.size) {
-                    FullBoardCard(
-                        board = rightItems[index],
-                        onClick = { onCardClick(rightItems[index].id) }
-                    )
-                } else {
-                    Spacer(modifier = Modifier.width(182.dp))
+        items(shuffledItems.chunked(2)) { rowItems ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                rowItems.forEach { item ->
+                    // 랜덤으로 카드 타입 결정
+                    val isSimple = Random.nextBoolean()
+                    if (isSimple) {
+                        BoardCardWithText(
+                            board = item,
+                            onClick = { onCardClick(item.id) }
+                        )
+                    } else {
+                        FullBoardCard(
+                            board = item,
+                            onClick = { onCardClick(item.id) }
+                        )
+                    }
                 }
-
-        }
+                if (rowItems.size < 2) {
+                    Spacer(modifier = Modifier.width(190.dp))
+                }
+            }
         }
     }
 }
@@ -89,18 +99,17 @@ fun BoardCardWithText(
 ) {
     Box(
         modifier = Modifier
-            .width(182.dp)
+            .width(190.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(Color.White)
             .clickable { onClick() }
-            .padding(top=4.dp,bottom = 11.dp)
+            .padding(top=4.dp, start = 4.dp, end = 4.dp, bottom = 11.dp)
     ) {
         Column(
             modifier = Modifier
                 .width(182.dp)
                 .clickable { onClick() }
         ) {
-            // 카드 전체 영역 180 x 130
             Box(
                 modifier = Modifier
                     .width(182.dp)
@@ -170,7 +179,7 @@ fun FullBoardCard(
 ) {
     Box(
         modifier = Modifier
-            .width(182.dp)
+            .width(190.dp)
             .shadow(1.5.dp, RoundedCornerShape(12.dp))
             .clip(RoundedCornerShape(12.dp))
             .background(Color.White)
@@ -182,7 +191,6 @@ fun FullBoardCard(
                 .width(182.dp)
                 .clickable { onClick() }
         ) {
-            // 카드 전체 영역 180 x 130
             Box(
                 modifier = Modifier
                     .width(182.dp)

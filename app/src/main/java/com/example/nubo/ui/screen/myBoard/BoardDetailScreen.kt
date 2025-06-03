@@ -63,7 +63,7 @@ fun BoardDetailScreen(boardId: String, navController: NavController) {
 
 @Composable
 fun DetailTopBar(onBack: () -> Unit) {
-    val titleText = "포토샵"
+    val titleText = "나의 보드"
 
     Row(
         modifier = Modifier
@@ -96,7 +96,7 @@ fun BoardTitleBar() {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, bottom = 15.dp),
+                .padding(start = 18.dp, end = 16.dp, bottom = 15.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(

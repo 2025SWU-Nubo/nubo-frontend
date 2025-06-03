@@ -119,7 +119,7 @@ fun TitleBar(selectedTab: Int) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, bottom = 15.dp),
+                .padding(start = 18.dp, end = 18.dp, bottom = 15.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
@@ -198,7 +198,7 @@ fun FilterButtons() {
 }
 
 
-// 카드 콘텐츠 영역 스크롤 가능하도록
+// 나의 카드 탭 선택 시 -> 카드 콘텐츠 영역 스크롤 가능하도록
 @Composable
 fun ScrollableCardContent() {
     LazyColumn(
