@@ -32,11 +32,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.nubo.R
-import com.example.nubo.model.BoardItem
-import com.example.nubo.model.CardItem
-import com.example.nubo.ui.component.BoardDetailContent
-import com.example.nubo.ui.theme.AppTextStyles.button_medium_12
-import com.example.nubo.ui.theme.AppTextStyles.head_regular_26
+import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.Purple200
@@ -54,8 +50,8 @@ fun BoardDetailScreen(boardId: String, navController: NavController) {
         // 필터 + 보라 버튼
         BoardFilterButton()
 
-        // 보드 + 카드 콘텐츠
-        BoardDetailSection()
+        // 카드 스크롤 콘텐츠
+        ScrollableCardContent()
     }
 }
 
@@ -92,7 +88,7 @@ fun BoardTitleBar() {
         ) {
             Text(
                 text = titleText,
-                style = head_regular_26,
+                style = AppTextStyles.headline_regular_26,
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
@@ -132,7 +128,7 @@ fun BoardFilterButton() {
                         Spacer(modifier = Modifier.width(2.dp))
                         Text(
                             text = label,
-                            style = button_medium_12,
+                            style = AppTextStyles.label_medium_12,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         when (label) {
@@ -182,7 +178,7 @@ fun BoardFilterButton() {
                     } else {
                         Text(
                             text = label,
-                            style = button_medium_12,
+                            style = AppTextStyles.label_medium_12,
                             color = PurpleMain500
                         )
                     }
@@ -190,21 +186,4 @@ fun BoardFilterButton() {
             }
         }
     }
-}
-// 샘플 더미 데이터
-@Composable
-fun BoardDetailSection() {
-    val boardItems = List(5) {
-        BoardItem(id = it, title = "포토샵", subtitle = "3 카드", createdAt = "1개월 전", isBookmarked = it % 2 == 0, imageUrl = "")
-    }
-    val cardItems = List(7) {
-        val height = listOf(130.dp, 180.dp, 230.dp)[it % 3]
-        CardItem(id = it, height = height)
-    }
-
-    BoardDetailContent(
-        boardItems = boardItems,
-        cardItems = cardItems,
-        onBoardClick = { id -> /* TODO */ }
-    )
 }

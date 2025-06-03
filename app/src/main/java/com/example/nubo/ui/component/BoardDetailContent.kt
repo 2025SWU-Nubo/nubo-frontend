@@ -30,16 +30,10 @@ fun BoardDetailContent(
     LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(bottom = 20.dp)
     ) {
-        // [1] 보드: 2열 그리드
-        item {
-            TwoColumnBoardGrid(boardItems, onBoardClick)
         }
 
-        // [2] 카드: Masonry
         item {
             TwoColumnCardMasonry(cardItems)
         }
@@ -56,7 +50,6 @@ fun TwoColumnBoardGrid(
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         for (i in leftItems.indices) {
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 BoardCardWithText(board = leftItems[i], onClick = { onBoardClick(leftItems[i].id) })
 
                 if (i < rightItems.size) {
@@ -75,7 +68,6 @@ fun TwoColumnCardMasonry(cardItems: List<CardItem>) {
     val right = cardItems.filterIndexed { i, _ -> i % 2 != 0 }
 
     Row(
-        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
