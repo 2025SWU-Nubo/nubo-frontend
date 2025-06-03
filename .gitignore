@@ -54,7 +54,7 @@ Thumbs.db
 # ======================================
 # Google Services / Firebase
 # ======================================
-google-services.json
+app/google-services.json
 crashlytics.properties
 fabric.properties
 
@@ -78,4 +78,8 @@ fastlane/test_output/
 
 # ktlint reports
 **/build/reports/ktlint/
+
+# 잘못된 복사본 방지
+**/* 2.*
+
 

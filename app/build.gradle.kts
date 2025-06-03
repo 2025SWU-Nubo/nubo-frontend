@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -18,27 +19,44 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+
+    signingConfigs {
+        create("release") {
+            storeFile = rootProject.file("nubo-release.jks")
+            storePassword = "918200"
+            keyAlias = "nubo-key"
+            keyPassword = "918200"
+        }
+    }
+
     buildTypes {
-        release {
+        getByName("release") {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
+            matchingFallbacks += listOf("debug")
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     kotlinOptions {
         jvmTarget = "11"
     }
+
+
 
     buildFeatures {
         compose = true
         //noinspection DataBindingWithoutKapt
         dataBinding = true
+
     }
 
     composeOptions {
@@ -53,6 +71,10 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.ui.tooling.preview)
 
     // 테스트 라이브러리
     testImplementation(libs.junit)                          // JUnit 단위 테스트
@@ -65,7 +87,9 @@ dependencies {
     implementation(libs.androidx.activity.compose)          // Compose 지원 Activity
     implementation(libs.androidx.lifecycle.runtime.compose) // Compose에서 Lifecycle 상태 관리를 위한 라이브러리
     implementation(libs.androidx.material.icons.extended)   // Material 아이콘 확장 (filled, outlined 등)
-    implementation(libs.navigation.compose)                 // Navigation Compose
+    implementation(libs.navigation.compose)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.ui.test.junit4)                 // Navigation Compose
 
 
     // Compose Preview 및 디버깅용 도구
@@ -76,5 +100,18 @@ dependencies {
     implementation(libs.coil.compose)
     //composeViewModel
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    debugImplementation(libs.androidx.ui.test.manifest)
+
+    implementation (libs.play.services.auth)
+
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.analytics)
+
+    implementation(libs.retrofit)
+    implementation(libs.converter.gson)
+    implementation(libs.okhttp.logging)
+    implementation(libs.gson)
+
+
 
 }

@@ -26,10 +26,9 @@ import com.example.nubo.R
 import com.example.nubo.ui.component.BoardContent
 import com.example.nubo.ui.component.CardContent
 import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
-import com.example.nubo.ui.theme.AppTextStyles.button_medium_12
-import com.example.nubo.ui.theme.AppTextStyles.head_regular_26
 import com.example.nubo.ui.theme.Grey200
 import androidx.navigation.NavController
+import com.example.nubo.ui.theme.AppTextStyles
 
 
 @Composable
@@ -124,7 +123,7 @@ fun TitleBar(selectedTab: Int) {
         ) {
             Text(
                 text = titleText,
-                style = head_regular_26,
+                style = AppTextStyles.headline_regular_26,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Icon(
@@ -165,7 +164,7 @@ fun FilterButtons() {
                     Spacer(modifier = Modifier.width(2.dp))
                     Text(
                         text = label,
-                        style = button_medium_12,
+                        style = AppTextStyles.label_medium_12,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     when (label) {

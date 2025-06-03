@@ -35,6 +35,7 @@ import com.example.nubo.ui.theme.AppTextStyles.b2_semibold_16
 import com.example.nubo.ui.theme.AppTextStyles.button_medium_12
 import com.example.nubo.ui.theme.DefaultText
 import com.example.nubo.ui.theme.Grey200
+import com.example.nubo.data.model.BoardItem
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.GreyMain300
 import kotlin.collections.chunked
