@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Card
 import androidx.compose.runtime.Composable
@@ -36,10 +37,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import coil.compose.AsyncImage
-import com.example.nubo.model.BoardThumbnailCardItem
+import com.example.nubo.data.model.BoardThumbnailCardItem
 import com.example.nubo.ui.component.CardContent
 import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
+import com.example.nubo.ui.theme.Grey10
+import com.example.nubo.ui.theme.Grey20
 import com.example.nubo.ui.theme.Grey30
 import com.example.nubo.ui.theme.GreyMain100
 import com.example.nubo.ui.theme.NuboAppTheme
@@ -60,7 +63,16 @@ fun HomeScreen(
         item { RecentBoardSection() }
         item { Spacer(modifier = Modifier.height(24.dp)) }
         item { RecommendedCardsSection(onMoreClick = onMoreClick) }
-        item { Spacer(modifier = Modifier.height(24.dp)) }
+        item {  Column {
+            Spacer(modifier = Modifier.height(10.dp)) // 위 여백
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(5.dp)
+                    .background(Grey10)
+            )
+            Spacer(modifier = Modifier.height(18.dp)) // 아래 여백
+        } }
         item { RecommendedVideosSection() }
     }
 }
@@ -69,8 +81,8 @@ fun HomeScreen(
 fun BoardThumbnailCard(item: BoardThumbnailCardItem) {
     Column(
         modifier = Modifier
-            .size(width = 85.dp, height = 75.dp)
-            .shadow(4.dp, shape = RoundedCornerShape(12.dp))
+            .size(width = 120.dp, height = 110.dp)
+            .shadow(2.dp, shape = RoundedCornerShape(12.dp))
             .clip(RoundedCornerShape(12.dp))
             .background(Color.White),
         verticalArrangement = Arrangement.Top
@@ -82,7 +94,7 @@ fun BoardThumbnailCard(item: BoardThumbnailCardItem) {
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(40.dp)
+                .height(58.dp)
                 .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
         )
 
@@ -96,7 +108,7 @@ fun BoardThumbnailCard(item: BoardThumbnailCardItem) {
         ) {
             Text(
                 text = item.category,
-                style = AppTextStyles.caption_regular_9,
+                style = AppTextStyles.b2_medium_16,
                 color = Color.Black,
                 textAlign = TextAlign.Center
             )
@@ -118,16 +130,30 @@ fun RecentBoardSection() {
     )
 
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-        Text(text = "최근 본 보드", style = AppTextStyles.subtitle_medium_16)
+        Text(text = "최근 본 보드", style = AppTextStyles.title_semibold_24)
         Spacer(modifier = Modifier.height(12.dp))
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(horizontal = 4.dp)
-        ) {
-            items(items) { item ->
-                BoardThumbnailCard(item)
+        LazyRow {
+            itemsIndexed(items) { index, item ->
+                //맨 처음과 맨 끝 보드는 패딩값 0으로
+                val leftPadding = if (index == 0) 2.dp else 12.dp
+                val rightPadding = if (index == items.lastIndex) 2.dp else 0.dp
+
+                Box(
+                    modifier = Modifier
+                        .padding(start = leftPadding, end = rightPadding)
+                ) {
+                    BoardThumbnailCard(item)
+                }
             }
         }
+//        LazyRow(
+//            horizontalArrangement = Arrangement.spacedBy(12.dp),
+//            contentPadding = PaddingValues(horizontal = 12.dp)
+//        ) {
+//            items(items) { item ->
+//                BoardThumbnailCard(item)
+//            }
+//        }
     }
 }
 
@@ -138,14 +164,14 @@ fun RecommendedCardsSection(onMoreClick: () -> Unit = {}) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = "추천 학습 카드", style = AppTextStyles.subtitle_medium_16)
+            Text(text = "추천 학습 카드", style = AppTextStyles.title_semibold_24)
             Row( // 텍스트, 아이콘 묶기
                 modifier = Modifier.clickable { onMoreClick() },
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "더보기",
-                    style = AppTextStyles.b3_regular_14,
+                    style = AppTextStyles.label_semibold_14,
                     color = GreyMain100
                 )
                 Icon(
@@ -174,7 +200,7 @@ fun RecommendedCardsSection(onMoreClick: () -> Unit = {}) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 13.dp, vertical = 18.dp),
+                        .padding(horizontal = 16.dp, vertical = 15.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -183,12 +209,12 @@ fun RecommendedCardsSection(onMoreClick: () -> Unit = {}) {
                     ) {
                         Text(
                             text = "봉골레 파스타 레시피",
-                            style = AppTextStyles.b3_semibold_14
+                            style = AppTextStyles.b1_semibold_18
                         )
                         Spacer(modifier = Modifier.height(5.dp))
                         Text(
                             text = "1. 팬에 올리브유와 다진 양파, 마늘, 크러쉬드 페퍼를 넣고 볶아주세요...",
-                            style = AppTextStyles.caption_regular_9,
+                            style = AppTextStyles.b3_regular_14,
                             color = Color.Gray,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -209,7 +235,7 @@ fun RecommendedCardsSection(onMoreClick: () -> Unit = {}) {
 @Composable
 fun RecommendedVideosSection() {
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-        Text(text = "미시청/추천 영상", style = AppTextStyles.subtitle_medium_16)
+        Text(text = "미시청/추천 영상", style = AppTextStyles.title_semibold_24)
     }
     Spacer(modifier = Modifier.height(12.dp))
     CardContent()
