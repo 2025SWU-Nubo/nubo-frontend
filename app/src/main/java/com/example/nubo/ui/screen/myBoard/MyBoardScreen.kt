@@ -29,9 +29,10 @@ import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
 import com.example.nubo.ui.theme.Grey200
 import androidx.navigation.NavController
 import com.example.nubo.ui.theme.AppTextStyles
-import com.example.nubo.model.BoardViewModel
-import com.example.nubo.model.CardViewModel
+import com.example.nubo.data.model.BoardViewModel
+import com.example.nubo.data.model.CardViewModel
 import com.example.nubo.ui.component.MyCardContent
+import java.net.URLEncoder
 
 
 @Composable
@@ -53,8 +54,8 @@ fun MyBoardScreen(
                 0 -> ScrollableCardContent()
                 1 -> BoardContent(
                     boards = boardViewModel.boards.value,
-                    onCardClick = { serverBoardId ->
-                        navController.navigate("board_detail/$serverBoardId")
+                    onCardClick = { boardItem ->
+                        navController.navigate("board_detail/${boardItem.serverBoardId}/${URLEncoder.encode(boardItem.title, "utf-8")}")
                     }
                 )
             }

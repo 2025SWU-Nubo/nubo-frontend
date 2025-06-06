@@ -21,6 +21,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,9 +34,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.nubo.R
+import com.example.nubo.data.model.BoardDetailViewModel
+import com.example.nubo.data.model.BoardResponse
+import com.example.nubo.data.model.CardItemDto
+import com.example.nubo.data.model.SectionDto
 import com.example.nubo.model.BoardItem
 import com.example.nubo.model.CardItem
 import com.example.nubo.ui.component.BoardDetailContent
+import com.example.nubo.ui.component.randomCardHeight
 import com.example.nubo.ui.theme.AppTextStyles.label_medium_12
 import com.example.nubo.ui.theme.AppTextStyles.headline_regular_26
 import com.example.nubo.ui.theme.AppTextStyles.subtitle_medium_16
@@ -43,21 +50,52 @@ import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.Purple200
 import com.example.nubo.ui.theme.PurpleMain500
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.nubo.ui.component.TwoColumnCardMasonry
+import getDisplayDate
+
 
 @Composable
-fun BoardDetailScreen(boardId: String, navController: NavController) {
+fun BoardDetailScreen(
+    boardId: String,
+    boardTitle: String,
+    navController: NavController,
+    viewModel: BoardDetailViewModel = viewModel()
+) {
+    LaunchedEffect(boardId) {
+        viewModel.fetchBoardDetail(boardId)
+    }
+
+
+    val boardState by viewModel.board.collectAsState()
+    val cardsState by viewModel.cards.collectAsState()
+
     Column(modifier = Modifier.fillMaxSize()) {
-        // 뒤로가기
+        //뒤로가기
         DetailTopBar(onBack = { navController.popBackStack() })
 
-        // 타이틀
-        BoardTitleBar()
+        //타이틀
+        BoardTitleBar(title = boardTitle)
 
         // 필터 + 보라 버튼
         BoardFilterButton()
 
-        // 보드 + 카드 콘텐츠
-        BoardDetailSection()
+        // 데이터 있을 때만 출력
+        if (boardState != null) {
+            val boardItems = boardState?.sections?.map { it.toBoardItem() } ?: emptyList()
+            if (boardItems.isNotEmpty()) {
+                BoardDetailContent(
+                    boardItems = boardItems,
+                    cardItems = cardsState.map { it.toCardItem() },
+                    onBoardClick = { /* TODO */ }
+                )
+            } else {
+                // 섹션이 없으면 카드만 보여주기
+                TwoColumnCardMasonry(cardsState.map { it.toCardItem() })
+            }
+        } else {
+            Text("Loading...")
+        }
     }
 }
 
@@ -89,9 +127,7 @@ fun DetailTopBar(onBack: () -> Unit) {
 
 
 @Composable
-fun BoardTitleBar() {
-    val titleText = "포토샵"
-
+fun BoardTitleBar(title: String) {
     Column(modifier = Modifier.padding(top = 27.dp)) {
         Row(
             modifier = Modifier
@@ -100,14 +136,13 @@ fun BoardTitleBar() {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = titleText,
+                text = title,
                 style = headline_regular_26,
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
     }
 }
-
 
 @Composable
 fun BoardFilterButton() {
@@ -201,27 +236,31 @@ fun BoardFilterButton() {
     }
 }
 
-// 샘플 더미 데이터
-@Composable
-fun BoardDetailSection() {
-    val boardItems = List(5) {
-        BoardItem(
-            id = it,
-            serverBoardId = it,
-            title = "포토샵",
-            subtitle = "3 카드",
-            createdAt = "1개월 전",
-            isBookmarked = false
-        )
-    }
-    val cardItems = List(7) {
-        val height = listOf(130.dp, 180.dp, 230.dp)[it % 3]
-        CardItem(id = it, height = height)
-    }
+fun BoardResponse.toBoardItem(): BoardItem {
+    return BoardItem(
+        id = this.id,
+        serverBoardId = this.id,
+        title = this.name,
+        subtitle = "${this.cardCount}카드",
+        createdAt = getDisplayDate(this.updatedAt),
+    )
+}
 
-    BoardDetailContent(
-        boardItems = boardItems,
-        cardItems = cardItems,
-        onBoardClick = { id -> /* TODO */ }
+fun SectionDto.toBoardItem(): BoardItem {
+    return BoardItem(
+        id = this.id,
+        serverBoardId = this.id,
+        title = this.name,
+        subtitle = "${this.cardCount}카드",
+        createdAt = getDisplayDate(this.updatedAt),
+        isBookmarked = this.favorite,
+        source = this.source
+    )
+}
+
+fun CardItemDto.toCardItem(): CardItem {
+    return CardItem(
+        id = this.id,
+        height = randomCardHeight(this.id)
     )
 }

@@ -1,6 +1,8 @@
 package com.example.nubo.data.model
 
+import com.google.gson.annotations.SerializedName
+
 data class CardItemDto(
     val id: Int,
-    val imageUrl: String
+    @SerializedName("videoThumbnailUrl") val imageUrl: String
 )

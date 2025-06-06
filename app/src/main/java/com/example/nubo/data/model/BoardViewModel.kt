@@ -1,4 +1,4 @@
-package com.example.nubo.model
+package com.example.nubo.data.model
 
 import android.util.Log
 import androidx.compose.runtime.mutableStateOf
@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.nubo.data.network.RetrofitClient
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.State
+import com.example.nubo.model.BoardItem
 import getDisplayDate
 
 

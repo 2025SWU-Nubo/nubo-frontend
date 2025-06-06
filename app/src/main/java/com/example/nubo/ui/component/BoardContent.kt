@@ -44,7 +44,7 @@ import kotlin.random.Random
 @Composable
 fun BoardContent(
     boards: List<BoardItem>,
-    onCardClick: (Int) -> Unit
+    onCardClick: (BoardItem) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
@@ -57,9 +57,15 @@ fun BoardContent(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 rowItems.forEach { item ->
                     if (item.source == "AI") {
-                        BoardCardWithText(board = item, onClick = { onCardClick(item.serverBoardId) })
+                        BoardCardWithText(
+                            board = item,
+                            onClick = { onCardClick(item) }
+                        )
                     } else {
-                        FullBoardCard(board = item, onClick = { onCardClick(item.serverBoardId) })
+                        FullBoardCard(
+                            board = item,
+                            onClick = { onCardClick(item) }
+                        )
                     }
                 }
                 if (rowItems.size < 2) {
