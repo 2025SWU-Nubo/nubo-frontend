@@ -1,4 +1,4 @@
-package com.example.nubo.data.model
+package com.example.nubo.model.home
 
 //HomeScreen 최근 본 보드 아이템
 data class BoardThumbnailCardItem(

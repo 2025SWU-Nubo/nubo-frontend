@@ -1,4 +1,4 @@
-package com.example.nubo.data.model
+package com.example.nubo.model.myBoard
 
 data class BoardItem(
     val id: Int,

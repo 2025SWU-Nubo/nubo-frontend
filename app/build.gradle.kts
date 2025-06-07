@@ -1,8 +1,9 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.hilt)
     alias(libs.plugins.compose.compiler)
-    id("com.google.gms.google-services")
+    id("kotlin-kapt")
 }
 
 android {
@@ -19,25 +20,13 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-
-    signingConfigs {
-        create("release") {
-            storeFile = rootProject.file("nubo-release.jks")
-            storePassword = "918200"
-            keyAlias = "nubo-key"
-            keyPassword = "918200"
-        }
-    }
-
     buildTypes {
-        getByName("release") {
+        release {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
-            matchingFallbacks += listOf("debug")
         }
     }
 
@@ -50,13 +39,8 @@ android {
         jvmTarget = "11"
     }
 
-
-
     buildFeatures {
         compose = true
-        //noinspection DataBindingWithoutKapt
-        dataBinding = true
-
     }
 
     composeOptions {
@@ -65,53 +49,40 @@ android {
 }
 
 dependencies {
-    // Android 기본 라이브러리
+    // Compose BOM
+    implementation(platform(libs.androidx.compose.bom))
+
+    // Core dependencies
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
-    implementation(libs.androidx.activity)
-    implementation(libs.androidx.constraintlayout)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.ui.graphics)
+
+    // Compose
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.material3)
+    implementation(libs.androidx.material.icons.extended)
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.ui.tooling)
     implementation(libs.androidx.ui.tooling.preview)
-
-    // 테스트 라이브러리
-    testImplementation(libs.junit)                          // JUnit 단위 테스트
-    androidTestImplementation(libs.androidx.junit)          // Android 테스트용 JUnit 확장
-    androidTestImplementation(libs.androidx.espresso.core)  // UI 테스트용 Espresso
-
-    // Jetpack Compose 관련
-    implementation(libs.androidx.ui)                        // Compose UI 기본 구성
-    implementation(libs.androidx.material3)                 // Material Design 3 컴포넌트
-    implementation(libs.androidx.activity.compose)          // Compose 지원 Activity
-    implementation(libs.androidx.lifecycle.runtime.compose) // Compose에서 Lifecycle 상태 관리를 위한 라이브러리
-    implementation(libs.androidx.material.icons.extended)   // Material 아이콘 확장 (filled, outlined 등)
-    implementation(libs.navigation.compose)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)                 // Navigation Compose
-
-
-    // Compose Preview 및 디버깅용 도구
-    debugImplementation(libs.androidx.ui.tooling)           // Compose UI 툴링 지원 (디버깅용)
-    debugImplementation(libs.androidx.ui.tooling.preview)   // Compose 프리뷰 렌더링 도구
-
-    //coil
-    implementation(libs.coil.compose)
-    //composeViewModel
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-    debugImplementation(libs.androidx.ui.test.manifest)
+    implementation(libs.androidx.compose.runtime.livedata)
+    implementation(libs.coil.compose)
+    implementation(libs.navigation.compose)
 
-    implementation (libs.play.services.auth)
+    // Hilt
+    implementation(libs.hilt.android)
+    kapt(libs.hilt.android.compiler)
+    implementation(libs.hilt.navigation.compose)
 
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.analytics)
-
+    // Retrofit & OkHttp
     implementation(libs.retrofit)
     implementation(libs.converter.gson)
     implementation(libs.okhttp.logging)
     implementation(libs.gson)
 
-
-
+    // Test dependencies
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
 }
