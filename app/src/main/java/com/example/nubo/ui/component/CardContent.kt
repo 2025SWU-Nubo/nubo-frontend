@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
@@ -101,8 +102,8 @@ fun CardContent(cards: List<CardResponse>) {
 fun MasonryCard(item: CardItem, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .height(item.height)
+            .width(180.dp)
+            .height(height)
             .clip(RoundedCornerShape(12.dp))
             .background(Grey50)
             .clickable { onClick() }, // 클릭 시 상세 다이얼로그 호출
