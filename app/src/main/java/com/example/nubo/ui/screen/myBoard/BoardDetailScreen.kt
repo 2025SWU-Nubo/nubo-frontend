@@ -33,10 +33,8 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.nubo.R
 import com.example.nubo.model.BoardItem
-import com.example.nubo.model.CardItem
+import com.example.nubo.model.card.CardItem
 import com.example.nubo.ui.component.BoardDetailContent
-import com.example.nubo.ui.theme.AppTextStyles.button_medium_12
-import com.example.nubo.ui.theme.AppTextStyles.head_regular_26
 import com.example.nubo.ui.theme.AppTextStyles.subtitle_medium_16
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey200

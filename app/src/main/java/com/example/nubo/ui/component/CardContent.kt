@@ -103,7 +103,7 @@ fun MasonryCard(item: CardItem, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .width(180.dp)
-            .height(height)
+            .height(item.height)
             .clip(RoundedCornerShape(12.dp))
             .background(Grey50)
             .clickable { onClick() }, // 클릭 시 상세 다이얼로그 호출

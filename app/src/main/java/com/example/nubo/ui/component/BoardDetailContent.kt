@@ -27,9 +27,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.dp
 import com.example.nubo.model.BoardItem
-import com.example.nubo.model.CardItem
+import com.example.nubo.model.card.CardItem
 import com.example.nubo.ui.theme.AppTextStyles.b2_semibold_16
-import com.example.nubo.ui.theme.AppTextStyles.button_medium_12
 import com.example.nubo.ui.theme.DefaultText
 import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.Grey50
@@ -111,11 +110,13 @@ fun TwoColumnCardMasonry(cardItems: List<CardItem>) {
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            left.forEach { MasonryCard(it.height) }
+            left.forEach { item ->
+                MasonryCard(item = item, onClick = { /* 클릭 이벤트 처리 */ }) }
         }
 
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            right.forEach { MasonryCard(it.height) }
+            right.forEach { item ->
+                MasonryCard(item = item, onClick = { /* 클릭 이벤트 처리 */ }) }
         }
     }
 }
