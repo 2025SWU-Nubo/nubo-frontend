@@ -14,10 +14,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,11 +26,12 @@ import com.example.nubo.ui.theme.Grey50
 
 
 @Composable
-fun MyCardContent(cards: List<MyCardItem>, onCardClick: (Int) -> Unit) {
-
-    // 상태 변수 추가
-    var selectedItem by remember { mutableStateOf<CardItem?>(null) }
-
+fun MyCardContent(
+    cards: List<MyCardItem>,
+    onCardClick: (Int) -> Unit,
+    selectedItem: CardItem?,              // 외부 상태 주입
+    onDismiss: () -> Unit
+) {
     // 양쪽 열 나누기
     val leftItems = cards.filterIndexed { i, _ -> i % 2 == 0 }
     val rightItems = cards.filterIndexed { i, _ -> i % 2 != 0 }
@@ -76,7 +73,7 @@ fun MyCardContent(cards: List<MyCardItem>, onCardClick: (Int) -> Unit) {
     selectedItem?.let { item ->
         DetailCardDialog(
             item = item.toShortformItem(), // CardItem → ShortformItem 변환
-            onDismiss = { selectedItem = null }
+            onDismiss = onDismiss
         )
     }
 }

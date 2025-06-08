@@ -31,6 +31,8 @@ import androidx.navigation.NavController
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.data.model.BoardViewModel
 import com.example.nubo.data.model.CardViewModel
+import com.example.nubo.model.card.CardItem
+import com.example.nubo.model.card.toCardItem
 import com.example.nubo.model.myBoard.MyCardItem
 import com.example.nubo.ui.component.MyCardContent
 import java.net.URLEncoder
@@ -45,6 +47,8 @@ fun MyBoardScreen(
 
     val cardViewModel: CardViewModel = viewModel()
 
+    var selectedItem by remember { mutableStateOf<CardItem?>(null) }
+
     Column(modifier = Modifier.fillMaxSize()) {
         TabHeader(
             selectedTabIndex = selectedTab,
@@ -57,8 +61,11 @@ fun MyBoardScreen(
                 0 -> ScrollableCardContent(
                     cards = cardViewModel.cards.value,
                     onCardClick = { selectedId ->
-                        // TODO: 상세 API 호출
-                    }
+                        val selected = cardViewModel.cards.value.find { it.id == selectedId }
+                        selected?.let { selectedItem = it.toCardItem() }
+                    },
+                    selectedItem = selectedItem,
+                    onDismiss = { selectedItem = null }
                 )
                 1 -> BoardContent(
                     boards = boardViewModel.boards.value,
@@ -214,7 +221,9 @@ fun FilterButtons() {
 @Composable
 fun ScrollableCardContent(
     cards: List<MyCardItem>,
-    onCardClick: (Int) -> Unit
+    onCardClick: (Int) -> Unit,
+    selectedItem: CardItem?,
+    onDismiss: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -222,7 +231,12 @@ fun ScrollableCardContent(
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         item {
-            MyCardContent(cards, onCardClick)
+            MyCardContent(
+                cards = cards,
+                onCardClick = onCardClick,
+                selectedItem = selectedItem,
+                onDismiss = onDismiss
+            )
         }
     }
 }
