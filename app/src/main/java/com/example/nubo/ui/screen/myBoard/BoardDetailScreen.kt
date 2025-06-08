@@ -49,7 +49,6 @@ import com.example.nubo.ui.theme.Purple200
 import com.example.nubo.ui.theme.PurpleMain500
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nubo.model.card.CardItem
-import com.example.nubo.model.myBoard.MyCardItem
 import com.example.nubo.ui.component.TwoColumnCardMasonry
 import com.example.nubo.ui.component.randomCardHeight
 import getDisplayDate
