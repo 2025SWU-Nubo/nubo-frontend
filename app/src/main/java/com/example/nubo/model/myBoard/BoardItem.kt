@@ -1,4 +1,4 @@
-package com.example.nubo.model
+package com.example.nubo.model.myBoard
 
 data class BoardItem(
     val id: Int,                       // 앱 내부 순번 ID
@@ -7,6 +7,6 @@ data class BoardItem(
     val subtitle: String,
     val createdAt: String,
     val isBookmarked: Boolean = false,
-    val imageUrl: String = "",
+    val imageUrl: String? = null,
     val source: String = ""
 )

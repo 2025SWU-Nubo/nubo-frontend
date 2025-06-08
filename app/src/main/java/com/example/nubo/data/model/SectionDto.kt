@@ -9,5 +9,6 @@ data class SectionDto(
     val sectionCount: Int,
     val cardCount: Int,
     val shared: Boolean,
-    val favorite: Boolean
+    val favorite: Boolean,
+    val thumbnailUrl: String?
 )

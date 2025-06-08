@@ -35,13 +35,10 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.nubo.R
 import com.example.nubo.data.model.BoardDetailViewModel
-import com.example.nubo.data.model.BoardResponse
 import com.example.nubo.data.model.CardItemDto
 import com.example.nubo.data.model.SectionDto
-import com.example.nubo.model.BoardItem
-import com.example.nubo.model.CardItem
+import com.example.nubo.model.myBoard.BoardItem
 import com.example.nubo.ui.component.BoardDetailContent
-import com.example.nubo.ui.component.randomCardHeight
 import com.example.nubo.ui.theme.AppTextStyles.label_medium_12
 import com.example.nubo.ui.theme.AppTextStyles.headline_regular_26
 import com.example.nubo.ui.theme.AppTextStyles.subtitle_medium_16
@@ -51,7 +48,10 @@ import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.Purple200
 import com.example.nubo.ui.theme.PurpleMain500
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.nubo.model.card.CardItem
+import com.example.nubo.model.myBoard.MyCardItem
 import com.example.nubo.ui.component.TwoColumnCardMasonry
+import com.example.nubo.ui.component.randomCardHeight
 import getDisplayDate
 
 
@@ -62,6 +62,9 @@ fun BoardDetailScreen(
     navController: NavController,
     viewModel: BoardDetailViewModel = viewModel()
 ) {
+
+    var selectedItem by remember { mutableStateOf<CardItem?>(null) }
+
     LaunchedEffect(boardId) {
         viewModel.fetchBoardDetail(boardId)
     }
@@ -91,7 +94,11 @@ fun BoardDetailScreen(
                 )
             } else {
                 // 섹션이 없으면 카드만 보여주기
-                TwoColumnCardMasonry(cardsState.map { it.toCardItem() })
+                TwoColumnCardMasonry(
+                    cardItems = cardsState.map { it.toCardItem() },
+                    selectedItem = selectedItem,
+                    onCardClick = { selectedItem = it }
+                )
             }
         } else {
             Text("Loading...")
@@ -236,16 +243,6 @@ fun BoardFilterButton() {
     }
 }
 
-fun BoardResponse.toBoardItem(): BoardItem {
-    return BoardItem(
-        id = this.id,
-        serverBoardId = this.id,
-        title = this.name,
-        subtitle = "${this.cardCount}카드",
-        createdAt = getDisplayDate(this.updatedAt),
-    )
-}
-
 fun SectionDto.toBoardItem(): BoardItem {
     return BoardItem(
         id = this.id,
@@ -254,13 +251,20 @@ fun SectionDto.toBoardItem(): BoardItem {
         subtitle = "${this.cardCount}카드",
         createdAt = getDisplayDate(this.updatedAt),
         isBookmarked = this.favorite,
-        source = this.source
+        source = this.source,
+        imageUrl = this.thumbnailUrl
     )
 }
+
 
 fun CardItemDto.toCardItem(): CardItem {
     return CardItem(
         id = this.id,
-        height = randomCardHeight(this.id)
+        height = randomCardHeight(this.id), // 기존 randomCardHeight() 함수 사용
+        title = this.title ?: "No Title", // 서버 데이터 없을 경우 기본값
+        category = this.category ?: "No Category", // 마찬가지
+        description = this.description ?: "No Description",
+        imageUrl = this.imageUrl ?: ""
     )
 }
+

@@ -11,17 +11,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.example.nubo.model.BoardItem
-import com.example.nubo.model.CardItem
+import com.example.nubo.model.card.CardItem
+import com.example.nubo.model.card.toShortformItem
+import com.example.nubo.model.myBoard.BoardItem
 
-// 콘텐츠 타입
-sealed class MixedItem {
-    data class Board(val data: BoardItem) : MixedItem()
-    data class Card(val data: CardItem) : MixedItem()
-}
 
 @Composable
 fun BoardDetailContent(
@@ -29,6 +29,8 @@ fun BoardDetailContent(
     cardItems: List<CardItem>,
     onBoardClick: (Int) -> Unit
 ) {
+    var selectedItem by remember { mutableStateOf<CardItem?>(null) }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
@@ -53,34 +55,22 @@ fun BoardDetailContent(
 
         // [2] 카드: Masonry 그대로
         item {
-            TwoColumnCardMasonry(cardItems)
+            TwoColumnCardMasonry(
+                cardItems = cardItems,
+                selectedItem = selectedItem,
+                onCardClick = { selectedItem = it }
+            )
         }
     }
 }
 
 @Composable
-fun TwoColumnBoardGrid(
-    boardItems: List<BoardItem>,
-    onBoardClick: (Int) -> Unit
-) {
-    val leftItems = boardItems.filterIndexed { index, _ -> index % 2 == 0 }
-    val rightItems = boardItems.filterIndexed { index, _ -> index % 2 != 0 }
-
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        for (i in leftItems.indices) {
-            BoardCardWithText(board = leftItems[i], onClick = { onBoardClick(leftItems[i].id) })
-
-            if (i < rightItems.size) {
-                BoardCardWithText(board = rightItems[i], onClick = { onBoardClick(rightItems[i].id) })
-            } else {
-                Spacer(modifier = Modifier.width(180.dp)) // 우측 빈칸
-            }
-        }
-    }
-}
-
-@Composable
-fun TwoColumnCardMasonry(cardItems: List<CardItem>) {
+fun TwoColumnCardMasonry(
+    cardItems: List<CardItem>,
+    selectedItem: CardItem?,
+    onCardClick: (CardItem?) -> Unit
+)
+{
     val left = cardItems.filterIndexed { i, _ -> i % 2 == 0 }
     val right = cardItems.filterIndexed { i, _ -> i % 2 != 0 }
 
@@ -91,7 +81,11 @@ fun TwoColumnCardMasonry(cardItems: List<CardItem>) {
         ) {
             left.forEach { item ->
                 val height = randomCardHeight(item.id)
-                MasonryCard(height = height)
+                MyMasonryCard(
+                    height = height,
+                    imageUrl = item.imageUrl,
+                    onClick = { onCardClick(item) }
+                )
             }
         }
 
@@ -101,9 +95,19 @@ fun TwoColumnCardMasonry(cardItems: List<CardItem>) {
         ) {
             right.forEach { item ->
                 val height = randomCardHeight(item.id)
-                MasonryCard(height = height)
+                MyMasonryCard(
+                    height = height,
+                    imageUrl = item.imageUrl,
+                    onClick = { onCardClick(item) }
+                )
             }
         }
+    }
+    selectedItem?.let { item ->
+        DetailCardDialog(
+            item = item.toShortformItem(), // 변환 함수 필요 시 작성
+            onDismiss = { onCardClick(null) }
+        )
     }
 }
 

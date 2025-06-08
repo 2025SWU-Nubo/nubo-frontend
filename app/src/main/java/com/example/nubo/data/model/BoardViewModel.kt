@@ -7,7 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.nubo.data.network.RetrofitClient
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.State
-import com.example.nubo.model.BoardItem
+import com.example.nubo.model.myBoard.BoardItem
 import getDisplayDate
 
 
@@ -30,7 +30,8 @@ class BoardViewModel : ViewModel() {
                         title = dto.name,
                         subtitle = "${dto.sectionCount}섹션 ${dto.cardCount}카드",
                         createdAt = getDisplayDate(dto.updatedAt),
-                        source = dto.source
+                        source = dto.source,
+                        imageUrl = dto.thumbnailUrl
                     )
                 }
             } catch (e: Exception) {
