@@ -1,4 +1,4 @@
-package com.example.nubo.model
+package com.example.nubo.model.myBoard
 
 
 data class MyCardItem(

@@ -113,7 +113,12 @@ fun MainScreen() {
             // 나의 보드 상세 화면
             composable("board_detail/{boardId}") { backStackEntry ->
                 val boardId = backStackEntry.arguments?.getString("boardId") ?: ""
-                BoardDetailScreen(boardId = boardId, navController = navController)
+                val boardTitle = backStackEntry.arguments?.getString("boardTitle") ?: "로딩 중..."
+                BoardDetailScreen(
+                    boardId = boardId,
+                    boardTitle = boardTitle,
+                    navController = navController
+                )
             }
         }
     }

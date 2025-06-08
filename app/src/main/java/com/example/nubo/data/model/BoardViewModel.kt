@@ -7,7 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.nubo.data.network.RetrofitClient
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.State
-import com.example.nubo.model.BoardItem
+import com.example.nubo.model.myBoard.BoardItem
 import getDisplayDate
 
 

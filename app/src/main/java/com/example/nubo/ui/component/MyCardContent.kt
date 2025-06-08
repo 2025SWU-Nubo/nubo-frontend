@@ -13,17 +13,27 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
 import coil.compose.AsyncImage
-import com.example.nubo.model.MyCardItem
+import com.example.nubo.model.card.CardItem
+import com.example.nubo.model.card.toShortformItem
 import com.example.nubo.ui.theme.Grey50
 
 
 @Composable
-fun MyCardContent(cards: List<MyCardItem>) {
+fun MyCardContent(cards: List<CardItem>) {
+
+    // 상태 변수 추가
+    var selectedItem by remember { mutableStateOf<CardItem?>(null) }
+
     // 양쪽 열 나누기
     val leftItems = cards.filterIndexed { i, _ -> i % 2 == 0 }
     val rightItems = cards.filterIndexed { i, _ -> i % 2 != 0 }
@@ -33,7 +43,8 @@ fun MyCardContent(cards: List<MyCardItem>) {
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+    )
+    {
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -41,7 +52,8 @@ fun MyCardContent(cards: List<MyCardItem>) {
             leftItems.forEach { item ->
                 MyMasonryCard(
                     height = randomCardHeight(item.id),
-                    imageUrl = item.imageUrl
+                    imageUrl = item.imageUrl,
+                    onClick = { selectedItem = item }
                 )
             }
         }
@@ -53,22 +65,31 @@ fun MyCardContent(cards: List<MyCardItem>) {
             rightItems.forEach { item ->
                 MyMasonryCard(
                     height = randomCardHeight(item.id),
-                    imageUrl = item.imageUrl
+                    imageUrl = item.imageUrl,
+                    onClick = { selectedItem = item }
                 )
             }
         }
     }
+    selectedItem?.let { item ->
+        DetailCardDialog(
+            item = item.toShortformItem(), // CardItem → ShortformItem 변환
+            onDismiss = { selectedItem = null }
+        )
+    }
 }
 
 @Composable
-fun MyMasonryCard(height: Dp, imageUrl: String) {
+fun MyMasonryCard(height: Dp, imageUrl: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .width(180.dp)
             .height(height)
             .clip(RoundedCornerShape(12.dp))
-            .background(Grey50),
+            .background(Grey50)
+            .clickable { onClick() },
         contentAlignment = Alignment.Center
+
     ) {
         AsyncImage(
             model = imageUrl,
@@ -77,4 +98,3 @@ fun MyMasonryCard(height: Dp, imageUrl: String) {
         )
     }
 }
-

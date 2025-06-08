@@ -35,13 +35,10 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.nubo.R
 import com.example.nubo.data.model.BoardDetailViewModel
-import com.example.nubo.data.model.BoardResponse
 import com.example.nubo.data.model.CardItemDto
 import com.example.nubo.data.model.SectionDto
-import com.example.nubo.model.BoardItem
-import com.example.nubo.model.CardItem
+import com.example.nubo.model.myBoard.BoardItem
 import com.example.nubo.ui.component.BoardDetailContent
-import com.example.nubo.ui.component.randomCardHeight
 import com.example.nubo.ui.theme.AppTextStyles.label_medium_12
 import com.example.nubo.ui.theme.AppTextStyles.headline_regular_26
 import com.example.nubo.ui.theme.AppTextStyles.subtitle_medium_16
@@ -51,6 +48,7 @@ import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.Purple200
 import com.example.nubo.ui.theme.PurpleMain500
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.nubo.model.myBoard.MyCardItem
 import com.example.nubo.ui.component.TwoColumnCardMasonry
 import getDisplayDate
 
@@ -86,12 +84,12 @@ fun BoardDetailScreen(
             if (boardItems.isNotEmpty()) {
                 BoardDetailContent(
                     boardItems = boardItems,
-                    cardItems = cardsState.map { it.toCardItem() },
+                    cardItems = cardsState.map { it.toMyCardItem() },
                     onBoardClick = { /* TODO */ }
                 )
             } else {
                 // 섹션이 없으면 카드만 보여주기
-                TwoColumnCardMasonry(cardsState.map { it.toCardItem() })
+                TwoColumnCardMasonry(cardsState.map { it.toMyCardItem() })
             }
         } else {
             Text("Loading...")
@@ -236,16 +234,6 @@ fun BoardFilterButton() {
     }
 }
 
-fun BoardResponse.toBoardItem(): BoardItem {
-    return BoardItem(
-        id = this.id,
-        serverBoardId = this.id,
-        title = this.name,
-        subtitle = "${this.cardCount}카드",
-        createdAt = getDisplayDate(this.updatedAt),
-    )
-}
-
 fun SectionDto.toBoardItem(): BoardItem {
     return BoardItem(
         id = this.id,
@@ -258,9 +246,10 @@ fun SectionDto.toBoardItem(): BoardItem {
     )
 }
 
-fun CardItemDto.toCardItem(): CardItem {
-    return CardItem(
+
+fun CardItemDto.toMyCardItem(): MyCardItem {
+    return MyCardItem(
         id = this.id,
-        height = randomCardHeight(this.id)
+        imageUrl = this.imageUrl ?: "" // 혹시 몰라 null 방지
     )
 }

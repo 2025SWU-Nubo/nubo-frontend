@@ -29,7 +29,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import com.example.nubo.R
-import com.example.nubo.model.BoardItem
+import com.example.nubo.model.myBoard.BoardItem
 import com.example.nubo.ui.theme.AppTextStyles.b2_semibold_16
 import com.example.nubo.ui.theme.AppTextStyles.label_medium_12
 import com.example.nubo.ui.theme.DefaultText
@@ -37,9 +37,6 @@ import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.GreyMain300
 import kotlin.collections.chunked
-
-
-import kotlin.random.Random
 
 @Composable
 fun BoardContent(
@@ -78,8 +75,8 @@ fun BoardContent(
 
     @Composable
 fun BoardCardWithText(
-    board: BoardItem,
-    onClick: () -> Unit
+        board: BoardItem,
+        onClick: () -> Unit
 ) {
     Box(
         modifier = Modifier

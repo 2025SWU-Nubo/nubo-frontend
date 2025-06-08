@@ -1,4 +1,4 @@
-package com.example.nubo.model
+package com.example.nubo.model.myBoard
 
 data class BoardItem(
     val id: Int,                       // 앱 내부 순번 ID
