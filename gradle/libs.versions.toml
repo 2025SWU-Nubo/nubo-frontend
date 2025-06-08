@@ -26,6 +26,11 @@ coil = "2.6.0"
 retrofit = "2.9.0"
 okhttp = "4.10.0"
 gsonVersion = "2.10.1"
+playServicesAuth = "21.3.0"
+
+
+
+
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -67,3 +72,5 @@ gson = { group = "com.google.code.gson", name = "gson", version.ref = "gsonVersi
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitExt" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+
+play-services-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }

@@ -1,10 +1,22 @@
 package com.example.nubo.data.repository
 
+import com.example.nubo.data.model.CardUploadRequest
+import com.example.nubo.data.model.CardUploadResponse
 import com.example.nubo.data.network.CardApiService
+import com.example.nubo.data.network.RetrofitClient.cardApiService
+import retrofit2.Call
 import javax.inject.Inject
 
 //hilt di 적용
 class CardRepository @Inject constructor(private val apiService: CardApiService) {
     fun getCards(token: String, sort: String, page: Int?, size: Int?) =
         apiService.getCards(token, "application/json", sort, page, size)
+
+
+    fun uploadCard(
+        token: String,
+        request: CardUploadRequest
+    ): Call<CardUploadResponse> {
+        return cardApiService.uploadCard("Bearer $token", request = request)
+    }
 }

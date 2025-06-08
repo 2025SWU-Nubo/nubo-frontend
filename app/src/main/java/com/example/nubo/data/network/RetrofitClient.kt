@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit
 
 
 object RetrofitClient {
-    private const val BASE_URL = "https://"
+    private const val BASE_URL = "https://bc9c-2406-5900-1038-741b-f496-70c5-30c9-f684.ngrok-free.app/" // TODO: 서버 URL로 교체
 
     private val logging = HttpLoggingInterceptor(PrettyJsonLogger()).apply {
         level = HttpLoggingInterceptor.Level.BODY
@@ -21,13 +21,21 @@ object RetrofitClient {
         .readTimeout(600, TimeUnit.SECONDS)
         .build()
 
-    val cardApiService: CardApiService by lazy {
+    private val retrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
             .client(okHttpClient)
             .build()
-            .create(CardApiService::class.java)
+    }
+
+
+    val authService: AuthService by lazy {
+        retrofit.create(AuthService::class.java)
+    }
+
+    val cardApiService: CardApiService by lazy {
+        retrofit.create(CardApiService::class.java)
     }
 
     // 나의 보드 전체 조회
@@ -49,5 +57,6 @@ object RetrofitClient {
             .build()
             .create(CardService::class.java)
     }
+
 }
 

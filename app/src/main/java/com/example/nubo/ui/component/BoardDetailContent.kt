@@ -74,6 +74,7 @@ fun TwoColumnCardMasonry(
     val left = cardItems.filterIndexed { i, _ -> i % 2 == 0 }
     val right = cardItems.filterIndexed { i, _ -> i % 2 != 0 }
 
+
     Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         Column(
             modifier = Modifier.weight(1f),
@@ -101,6 +102,7 @@ fun TwoColumnCardMasonry(
                     onClick = { onCardClick(item) }
                 )
             }
+
         }
     }
     selectedItem?.let { item ->

@@ -141,7 +141,7 @@ fun DetailCardFront(
                         horizontalAlignment = Alignment.CenterHorizontally // 텍스트 좌측 정렬
                     ) {
                         Text(
-                            text = item.subtitle,
+                            text = item.category,
                             color = Color.White,
                             style = AppTextStyles.label_medium_12
                         )
@@ -244,7 +244,7 @@ fun DetailCardFrontPreview() {
             id = 1,
             imageUrl = "https://images.unsplash.com/photo-1593642532400-2682810df593",
             title = "Short Video 1",
-            subtitle = "Entertainment",
+            category = "Entertainment",
             description = "This is a detailed description of the short video 1. It may include notes, highlights, or summary text.",
             date = "2025-06-01",
             platform = "YouTube"
