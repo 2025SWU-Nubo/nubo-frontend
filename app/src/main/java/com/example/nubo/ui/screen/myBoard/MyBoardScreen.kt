@@ -31,6 +31,7 @@ import androidx.navigation.NavController
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.data.model.BoardViewModel
 import com.example.nubo.data.model.CardViewModel
+import com.example.nubo.model.myBoard.MyCardItem
 import com.example.nubo.ui.component.MyCardContent
 import java.net.URLEncoder
 
@@ -42,6 +43,8 @@ fun MyBoardScreen(
 ) {
     var selectedTab by remember { mutableStateOf(1) }
 
+    val cardViewModel: CardViewModel = viewModel()
+
     Column(modifier = Modifier.fillMaxSize()) {
         TabHeader(
             selectedTabIndex = selectedTab,
@@ -51,7 +54,12 @@ fun MyBoardScreen(
         FilterButtons()
         Box(modifier = Modifier.weight(1f)) {
             when (selectedTab) {
-                0 -> ScrollableCardContent()
+                0 -> ScrollableCardContent(
+                    cards = cardViewModel.cards.value,
+                    onCardClick = { selectedId ->
+                        // TODO: 상세 API 호출
+                    }
+                )
                 1 -> BoardContent(
                     boards = boardViewModel.boards.value,
                     onCardClick = { boardItem ->
@@ -204,18 +212,17 @@ fun FilterButtons() {
 
 // 나의 카드 탭 선택 시 -> 카드 콘텐츠 영역 스크롤 가능하도록
 @Composable
-fun ScrollableCardContent(cardViewModel: CardViewModel = viewModel()) {
-    val cards = cardViewModel.cards.value
-
+fun ScrollableCardContent(
+    cards: List<MyCardItem>,
+    onCardClick: (Int) -> Unit
+) {
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White),
+        modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 15.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         item {
-            MyCardContent(cards)
+            MyCardContent(cards, onCardClick)
         }
     }
 }

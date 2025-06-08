@@ -25,11 +25,12 @@ import androidx.compose.ui.unit.Dp
 import coil.compose.AsyncImage
 import com.example.nubo.model.card.CardItem
 import com.example.nubo.model.card.toShortformItem
+import com.example.nubo.model.myBoard.MyCardItem
 import com.example.nubo.ui.theme.Grey50
 
 
 @Composable
-fun MyCardContent(cards: List<CardItem>) {
+fun MyCardContent(cards: List<MyCardItem>, onCardClick: (Int) -> Unit) {
 
     // 상태 변수 추가
     var selectedItem by remember { mutableStateOf<CardItem?>(null) }
@@ -53,7 +54,8 @@ fun MyCardContent(cards: List<CardItem>) {
                 MyMasonryCard(
                     height = randomCardHeight(item.id),
                     imageUrl = item.imageUrl,
-                    onClick = { selectedItem = item }
+                    onClick = { onCardClick(item.id) }
+
                 )
             }
         }
@@ -66,7 +68,7 @@ fun MyCardContent(cards: List<CardItem>) {
                 MyMasonryCard(
                     height = randomCardHeight(item.id),
                     imageUrl = item.imageUrl,
-                    onClick = { selectedItem = item }
+                    onClick = { onCardClick(item.id) }
                 )
             }
         }
