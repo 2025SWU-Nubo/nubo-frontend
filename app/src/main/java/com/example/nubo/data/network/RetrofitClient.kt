@@ -29,5 +29,15 @@ object RetrofitClient {
             .build()
             .create(CardApiService::class.java)
     }
+
+    // 나의 보드 전체 조회
+    val boardService: BoardService by lazy {
+        retrofit.create(BoardService::class.java)
+    }
+
+    // 나의 카드 전체 조회
+    val cardService: CardService by lazy {
+        retrofit.create(CardService::class.java)
+    }
 }
 
