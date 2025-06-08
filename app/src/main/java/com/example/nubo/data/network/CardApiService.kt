@@ -8,6 +8,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface CardApiService {
@@ -27,5 +28,12 @@ interface CardApiService {
         @Header("Accept") accept: String = "application/json",
         @Body request: CardUploadRequest
     ): Call<CardUploadResponse>
+
+    @GET("api/card/{cardId}")
+    fun getCardDetail(
+        @Header("Authorization") token: String,
+        @Header("Accept") accept: String = "application/json",
+        @Path("cardId") cardId: Int
+    ): Call<CardDetailResponse>
 
 }
