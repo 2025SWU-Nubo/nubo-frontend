@@ -32,12 +32,22 @@ object RetrofitClient {
 
     // 나의 보드 전체 조회
     val boardService: BoardService by lazy {
-        retrofit.create(BoardService::class.java)
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .client(okHttpClient)
+            .build()
+            .create(BoardService::class.java)
     }
 
     // 나의 카드 전체 조회
     val cardService: CardService by lazy {
-        retrofit.create(CardService::class.java)
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .client(okHttpClient)
+            .build()
+            .create(CardService::class.java)
     }
 }
 
