@@ -28,16 +28,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import coil.compose.AsyncImage
-import com.example.nubo.data.model.BoardThumbnailCardItem
+import com.example.nubo.model.home.BoardThumbnailCardItem
 import com.example.nubo.ui.component.CardContent
 import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
@@ -46,12 +47,22 @@ import com.example.nubo.ui.theme.Grey20
 import com.example.nubo.ui.theme.Grey30
 import com.example.nubo.ui.theme.GreyMain100
 import com.example.nubo.ui.theme.NuboAppTheme
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.nubo.data.model.CardResponse
+import androidx.compose.material.icons.outlined.ChevronRight
+
+
 
 @Composable
 fun HomeScreen(
     padding: PaddingValues = PaddingValues(),
     onMoreClick: () -> Unit = {}
 ) {
+    val cardViewModel: CardViewModel = hiltViewModel()
+    val cardList by cardViewModel.cards.observeAsState(emptyList())
+
+
+
     LazyColumn(
         modifier = Modifier
             .padding(padding)
@@ -73,7 +84,7 @@ fun HomeScreen(
             )
             Spacer(modifier = Modifier.height(18.dp)) // 아래 여백
         } }
-        item { RecommendedVideosSection() }
+        item { RecommendedVideosSection(cardList) }
     }
 }
 
@@ -158,7 +169,7 @@ fun RecentBoardSection() {
 }
 
 @Composable
-fun RecommendedCardsSection(onMoreClick: () -> Unit = {}) {
+fun RecommendedCardsSection( onMoreClick: () -> Unit = {}) {
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -233,12 +244,12 @@ fun RecommendedCardsSection(onMoreClick: () -> Unit = {}) {
 }
 
 @Composable
-fun RecommendedVideosSection() {
+fun RecommendedVideosSection(cards: List<CardResponse>) {
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Text(text = "미시청/추천 영상", style = AppTextStyles.title_semibold_24)
     }
     Spacer(modifier = Modifier.height(12.dp))
-    CardContent()
+    CardContent(cards)
 }
 
 @Preview(showBackground = true, showSystemUi = true)
