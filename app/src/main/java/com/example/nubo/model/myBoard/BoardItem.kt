@@ -7,6 +7,6 @@ data class BoardItem(
     val subtitle: String,
     val createdAt: String,
     val isBookmarked: Boolean = false,
-    val imageUrl: String = "",
+    val imageUrl: String? = null,
     val source: String = ""
 )

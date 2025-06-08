@@ -48,8 +48,10 @@ import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.Purple200
 import com.example.nubo.ui.theme.PurpleMain500
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.nubo.model.card.CardItem
 import com.example.nubo.model.myBoard.MyCardItem
 import com.example.nubo.ui.component.TwoColumnCardMasonry
+import com.example.nubo.ui.component.randomCardHeight
 import getDisplayDate
 
 
@@ -60,6 +62,9 @@ fun BoardDetailScreen(
     navController: NavController,
     viewModel: BoardDetailViewModel = viewModel()
 ) {
+
+    var selectedItem by remember { mutableStateOf<CardItem?>(null) }
+
     LaunchedEffect(boardId) {
         viewModel.fetchBoardDetail(boardId)
     }
@@ -84,12 +89,16 @@ fun BoardDetailScreen(
             if (boardItems.isNotEmpty()) {
                 BoardDetailContent(
                     boardItems = boardItems,
-                    cardItems = cardsState.map { it.toMyCardItem() },
+                    cardItems = cardsState.map { it.toCardItem() },
                     onBoardClick = { /* TODO */ }
                 )
             } else {
                 // 섹션이 없으면 카드만 보여주기
-                TwoColumnCardMasonry(cardsState.map { it.toMyCardItem() })
+                TwoColumnCardMasonry(
+                    cardItems = cardsState.map { it.toCardItem() },
+                    selectedItem = selectedItem,
+                    onCardClick = { selectedItem = it }
+                )
             }
         } else {
             Text("Loading...")
@@ -242,14 +251,20 @@ fun SectionDto.toBoardItem(): BoardItem {
         subtitle = "${this.cardCount}카드",
         createdAt = getDisplayDate(this.updatedAt),
         isBookmarked = this.favorite,
-        source = this.source
+        source = this.source,
+        imageUrl = this.thumbnailUrl
     )
 }
 
 
-fun CardItemDto.toMyCardItem(): MyCardItem {
-    return MyCardItem(
+fun CardItemDto.toCardItem(): CardItem {
+    return CardItem(
         id = this.id,
-        imageUrl = this.imageUrl ?: "" // 혹시 몰라 null 방지
+        height = randomCardHeight(this.id), // 기존 randomCardHeight() 함수 사용
+        title = this.title ?: "No Title", // 서버 데이터 없을 경우 기본값
+        category = this.category ?: "No Category", // 마찬가지
+        description = this.description ?: "No Description",
+        imageUrl = this.imageUrl ?: ""
     )
 }
+

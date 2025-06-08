@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -27,7 +28,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import coil.compose.AsyncImage
 import com.example.nubo.R
 import com.example.nubo.model.myBoard.BoardItem
 import com.example.nubo.ui.theme.AppTextStyles.b2_semibold_16
@@ -98,12 +101,23 @@ fun BoardCardWithText(
                     .clip(RoundedCornerShape(12.dp))
                     .background(Grey50),
             ) {
-                Icon(
-                    imageVector = Icons.Default.Image,
-                    contentDescription = null,
-                    tint = GreyMain300,
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                if (!board.imageUrl.isNullOrEmpty()) {
+                    // 썸네일이 있을 때
+                    AsyncImage(
+                        model = board.imageUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop // 가운데부터 꽉 차게
+                    )
+                } else {
+                    // 기존 아이콘 표시
+                    Icon(
+                        imageVector = Icons.Default.Image,
+                        contentDescription = null,
+                        tint = GreyMain300,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -179,12 +193,23 @@ fun FullBoardCard(
                     .clip(RoundedCornerShape(12.dp))
                     .background(Grey50),
             ) {
-                Icon(
-                    imageVector = Icons.Default.Image,
-                    contentDescription = null,
-                    tint = GreyMain300,
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                if (!board.imageUrl.isNullOrEmpty()) {
+                    // 썸네일이 있을 때
+                    AsyncImage(
+                        model = board.imageUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop // 가운데부터 꽉 차게
+                    )
+                } else {
+                    // 기존 아이콘 표시
+                    Icon(
+                        imageVector = Icons.Default.Image,
+                        contentDescription = null,
+                        tint = GreyMain300,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(6.dp))

@@ -30,7 +30,8 @@ class BoardViewModel : ViewModel() {
                         title = dto.name,
                         subtitle = "${dto.sectionCount}섹션 ${dto.cardCount}카드",
                         createdAt = getDisplayDate(dto.updatedAt),
-                        source = dto.source
+                        source = dto.source,
+                        imageUrl = dto.thumbnailUrl
                     )
                 }
             } catch (e: Exception) {
