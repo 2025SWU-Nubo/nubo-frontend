@@ -29,12 +29,33 @@ object RetrofitClient {
             .build()
     }
 
+
     val authService: AuthService by lazy {
         retrofit.create(AuthService::class.java)
     }
 
     val cardApiService: CardApiService by lazy {
         retrofit.create(CardApiService::class.java)
+    }
+
+    // 나의 보드 전체 조회
+    val boardService: BoardService by lazy {
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .client(okHttpClient)
+            .build()
+            .create(BoardService::class.java)
+    }
+
+    // 나의 카드 전체 조회
+    val cardService: CardService by lazy {
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .client(okHttpClient)
+            .build()
+            .create(CardService::class.java)
     }
 
 }

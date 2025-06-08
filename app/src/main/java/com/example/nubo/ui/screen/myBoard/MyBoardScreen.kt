@@ -22,41 +22,46 @@ import androidx.compose.ui.Alignment
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Icon
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nubo.R
 import com.example.nubo.ui.component.BoardContent
-import com.example.nubo.ui.component.CardContent
 import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
 import com.example.nubo.ui.theme.Grey200
 import androidx.navigation.NavController
 import com.example.nubo.ui.theme.AppTextStyles
+import com.example.nubo.data.model.BoardViewModel
+import com.example.nubo.data.model.CardViewModel
+import com.example.nubo.ui.component.MyCardContent
+import java.net.URLEncoder
 
 
 @Composable
-fun MyBoardScreen(navController: NavController) {
-    var selectedTab by remember { mutableStateOf(1) } //카드 탭 상태 기억
+fun MyBoardScreen(
+    navController: NavController,
+    boardViewModel: BoardViewModel = viewModel()
+) {
+    var selectedTab by remember { mutableStateOf(1) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         TabHeader(
             selectedTabIndex = selectedTab,
             onTabSelected = { selectedTab = it }
         )
-
         TitleBar(selectedTab = selectedTab)
         FilterButtons()
-
         Box(modifier = Modifier.weight(1f)) {
             when (selectedTab) {
                 0 -> ScrollableCardContent()
                 1 -> BoardContent(
-                    onCardClick = { cardId ->
-                        navController.navigate("board_detail/$cardId")
+                    boards = boardViewModel.boards.value,
+                    onCardClick = { boardItem ->
+                        navController.navigate("board_detail/${boardItem.serverBoardId}/${URLEncoder.encode(boardItem.title, "utf-8")}")
                     }
                 )
             }
         }
     }
 }
-
 
 @Composable
 fun TabHeader(
@@ -199,7 +204,9 @@ fun FilterButtons() {
 
 // 나의 카드 탭 선택 시 -> 카드 콘텐츠 영역 스크롤 가능하도록
 @Composable
-fun ScrollableCardContent() {
+fun ScrollableCardContent(cardViewModel: CardViewModel = viewModel()) {
+    val cards = cardViewModel.cards.value
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -207,9 +214,8 @@ fun ScrollableCardContent() {
         contentPadding = PaddingValues(bottom = 15.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        // 카드 두 열을 하나의 Row로 넣어줌
         item {
-            CardContent()
+            MyCardContent(cards)
         }
     }
 }

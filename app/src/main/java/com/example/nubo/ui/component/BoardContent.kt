@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
@@ -28,39 +28,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import coil.compose.AsyncImage
 import com.example.nubo.R
-import com.example.nubo.model.BoardItem
+import com.example.nubo.model.myBoard.BoardItem
 import com.example.nubo.ui.theme.AppTextStyles.b2_semibold_16
-import com.example.nubo.ui.theme.AppTextStyles.button_medium_12
+import com.example.nubo.ui.theme.AppTextStyles.label_medium_12
 import com.example.nubo.ui.theme.DefaultText
 import com.example.nubo.ui.theme.Grey200
-import com.example.nubo.data.model.BoardItem
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.GreyMain300
 import kotlin.collections.chunked
 
-
-import kotlin.random.Random
-
 @Composable
 fun BoardContent(
-    onCardClick: (Int) -> Unit
+    boards: List<BoardItem>,
+    onCardClick: (BoardItem) -> Unit
 ) {
-    val allItems = List(10) { index ->
-        BoardItem(
-            id = index,
-            title = "포토샵",
-            subtitle = "3 카드 3 섹션",
-            createdAt = "1개월 전",
-            isBookmarked = index % 2 == 0,
-            imageUrl = ""
-        )
-    }
-
-    // 아이템 순서 섞기
-    val shuffledItems = allItems.shuffled()
-
     LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
@@ -68,20 +53,18 @@ fun BoardContent(
         verticalArrangement = Arrangement.spacedBy(20.dp),
         contentPadding = PaddingValues(bottom = 20.dp)
     ) {
-        items(shuffledItems.chunked(2)) { rowItems ->
+        items(boards.chunked(2)) { rowItems ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 rowItems.forEach { item ->
-                    // 랜덤으로 카드 타입 결정
-                    val isSimple = Random.nextBoolean()
-                    if (isSimple) {
+                    if (item.source == "AI") {
                         BoardCardWithText(
                             board = item,
-                            onClick = { onCardClick(item.id) }
+                            onClick = { onCardClick(item) }
                         )
                     } else {
                         FullBoardCard(
                             board = item,
-                            onClick = { onCardClick(item.id) }
+                            onClick = { onCardClick(item) }
                         )
                     }
                 }
@@ -93,10 +76,10 @@ fun BoardContent(
     }
 }
 
-@Composable
+    @Composable
 fun BoardCardWithText(
-    board: BoardItem,
-    onClick: () -> Unit
+        board: BoardItem,
+        onClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -118,12 +101,23 @@ fun BoardCardWithText(
                     .clip(RoundedCornerShape(12.dp))
                     .background(Grey50),
             ) {
-                Icon(
-                    imageVector = Icons.Default.Image,
-                    contentDescription = null,
-                    tint = GreyMain300,
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                if (!board.imageUrl.isNullOrEmpty()) {
+                    // 썸네일이 있을 때
+                    AsyncImage(
+                        model = board.imageUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop // 가운데부터 꽉 차게
+                    )
+                } else {
+                    // 기존 아이콘 표시
+                    Icon(
+                        imageVector = Icons.Default.Image,
+                        contentDescription = null,
+                        tint = GreyMain300,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -157,13 +151,13 @@ fun BoardCardWithText(
                 Row {
                     Text(
                         text = "${board.subtitle}",
-                        style = button_medium_12,
+                        style = label_medium_12,
                         color = DefaultText,
                         maxLines = 1
                     )
                     Text(
                         text = " • ${board.createdAt}",
-                        style = button_medium_12,
+                        style = label_medium_12,
                         color = Grey200,
                         maxLines = 1
                     )
@@ -199,12 +193,23 @@ fun FullBoardCard(
                     .clip(RoundedCornerShape(12.dp))
                     .background(Grey50),
             ) {
-                Icon(
-                    imageVector = Icons.Default.Image,
-                    contentDescription = null,
-                    tint = GreyMain300,
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                if (!board.imageUrl.isNullOrEmpty()) {
+                    // 썸네일이 있을 때
+                    AsyncImage(
+                        model = board.imageUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop // 가운데부터 꽉 차게
+                    )
+                } else {
+                    // 기존 아이콘 표시
+                    Icon(
+                        imageVector = Icons.Default.Image,
+                        contentDescription = null,
+                        tint = GreyMain300,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -238,13 +243,13 @@ fun FullBoardCard(
                 Row {
                     Text(
                         text = "${board.subtitle}",
-                        style = button_medium_12,
+                        style = label_medium_12,
                         color = DefaultText,
                         maxLines = 1
                     )
                     Text(
                         text = " • ${board.createdAt}",
-                        style = button_medium_12,
+                        style = label_medium_12,
                         color = Grey200,
                         maxLines = 1
                     )
