@@ -34,7 +34,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.nubo.R
-import com.example.nubo.data.model.BoardDetailViewModel
 import com.example.nubo.data.model.CardItemDto
 import com.example.nubo.data.model.SectionDto
 import com.example.nubo.model.myBoard.BoardItem
@@ -70,7 +69,6 @@ fun BoardDetailScreen(
 
 
     val boardState by viewModel.board.collectAsState()
-    val cardsState by viewModel.cards.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
         //뒤로가기
@@ -85,21 +83,22 @@ fun BoardDetailScreen(
         // 데이터 있을 때만 출력
         if (boardState != null) {
             val boardItems = boardState?.sections?.map { it.toBoardItem() } ?: emptyList()
+            val cardItems = boardState?.cards?.map { it.toCardItem() } ?: emptyList()
+
             if (boardItems.isNotEmpty()) {
                 BoardDetailContent(
                     boardItems = boardItems,
-                    cardItems = cardsState.map { it.toCardItem() },
+                    cardItems = cardItems,
                     onBoardClick = { /* TODO */ }
                 )
             } else {
-                // 섹션이 없으면 카드만 보여주기
                 TwoColumnCardMasonry(
-                    cardItems = cardsState.map { it.toCardItem() },
+                    cardItems = cardItems,
                     selectedItem = selectedItem,
                     onCardClick = { selectedItem = it }
                 )
             }
-        } else {
+        }else {
             Text("Loading...")
         }
     }

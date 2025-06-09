@@ -44,6 +44,6 @@ object NetworkModule {
     @Provides
     fun provideCardApiService(
         retrofit: Retrofit
-    ): CardApiService = retrofit.create(CardApiService::class.java)
+    ): CardService = retrofit.create(CardService::class.java)
 }
 

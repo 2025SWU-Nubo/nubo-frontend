@@ -29,8 +29,6 @@ import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
 import com.example.nubo.ui.theme.Grey200
 import androidx.navigation.NavController
 import com.example.nubo.ui.theme.AppTextStyles
-import com.example.nubo.data.model.BoardViewModel
-import com.example.nubo.data.model.CardViewModel
 import com.example.nubo.model.card.CardItem
 import com.example.nubo.model.card.toCardItem
 import com.example.nubo.model.myBoard.MyCardItem
@@ -45,7 +43,7 @@ fun MyBoardScreen(
 ) {
     var selectedTab by remember { mutableStateOf(1) }
 
-    val cardViewModel: CardViewModel = viewModel()
+    val cardViewModel: MyCardViewModel = viewModel()
 
     var selectedItem by remember { mutableStateOf<CardItem?>(null) }
 
