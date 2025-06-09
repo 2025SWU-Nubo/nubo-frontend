@@ -51,5 +51,8 @@ object NetworkModule {
         retrofit: Retrofit
     ): AuthService = retrofit.create(AuthService::class.java)
 
+    @Provides
+    fun provideBoardService(
+        retrofit: Retrofit
+    ): BoardService = retrofit.create(BoardService::class.java)
 }
-

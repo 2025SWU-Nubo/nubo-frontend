@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Icon
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nubo.R
 import com.example.nubo.ui.component.BoardContent
@@ -39,11 +40,11 @@ import java.net.URLEncoder
 @Composable
 fun MyBoardScreen(
     navController: NavController,
-    boardViewModel: BoardViewModel = viewModel()
+    boardViewModel: BoardViewModel = hiltViewModel()
 ) {
     var selectedTab by remember { mutableStateOf(1) }
 
-    val cardViewModel: MyCardViewModel = viewModel()
+    val cardViewModel: MyCardViewModel = hiltViewModel()
 
     var selectedItem by remember { mutableStateOf<CardItem?>(null) }
 

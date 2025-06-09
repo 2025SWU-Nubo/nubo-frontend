@@ -7,11 +7,17 @@ import androidx.lifecycle.viewModelScope
 import com.example.nubo.data.network.RetrofitClient
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.State
+import com.example.nubo.data.network.BoardService
 import com.example.nubo.model.myBoard.BoardItem
+import dagger.hilt.android.lifecycle.HiltViewModel
 import getDisplayDate
+import javax.inject.Inject
 
 
-class BoardViewModel : ViewModel() {
+@HiltViewModel
+class BoardViewModel @Inject constructor(
+    private val boardService: BoardService
+) : ViewModel() {
     private val _boards = mutableStateOf<List<BoardItem>>(emptyList())
     val boards: State<List<BoardItem>> = _boards
 
@@ -22,7 +28,7 @@ class BoardViewModel : ViewModel() {
     private fun fetchBoards() {
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.boardService.getMyBoards()
+                val response = boardService.getMyBoards()
                 _boards.value = response.mapIndexed { index, dto ->
                     BoardItem(
                         id = index,  // 앱 내부 ID
