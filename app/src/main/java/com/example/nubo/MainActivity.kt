@@ -22,8 +22,9 @@ import com.example.nubo.ui.component.BottomNavBar
 import com.example.nubo.ui.screen.card.ShortformListScreen
 import com.example.nubo.ui.screen.myBoard.BoardDetailScreen
 import com.example.nubo.ui.theme.NuboAppTheme
+import dagger.hilt.android.AndroidEntryPoint
 
-
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

@@ -33,8 +33,8 @@ import com.example.nubo.model.card.CardItem
 import com.example.nubo.model.card.toCardItem
 import com.example.nubo.model.myBoard.MyCardItem
 import com.example.nubo.ui.component.MyCardContent
+import dagger.hilt.android.AndroidEntryPoint
 import java.net.URLEncoder
-
 
 @Composable
 fun MyBoardScreen(

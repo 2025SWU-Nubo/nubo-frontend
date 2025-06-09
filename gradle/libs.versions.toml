@@ -2,9 +2,12 @@
 agp = "8.9.0"
 kotlin = "2.0.21"
 composeBom = "2024.09.00"
-hiltAndroid = "2.50"
-hiltAndroidCompiler = "2.50"
+hiltAndroid = "2.49"
+hiltAndroidCompiler = "2.49"
 hiltNavigationCompose = "1.2.0"
+
+javapoet = "1.13.0"
+
 
 coreKtx = "1.16.0"
 junit = "4.13.2"
@@ -32,6 +35,7 @@ playServicesAuth = "21.3.0"
 
 
 
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
@@ -44,6 +48,7 @@ androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity" }
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+
 
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 androidx-ui = { module = "androidx.compose.ui:ui" }
@@ -74,3 +79,4 @@ androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "j
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 
 play-services-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
+javapoet = { group = "com.squareup", name = "javapoet", version.ref = "javapoet" }

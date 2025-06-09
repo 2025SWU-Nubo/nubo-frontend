@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val BASE_URL = "https://"
+    private const val BASE_URL = "https://api.example.com/"
 
     @Provides
     fun provideLoggingInterceptor(): HttpLoggingInterceptor =
@@ -45,5 +45,11 @@ object NetworkModule {
     fun provideCardApiService(
         retrofit: Retrofit
     ): CardService = retrofit.create(CardService::class.java)
+
+    @Provides
+    fun provideAuthService(
+        retrofit: Retrofit
+    ): AuthService = retrofit.create(AuthService::class.java)
+
 }
 

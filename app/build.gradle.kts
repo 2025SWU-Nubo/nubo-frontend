@@ -46,6 +46,11 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.11"
     }
+
+}
+
+hilt {
+    enableAggregatingTask = false
 }
 
 dependencies {
@@ -87,4 +92,7 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
 
     implementation(libs.play.services.auth)
+    implementation(libs.javapoet)
+
 }
+
