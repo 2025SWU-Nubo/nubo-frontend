@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Card
@@ -43,7 +42,6 @@ import com.example.nubo.ui.component.CardContent
 import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey10
-import com.example.nubo.ui.theme.Grey20
 import com.example.nubo.ui.theme.Grey30
 import com.example.nubo.ui.theme.GreyMain100
 import com.example.nubo.ui.theme.NuboAppTheme
@@ -58,8 +56,8 @@ fun HomeScreen(
     padding: PaddingValues = PaddingValues(),
     onMoreClick: () -> Unit = {}
 ) {
-    val cardViewModel: CardViewModel = hiltViewModel()
-    val cardList by cardViewModel.cards.observeAsState(emptyList())
+    val homeViewModel: HomeViewModel = hiltViewModel()
+    val cardList by homeViewModel.cards.observeAsState(emptyList())
 
 
 

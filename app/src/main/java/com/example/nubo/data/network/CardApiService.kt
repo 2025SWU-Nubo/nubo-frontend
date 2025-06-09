@@ -3,6 +3,7 @@ package com.example.nubo.data.network
 import com.example.nubo.data.model.CardResponse
 import com.example.nubo.data.model.CardUploadRequest
 import com.example.nubo.data.model.CardUploadResponse
+import com.example.nubo.data.model.CardDetailResponse
 import retrofit2.Call
 import retrofit2.http.Body
 import retrofit2.http.GET
