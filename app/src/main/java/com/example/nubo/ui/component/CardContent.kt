@@ -11,11 +11,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -23,15 +23,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.nubo.data.model.CardResponse
 import com.example.nubo.model.card.CardItem
 import com.example.nubo.model.card.toShortformItem
+import com.example.nubo.ui.screen.home.HomeViewModel
 import com.example.nubo.ui.theme.Grey50
 
 
 @Composable
-fun CardContent(cards: List<CardResponse>) {
+fun CardContent(cards: List<CardResponse>,
+                homeViewModel: HomeViewModel = hiltViewModel()) {
 
     // CardResponse를 CardItem으로 변환
     val allItems = cards.mapIndexed { index, card ->
@@ -54,8 +57,14 @@ fun CardContent(cards: List<CardResponse>) {
     val leftItems = allItems.filterIndexed { i, _ -> i % 2 == 0 }
     val rightItems = allItems.filterIndexed { i, _ -> i % 2 != 0 }
 
+
     // 선택된 아이템 상태관리
-    var selectedItem by remember { mutableStateOf<CardItem?>(null) }
+    var selectedCardId by remember { mutableStateOf<Int?>(null) }
+    //    var selectedItem by remember { mutableStateOf<CardItem?>(null) }
+
+    // 카드 상세 정보 관찰
+    val cardDetail by homeViewModel.cardDetail.observeAsState()
+    val isDetailLoading by homeViewModel.isDetailLoading.observeAsState(false)
 
     // Masonry 형태로 두 열 배치
     Row(
@@ -70,7 +79,8 @@ fun CardContent(cards: List<CardResponse>) {
         ) {
             leftItems.forEach { item ->
                 MasonryCard(item = item) {
-                    selectedItem = item
+                    selectedCardId = item.id
+                    homeViewModel.getCardDetail(item.id)
                 }
             }
         }
@@ -81,17 +91,27 @@ fun CardContent(cards: List<CardResponse>) {
         ) {
             rightItems.forEach { item ->
                 MasonryCard(item = item) {
-                    selectedItem = item
+                    selectedCardId = item.id
+                    homeViewModel.getCardDetail(item.id)
                 }
             }
         }
     }
-    selectedItem?.let { item ->
-        DetailCardDialog(
-            item = item.toShortformItem(), // CardItem → ShortformItem 변환
-            onDismiss = { selectedItem = null }
-        )
+
+    // 상세 다이얼로그 표시
+    selectedCardId?.let { cardId ->
+        val selectedItem = allItems.find { it.id == cardId }
+        selectedItem?.let { item ->
+            DetailCardDialog(
+                item = item.toShortformItem(), // CardItem → ShortformItem으로 변환
+                onDismiss = {
+                    selectedCardId = null
+                    homeViewModel.clearCardDetail()
+                }
+            )
+        }
     }
+
 }
 
 @Composable
