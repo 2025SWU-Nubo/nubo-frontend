@@ -1,4 +1,4 @@
-package com.example.nubo.data.model
+package com.example.nubo.ui.screen.myBoard
 
 import android.util.Log
 import androidx.compose.runtime.mutableStateOf

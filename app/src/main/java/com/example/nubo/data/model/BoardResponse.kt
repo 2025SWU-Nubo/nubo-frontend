@@ -9,5 +9,6 @@ data class BoardResponse(
     val cardCount: Int,
     val updatedAt: String,
     val thumbnailUrl: String?,
-    val sections: List<SectionDto>
+    val sections: List<SectionDto>,
+    val cards: List<CardItemDto>
 )
