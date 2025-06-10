@@ -13,9 +13,6 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class CardUploadActivity : AppCompatActivity() {
 
-    @Inject
-    lateinit var authRepository: AuthRepository
-
     private val cardUploadViewModel: CardUploadViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
