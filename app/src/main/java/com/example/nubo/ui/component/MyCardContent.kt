@@ -17,6 +17,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import coil.compose.AsyncImage
 import com.example.nubo.model.card.CardItem
@@ -49,7 +50,7 @@ fun MyCardContent(
         ) {
             leftItems.forEach { item ->
                 MyMasonryCard(
-                    height = randomCardHeight(item.id),
+                    height = randomCardHeight(),
                     imageUrl = item.imageUrl,
                     onClick = { onCardClick(item.id) }
 
@@ -63,7 +64,7 @@ fun MyCardContent(
         ) {
             rightItems.forEach { item ->
                 MyMasonryCard(
-                    height = randomCardHeight(item.id),
+                    height = randomCardHeight(),
                     imageUrl = item.imageUrl,
                     onClick = { onCardClick(item.id) }
                 )
@@ -82,7 +83,7 @@ fun MyCardContent(
 fun MyMasonryCard(height: Dp, imageUrl: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .width(180.dp)
+            .width(182.dp)
             .height(height)
             .clip(RoundedCornerShape(12.dp))
             .background(Grey50)
@@ -93,7 +94,8 @@ fun MyMasonryCard(height: Dp, imageUrl: String, onClick: () -> Unit) {
         AsyncImage(
             model = imageUrl,
             contentDescription = null,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
         )
     }
 }

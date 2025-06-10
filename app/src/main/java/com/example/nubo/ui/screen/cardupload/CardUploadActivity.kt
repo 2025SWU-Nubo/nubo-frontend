@@ -25,6 +25,8 @@ class CardUploadActivity : AppCompatActivity() {
         handleSharedVideoUrl(intent)
     }
 
+    @Inject
+    lateinit var authRepository: AuthRepository
     private fun handleSharedVideoUrl(intent: Intent?) {
         if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
             val videoUrl = intent.getStringExtra(Intent.EXTRA_TEXT)

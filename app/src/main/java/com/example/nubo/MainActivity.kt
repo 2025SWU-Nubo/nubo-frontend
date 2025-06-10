@@ -90,7 +90,9 @@ fun MainScreen() {
             }
 
             // 나의 보드 상세 화면
-            composable("board_detail/{boardId}") { backStackEntry ->
+            composable(
+                "board_detail/{boardId}/{boardTitle}"
+            ) { backStackEntry ->
                 val boardId = backStackEntry.arguments?.getString("boardId") ?: ""
                 val boardTitle = backStackEntry.arguments?.getString("boardTitle") ?: "로딩 중..."
                 BoardDetailScreen(

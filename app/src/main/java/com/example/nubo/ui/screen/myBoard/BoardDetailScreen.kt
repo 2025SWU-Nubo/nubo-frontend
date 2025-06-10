@@ -47,11 +47,11 @@ import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.Purple200
 import com.example.nubo.ui.theme.PurpleMain500
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nubo.model.card.CardItem
 import com.example.nubo.ui.component.TwoColumnCardMasonry
 import com.example.nubo.ui.component.randomCardHeight
 import getDisplayDate
+import java.net.URLDecoder
 
 
 @Composable
@@ -134,6 +134,8 @@ fun DetailTopBar(onBack: () -> Unit) {
 
 @Composable
 fun BoardTitleBar(title: String) {
+    val decodedTitle = URLDecoder.decode(title, "utf-8")
+
     Column(modifier = Modifier.padding(top = 27.dp)) {
         Row(
             modifier = Modifier
@@ -142,7 +144,7 @@ fun BoardTitleBar(title: String) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = title,
+                text = decodedTitle,
                 style = headline_regular_26,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -158,7 +160,7 @@ fun BoardFilterButton() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, bottom = 18.dp),
+            .padding(start = 16.dp, end = 16.dp, bottom = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -247,7 +249,7 @@ fun SectionDto.toBoardItem(): BoardItem {
         id = this.id,
         serverBoardId = this.id,
         title = this.name,
-        subtitle = "${this.cardCount}카드",
+        subtitle = "${this.cardCount} 카드",
         createdAt = getDisplayDate(this.updatedAt),
         isBookmarked = this.favorite,
         source = this.source,
@@ -259,7 +261,7 @@ fun SectionDto.toBoardItem(): BoardItem {
 fun CardItemDto.toCardItem(): CardItem {
     return CardItem(
         id = this.id,
-        height = randomCardHeight(this.id), // 기존 randomCardHeight() 함수 사용
+        height = randomCardHeight(), // 기존 randomCardHeight() 함수 사용
         title = this.title ?: "No Title", // 서버 데이터 없을 경우 기본값
         category = this.category ?: "No Category", // 마찬가지
         description = this.description ?: "No Description",

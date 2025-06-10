@@ -67,7 +67,11 @@ fun MyBoardScreen(
                     onDismiss = { selectedItem = null }
                 )
                 1 -> BoardContent(
-                    boards = boardViewModel.boards.value,
+                    boards = boardViewModel.boards.value.filter {
+                        val parts = it.subtitle.split(" ")
+                        val cardCount = parts.getOrNull(2)?.toIntOrNull() ?: 0
+                        parts.getOrNull(3)?.contains("카드") == true && cardCount > 0
+                    },
                     onCardClick = { boardItem ->
                         navController.navigate("board_detail/${boardItem.serverBoardId}/${URLEncoder.encode(boardItem.title, "utf-8")}")
                     }
@@ -84,7 +88,7 @@ fun TabHeader(
 ) {
     val tabs = listOf("영상", "보드")
 
-    Column(modifier = Modifier.padding(top = 20.dp)) {
+    Column(modifier = Modifier.padding(top = 30.dp)) {
         // 탭 전체 중앙 정렬
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -164,7 +168,7 @@ fun FilterButtons() {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, bottom = 20.dp)
+            .padding(start = 16.dp, end = 16.dp, bottom = 18.dp)
     ) {
         filters.forEach { label ->
             val isSelected = selected == label
@@ -225,7 +229,8 @@ fun ScrollableCardContent(
     onDismiss: () -> Unit
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize()
+            .padding(top = 4.dp),
         contentPadding = PaddingValues(bottom = 15.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {

@@ -4,16 +4,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.nubo.data.model.BoardResponse
 import com.example.nubo.data.network.BoardService
-import com.example.nubo.data.network.RetrofitClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.example.nubo.data.repository.AuthRepository
 
 @HiltViewModel
 class BoardDetailViewModel @Inject constructor(
-    private val boardService: BoardService
+    private val boardService: BoardService,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
     private val _board = MutableStateFlow<BoardResponse?>(null)
     val board: StateFlow<BoardResponse?> = _board
@@ -21,7 +22,8 @@ class BoardDetailViewModel @Inject constructor(
     fun fetchBoardDetail(boardId: String) {
         viewModelScope.launch {
             try {
-                val boardResponse = boardService.getBoardDetail(boardId)
+                val token = "Bearer ${authRepository.getAccessToken()}"
+                val boardResponse = boardService.getBoardDetail(token, boardId = boardId)
                 _board.value = boardResponse
             } catch (e: Exception) {
                 e.printStackTrace()
