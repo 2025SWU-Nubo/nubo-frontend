@@ -17,16 +17,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import com.example.nubo.model.card.ShortformItem
+import com.example.nubo.model.card.CardDetailDialogItem
 import com.example.nubo.R
 import com.example.nubo.ui.theme.Grey30
-import com.example.nubo.ui.theme.Grey700
-import com.example.nubo.ui.theme.GreyMain100
-import com.example.nubo.ui.theme.GreyMain300
 
 @Composable
 fun DetailCardBack(
-    item: ShortformItem,
+    item: CardDetailDialogItem,
     onDismiss: () -> Unit,
     onFlip: () -> Unit
 ) {
@@ -86,6 +83,7 @@ fun DetailCardBack(
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(item.title, style = MaterialTheme.typography.titleLarge)
                 Spacer(modifier = Modifier.height(8.dp))
                 Divider()

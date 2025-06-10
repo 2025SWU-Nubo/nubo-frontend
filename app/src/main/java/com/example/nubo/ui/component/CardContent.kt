@@ -26,10 +26,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.nubo.data.model.CardResponse
+import com.example.nubo.model.card.CardDetailDialogItem
 import com.example.nubo.model.card.CardItem
 import com.example.nubo.model.card.toShortformItem
 import com.example.nubo.ui.screen.home.HomeViewModel
 import com.example.nubo.ui.theme.Grey50
+import formatIsoDateToDisplayLegacy
 
 
 @Composable
@@ -100,15 +102,44 @@ fun CardContent(cards: List<CardResponse>,
 
     // 상세 다이얼로그 표시
     selectedCardId?.let { cardId ->
-        val selectedItem = allItems.find { it.id == cardId }
-        selectedItem?.let { item ->
+        if (isDetailLoading) {
+            // 로딩 상태 표시 (선택사항)
+            // LoadingDialog 또는 기본 다이얼로그에 로딩 표시
+        }
+
+        cardDetail?.let { detail ->
+            // 서버에서 받은 상세 정보로 CardDetailDialogItem 생성
+            val detailItem = CardDetailDialogItem(
+                id = detail.id,
+                imageUrl = detail.videoThumbnailUrl ?: "",
+                videoUrl = detail.videoUrl ?: "",
+                title = detail.title ?: "제목 없음",
+                category = detail.boardName ?: "카테고리 없음",
+                boardSource = detail.boardSource ?: "",
+                description = detail.summary ?: "설명 없음",
+                date = formatIsoDateToDisplayLegacy(detail.createdAt),
+                videoPlatform = detail.videoPlatform ?: "알 수 없음"
+            )
+
             DetailCardDialog(
-                item = item.toShortformItem(), // CardItem → ShortformItem으로 변환
+                item = detailItem,
                 onDismiss = {
                     selectedCardId = null
                     homeViewModel.clearCardDetail()
                 }
             )
+        } ?: run {
+            // cardDetail이 아직 로드되지 않은 경우 기본 아이템으로 표시
+            val selectedItem = allItems.find { it.id == cardId }
+            selectedItem?.let { item ->
+                DetailCardDialog(
+                    item = item.toShortformItem(),
+                    onDismiss = {
+                        selectedCardId = null
+                        homeViewModel.clearCardDetail()
+                    }
+                )
+            }
         }
     }
 

@@ -12,7 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.nubo.model.card.ShortformItem
+import com.example.nubo.model.card.CardDetailDialogItem
 import com.example.nubo.ui.screen.add.AddScreen
 import com.example.nubo.ui.screen.home.HomeScreen
 import com.example.nubo.ui.screen.learn.LearnScreen
@@ -44,28 +44,6 @@ fun MainScreen() {
 
     // 상세 화면에서는 BottomNavBar 숨기기
     val showBottomBar = currentRoute in listOf("home", "myboard", "add", "learn", "profile")
-
-    val items = listOf(
-        ShortformItem(
-            id = 1,
-            imageUrl = "https://source.unsplash.com/random/300x200?video",
-            title = "Short Video 1",
-            category = "Entertainment",
-            description = "This is a detailed description of the short video 1. It may include notes, highlights, or summary text.",
-            date = "2025-06-01",
-            platform = "YouTube"
-        ),
-        ShortformItem(
-            id = 2,
-            imageUrl = "https://source.unsplash.com/random/300x200?exercise",
-            title = "Workout Tips",
-            category = "Fitness",
-            description = "Detailed workout routine, reps, sets, notes, and instructions here.",
-            date = "2025-06-02",
-            platform = "Instagram"
-        )
-    )
-    ShortformListScreen(items = items)
 
     Scaffold(
         bottomBar = {

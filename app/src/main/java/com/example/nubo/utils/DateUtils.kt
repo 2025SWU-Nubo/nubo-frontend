@@ -24,3 +24,17 @@ fun getDisplayDate(updatedAt: String): String {
         "N/A"
     }
 }
+
+fun formatIsoDateToDisplayLegacy(isoDateTime: String?): String {
+    if (isoDateTime.isNullOrEmpty()) return ""
+
+    return try {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", Locale.getDefault())
+        val outputFormat = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())
+
+        val date = inputFormat.parse(isoDateTime)
+        outputFormat.format(date ?: return isoDateTime)
+    } catch (e: Exception) {
+        isoDateTime
+    }
+}

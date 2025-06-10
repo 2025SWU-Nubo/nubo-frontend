@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val BASE_URL = "https://bae4-2406-5900-1038-741b-c576-33f6-c307-2665.ngrok-free.app/"
+    private const val BASE_URL = "https://4f00-2406-5900-1038-741b-c576-33f6-c307-2665.ngrok-free.app/"
 
     @Provides
     fun provideLoggingInterceptor(): HttpLoggingInterceptor =
