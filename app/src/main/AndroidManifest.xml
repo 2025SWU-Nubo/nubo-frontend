@@ -27,7 +27,7 @@
 
         <activity android:name=".ui.screen.onBoardingLogin.OnBoardingLoginActivity"
             android:exported="true"
-            android:label="OnBoardingActivity"
+            android:label="nubo"
             android:theme="@style/Base.Theme.Nubo">
                         <intent-filter>
                             <action android:name="android.intent.action.MAIN" />

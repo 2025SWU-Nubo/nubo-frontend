@@ -3,6 +3,7 @@ package com.example.nubo.ui.screen.myBoard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.nubo.data.model.BoardResponse
+import com.example.nubo.data.model.CardDetailResponse
 import com.example.nubo.data.network.BoardService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +19,7 @@ class BoardDetailViewModel @Inject constructor(
 ) : ViewModel() {
     private val _board = MutableStateFlow<BoardResponse?>(null)
     val board: StateFlow<BoardResponse?> = _board
+
 
     fun fetchBoardDetail(boardId: String) {
         viewModelScope.launch {
