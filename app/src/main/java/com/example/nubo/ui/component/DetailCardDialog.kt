@@ -3,32 +3,22 @@ package com.example.nubo.ui.component
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.*
 import androidx.compose.ui.window.Dialog
-import coil.compose.AsyncImage
-import com.example.nubo.model.card.ShortformItem
+import com.example.nubo.model.card.CardDetailDialogItem
 import kotlinx.coroutines.delay
 
 
 @Composable
 fun DetailCardDialog(
-    item: ShortformItem,
+    item: CardDetailDialogItem,
     onDismiss: () -> Unit
 ) {
 

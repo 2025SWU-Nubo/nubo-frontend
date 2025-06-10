@@ -1,5 +1,6 @@
 package com.example.nubo.ui.screen.home
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -76,7 +77,10 @@ class HomeViewModel @Inject constructor(
                     ) {
                         _isDetailLoading.value = false
                         if (response.isSuccessful) {
+                            val cardDetailResponse = response.body()
+                            Log.d("HomeViewModel", "Card detail fetched successfully: $cardDetailResponse")
                             _cardDetail.value = response.body()
+
                         } else {
                             _cardDetail.value = null
                         }

@@ -14,15 +14,17 @@ data class CardItem(
 )
 
 
-fun CardItem.toShortformItem(): ShortformItem {
-    return ShortformItem(
+fun CardItem.toShortformItem(): CardDetailDialogItem {
+    return CardDetailDialogItem(
         id = this.id,
         imageUrl = this.imageUrl,
         title = this.title,
         category = this.category,
         description = this.description,
-        date = "2025-06-05", // 예시
-        platform = "YouTube"  // 예시
+        date = "", // 예시
+        videoPlatform = "YouTube",
+        videoUrl = "",
+        boardSource = ""
     )
 }
 

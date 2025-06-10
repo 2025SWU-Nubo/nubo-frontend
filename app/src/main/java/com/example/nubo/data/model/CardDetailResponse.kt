@@ -1,5 +1,7 @@
 package com.example.nubo.data.model
 
+import com.example.nubo.model.card.CardDetailDialogItem
+
 data class CardDetailResponse(
     val id: Int,
     val title: String,
@@ -9,6 +11,8 @@ data class CardDetailResponse(
     val boardName: String,
     val videoUrl: String,
     val videoThumbnailUrl: String,
+    val videoPlatform: String,
     val createdAt: String,
     val updatedAt: String
 )
+

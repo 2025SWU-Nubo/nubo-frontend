@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,23 +24,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import coil.compose.rememberAsyncImagePainter
-import coil.decode.ImageSource
 import com.example.nubo.R
-import com.example.nubo.model.card.ShortformItem
-import com.example.nubo.ui.theme.AppFonts
+import com.example.nubo.model.card.CardDetailDialogItem
 import com.example.nubo.ui.theme.AppTextStyles
-import com.example.nubo.ui.theme.AppTypography
 import com.example.nubo.ui.theme.PurpleMain500
 
 @Composable
 fun DetailCardFront(
-    item: ShortformItem,
+    item: CardDetailDialogItem,
     onDismiss: () -> Unit,
     onFlip: () -> Unit
 ) {
@@ -69,7 +63,8 @@ fun DetailCardFront(
 
             // 상단 아이콘 버튼 Row
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth()
+                    .padding(12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 // 닫기 버튼
@@ -148,7 +143,7 @@ fun DetailCardFront(
 
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "AI 카테고리",
+                            text = "${item.boardSource} 카테고리",
                             color = Color.White,
                             style = AppTextStyles.caption_regular_9
                         )
@@ -176,8 +171,8 @@ fun DetailCardFront(
 
                         // 플랫폼 로고 이미지
                         Icon(
-                            painter = painterResource(id = getPlatformLogo(item.platform)),
-                            contentDescription = item.platform,
+                            painter = painterResource(id = getPlatformLogo(item.videoPlatform)),
+                            contentDescription = item.videoPlatform,
                             tint = Color.Unspecified, // 원본 색상 유지
                             modifier = Modifier
                                 .size(24.dp)
@@ -233,25 +228,6 @@ fun DetailCardFront(
             }
         }
     }
-}
-
-
-@Composable
-@Preview(showBackground = true)
-fun DetailCardFrontPreview() {
-    DetailCardFront(
-        item = ShortformItem(
-            id = 1,
-            imageUrl = "https://images.unsplash.com/photo-1593642532400-2682810df593",
-            title = "Short Video 1",
-            category = "Entertainment",
-            description = "This is a detailed description of the short video 1. It may include notes, highlights, or summary text.",
-            date = "2025-06-01",
-            platform = "YouTube"
-        ),
-        onDismiss = {},
-        onFlip = {}
-    )
 }
 
 @Composable
