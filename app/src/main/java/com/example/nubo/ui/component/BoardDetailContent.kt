@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import com.example.nubo.model.card.CardItem
 import com.example.nubo.model.card.toShortformItem
 import com.example.nubo.model.myBoard.BoardItem
+import kotlin.random.Random
 
 
 @Composable
@@ -75,13 +76,17 @@ fun TwoColumnCardMasonry(
     val right = cardItems.filterIndexed { i, _ -> i % 2 != 0 }
 
 
-    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+    Row(
+        modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             left.forEach { item ->
-                val height = randomCardHeight(item.id)
+                val height = randomCardHeight()
                 MyMasonryCard(
                     height = height,
                     imageUrl = item.imageUrl,
@@ -95,7 +100,7 @@ fun TwoColumnCardMasonry(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             right.forEach { item ->
-                val height = randomCardHeight(item.id)
+                val height = randomCardHeight()
                 MyMasonryCard(
                     height = height,
                     imageUrl = item.imageUrl,
@@ -113,7 +118,7 @@ fun TwoColumnCardMasonry(
     }
 }
 
-fun randomCardHeight(id: Int): Dp {
-    val heights = listOf(130.dp, 180.dp, 230.dp)
-    return heights[id % heights.size]
+fun randomCardHeight(): Dp {
+    val heights = listOf(130.dp, 180.dp, 300.dp)
+    return heights[Random.nextInt(heights.size)]
 }

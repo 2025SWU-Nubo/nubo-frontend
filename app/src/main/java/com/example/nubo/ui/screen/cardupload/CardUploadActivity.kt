@@ -2,10 +2,13 @@ package com.example.nubo.ui.screen.cardupload
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import com.example.nubo.data.repository.AuthRepository
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class CardUploadActivity : AppCompatActivity() {
@@ -19,14 +22,23 @@ class CardUploadActivity : AppCompatActivity() {
         handleSharedVideoUrl(intent)
     }
 
+    @Inject
+    lateinit var authRepository: AuthRepository
     private fun handleSharedVideoUrl(intent: Intent?) {
         if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
             val videoUrl = intent.getStringExtra(Intent.EXTRA_TEXT)
             videoUrl?.let {
-                // 바로 업로드 or Compose 화면으로 전달
-                val accessToken = "ACCESS_TOKEN" // 실제로는 SharedPreferences 또는 DI로 가져오기
-                cardUploadViewModel.uploadCard(accessToken, it)
-                observeUploadResult()
+                val accessToken = authRepository.getAccessToken()
+                if (accessToken != null) {
+                    Log.d("handleSharedVideoUrl",accessToken)
+                }
+                if (!accessToken.isNullOrEmpty()) {
+                    cardUploadViewModel.uploadCard(accessToken, it)
+                    observeUploadResult()
+                } else {
+                    Toast.makeText(this, "로그인이 필요합니다.", Toast.LENGTH_SHORT).show()
+                    finish()
+                }
             }
         } else {
             finish()
