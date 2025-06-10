@@ -48,7 +48,6 @@ import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.Purple200
 import com.example.nubo.ui.theme.PurpleMain500
 import com.example.nubo.model.card.CardItem
-import com.example.nubo.ui.component.TwoColumnCardMasonry
 import com.example.nubo.ui.component.randomCardHeight
 import getDisplayDate
 import java.net.URLDecoder
@@ -59,47 +58,70 @@ fun BoardDetailScreen(
     boardId: String,
     boardTitle: String,
     navController: NavController,
-    viewModel: BoardDetailViewModel = hiltViewModel()
+    viewModel: BoardDetailViewModel = hiltViewModel(),
+    myCardViewModel: MyCardViewModel = hiltViewModel()
 ) {
-
-    var selectedItem by remember { mutableStateOf<CardItem?>(null) }
+    var selectedCardId by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(boardId) {
         viewModel.fetchBoardDetail(boardId)
     }
 
-
     val boardState by viewModel.board.collectAsState()
+    val cardDetail = myCardViewModel.cardDetail.value
+    val isDetailLoading = myCardViewModel.isDetailLoading.value
 
     Column(modifier = Modifier.fillMaxSize()) {
-        //뒤로가기
         DetailTopBar(onBack = { navController.popBackStack() })
-
-        //타이틀
         BoardTitleBar(title = boardTitle)
-
-        // 필터 + 보라 버튼
         BoardFilterButton()
 
-        // 데이터 있을 때만 출력
         if (boardState != null) {
             val boardItems = boardState?.sections?.map { it.toBoardItem() } ?: emptyList()
             val cardItems = boardState?.cards?.map { it.toCardItem() } ?: emptyList()
+
+            val cardHeights by remember(boardId) {
+                mutableStateOf(cardItems.map { randomCardHeight() })
+            }
+
 
             if (boardItems.isNotEmpty()) {
                 BoardDetailContent(
                     boardItems = boardItems,
                     cardItems = cardItems,
-                    onBoardClick = { /* TODO */ }
+                    selectedCardId = selectedCardId,
+                    cardHeights = cardHeights,
+                    cardDetail = cardDetail,
+                    isDetailLoading = isDetailLoading,
+                    onCardClick = { cardId ->
+                        selectedCardId = cardId
+                        myCardViewModel.getCardDetail(cardId)
+                    },
+                    onDismiss = {
+                        selectedCardId = null
+                        myCardViewModel.clearCardDetail()
+                    }
                 )
             } else {
-                TwoColumnCardMasonry(
+                // 보드가 없고 카드만 있을 경우에도 동일하게 처리
+                BoardDetailContent(
+                    boardItems = emptyList(),
                     cardItems = cardItems,
-                    selectedItem = selectedItem,
-                    onCardClick = { selectedItem = it }
+                    cardHeights = cardHeights,
+                    selectedCardId = selectedCardId,
+                    cardDetail = cardDetail,
+                    isDetailLoading = isDetailLoading,
+                    onCardClick = { cardId ->
+                        selectedCardId = cardId
+                        myCardViewModel.getCardDetail(cardId)
+                    },
+                    onDismiss = {
+                        selectedCardId = null
+                        myCardViewModel.clearCardDetail()
+                    }
                 )
             }
-        }else {
+        } else {
             Text("Loading...")
         }
     }

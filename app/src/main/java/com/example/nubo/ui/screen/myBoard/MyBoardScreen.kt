@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Icon
+import androidx.compose.ui.unit.Dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nubo.R
@@ -34,6 +35,7 @@ import com.example.nubo.model.card.CardItem
 import com.example.nubo.model.card.toCardItem
 import com.example.nubo.model.myBoard.MyCardItem
 import com.example.nubo.ui.component.MyCardContent
+import com.example.nubo.ui.component.randomCardHeight
 import dagger.hilt.android.AndroidEntryPoint
 import java.net.URLEncoder
 
@@ -45,8 +47,12 @@ fun MyBoardScreen(
     var selectedTab by remember { mutableStateOf(1) }
 
     val cardViewModel: MyCardViewModel = hiltViewModel()
+    var selectedCardId by remember { mutableStateOf<Int?>(null) }
 
-    var selectedItem by remember { mutableStateOf<CardItem?>(null) }
+// 탭이 바뀔 때만 높이를 새로 생성
+    val randomHeights = remember(selectedTab) {
+        cardViewModel.cards.value.map { randomCardHeight() }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         TabHeader(
@@ -59,12 +65,16 @@ fun MyBoardScreen(
             when (selectedTab) {
                 0 -> ScrollableCardContent(
                     cards = cardViewModel.cards.value,
-                    onCardClick = { selectedId ->
-                        val selected = cardViewModel.cards.value.find { it.id == selectedId }
-                        selected?.let { selectedItem = it.toCardItem() }
+                    selectedCardId = selectedCardId,
+                    cardHeights = randomHeights,
+                    onCardClick = { id ->
+                        selectedCardId = id
+                        cardViewModel.getCardDetail(id)
                     },
-                    selectedItem = selectedItem,
-                    onDismiss = { selectedItem = null }
+                    onDismiss = {
+                        selectedCardId = null
+                        cardViewModel.clearCardDetail()
+                    }
                 )
                 1 -> BoardContent(
                     boards = boardViewModel.boards.value.filter {
@@ -80,6 +90,7 @@ fun MyBoardScreen(
         }
     }
 }
+
 
 @Composable
 fun TabHeader(
@@ -224,8 +235,9 @@ fun FilterButtons() {
 @Composable
 fun ScrollableCardContent(
     cards: List<MyCardItem>,
+    selectedCardId: Int?,
     onCardClick: (Int) -> Unit,
-    selectedItem: CardItem?,
+    cardHeights: List<Dp>,
     onDismiss: () -> Unit
 ) {
     LazyColumn(
@@ -237,8 +249,9 @@ fun ScrollableCardContent(
         item {
             MyCardContent(
                 cards = cards,
+                selectedCardId = selectedCardId,
+                cardHeights = cardHeights,
                 onCardClick = onCardClick,
-                selectedItem = selectedItem,
                 onDismiss = onDismiss
             )
         }
