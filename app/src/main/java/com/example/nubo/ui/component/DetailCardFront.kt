@@ -44,7 +44,7 @@ fun DetailCardFront(
             .fillMaxSize()
             .background(Color.White) // 흰색 배경 (테두리 역할)
             .clip(RoundedCornerShape(16.dp))
-            .padding(8.dp) // 8dp 테두리 두께
+            .padding(4.dp) // 8dp 테두리 두께
     ) {
         Box(
             modifier = Modifier
@@ -64,7 +64,7 @@ fun DetailCardFront(
             // 상단 아이콘 버튼 Row
             Row(
                 modifier = Modifier.fillMaxWidth()
-                    .padding(12.dp),
+                    .padding(10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 // 닫기 버튼
@@ -85,7 +85,7 @@ fun DetailCardFront(
                 // Flip 버튼
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(10.dp))
                         .background(Color.White.copy(alpha = 0.7f))
                 ) {
                     IconButton(onClick = { onFlip() }) {
@@ -107,8 +107,9 @@ fun DetailCardFront(
                         brush = Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,  //상단 투명
-                                Color.Black.copy(alpha = 0.5f), // 중간 부분
-                                Color.Black.copy(alpha = 0.7f), // 하단 진한 부분
+                                Color.Black.copy(alpha = 0.5f),
+                                Color.Black.copy(alpha = 0.7f), // 중간 부분
+                                Color.Black.copy(alpha = 0.9f), // 하단 진한 부분
                             )
                         )
                     )
