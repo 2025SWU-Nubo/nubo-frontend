@@ -33,7 +33,7 @@ fun DetailCardBack(
             .fillMaxSize()
             .background(Color.White) // 흰색 배경 (테두리 역할)
             .clip(RoundedCornerShape(16.dp))
-            .padding(8.dp) // 8dp 테두리 두께
+            .padding(4.dp) // 8dp 테두리 두께
     ) {
         Box(
             modifier = Modifier
@@ -54,7 +54,7 @@ fun DetailCardBack(
                     // 닫기 버튼
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(10.dp))
                             .background(Color.Transparent)
                             .border(width = 1.dp, color = Grey30, shape = RoundedCornerShape(12.dp))
                     ) {
@@ -70,7 +70,7 @@ fun DetailCardBack(
                     // Flip 버튼
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(10.dp))
                             .background(Color.Transparent)
                             .border(width = 1.dp, color = Grey30, shape = RoundedCornerShape(12.dp))
                     ) {
@@ -83,7 +83,7 @@ fun DetailCardBack(
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(item.title, style = MaterialTheme.typography.titleLarge)
                 Spacer(modifier = Modifier.height(8.dp))
                 Divider()

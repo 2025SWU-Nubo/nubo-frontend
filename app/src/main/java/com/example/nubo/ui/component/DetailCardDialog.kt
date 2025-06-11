@@ -42,8 +42,8 @@ fun DetailCardDialog(
         ) {
             Card(
                 modifier = Modifier
-                    .width(330.dp)
-                    .height(550.dp)
+                    .width(500.dp)
+                    .height(600.dp)
                     .graphicsLayer {
                         rotationY = rotation
                         cameraDistance = 12 * density
