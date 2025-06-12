@@ -44,7 +44,7 @@ fun DetailCardFront(
             .fillMaxSize()
             .background(Color.White) // 흰색 배경 (테두리 역할)
             .clip(RoundedCornerShape(16.dp))
-            .padding(4.dp) // 8dp 테두리 두께
+            .padding(2.dp) // 8dp 테두리 두께
     ) {
         Box(
             modifier = Modifier
@@ -64,7 +64,7 @@ fun DetailCardFront(
             // 상단 아이콘 버튼 Row
             Row(
                 modifier = Modifier.fillMaxWidth()
-                    .padding(10.dp),
+                    .padding(12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 // 닫기 버튼
@@ -116,7 +116,7 @@ fun DetailCardFront(
                     .fillMaxWidth()
                     .padding(12.dp)
             ) {
-                // 3-1️⃣ 한줄 제목
+                // 3-1.한줄 제목
                 Text(
                     text = item.title,
                     color = Color.White,
@@ -124,11 +124,12 @@ fun DetailCardFront(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // 3-2️⃣ 카테고리, 저장날짜, 저장플랫폼 Row (수정된 부분)
+                // 3-2.카테고리, 저장날짜, 저장플랫폼 Row (수정된 부분)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(60.dp), // Row 높이 고정
+                        .height(60.dp)
+                        .padding(5.dp), // Row 높이 고정
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically // 이 부분 추가
                 ) {
@@ -190,7 +191,7 @@ fun DetailCardFront(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 3-3️⃣ 버튼 Row
+                // 3-3. 버튼 Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Start
@@ -225,7 +226,7 @@ fun DetailCardFront(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
             }
         }
     }

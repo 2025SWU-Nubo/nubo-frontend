@@ -33,7 +33,7 @@ fun DetailCardBack(
             .fillMaxSize()
             .background(Color.White) // 흰색 배경 (테두리 역할)
             .clip(RoundedCornerShape(16.dp))
-            .padding(4.dp) // 8dp 테두리 두께
+            .padding(2.dp) // 8dp 테두리 두께
     ) {
         Box(
             modifier = Modifier
@@ -46,7 +46,7 @@ fun DetailCardBack(
                     shape = RoundedCornerShape(10.dp)
                 )
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(modifier = Modifier.padding(12.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween

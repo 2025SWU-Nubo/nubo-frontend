@@ -10,9 +10,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import androidx.compose.ui.window.Dialog
+import com.example.nubo.R
 import com.example.nubo.model.card.CardDetailDialogItem
+import com.example.nubo.ui.screen.home.HomeScreen
+import com.example.nubo.ui.theme.NuboAppTheme
 import kotlinx.coroutines.delay
 
 
@@ -74,3 +78,27 @@ fun DetailCardDialog(
         }
     }
 }
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun DetailCardDialogScreenPreview() {
+    NuboAppTheme {
+        // 샘플 데이터 생성
+        val sampleItem = CardDetailDialogItem(
+            id = 12344,
+            imageUrl = "https://picsum.photos/400/300",
+            videoUrl = "",
+            title = "샘플 카드",
+            category = "AI 개발",
+            boardSource = "AI",
+            description = "이것은 샘플 카드 설명입니다.",
+            date = "2025.06.11",
+            videoPlatform = "youtube"
+        )
+
+
+        DetailCardDialog(sampleItem,
+            onDismiss = {})
+    }
+}
+
