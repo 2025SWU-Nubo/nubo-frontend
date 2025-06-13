@@ -31,7 +31,7 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("https://your-api-base-url.com") // 실제 API 베이스 URL로 변경
+            .baseUrl("https://b08f-2406-5900-1038-741b-c576-33f6-c307-2665.ngrok-free.app")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -42,6 +42,19 @@ object NetworkModule {
     fun provideAuthService(retrofit: Retrofit): AuthService {
         return retrofit.create(AuthService::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideBoardService(retrofit: Retrofit): BoardService {
+        return retrofit.create(BoardService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCardApiService(retrofit: Retrofit): CardService {
+        return retrofit.create(CardService::class.java)
+    }
+
 }
 
 

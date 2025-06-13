@@ -114,7 +114,7 @@ fun OnBoardingScreen(
     )
 
     LaunchedEffect(Unit) {
-        delay(1500)
+        delay(700)
         showDetail = true
     }
 

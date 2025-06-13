@@ -65,10 +65,7 @@ class OnBoardingViewModel @Inject constructor(
     }
 
     fun onStartButtonClicked() {
-        _uiState.value = _uiState.value.copy(
-            logoShrinked = true,
-            isLoading = true
-        )
+        _uiState.value = _uiState.value.copy(isLoading = true)
         checkLoginStatus()
     }
 
@@ -76,7 +73,9 @@ class OnBoardingViewModel @Inject constructor(
         if (authRepository.isLoggedIn()) {
             validateTokenWithServer()
         } else {
+            // 로그인되지 않은 경우에만 로고 축소 및 로그인 버튼 표시
             _uiState.value = _uiState.value.copy(
+                logoShrinked = true,
                 isLoading = false,
                 showLoginButton = true
             )
