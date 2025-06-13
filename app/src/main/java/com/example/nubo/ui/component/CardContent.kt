@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
@@ -103,8 +104,7 @@ fun CardContent(cards: List<CardResponse>,
     // 상세 다이얼로그 표시
     selectedCardId?.let { cardId ->
         if (isDetailLoading) {
-            // 로딩 상태 표시 (선택사항)
-            // LoadingDialog 또는 기본 다이얼로그에 로딩 표시
+            CircularProgressIndicator()
         }
 
         cardDetail?.let { detail ->

@@ -3,6 +3,7 @@ package com.example.nubo.ui.screen.onBoardingLogin
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -70,6 +71,12 @@ class OnBoardingLoginActivity : ComponentActivity() {
 
         setContent {
             val uiState = viewModel.uiState.collectAsState().value
+            val toastMessage by viewModel.toastMessage.collectAsState()
+
+            toastMessage?.let { message ->
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+                viewModel.clearToastMessage() // 다시 null로 초기화해서 중복 방지
+            }
 
             OnBoardingScreen(
                 uiState = uiState,
@@ -107,7 +114,7 @@ fun OnBoardingScreen(
     )
 
     LaunchedEffect(Unit) {
-        delay(1500)
+        delay(700)
         showDetail = true
     }
 
