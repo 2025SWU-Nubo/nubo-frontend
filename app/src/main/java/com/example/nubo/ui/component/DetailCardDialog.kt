@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import androidx.compose.ui.window.Dialog
@@ -26,8 +27,11 @@ fun DetailCardDialog(
     onDismiss: () -> Unit
 ) {
 
+    val isPreview = LocalInspectionMode.current
 
     var flipped by remember { mutableStateOf(false) }
+    var isPreparing by remember { mutableStateOf(isPreview) }
+
     val rotation by animateFloatAsState(
         targetValue = if (flipped) 180f else 0f,
         animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing)
@@ -35,10 +39,15 @@ fun DetailCardDialog(
     val density = LocalDensity.current.density
 
     // 자동 flip 트리거
-    LaunchedEffect(Unit) {
-        delay(5000L) // 5초 기다림
-        flipped = true
+    if(!isPreview){
+        LaunchedEffect(Unit) {
+            delay(2000L) //데이터 준비 시간
+            isPreparing = false
+            delay(5000L) // 5초 기다림
+            flipped = true
+        }
     }
+
 
     Dialog(onDismissRequest = { onDismiss() }) {
         Box(
@@ -55,29 +64,45 @@ fun DetailCardDialog(
                 shape = RoundedCornerShape(16.dp),
                 elevation = CardDefaults.cardElevation(16.dp)
             ) {
-                if (rotation <= 90f) {
-                    DetailCardFront(
-                        item = item,
-                        onDismiss = onDismiss,
-                        onFlip = { flipped = true }
-                    )
-                } else {
+                if (isPreparing) {
+                    // 로딩 화면
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer { rotationY = 180f }
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
                     ) {
-                        DetailCardBack(
+                        CircularProgressIndicator()
+                    }
+                } else{
+                    if (rotation <= 90f) {
+                        DetailCardFront(
                             item = item,
                             onDismiss = onDismiss,
-                            onFlip = { flipped = false}
+                            onFlip = { flipped = true }
                         )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer { rotationY = 180f }
+                        ) {
+                            DetailCardBack(
+                                item = item,
+                                onDismiss = onDismiss,
+                                onFlip = { flipped = false}
+                            )
+                        }
                     }
                 }
             }
         }
     }
 }
+
+//프리뷰일 경우 delay 작동 안하게
+//@Composable
+//fun isPreview(): Boolean {
+//    return LocalInspectionMode.current
+//}
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable

@@ -1,6 +1,7 @@
 package com.example.nubo.ui.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,9 +43,9 @@ fun DetailCardFront(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White) // 흰색 배경 (테두리 역할)
             .clip(RoundedCornerShape(16.dp))
-            .padding(2.dp) // 8dp 테두리 두께
+            .padding(2.dp)
+            .background(Color.White)
     ) {
         Box(
             modifier = Modifier
