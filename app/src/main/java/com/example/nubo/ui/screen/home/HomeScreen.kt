@@ -48,7 +48,7 @@ import com.example.nubo.ui.theme.NuboAppTheme
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.nubo.data.model.CardResponse
 import androidx.compose.material.icons.outlined.ChevronRight
-
+import androidx.compose.runtime.LaunchedEffect
 
 
 @Composable
@@ -59,6 +59,9 @@ fun HomeScreen(
     val homeViewModel: HomeViewModel = hiltViewModel()
     val cardList by homeViewModel.cards.observeAsState(emptyList())
 
+    LaunchedEffect(Unit) {
+        homeViewModel.loadCards() // initial load
+    }
 
 
     LazyColumn(
@@ -130,6 +133,7 @@ fun BoardThumbnailCard(item: BoardThumbnailCardItem) {
 fun RecentBoardSection() {
 
     // 더미 데이터
+    // 리스트 순서대로 인덱스 생성
     val items = listOf(
         BoardThumbnailCardItem("엔터테인먼트",imageResId = R.drawable.thumbnail_entertainment),
         BoardThumbnailCardItem("AI 및 개발", imageResId = R.drawable.thumbnail_it),
@@ -155,14 +159,6 @@ fun RecentBoardSection() {
                 }
             }
         }
-//        LazyRow(
-//            horizontalArrangement = Arrangement.spacedBy(12.dp),
-//            contentPadding = PaddingValues(horizontal = 12.dp)
-//        ) {
-//            items(items) { item ->
-//                BoardThumbnailCard(item)
-//            }
-//        }
     }
 }
 

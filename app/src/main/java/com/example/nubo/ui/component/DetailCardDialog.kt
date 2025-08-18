@@ -43,7 +43,7 @@ fun DetailCardDialog(
         LaunchedEffect(Unit) {
             delay(2000L) //데이터 준비 시간
             isPreparing = false
-            delay(5000L) // 5초 기다림
+            delay(3000L) // 5초 기다림
             flipped = true
         }
     }

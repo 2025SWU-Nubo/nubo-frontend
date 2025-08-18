@@ -35,7 +35,7 @@ class HomeViewModel @Inject constructor(
         loadCards()
     }
 
-    private fun loadCards() {
+    fun loadCards() {
         _isLoading.value = true
 
         authRepository.getAccessToken()?.let { token ->

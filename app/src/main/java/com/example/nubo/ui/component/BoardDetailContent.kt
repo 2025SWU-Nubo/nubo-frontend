@@ -44,9 +44,7 @@ fun BoardDetailContent(
 
 
     LazyColumn(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(20.dp),
         contentPadding = PaddingValues(bottom = 20.dp)
     ) {
