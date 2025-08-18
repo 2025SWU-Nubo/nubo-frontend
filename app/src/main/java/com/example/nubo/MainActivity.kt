@@ -49,6 +49,8 @@ import com.example.nubo.ui.screen.learn.LearnScreen
 import com.example.nubo.ui.screen.myBoard.MyBoardScreen
 import com.example.nubo.ui.screen.profile.ProfileScreen
 import com.example.nubo.ui.component.BottomNavBar
+import com.example.nubo.ui.component.sheet.BottomSheetHost
+import com.example.nubo.ui.component.sheet.SheetRoute
 import com.example.nubo.ui.screen.card.ShortformListScreen
 import com.example.nubo.ui.screen.myBoard.BoardDetailScreen
 import com.example.nubo.ui.theme.AppFonts
@@ -80,10 +82,7 @@ fun MainScreen() {
 
     // 상세 화면에서는 BottomNavBar 숨기기
     val showBottomBar = currentRoute in listOf("home", "myboard", "add", "learn", "profile")
-
-    // 콘텐츠 추가 전역 시트 상태
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var sheetVisible by remember { mutableStateOf(false) }
+    var sheetRoute by remember { mutableStateOf<SheetRoute?>(null) }
 
 
     Scaffold(
@@ -95,7 +94,7 @@ fun MainScreen() {
                         when (index) {
                             0 -> navController.navigate("home") { popUpTo("home"); launchSingleTop = true }
                             1 -> navController.navigate("myboard") { popUpTo("home"); launchSingleTop = true }
-                            2 -> sheetVisible = true // + 버튼 누르면 시트 열기
+                            2 -> sheetRoute = SheetRoute.AddMenu
                             3 -> navController.navigate("learn") { popUpTo("home"); launchSingleTop = true }
                             4 -> navController.navigate("profile") { popUpTo("home"); launchSingleTop = true }
                         }
@@ -125,74 +124,23 @@ fun MainScreen() {
         }
     }
 
-    // 전역 모달 바텀 시트
-    if (sheetVisible) {
-        ModalBottomSheet(
-            onDismissRequest = { sheetVisible = false },
-            sheetState = sheetState,
-            dragHandle = { BottomSheetDefaults.DragHandle() },
-            containerColor = Color.White,
-            shape = RoundedCornerShape(topStart = 15.dp, topEnd = 15.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 15.dp, end = 15.dp, top = 0.dp, bottom = 15.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text("추가 생성하기", style = AppTextStyles.b2_semibold_16)
-
-                Spacer(Modifier.height(20.dp))
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(40.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                ) {
-                    SheetOptionButton(
-                        icon = Icons.Outlined.Image,
-                        text = "영상",
-                        onClick = {}
-                    )
-                    SheetOptionButton(
-                        icon = Icons.Outlined.Folder,
-                        text = "보드",
-                        onClick = {  }
-                    )
-                }
-            }
+    BottomSheetHost(
+        route = sheetRoute,
+        onDismiss = { sheetRoute = null },
+        onGoCreateBoard = { sheetRoute = SheetRoute.CreateBoard },
+        onGoInvite = { sheetRoute = SheetRoute.Invite },
+        onCreateBoard = { name, isShared ->
+            // TODO: call ViewModel to create board
+            sheetRoute = null
+            // Optional: navigate to new board detail
+            // navController.navigate("board_detail/$newId/${Uri.encode(name)}")
+        },
+        onInvite = { email ->
+            // TODO: invite logic via ViewModel
         }
-    }
+    )
 }
 
-@Composable
-fun SheetOptionButton(
-    icon: ImageVector,
-    text: String,
-    onClick: () -> Unit
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Surface(
-            onClick = onClick,
-            shape = RoundedCornerShape(12.dp),
-            color = Grey20,
-            tonalElevation = 1.dp,
-            modifier = Modifier.size(64.dp)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = Grey700
-                )
-            }
-        }
-        Spacer(Modifier.height(6.dp))
-        Text(text, style = AppTextStyles.b3_medium_14)
-    }
-}
 
 fun getSelectedIndex(route: String?): Int {
     return when (route) {
