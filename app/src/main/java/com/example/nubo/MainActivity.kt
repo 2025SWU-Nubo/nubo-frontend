@@ -137,7 +137,8 @@ fun MainScreen() {
         },
         onInvite = { email ->
             // TODO: invite logic via ViewModel
-        }
+        },
+        onGoAddVideo = { sheetRoute = SheetRoute.AddVideo }
     )
 }
 
