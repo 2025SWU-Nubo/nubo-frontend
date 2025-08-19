@@ -5,4 +5,5 @@ sealed interface SheetRoute {
     data object AddMenu : SheetRoute
     data object CreateBoard : SheetRoute
     data object Invite : SheetRoute
+    data object AddVideo : SheetRoute // 영상 추가
 }

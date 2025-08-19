@@ -15,6 +15,7 @@ fun BottomSheetHost(
     onGoInvite: () -> Unit,                 // CreateBoard -> Invite
     onCreateBoard: (String, Boolean) -> Unit,// create board action
     onInvite: (String) -> Unit,             // invite action
+    onGoAddVideo: () -> Unit,  // add video action
     modifier: Modifier = Modifier
 ) {
     if (route == null) return
@@ -32,7 +33,7 @@ fun BottomSheetHost(
         when (route) {
             SheetRoute.AddMenu -> AddMenuSheet(
                 onClose = onDismiss,
-                onVideoClick = { /* TODO: video */ },
+                onVideoClick = onGoAddVideo,
                 onBoardClick = onGoCreateBoard
             )
             SheetRoute.CreateBoard -> CreateBoardSheet(
@@ -43,6 +44,9 @@ fun BottomSheetHost(
             SheetRoute.Invite -> InviteSheet(
                 onClose = onDismiss,
                 onInvite = onInvite
+            )
+            SheetRoute.AddVideo -> AddVideoSheet(
+                onClose = onDismiss
             )
         }
     }
