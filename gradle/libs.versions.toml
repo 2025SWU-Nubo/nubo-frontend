@@ -18,6 +18,10 @@ material = "1.12.0"
 activity = "1.10.1"
 constraintlayout = "2.2.1"
 material3 = "1.3.2"
+richtextCommonmark = "0.20.0"
+richtextCommonmarkVersion = "1.0.0-alpha03"
+richtextUiMaterial3 = "0.20.0"
+richtextUiMaterial3Version = "1.0.0-alpha03"
 ui = "1.8.1"
 lifecycleRuntimeCompose = "2.9.0"
 viewmodelCompose = "2.9.0"
@@ -80,3 +84,7 @@ androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-co
 
 play-services-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
 javapoet = { group = "com.squareup", name = "javapoet", version.ref = "javapoet" }
+#richtext-commonmark = { module = "com.halilibo.compose-richtext:richtext-commonmark", version.ref = "richtextCommonmark" }
+richtext-commonmark-v100alpha03 = { module = "com.halilibo.compose-richtext:richtext-commonmark", version.ref = "richtextCommonmarkVersion" }
+#richtext-ui-material3 = { module = "com.halilibo.compose-richtext:richtext-ui-material3", version.ref = "richtextUiMaterial3" }
+richtext-ui-material3-v100alpha03 = { module = "com.halilibo.compose-richtext:richtext-ui-material3", version.ref = "richtextUiMaterial3Version" }

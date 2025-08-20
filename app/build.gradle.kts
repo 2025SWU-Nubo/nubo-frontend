@@ -94,6 +94,11 @@ dependencies {
 
     implementation(libs.play.services.auth)
     implementation(libs.javapoet)
+//    implementation(libs.richtext.commonmark) // 마크다운
+//    implementation(libs.richtext.ui.material3) // M3 스타일
+    implementation(libs.coil.compose)
+    implementation(libs.richtext.ui.material3.v100alpha03)
+    implementation(libs.richtext.commonmark.v100alpha03)
 
 }
 
