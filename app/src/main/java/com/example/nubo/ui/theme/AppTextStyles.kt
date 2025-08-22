@@ -23,6 +23,8 @@ object AppTextStyles {
     val title_semibold_24 = style(24.sp, FontWeight.SemiBold)
     val title_regular_24 = style(24.sp, FontWeight.Normal)
 
+    val title_semibold_22 = style(22.sp, FontWeight.SemiBold)
+
     // Subtitle
     val subtitle_semibold_20 = style(20.sp, FontWeight.SemiBold)
     val subtitle_medium_16 = style(16.sp, FontWeight.Medium)
@@ -47,7 +49,9 @@ object AppTextStyles {
 
     // Label
     val label_semibold_14 = style(14.sp, FontWeight.SemiBold)
+    val label_medium_14 = style(14.sp, FontWeight.Medium)
     val label_medium_12 = style(12.sp, FontWeight.Medium)
+    val label_SemiBold_12 = style(12.sp, FontWeight.SemiBold)
 
     // Caption
     val caption_regular_9 = style(9.sp, FontWeight.Normal)

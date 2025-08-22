@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,12 +19,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PersonAdd
@@ -48,17 +51,28 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey10
 import com.example.nubo.ui.theme.Grey50
+import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.GreyMain100
 import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.PurpleMain500
+import com.example.nubo.R
+import com.example.nubo.ui.theme.Purple50
+import com.example.nubo.ui.theme.Purple700
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.sp
+import com.example.nubo.ui.theme.Grey200
+
 
 @Composable
 fun CreateBoardSheet(
     onClose: () -> Unit,
+    onBack: () -> Unit,
     onInviteClick: () -> Unit,
     onCreate: (name : String, inShared: Boolean) -> Unit
 ){
@@ -71,53 +85,67 @@ fun CreateBoardSheet(
             .fillMaxWidth()
             .navigationBarsPadding()
             .imePadding()
-            .padding(start = 20.dp,end=20.dp, top = 0.dp, bottom = 15.dp),
+            .padding(horizontal = 18.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+
         //헤더
-        Row(modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically)
-        {
-            Spacer(Modifier.width(70.dp))
-            Spacer(modifier = Modifier.weight(1f))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(),            // Material 권장 최소 터치 영역
+            contentAlignment = Alignment.Center
+        ) {
+            // 왼쪽 뒤로가기
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .offset(x = (-18).dp)
+                    .size(48.dp)           // touch target 확보
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_arrow_back),
+                    contentDescription = "뒤로가기",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            // 가운데 타이틀
             Text(
                 text = "보드 만들기",
-                style = AppTextStyles.b2_semibold_16
+                style = AppTextStyles.b1_semibold_18,
+                color = MaterialTheme.colorScheme.onSurface
             )
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            Button(
-                shape = RoundedCornerShape(10.dp),
-                onClick = onInviteClick,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = PurpleMain500,
-                    contentColor = Color.White
-                )) {
-                Text(text = "생성", style = AppTextStyles.label_semibold_14)
-            }
         }
-        Spacer(Modifier.height(22.dp))
+
+        Spacer(Modifier.height(28.dp))
 
         //보드 이름
         Column(
             horizontalAlignment = Alignment.Start,
-            modifier = Modifier.padding(horizontal = 15.dp)
         ) {
-            Text("보드 이름", style = AppTextStyles.b2_medium_16)
+            Text("보드 이름", style = AppTextStyles.b2_semibold_16)
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
                 value = name,
-                onValueChange = {name = it},
+                onValueChange = { name = it },          // it: String
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
+                maxLines = 1,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),                     // 높이 고정
+                shape = RoundedCornerShape(40.dp),      // 보더 고정
+                textStyle = TextStyle(
+                    fontSize = 14.sp,
+                    lineHeight = 16.sp
+                ),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = PurpleMain500,
                     unfocusedBorderColor = Grey50,
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Grey10,
-                )
+                ),
+                placeholder = { Text("보드 이름", style = AppTextStyles.b3_regular_14, color = Grey200) }
             )
         }
 
@@ -127,10 +155,9 @@ fun CreateBoardSheet(
         Column(
             horizontalAlignment = Alignment.Start,
             modifier = Modifier
-                .fillMaxWidth()                 // ✅ 가로 꽉 채우기
-                .padding(horizontal = 15.dp),
+                .fillMaxWidth()                 // 가로 꽉 채우기
         ) {
-            Text("보드 유형", style = AppTextStyles.b2_medium_16)
+            Text("보드 유형", style = AppTextStyles.b2_semibold_16)
             Spacer(Modifier.height(8.dp))
             Row (
                 modifier = Modifier.fillMaxWidth(),
@@ -139,19 +166,23 @@ fun CreateBoardSheet(
                 SegButton(
                     text ="개인 보드",
                     selected = !isShared,
-                    onClick = {isShared = false}
+                    onClick = {isShared = false},
+                    iconRes = R.drawable.unselected_private
                 )
 
                 SegButton(
                     text ="공유 보드",
                     selected = isShared,
-                    onClick = {isShared = true}
+                    onClick = {isShared = true},
+                    iconRes = R.drawable.unselected_share
                 )
             }
+
+            Spacer(Modifier.height(8.dp))
+            Text("* 회원님만 이 보드를 볼 수 있습니다.", style = AppTextStyles.b3_regular_14, color = Purple700)
         }
 
         Spacer(Modifier.height(24.dp))
-
 
         AnimatedVisibility(
             visible = isShared,
@@ -170,59 +201,29 @@ fun CreateBoardSheet(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 15.dp),
+                    .padding(bottom = 24.dp),
                 horizontalAlignment = Alignment.Start
             ) {
-                Text("참여자 초대(선택)", style = AppTextStyles.b2_medium_16)
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
+                Row( // 텍스트, 아이콘 묶기
+                    modifier = Modifier.clickable { onInviteClick() },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = Color.Transparent,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Person,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.outline
-                                )
-                            }
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Text("사용자", style = AppTextStyles.b2_medium_16)
-                    }
-
-                    OutlinedButton(
-                        onClick = onInviteClick,
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                        modifier = Modifier.height(36.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        ),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(
-                            brush = SolidColor(MaterialTheme.colorScheme.outline)
-                        )
-                    ) {
-                        Text("추가")
-                    }
+                    Text(
+                        text = "참여자 초대하기",
+                        style = AppTextStyles.b2_semibold_16,
+                    )
+                    Icon(
+                        painter = painterResource(R.drawable.arrow_right),
+                        contentDescription = "더보기",
+                    )
                 }
+
+                Spacer(Modifier.height(5.dp))
+                Text("이후 생성한 보드에서 참여자를 추가할 수 있습니다.",  style = AppTextStyles.b3_regular_14, color =Grey500)
+                Spacer(Modifier.height(16.dp))
+
             }
-
         }
-
-
-
     }
 }
 
@@ -231,16 +232,17 @@ fun CreateBoardSheet(
 private fun SegButton(
     text: String,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    iconRes:Int,
 ) {
     val primary = PurpleMain500
     val outline = GreyMain100
     OutlinedButton(
         onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(40.dp),
         colors = ButtonDefaults.outlinedButtonColors(
             containerColor = if (selected)
-                MaterialTheme.colorScheme.surface // white-like
+                Purple50
             else
                 Grey10,
             contentColor = if (selected) primary else MaterialTheme.colorScheme.onSurface
@@ -255,8 +257,16 @@ private fun SegButton(
                 brush = SolidColor(outline),
                 width = 1.dp
             ),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        modifier = Modifier.height(45.dp)
     ) {
+        Icon(
+            painter = painterResource(id=iconRes),
+            contentDescription = null,
+            modifier = Modifier.size(24.dp),
+            tint = if(selected) PurpleMain500 else Grey500
+        )
+        Spacer(Modifier.width(5.dp))
         Text(
             text = text,
             style = AppTextStyles.b3_medium_14

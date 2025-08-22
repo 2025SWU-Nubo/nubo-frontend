@@ -35,6 +35,8 @@ okhttp = "4.10.0"
 gsonVersion = "2.10.1"
 playServicesAuth = "21.3.0"
 
+ksp = "2.0.21-1.0.27"
+
 
 
 
@@ -44,6 +46,7 @@ playServicesAuth = "21.3.0"
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hiltAndroid" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 
 [libraries]

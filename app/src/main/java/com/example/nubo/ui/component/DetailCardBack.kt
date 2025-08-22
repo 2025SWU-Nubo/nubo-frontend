@@ -99,7 +99,7 @@ fun DetailCardBack(
                         Markdown(item.description)
                     }
 
-                    Text(item.description, style = MaterialTheme.typography.bodyMedium)
+//                    Text(item.description, style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
