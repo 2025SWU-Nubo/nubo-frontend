@@ -295,9 +295,9 @@ fun AddVideoSheet(
         val annotatedTitle = buildAnnotatedString {
             append("선택하지 않아도 ")
             withStyle(SpanStyle(color = PurpleMain500)) { // 강조 색상
-                append("AI가 자동")
+                append("AI가 자동 분류")
             }
-            append("분류해줘요.")
+            append("해줘요.")
         }
 
         SheetTopToast(
@@ -336,7 +336,7 @@ private fun BoardNodeItem(
             .fillMaxWidth()
             .animateContentSize()
     ) {
-        // 부모 카테고리 1줄 레이아웃
+        // 부모 카테고리
         Row(
             modifier = Modifier
                 .fillMaxWidth()

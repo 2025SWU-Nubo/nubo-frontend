@@ -72,14 +72,6 @@ fun ProfileScreen(
                         style = AppTextStyles.b2_semibold_16,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Spacer(Modifier.width(6.dp)) // small horizontal gap
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_profile_pencil),
-                        contentDescription = "닉네임 수정",
-                        modifier = Modifier
-                            .size(16.dp) // smaller icon size
-                            .clickable(onClick = onEditNickname)
-                    )
                 }
 
                 // 닉네임과 이메일 사이 Spacer
