@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -38,6 +40,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -53,6 +57,7 @@ import com.example.nubo.ui.component.sheet.BottomSheetHost
 import com.example.nubo.ui.component.sheet.SheetRoute
 import com.example.nubo.ui.screen.card.ShortformListScreen
 import com.example.nubo.ui.screen.myBoard.BoardDetailScreen
+import com.example.nubo.ui.screen.profile.InformationScreen
 import com.example.nubo.ui.theme.AppFonts
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey20
@@ -65,6 +70,17 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // 시스템바를 투명하게 설정 (핵심 부분)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+
+        // 상태바/내비게이션바 아이콘 색 (밝은 배경일 경우 true = 어두운 아이콘)
+        val insetsController = WindowInsetsControllerCompat(window, window.decorView)
+        insetsController.isAppearanceLightStatusBars = true
+        insetsController.isAppearanceLightNavigationBars = true
+
         setContent{
             NuboAppTheme{
                 MainScreen()
@@ -86,6 +102,13 @@ fun MainScreen() {
 
 
     Scaffold(
+
+        // 프로필 화면일 때만 시스템 인셋 자동패딩 제거
+        contentWindowInsets = if (currentRoute == "profile") {
+            WindowInsets(0)
+        } else {
+            ScaffoldDefaults.contentWindowInsets
+        },
         bottomBar = {
             if (showBottomBar) {
                 BottomNavBar(
@@ -112,13 +135,22 @@ fun MainScreen() {
                 composable("home") { HomeScreen(onMoreClick = { navController.navigate("learn") }) }
                 composable("myboard") { MyBoardScreen(navController) }
                 composable("learn") { LearnScreen() }
-                composable("profile") { ProfileScreen() }
+                composable("profile") { ProfileScreen(onBack = { navController.popBackStack() },
+                onMyInfo = { navController.navigate("information") }) }
                 composable(
                     "board_detail/{boardId}/{boardTitle}"
                 ) { backStackEntry ->
                     val boardId = backStackEntry.arguments?.getString("boardId") ?: ""
                     val boardTitle = backStackEntry.arguments?.getString("boardTitle") ?: "로딩 중..."
                     BoardDetailScreen(boardId = boardId, boardTitle = boardTitle, navController = navController)
+                }
+                composable("information") {
+                    InformationScreen(
+                        onBack = { navController.popBackStack() },  // 뒤로가기
+                        onEditProfileImage = { /* 편집 처리 */ },
+                        onLogout = { /* 로그아웃 처리 */ },
+                        onWithdraw = { /* 탈퇴 처리 */ }
+                    )
                 }
             }
         }
