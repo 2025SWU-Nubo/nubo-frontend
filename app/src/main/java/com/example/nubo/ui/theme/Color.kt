@@ -11,6 +11,7 @@ val PurpleMain500 = Color(0xFF5955FF)
 val Purple300 = Color(0xFFB3B1FF)
 val Purple200 = Color(0xFFD8D7FF)
 val Purple100 = Color(0xFFE8E7FF)
+val Purple50 = Color(0xFFF1F1FF)  //임의로 추가(선택된 버튼 배경)
 
 // Secondary (Gray scale)
 val Grey1000 = Color(0xFF000000)

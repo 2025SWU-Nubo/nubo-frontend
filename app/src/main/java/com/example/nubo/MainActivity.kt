@@ -170,7 +170,9 @@ fun MainScreen() {
         onInvite = { email ->
             // TODO: invite logic via ViewModel
         },
-        onGoAddVideo = { sheetRoute = SheetRoute.AddVideo }
+        onGoAddVideo = { sheetRoute = SheetRoute.AddVideo },
+        onBackToAddMenu = { sheetRoute = SheetRoute.AddMenu },
+        onBackToCreateBoard = { sheetRoute = SheetRoute.CreateBoard}
     )
 }
 

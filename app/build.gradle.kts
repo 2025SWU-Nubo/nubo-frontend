@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.hilt)
     alias(libs.plugins.compose.compiler)
-    id("kotlin-kapt")
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -78,7 +78,7 @@ dependencies {
 
     // Hilt
     implementation(libs.hilt.android)
-    kapt(libs.hilt.android.compiler)
+    ksp(libs.hilt.android.compiler)
     implementation(libs.hilt.navigation.compose)
 
     // Retrofit & OkHttp
@@ -94,6 +94,11 @@ dependencies {
 
     implementation(libs.play.services.auth)
     implementation(libs.javapoet)
+//    implementation(libs.richtext.commonmark) // 마크다운
+//    implementation(libs.richtext.ui.material3) // M3 스타일
+    implementation(libs.coil.compose)
+    implementation(libs.richtext.ui.material3.v100alpha03)
+    implementation(libs.richtext.commonmark.v100alpha03)
 
 }
 

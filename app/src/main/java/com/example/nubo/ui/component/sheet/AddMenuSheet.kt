@@ -13,8 +13,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
+import com.example.nubo.ui.theme.Grey10
 import com.example.nubo.ui.theme.Grey20
 import com.example.nubo.ui.theme.Grey500
 
@@ -52,12 +56,12 @@ fun AddMenuSheet(
             verticalAlignment = Alignment.CenterVertically
         ) {
             SheetOption(
-                icon = Icons.Outlined.Download,
+                iconRes = R.drawable.add_card,
                 text = "영상",
                 onClick = onVideoClick
             )
             SheetOption(
-                icon = Icons.Outlined.Folder,
+                iconRes = R.drawable.add_board,
                 text = "보드",
                 onClick = onBoardClick
             )
@@ -65,9 +69,29 @@ fun AddMenuSheet(
     }
 }
 
+@Preview(showBackground = true)
+@Composable
+private fun SheetOptionPreview() {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(35.dp),
+        modifier = Modifier.padding(20.dp)
+    ) {
+        SheetOption(
+            iconRes = android.R.drawable.ic_menu_camera, // 테스트용 기본 아이콘
+            text = "영상",
+            onClick = { }
+        )
+        SheetOption(
+            iconRes = android.R.drawable.ic_menu_agenda, // 테스트용 기본 아이콘
+            text = "보드",
+            onClick = { }
+        )
+    }
+}
+
 @Composable
 private fun SheetOption(
-    icon: ImageVector,
+    iconRes: Int,
     text: String,
     onClick: () -> Unit
 ) {
@@ -79,16 +103,16 @@ private fun SheetOption(
             shape = RoundedCornerShape(14.dp),
             color = Grey20,
             tonalElevation = 1.dp,
-            modifier = Modifier.size(72.dp) // 버튼 크기 고정 (작게)
+            modifier = Modifier.size(65.dp) // 버튼 크기 고정 (작게)
         ) {
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier.fillMaxSize()
             ) {
                 Icon(
-                    icon,
+                    painter = painterResource(id=iconRes),
                     contentDescription = null,
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(32.dp),
                     tint = Grey500
                 )
             }

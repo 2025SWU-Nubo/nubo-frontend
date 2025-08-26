@@ -49,6 +49,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.nubo.data.model.CardResponse
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.example.nubo.model.home.RecommendChipItem
+import com.example.nubo.ui.component.RecommendationChipsRow
 
 
 @Composable
@@ -58,6 +63,29 @@ fun HomeScreen(
 ) {
     val homeViewModel: HomeViewModel = hiltViewModel()
     val cardList by homeViewModel.cards.observeAsState(emptyList())
+
+    var selectedChipId by remember { mutableStateOf("all") }
+
+    // 실제로는 ViewModel에서 가져올 데이터
+    val mockChips = remember {
+        listOf(
+            RecommendChipItem("all", "전체"),
+            RecommendChipItem("delicious", "맛집"),
+            RecommendChipItem("shopping", "쇼핑"),
+            RecommendChipItem("donggi", "동기부여"),
+            RecommendChipItem("photo", "포토샵"),
+            RecommendChipItem("car", "차 정보"),
+            RecommendChipItem("travel", "여행"),
+            RecommendChipItem("fashion", "패션"),
+            RecommendChipItem("beauty", "뷰티"),
+            RecommendChipItem("tech", "테크"),
+            RecommendChipItem("music", "음악")
+        )
+    }
+
+    val chipsWithSelection = mockChips.map{chip ->
+        chip.copy(isSelected = chip.id == selectedChipId)
+    }
 
     LaunchedEffect(Unit) {
         homeViewModel.loadCards() // initial load
@@ -80,12 +108,20 @@ fun HomeScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(5.dp)
+                    .height(6.dp)
                     .background(Grey10)
             )
             Spacer(modifier = Modifier.height(18.dp)) // 아래 여백
         } }
-        item { RecommendedVideosSection(cardList) }
+        item { RecommendedVideosSection(
+            cards = cardList,
+            chips = chipsWithSelection,
+            selectedChipId = selectedChipId,
+            onChipClick = { chip ->
+                selectedChipId = chip.id
+                // TODO: 선택된 카테고리에 따른 영상 필터링 로직
+                println("Selected chip: ${chip.title}")
+            }) }
     }
 }
 
@@ -238,12 +274,27 @@ fun RecommendedCardsSection( onMoreClick: () -> Unit = {}) {
 }
 
 @Composable
-fun RecommendedVideosSection(cards: List<CardResponse>) {
+fun RecommendedVideosSection(
+    cards: List<CardResponse>,
+    chips: List<RecommendChipItem>,
+    selectedChipId: String,
+    onChipClick: (RecommendChipItem) -> Unit
+) {
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-        Text(text = "미시청/추천 영상", style = AppTextStyles.title_semibold_24)
+        Text(text = "추천 영상", style = AppTextStyles.title_semibold_24)
     }
     Spacer(modifier = Modifier.height(12.dp))
-    CardContent(cards)
+    //칩 컨포넌트
+    RecommendationChipsRow(
+        chips = chips,
+        onChipClick = onChipClick
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    Column(modifier = Modifier.padding(horizontal = 16.dp))
+    {     CardContent(cards) }
+
 }
 
 @Preview(showBackground = true, showSystemUi = true)

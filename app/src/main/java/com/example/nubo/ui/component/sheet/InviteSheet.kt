@@ -1,38 +1,72 @@
 package com.example.nubo.ui.component.sheet
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey10
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.PurpleMain500
+import com.example.nubo.ui.component.sheet.InviteUiState
+import androidx.compose.foundation.lazy.items
+import com.example.nubo.ui.theme.Grey200
+import com.example.nubo.ui.theme.Purple700
 
 @Composable
 fun InviteSheet (
     onClose: () -> Unit,
+    onBack:()-> Unit,
     onInvite: (String) -> Unit
 ){
-    var email by rememberSaveable { mutableStateOf("") }
+    val viewModel: InviteViewModel = hiltViewModel()
+
+    val query by viewModel.query.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
+    val selected by viewModel.selected.collectAsState()
 
     Column(
         modifier = Modifier
@@ -40,47 +74,191 @@ fun InviteSheet (
             .fillMaxWidth()
             .navigationBarsPadding()
             .imePadding()
-            .padding(start = 20.dp,end=20.dp, top = 0.dp, bottom = 15.dp),
+            .padding(horizontal = 18.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Row(
-            modifier = Modifier.padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically
+
+        //헤더
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(),            // Material 권장 최소 터치 영역
+            contentAlignment = Alignment.Center
         ) {
+            // 왼쪽 뒤로가기
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .offset(x = (-18).dp)
+                    .size(48.dp)           // touch target 확보
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_arrow_back),
+                    contentDescription = "뒤로가기",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            // 가운데 타이틀
             Text(
                 text = "참여자 초대",
-                style = AppTextStyles.b2_semibold_16
+                style = AppTextStyles.b1_semibold_18,
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
 
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(28.dp))
 
-        //보드 이름
+        //참여자 검색
         Column(
             horizontalAlignment = Alignment.Start,
-            modifier = Modifier.padding(horizontal = 15.dp)
         ) {
             Text("이메일", style = AppTextStyles.b2_medium_16)
             Spacer(Modifier.height(8.dp))
+
             OutlinedTextField(
-                value = email,
-                onValueChange = {email = it},
+                value = query,
+                onValueChange = viewModel::onQueryChange,
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
+                maxLines = 1,
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                shape = RoundedCornerShape(40.dp),      // pill
+                textStyle = TextStyle(fontSize = 14.sp, lineHeight = 18.sp),
+                leadingIcon = { Icon(painter = painterResource(R.drawable.search), contentDescription = "검색") },
+                placeholder = { Text("이메일로 검색",style = AppTextStyles.b3_regular_14 ,color = Grey200) },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = PurpleMain500,
                     unfocusedBorderColor = Grey50,
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Grey10,
+                    cursorColor = Purple700
                 )
             )
         }
 
         Spacer(Modifier.height(22.dp))
 
+        //결과 스크롤 영역
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)    // 원하는 고정 높이
+        ) {
+            when(val s = uiState){
+                InviteUiState.Idle -> {
+                    EmptyHint("검색된 사용자는 이곳에 표시됩니다.")
+                }
+                InviteUiState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ){
+                        CircularProgressIndicator(strokeWidth = 3.dp)
+                    }
+                }
+                is InviteUiState.Error -> {
+                    EmptyHint("검색 중 오류가 발생했어요.\n잠시 뒤 다시 시도해주세요.")
+                }
+                is InviteUiState.Success -> {
+                    if (s.users.isEmpty()) {
+                        EmptyHint("일치하는 사용자가 없습니다.")
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(s.users, key = { it.id }) { user ->
+                                UserRow(
+                                    user = user,
+                                    invited = user.email in selected,
+                                    onInviteToggle = { viewModel.toggleSelect(user.email) }
+                                )
+                            }
+                            item { Spacer(Modifier.height(8.dp)) }
+                        }
+                    }
+                }
+            }
+
+
+        }
+
 
 
     }
 
+}
+
+@Composable
+private fun EmptyHint(text: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 120.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            style = AppTextStyles.b3_regular_14,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        )
+    }
+}
+
+@Composable
+private fun UserRow(
+    user: InviteUserItem,
+    invited: Boolean,
+    onInviteToggle: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 아바타(플레이스홀더)
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFE8E7FF)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(user.name.take(1), fontSize = 12.sp)
+        }
+
+        Spacer(Modifier.width(12.dp))
+
+        Column(Modifier.weight(1f)) {
+            Text(user.name, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Text(
+                user.email,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+        }
+
+        OutlinedButton(
+            onClick = onInviteToggle,
+            shape = RoundedCornerShape(10.dp),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+            colors = if (invited) {
+                ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color(0xFFEEEFFF),
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                )
+            } else {
+                ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            border = if (invited) null else ButtonDefaults.outlinedButtonBorder,
+            modifier = Modifier.height(32.dp)
+        ) {
+            Text(if (invited) "선택됨" else "초대")
+        }
+    }
 }
