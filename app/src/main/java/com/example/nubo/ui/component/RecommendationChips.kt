@@ -60,14 +60,20 @@ fun RecommendationChipsRow(
                     onClick = {
                         onChipClick(chip)
                         coroutineScope.launch {
+                            //아이템들의 위치 정보
                             val layoutInfo = listState.layoutInfo
+                            //클릭된 칩에 해당하는 item 정보
                             val itemInfo = layoutInfo.visibleItemsInfo.firstOrNull{it.index == index}
+
+                            //칩이 보이는 경우, 중앙 정렬 애니메이션
                             itemInfo?.let{
                                 val viewportCenter = layoutInfo.viewportEndOffset /2
                                 val itemCenter = it.offset + it.size /2
                                 val scrollDeeded = itemCenter - viewportCenter
-                                listState.animateScrollBy(scrollDeeded.toFloat(), animationSpec = tween(durationMillis = 300))
-                            }?: listState.animateScrollToItem(index, scrollOffset = -100)
+                                listState.animateScrollBy(
+                                    scrollDeeded.toFloat(),
+                                    animationSpec = tween(durationMillis = 300))
+                            }?: listState.animateScrollToItem(index, scrollOffset = -100)  //칩이 안보이는 경우 스크롤
                         }
                     }
                 )
@@ -86,10 +92,7 @@ fun RecommendationChipsRow(
                 .align(Alignment.CenterEnd)
                 .width(35.dp)
         )
-
     }
-
-
 }
 
 @Composable
