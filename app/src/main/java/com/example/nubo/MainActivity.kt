@@ -57,6 +57,7 @@ import com.example.nubo.ui.component.sheet.BottomSheetHost
 import com.example.nubo.ui.component.sheet.SheetRoute
 import com.example.nubo.ui.screen.card.ShortformListScreen
 import com.example.nubo.ui.screen.myBoard.BoardDetailScreen
+import com.example.nubo.ui.screen.profile.InformationScreen
 import com.example.nubo.ui.theme.AppFonts
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey20
@@ -134,13 +135,22 @@ fun MainScreen() {
                 composable("home") { HomeScreen(onMoreClick = { navController.navigate("learn") }) }
                 composable("myboard") { MyBoardScreen(navController) }
                 composable("learn") { LearnScreen() }
-                composable("profile") { ProfileScreen() }
+                composable("profile") { ProfileScreen(onBack = { navController.popBackStack() },
+                onMyInfo = { navController.navigate("information") }) }
                 composable(
                     "board_detail/{boardId}/{boardTitle}"
                 ) { backStackEntry ->
                     val boardId = backStackEntry.arguments?.getString("boardId") ?: ""
                     val boardTitle = backStackEntry.arguments?.getString("boardTitle") ?: "로딩 중..."
                     BoardDetailScreen(boardId = boardId, boardTitle = boardTitle, navController = navController)
+                }
+                composable("information") {
+                    InformationScreen(
+                        onBack = { navController.popBackStack() },  // 뒤로가기
+                        onEditProfileImage = { /* 편집 처리 */ },
+                        onLogout = { /* 로그아웃 처리 */ },
+                        onWithdraw = { /* 탈퇴 처리 */ }
+                    )
                 }
             }
         }

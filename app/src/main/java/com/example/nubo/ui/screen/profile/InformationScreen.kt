@@ -36,14 +36,53 @@ fun InformationScreen(
     onLogout: () -> Unit = {},
     onWithdraw: () -> Unit = {},
 ) {
-    // ---- 상단 앱바: 뒤로가기 + 가운데 타이틀 ----
+    Scaffold(
+        topBar = {
+            TopBar(onBack = onBack)
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 24.dp)
+        ) {
+            Spacer(Modifier.height(24.dp))
+
+            // ===== 프로필 영역 =====
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                ProfileAvatarMini(
+                    imageSize = 128.dp,
+                    purple = Purple300,
+                    onEdit = onEditProfileImage
+                )
+            }
+
+            Spacer(Modifier.height(32.dp)) // 프로필과 카드 사이 여백 크게
+
+            // ===== 카드 영역 =====
+            InfoCard(
+                name = name,
+                email = email,
+                onLogout = onLogout,
+                onWithdraw = onWithdraw
+            )
+        }
+    }
+}
+
+@Composable
+private fun TopBar(onBack: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        // 뒤로가기 (원 배경)
+        // 뒤로가기 버튼
         Box(
             modifier = Modifier
                 .size(36.dp)
@@ -58,7 +97,7 @@ fun InformationScreen(
                 tint = Grey1000
             )
         }
-        // 가운데 타이틀
+
         Text(
             text = "내 정보",
             style = AppTextStyles.title_bold_24,
@@ -66,164 +105,77 @@ fun InformationScreen(
             modifier = Modifier.align(Alignment.Center)
         )
     }
-
-    // ---- 본문 ----
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 24.dp)
-    ) {
-        Spacer(Modifier.height(12.dp))
-
-        // 프로필 아바타(128 + 보라1 + 흰1) + 편집 버튼
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center
-        ) {
-            ProfileAvatarMini(
-                imageSize = 128.dp,
-                purple = Purple300,
-                onEdit = onEditProfileImage
-            )
-        }
-
-        Spacer(Modifier.height(20.dp))
-
-        // 카드 컨테이너
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 0.dp,
-            shadowElevation = 0.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(2.dp, RoundedCornerShape(16.dp), clip = true)
-                .borderDefault()
-        ) {
-            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
-
-                // 라벨
-                Text(
-                    text = "이름",
-                    style = AppTextStyles.b2_regular_16,
-                    color = Grey500
-                )
-                Spacer(Modifier.height(8.dp))
-
-                // 값(굵게)
-                Text(
-                    text = name,
-                    style = AppTextStyles.b1_semibold_18,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                // 구분선
-                Divider(
-                    color = GreyMain300,
-                    thickness = 1.dp,
-                    modifier = Modifier
-                        .padding(top = 16.dp)
-                        .fillMaxWidth()
-                )
-
-                Spacer(Modifier.height(16.dp))
-
-                // 라벨
-                Text(
-                    text = "연동된 메일",
-                    style = AppTextStyles.b2_regular_16,
-                    color = Grey500
-                )
-                Spacer(Modifier.height(10.dp))
-
-                // 아이콘 + 이메일 값
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_profile_google),
-                        contentDescription = null,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        text = email,
-                        style = AppTextStyles.b1_semibold_18,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                // 구분선
-                Divider(
-                    color = GreyMain300,
-                    thickness = 1.dp,
-                    modifier = Modifier
-                        .padding(top = 16.dp)
-                        .fillMaxWidth()
-                )
-
-                Spacer(Modifier.height(16.dp))
-
-                // 로그아웃 버튼 (라운드 필)
-                OutlinedButton(
-                    onClick = onLogout,
-                    shape = CircleShape,
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .height(44.dp),
-                    border = ButtonDefaults.outlinedButtonBorder.copy(width = 0.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Grey20,
-                        contentColor = Grey1000
-                    )
-                ) {
-                    Text(text = "로그아웃", style = AppTextStyles.b2_semibold_16)
-                }
-
-                Spacer(Modifier.height(8.dp))
-
-                // 탈퇴하기 링크
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .clickable(onClick = onWithdraw),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "탈퇴하기",
-                        style = AppTextStyles.b2_regular_16,
-                        color = Grey500
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_arrow_forward),
-                        contentDescription = null,
-                        tint = Grey500,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(24.dp))
-    }
 }
 
-/* ---------- 보조 컴포넌트 ---------- */
+@Composable
+private fun InfoCard(
+    name: String,
+    email: String,
+    onLogout: () -> Unit,
+    onWithdraw: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        shadowElevation = 2.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+            // 이름
+            Text("이름", style = AppTextStyles.b2_regular_16, color = Grey500)
+            Spacer(Modifier.height(8.dp))
+            Text(name, style = AppTextStyles.b1_semibold_18, color = Grey1000)
 
-// 카드 테두리(연한 그레이) 공통화
-private fun Modifier.borderDefault(): Modifier =
-    this.then(
-        Modifier
-            .background(Color.Transparent, RoundedCornerShape(16.dp))
-            .drawBehind {
-                // 둥근 카드 외곽선
-                val stroke = 1.dp.toPx()
-                drawRoundRect(
-                    color = GreyMain300,
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx(), 16.dp.toPx()),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke)
+            Divider(Modifier.padding(vertical = 16.dp), color = GreyMain300)
+
+            // 메일
+            Text("연동된 메일", style = AppTextStyles.b2_regular_16, color = Grey500)
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_profile_google),
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(email, style = AppTextStyles.b1_semibold_18, color = Grey1000)
+            }
+
+            Divider(Modifier.padding(vertical = 16.dp), color = GreyMain300)
+
+            // 로그아웃 버튼
+            OutlinedButton(
+                onClick = onLogout,
+                shape = CircleShape,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = Grey20,
+                    contentColor = Grey1000
+                )
+            ) {
+                Text("로그아웃", style = AppTextStyles.b2_semibold_16)
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            // 탈퇴하기
+            Row(
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .clickable(onClick = onWithdraw),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("탈퇴하기", style = AppTextStyles.b2_regular_16, color = Grey500)
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_arrow_forward),
+                    contentDescription = null,
+                    tint = Grey500,
+                    modifier = Modifier.size(16.dp)
                 )
             }
-    )
+        }
+    }
+}
 
 // 프로필(128 + 보라1 + 흰1) + 편집 버튼 (작은 그림자)
 @Composable
@@ -284,3 +236,4 @@ private fun ProfileAvatarMini(
         }
     }
 }
+
