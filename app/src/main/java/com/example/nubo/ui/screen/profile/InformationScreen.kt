@@ -10,6 +10,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,6 +24,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey20
@@ -32,6 +38,7 @@ import com.example.nubo.ui.theme.Grey50
 
 @Composable
 fun InformationScreen(
+    navController: NavController,
     name: String = "김누보",
     email: String = "nubokim@gmail.com",
     onBack: () -> Unit = {},
@@ -40,6 +47,19 @@ fun InformationScreen(
     onWithdraw: () -> Unit = {},
     onEditName: (String) -> Unit = {}
 ) {
+    //네비에서 받아오는 정보
+     // NavController 주입받는 부분 (혹은 파라미터)
+    var currentName by rememberSaveable { mutableStateOf(name) }
+
+    // EditNameScreen에서 수정값을 받아오기
+    LaunchedEffect(Unit) {
+        navController.currentBackStackEntry
+            ?.savedStateHandle
+            ?.getLiveData<String>("edited_name")
+            ?.observeForever { updated ->
+                currentName = updated
+            }
+    }
     Scaffold(
         topBar = {
             TopBar(onBack = onBack)
@@ -69,10 +89,11 @@ fun InformationScreen(
 
             // ===== 카드 영역 =====
             InfoCard(
-                name = name,
+                name = currentName,
                 email = email,
                 onLogout = onLogout,
-                onWithdraw = onWithdraw
+                onWithdraw = onWithdraw,
+                onEditName = onEditName
             )
         }
     }

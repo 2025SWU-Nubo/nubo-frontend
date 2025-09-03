@@ -1,5 +1,6 @@
 package com.example.nubo
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
@@ -46,6 +47,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.nubo.model.card.CardDetailDialogItem
 import com.example.nubo.ui.screen.add.AddScreen
 import com.example.nubo.ui.screen.home.HomeScreen
@@ -57,6 +59,7 @@ import com.example.nubo.ui.component.sheet.BottomSheetHost
 import com.example.nubo.ui.component.sheet.SheetRoute
 import com.example.nubo.ui.screen.card.ShortformListScreen
 import com.example.nubo.ui.screen.myBoard.BoardDetailScreen
+import com.example.nubo.ui.screen.profile.EditNameScreen
 import com.example.nubo.ui.screen.profile.InformationScreen
 import com.example.nubo.ui.theme.AppFonts
 import com.example.nubo.ui.theme.AppTextStyles
@@ -104,7 +107,7 @@ fun MainScreen() {
     Scaffold(
 
         // 프로필 화면일 때만 시스템 인셋 자동패딩 제거
-        contentWindowInsets = if (currentRoute == "profile") {
+        contentWindowInsets = if (currentRoute == "profile"||currentRoute == "information"||currentRoute == "edit_name?initial={initial}") {
             WindowInsets(0)
         } else {
             ScaffoldDefaults.contentWindowInsets
@@ -146,10 +149,30 @@ fun MainScreen() {
                 }
                 composable("information") {
                     InformationScreen(
+                        navController = navController,
                         onBack = { navController.popBackStack() },  // 뒤로가기
                         onEditProfileImage = { /* 편집 처리 */ },
                         onLogout = { /* 로그아웃 처리 */ },
-                        onWithdraw = { /* 탈퇴 처리 */ }
+                        onWithdraw = { /* 탈퇴 처리 */ },
+                        onEditName = { current -> navController.navigate("edit_name?initial=${Uri.encode(current)}")}
+                    )
+                }
+                composable(
+                    route = "edit_name?initial={initial}",
+                    arguments = listOf(navArgument("initial") { defaultValue = "" })
+                ) { backStackEntry ->
+                    val initial = backStackEntry.arguments?.getString("initial").orEmpty()
+
+                    EditNameScreen(
+                        initial = initial,
+                        onBack = { navController.popBackStack() },
+                        onDone = { newName ->
+                            // 값 반환 후 이전 화면으로
+                            navController.previousBackStackEntry
+                                ?.savedStateHandle
+                                ?.set("edited_name", newName)
+                            navController.popBackStack()
+                        }
                     )
                 }
             }
@@ -183,7 +206,7 @@ fun getSelectedIndex(route: String?): Int {
         "myboard" -> 1
         "add" -> 2
         "learn" -> 3
-        "profile" -> 4
+        "profile", "information" -> 4
         else -> -1
     }
 }
