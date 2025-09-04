@@ -1,5 +1,6 @@
 package com.example.nubo.ui.component.sheet
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,7 +54,9 @@ import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.PurpleMain500
 import com.example.nubo.ui.component.sheet.InviteUiState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import com.example.nubo.ui.theme.Grey200
+import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.Purple700
 
 @Composable
@@ -161,7 +164,24 @@ fun InviteSheet (
                 }
                 is InviteUiState.Success -> {
                     if (s.users.isEmpty()) {
-                        EmptyHint("일치하는 사용자가 없습니다.")
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ){
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.error_face),
+                                    contentDescription = "사용자 조회 실패",
+                                )
+                                Text(text = "일치하는 사용자가 없습니다.", style = AppTextStyles.b2_bold_16)
+                                Text(text = "이메일 정보가 정확한지 확인해주세요.", style = AppTextStyles.b3_regular_14)
+
+                            }
+                        }
+
                     } else {
                         LazyColumn(
                             modifier = Modifier
@@ -180,14 +200,20 @@ fun InviteSheet (
                     }
                 }
             }
-
-
         }
 
+        //완료하기 버튼
+        Button(modifier = Modifier.fillMaxWidth().height(50.dp), onClick ={} ,
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Grey50,
+                contentColor = Grey500
+            )) {
+            Text(text = "완료하기", style = AppTextStyles.b1_bold_18)
+        }
 
-
+        Spacer(Modifier.height(25.dp))
     }
-
 }
 
 @Composable

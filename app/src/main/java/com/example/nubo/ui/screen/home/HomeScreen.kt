@@ -102,7 +102,7 @@ fun HomeScreen(
         item { Spacer(modifier = Modifier.height(12.dp)) }
         item { RecentBoardSection() }
         item { Spacer(modifier = Modifier.height(24.dp)) }
-        item { RecommendedCardsSection(onMoreClick = onMoreClick) }
+//        item { RecommendedCardsSection(onMoreClick = onMoreClick) }
         item {  Column {
             Spacer(modifier = Modifier.height(10.dp)) // 위 여백
             Box(

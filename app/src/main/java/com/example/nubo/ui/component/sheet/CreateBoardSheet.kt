@@ -179,7 +179,7 @@ fun CreateBoardSheet(
             }
 
             Spacer(Modifier.height(8.dp))
-            Text("* 회원님만 이 보드를 볼 수 있습니다.", style = AppTextStyles.b3_regular_14, color = Purple700)
+            if(!isShared){Text("* 회원님만 이 보드를 볼 수 있습니다.", style = AppTextStyles.b3_regular_14, color = Purple700)}
         }
 
         Spacer(Modifier.height(24.dp))
@@ -224,6 +224,17 @@ fun CreateBoardSheet(
 
             }
         }
+
+        //추가하기 버튼
+        Button(modifier = Modifier.fillMaxWidth().height(50.dp), onClick ={} ,
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = PurpleMain500
+            )) {
+            Text(text = "추가하기", style = AppTextStyles.b1_bold_18)
+        }
+
+        Spacer(Modifier.height(25.dp))
     }
 }
 
