@@ -158,7 +158,7 @@ fun EditNameScreen(
             BasicTextField(
                 value = text,
                 onValueChange = { it ->
-                    if (it.length <= 20) {   // 최소 2자 이상 최대 20자 이하
+                    if (it.length <= 10) {   // 최소 2자 이상 최대 21자 이하
                         text = it
                         if (triedSubmit && it.trim().length >= 2) triedSubmit = false
                     }
@@ -234,7 +234,7 @@ fun EditNameScreen(
 
             if (showError) {
                 Text(
-                    text = "이름을 2자 이상 20자 이하로 입력해주세요.",
+                    text = "이름을 2자 이상 10자 이하로 입력해주세요.",
                     style = AppTextStyles.b3_regular_14,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(top = 8.dp)   // 인디케이터 아래 8dp
