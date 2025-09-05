@@ -100,7 +100,7 @@ fun MainScreen() {
     val currentRoute = navBackStackEntry?.destination?.route
 
     // 상세 화면에서는 BottomNavBar 숨기기
-    val showBottomBar = currentRoute in listOf("home", "myboard", "add", "learn", "profile")
+    val showBottomBar = currentRoute in listOf("home", "myboard", "add", "learn", "profile","information")
     var sheetRoute by remember { mutableStateOf<SheetRoute?>(null) }
 
 
