@@ -1,6 +1,6 @@
 package com.example.nubo.data.model
 
 data class CardResponse(
-    val id: Int,
+    val cardId: Int,
     val videoThumbnailUrl: String
 )

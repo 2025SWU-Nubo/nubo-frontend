@@ -1,5 +1,6 @@
 package com.example.nubo.ui.component.sheet
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -54,8 +55,11 @@ import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.PurpleMain500
 import com.example.nubo.ui.component.sheet.InviteUiState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
 import com.example.nubo.ui.theme.Grey200
+import androidx.compose.material3.Button
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import com.example.nubo.domain.model.InviteUser
 import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.Purple700
 
@@ -63,13 +67,24 @@ import com.example.nubo.ui.theme.Purple700
 fun InviteSheet (
     onClose: () -> Unit,
     onBack:()-> Unit,
-    onInvite: (String) -> Unit
+    onInvite: (String) -> Unit,
+    onComplete: (List<String>) -> Unit,
+    resetSignal: Int = 0
 ){
     val viewModel: InviteViewModel = hiltViewModel()
 
     val query by viewModel.query.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val selected by viewModel.selected.collectAsState()
+
+
+    LaunchedEffect(resetSignal) {
+        viewModel.clearSelection()
+        viewModel.clearQuery() // 검색어 삭제
+    }
+
+    val hasSelection = selected.isNotEmpty()
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -145,7 +160,7 @@ fun InviteSheet (
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)    // 원하는 고정 높이
+                .weight(0.5f)    // 원하는 고정 높이
         ) {
             when(val s = uiState){
                 InviteUiState.Idle -> {
@@ -175,13 +190,11 @@ fun InviteSheet (
                                 Image(
                                     painter = painterResource(id = R.drawable.error_face),
                                     contentDescription = "사용자 조회 실패",
-                                )
+                                    )
                                 Text(text = "일치하는 사용자가 없습니다.", style = AppTextStyles.b2_bold_16)
                                 Text(text = "이메일 정보가 정확한지 확인해주세요.", style = AppTextStyles.b3_regular_14)
-
                             }
                         }
-
                     } else {
                         LazyColumn(
                             modifier = Modifier
@@ -203,17 +216,33 @@ fun InviteSheet (
         }
 
         //완료하기 버튼
-        Button(modifier = Modifier.fillMaxWidth().height(50.dp), onClick ={} ,
+        Button(modifier = Modifier.fillMaxWidth().height(50.dp),
+            onClick ={
+
+                val count = selected.size
+                if (count > 0) {
+                    Toast.makeText(context, "${count}명 초대 완료!", Toast.LENGTH_SHORT).show()
+
+                    onComplete(selected.toList())
+
+                    onBack()
+                }
+        } ,
             shape = RoundedCornerShape(8.dp),
+            enabled = hasSelection,
             colors = ButtonDefaults.buttonColors(
-                containerColor = Grey50,
-                contentColor = Grey500
+                containerColor = if (hasSelection) PurpleMain500 else Grey50,
+                contentColor = if (hasSelection) Color.White else Grey500,
+                disabledContainerColor = Grey50,
+                disabledContentColor = Grey500
             )) {
+            val countText = if (hasSelection) "(${selected.size})" else ""
+
             Text(text = "완료하기", style = AppTextStyles.b1_bold_18)
         }
-
         Spacer(Modifier.height(25.dp))
     }
+
 }
 
 @Composable
@@ -234,7 +263,7 @@ private fun EmptyHint(text: String) {
 
 @Composable
 private fun UserRow(
-    user: InviteUserItem,
+    user: InviteUser,
     invited: Boolean,
     onInviteToggle: () -> Unit
 ) {
@@ -252,13 +281,13 @@ private fun UserRow(
                 .background(Color(0xFFE8E7FF)),
             contentAlignment = Alignment.Center
         ) {
-            Text(user.name.take(1), fontSize = 12.sp)
+            Text(user.nickname.take(1), fontSize = 12.sp)
         }
 
         Spacer(Modifier.width(12.dp))
 
         Column(Modifier.weight(1f)) {
-            Text(user.name, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Text(user.nickname, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
             Text(
                 user.email,
                 fontSize = 13.sp,

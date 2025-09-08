@@ -30,6 +30,7 @@ val Grey0 = Color(0xFFFFFFFF)
 
 // Error
 val PinkError = Color(0xFFFFA6A6)
+val RedError = Color(0xFFFF5858)
 
 // Text
 val DefaultText = Color(0xFF333339)

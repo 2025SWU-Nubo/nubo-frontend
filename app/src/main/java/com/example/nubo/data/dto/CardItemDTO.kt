@@ -1,4 +1,4 @@
-package com.example.nubo.data.model
+package com.example.nubo.data.dto
 
 import com.google.gson.annotations.SerializedName
 

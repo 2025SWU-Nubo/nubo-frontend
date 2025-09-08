@@ -17,7 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import com.example.nubo.model.card.CardDetailDialogItem
+import com.example.nubo.model.card.CardDetailItem
 import com.example.nubo.R
 import com.example.nubo.ui.theme.Grey30
 import com.halilibo.richtext.commonmark.Markdown
@@ -25,7 +25,7 @@ import com.halilibo.richtext.ui.material3.RichText
 
 @Composable
 fun DetailCardBack(
-    item: CardDetailDialogItem,
+    item: CardDetailItem,
     onDismiss: () -> Unit,
     onFlip: () -> Unit
 ) {
@@ -98,8 +98,6 @@ fun DetailCardBack(
                     RichText {
                         Markdown(item.description)
                     }
-
-//                    Text(item.description, style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }

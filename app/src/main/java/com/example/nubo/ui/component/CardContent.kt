@@ -27,9 +27,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.nubo.data.model.CardResponse
-import com.example.nubo.model.card.CardDetailDialogItem
+import com.example.nubo.model.card.CardDetailItem
 import com.example.nubo.model.card.CardItem
-import com.example.nubo.model.card.toShortformItem
+import com.example.nubo.model.card.toDetailFallback
+import com.example.nubo.ui.screen.card.CardDetailScreen
 import com.example.nubo.ui.screen.home.HomeViewModel
 import com.example.nubo.ui.theme.Grey50
 import formatIsoDateToDisplayLegacy
@@ -47,9 +48,9 @@ fun CardContent(cards: List<CardResponse>,
             else -> 180.dp
         }
         CardItem(
-            id = card.id,
+            id = card.cardId,
             height = height,
-            title = "Card ${card.id}",
+            title = "Card ${card.cardId}",
             category = "카테고리", // 서버 응답에 추가
             description = "서버에서 가져온 카드입니다.",
             imageUrl = card.videoThumbnailUrl
@@ -60,10 +61,8 @@ fun CardContent(cards: List<CardResponse>,
     val leftItems = allItems.filterIndexed { i, _ -> i % 2 == 0 }
     val rightItems = allItems.filterIndexed { i, _ -> i % 2 != 0 }
 
-
     // 선택된 아이템 상태관리
     var selectedCardId by remember { mutableStateOf<Int?>(null) }
-    //    var selectedItem by remember { mutableStateOf<CardItem?>(null) }
 
     // 카드 상세 정보 관찰
     val cardDetail by homeViewModel.cardDetail.observeAsState()
@@ -101,7 +100,7 @@ fun CardContent(cards: List<CardResponse>,
         }
     }
 
-    // 상세 다이얼로그 표시
+    // 카드 상세 표시
     selectedCardId?.let { cardId ->
         if (isDetailLoading) {
             CircularProgressIndicator()
@@ -109,7 +108,7 @@ fun CardContent(cards: List<CardResponse>,
 
         cardDetail?.let { detail ->
             // 서버에서 받은 상세 정보로 CardDetailDialogItem 생성
-            val detailItem = CardDetailDialogItem(
+            val detailItem = CardDetailItem(
                 id = detail.id,
                 imageUrl = detail.videoThumbnailUrl ?: "",
                 videoUrl = detail.videoUrl ?: "",
@@ -121,20 +120,38 @@ fun CardContent(cards: List<CardResponse>,
                 videoPlatform = detail.videoPlatform ?: "알 수 없음"
             )
 
-            DetailCardDialog(
+//            DetailCardDialog(
+//                item = detailItem,
+//                onDismiss = {
+//                    selectedCardId = null
+//                    homeViewModel.clearCardDetail()
+//                }
+//            )
+
+            CardDetailScreen(
                 item = detailItem,
-                onDismiss = {
+                onBack = {
+                    // 뒤로가기: 선택 해제 + 상세 캐시 정리 → 목록으로 복귀
                     selectedCardId = null
                     homeViewModel.clearCardDetail()
-                }
+                },
+                onInfoClick = { /* TODO: 필요 시 가이드/설명 처리 */ }
             )
         } ?: run {
             // cardDetail이 아직 로드되지 않은 경우 기본 아이템으로 표시
             val selectedItem = allItems.find { it.id == cardId }
             selectedItem?.let { item ->
-                DetailCardDialog(
-                    item = item.toShortformItem(),
-                    onDismiss = {
+//                DetailCardDialog(
+//                    item = item.toShortformItem(),
+//                    onDismiss = {
+//                        selectedCardId = null
+//                        homeViewModel.clearCardDetail()
+//                    }
+//                )
+                val fallbackDetail = item.toDetailFallback()
+                CardDetailScreen(
+                    item = fallbackDetail,
+                    onBack = {
                         selectedCardId = null
                         homeViewModel.clearCardDetail()
                     }

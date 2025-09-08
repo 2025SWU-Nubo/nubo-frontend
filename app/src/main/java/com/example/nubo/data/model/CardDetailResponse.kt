@@ -1,6 +1,5 @@
 package com.example.nubo.data.model
 
-import com.example.nubo.model.card.CardDetailDialogItem
 
 data class CardDetailResponse(
     val id: Int,

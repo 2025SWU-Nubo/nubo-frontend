@@ -10,17 +10,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import com.example.nubo.model.card.CardDetailDialogItem
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.ui.unit.dp
+import com.example.nubo.model.card.CardDetailItem
 import com.example.nubo.ui.component.DetailCardDialog
 
 
 @Composable
-fun ShortformListScreen(items: List<CardDetailDialogItem>) {
-    var selectedItem by remember { mutableStateOf<CardDetailDialogItem?>(null) }
+fun ShortformListScreen(items: List<CardDetailItem>) {
+    var selectedItem by remember { mutableStateOf<CardDetailItem?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn {

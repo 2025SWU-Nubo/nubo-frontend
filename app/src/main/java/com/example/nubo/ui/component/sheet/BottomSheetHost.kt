@@ -12,7 +12,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-
+import androidx.compose.runtime.saveable.rememberSaveable
 
 
 @OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
@@ -27,11 +27,19 @@ fun BottomSheetHost(
     onGoAddVideo: () -> Unit,
     onBackToAddMenu: () -> Unit,
     onBackToCreateBoard: ()-> Unit,
+    onInviteComplete: (List<String>) -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (route == null) return
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    var createBoardName by rememberSaveable { mutableStateOf("") }
+    var isShared by rememberSaveable { mutableStateOf(false) }
+
+    // 참여자 초대 상대 관리
+    var invitedEmails by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
+    var inviteResetVersion by remember { mutableStateOf(0) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -66,14 +74,33 @@ fun BottomSheetHost(
                     onClose = onDismiss,
                     onBack = onBackToAddMenu,
                     onInviteClick = onGoInvite,
-                    onCreate = onCreateBoard
+                    onCreate = {
+                               name,shared -> onCreateBoard(name,shared)
+                               },
+                    name = createBoardName,
+                    isShared = isShared,
+                    onNameChange = { createBoardName = it },
+                    onSharedChange = { newShared ->
+                        if (isShared && !newShared) {
+                            invitedEmails = emptyList()
+                            inviteResetVersion++   // InviteSheet 내부 선택도 리셋하게 신호
+                        }
+                        isShared = newShared
+                    }
                 )
                 SheetRoute.Invite -> InviteSheet(
                     onClose = onDismiss,
                     onBack = onBackToCreateBoard,
                     onInvite = onInvite,
-
-                )
+                    resetSignal = inviteResetVersion,
+                    onComplete = { emails ->
+                        invitedEmails = emails
+                        // 1) 부모에 초대 이메일 전달(서버 전송은 부모/VM에서 처리 권장)
+                        onInviteComplete(emails)
+                        // 2) CreateBoard 시트로 되돌아가기
+                        onBackToCreateBoard()
+                    }
+                    )
                 SheetRoute.AddVideo -> AddVideoSheet(
                     onClose = onDismiss
                 )
@@ -94,77 +121,3 @@ fun isForwardFrom(from: SheetRoute, to: SheetRoute): Boolean {
 }
 
 
-///
-//@OptIn(ExperimentalMaterial3Api::class)
-//@Composable
-//fun BottomSheetHost(
-//    route: SheetRoute?,                     // which sheet to show
-//    onDismiss: () -> Unit,                  // dismiss handler
-//    onGoCreateBoard: () -> Unit,            // AddMenu -> CreateBoard
-//    onGoInvite: () -> Unit,                 // CreateBoard -> Invite
-//    onCreateBoard: (String, Boolean) -> Unit,// create board action
-//    onInvite: (String) -> Unit,             // invite action
-//    onGoAddVideo: () -> Unit,  // add video action
-//    onBackToAddMenu: () -> Unit,
-//    onBackToCreateBoard: ()-> Unit,
-//    modifier: Modifier = Modifier
-//) {
-//    if (route == null) return
-//
-//    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-//
-//    Crossfade(targetState = route, label = "BottomSheetSwitch") { target ->
-//        when (target) {
-//            SheetRoute.AddMenu -> AddMenuSheet(
-//                onClose = onDismiss,
-//                onVideoClick = onGoAddVideo,
-//                onBoardClick = onGoCreateBoard
-//            )
-//            SheetRoute.CreateBoard -> CreateBoardSheet(
-//                onClose = onDismiss,
-//                onBack = onBackToAddMenu,
-//                onInviteClick = onGoInvite,
-//                onCreate = onCreateBoard
-//            )
-//            SheetRoute.Invite -> InviteSheet(
-//                onClose = onDismiss,
-//                onBack = onBackToCreateBoard,
-//                onInvite = onInvite
-//            )
-//            SheetRoute.AddVideo -> AddVideoSheet(
-//                onClose = onDismiss
-//            )
-//        }
-//    }
-//
-//    ModalBottomSheet(
-//        onDismissRequest = onDismiss,
-//        sheetState = sheetState,
-//        containerColor = Color.White,
-//        contentColor = MaterialTheme.colorScheme.onSurface,
-//        dragHandle = { BottomSheetDefaults.DragHandle() },
-//        modifier = modifier
-//    ) {
-//        when (route) {
-//            SheetRoute.AddMenu -> AddMenuSheet(
-//                onClose = onDismiss,
-//                onVideoClick = onGoAddVideo,
-//                onBoardClick = onGoCreateBoard
-//            )
-//            SheetRoute.CreateBoard -> CreateBoardSheet(
-//                onClose = onDismiss,
-//                onBack = onBackToAddMenu,
-//                onInviteClick = onGoInvite,
-//                onCreate = onCreateBoard
-//            )
-//            SheetRoute.Invite -> InviteSheet(
-//                onClose = onDismiss,
-//                onBack = onBackToCreateBoard,
-//                onInvite = onInvite
-//            )
-//            SheetRoute.AddVideo -> AddVideoSheet(
-//                onClose = onDismiss
-//            )
-//        }
-//    }
-//}

@@ -37,4 +37,12 @@ interface CardService {
         @Path("cardId") cardId: Int
     ): Call<CardDetailResponse>
 
+    @GET("/api/home/boards/{boardId}/unviewed-cards")
+    fun getUnviewedCardsByBoard(
+        @Header("Authorization") token: String,
+        @Header("Accept") accept: String = "application/json",
+        @Path("boardId") boardId: Long,
+        @Query("limit") limit: Int = 10
+    ): Call<List<CardResponse>>
+
 }

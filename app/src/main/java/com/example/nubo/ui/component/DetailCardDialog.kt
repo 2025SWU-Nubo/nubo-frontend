@@ -15,7 +15,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import androidx.compose.ui.window.Dialog
 import com.example.nubo.R
-import com.example.nubo.model.card.CardDetailDialogItem
+import com.example.nubo.model.card.CardDetailItem
 import com.example.nubo.ui.screen.home.HomeScreen
 import com.example.nubo.ui.theme.NuboAppTheme
 import kotlinx.coroutines.delay
@@ -23,7 +23,7 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun DetailCardDialog(
-    item: CardDetailDialogItem,
+    item: CardDetailItem,
     onDismiss: () -> Unit
 ) {
 
@@ -109,7 +109,7 @@ fun DetailCardDialog(
 fun DetailCardDialogScreenPreview() {
     NuboAppTheme {
         // 샘플 데이터 생성
-        val sampleItem = CardDetailDialogItem(
+        val sampleItem = CardDetailItem(
             id = 12344,
             imageUrl = "https://picsum.photos/400/300",
             videoUrl = "",

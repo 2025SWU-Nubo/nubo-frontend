@@ -62,34 +62,10 @@ fun HomeScreen(
     onMoreClick: () -> Unit = {}
 ) {
     val homeViewModel: HomeViewModel = hiltViewModel()
-    val cardList by homeViewModel.cards.observeAsState(emptyList())
 
-    var selectedChipId by remember { mutableStateOf("all") }
-
-    // 실제로는 ViewModel에서 가져올 데이터
-    val mockChips = remember {
-        listOf(
-            RecommendChipItem("all", "전체"),
-            RecommendChipItem("delicious", "맛집"),
-            RecommendChipItem("shopping", "쇼핑"),
-            RecommendChipItem("donggi", "동기부여"),
-            RecommendChipItem("photo", "포토샵"),
-            RecommendChipItem("car", "차 정보"),
-            RecommendChipItem("travel", "여행"),
-            RecommendChipItem("fashion", "패션"),
-            RecommendChipItem("beauty", "뷰티"),
-            RecommendChipItem("tech", "테크"),
-            RecommendChipItem("music", "음악")
-        )
-    }
-
-    val chipsWithSelection = mockChips.map{chip ->
-        chip.copy(isSelected = chip.id == selectedChipId)
-    }
-
-    LaunchedEffect(Unit) {
-        homeViewModel.loadCards() // initial load
-    }
+    val cards by homeViewModel.cards.observeAsState(emptyList())
+    val chips by homeViewModel.chips.observeAsState(emptyList())
+    val selectedChipId by homeViewModel.selectedChipId.observeAsState("all")
 
 
     LazyColumn(
@@ -102,7 +78,6 @@ fun HomeScreen(
         item { Spacer(modifier = Modifier.height(12.dp)) }
         item { RecentBoardSection() }
         item { Spacer(modifier = Modifier.height(24.dp)) }
-//        item { RecommendedCardsSection(onMoreClick = onMoreClick) }
         item {  Column {
             Spacer(modifier = Modifier.height(10.dp)) // 위 여백
             Box(
@@ -114,14 +89,12 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(18.dp)) // 아래 여백
         } }
         item { RecommendedVideosSection(
-            cards = cardList,
-            chips = chipsWithSelection,
+            cards = cards,
+            chips = chips,
             selectedChipId = selectedChipId,
-            onChipClick = { chip ->
-                selectedChipId = chip.id
-                // TODO: 선택된 카테고리에 따른 영상 필터링 로직
-                println("Selected chip: ${chip.title}")
-            }) }
+            onChipClick = {homeViewModel.onChipClick(it)}
+        )
+        }
     }
 }
 
@@ -198,80 +171,6 @@ fun RecentBoardSection() {
     }
 }
 
-@Composable
-fun RecommendedCardsSection( onMoreClick: () -> Unit = {}) {
-    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(text = "추천 학습 카드", style = AppTextStyles.title_semibold_24)
-            Row( // 텍스트, 아이콘 묶기
-                modifier = Modifier.clickable { onMoreClick() },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "더보기",
-                    style = AppTextStyles.label_semibold_14,
-                    color = GreyMain100
-                )
-                Icon(
-                    imageVector = Icons.Outlined.ChevronRight,
-                    contentDescription = "더보기",
-                    tint = GreyMain100
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        repeat(2) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 6.dp)
-                    .border(
-                        width = 1.dp,
-                        color =  Grey30,
-                        shape = RoundedCornerShape(12.dp)
-                    ),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 15.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(
-                            text = "봉골레 파스타 레시피",
-                            style = AppTextStyles.b1_semibold_18
-                        )
-                        Spacer(modifier = Modifier.height(5.dp))
-                        Text(
-                            text = "1. 팬에 올리브유와 다진 양파, 마늘, 크러쉬드 페퍼를 넣고 볶아주세요...",
-                            style = AppTextStyles.b3_regular_14,
-                            color = Color.Gray,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    Icon(
-                        imageVector = Icons.Outlined.ChevronRight,
-                        contentDescription = "상세 보기",
-                        tint = Color.Gray
-                    )
-                }
-            }
-        }
-    }
-}
 
 @Composable
 fun RecommendedVideosSection(

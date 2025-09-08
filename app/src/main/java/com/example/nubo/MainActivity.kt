@@ -47,8 +47,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.nubo.model.card.CardDetailItem
 import androidx.navigation.navArgument
-import com.example.nubo.model.card.CardDetailDialogItem
 import com.example.nubo.ui.screen.add.AddScreen
 import com.example.nubo.ui.screen.home.HomeScreen
 import com.example.nubo.ui.screen.learn.LearnScreen
@@ -195,7 +195,10 @@ fun MainScreen() {
         },
         onGoAddVideo = { sheetRoute = SheetRoute.AddVideo },
         onBackToAddMenu = { sheetRoute = SheetRoute.AddMenu },
-        onBackToCreateBoard = { sheetRoute = SheetRoute.CreateBoard}
+        onBackToCreateBoard = { sheetRoute = SheetRoute.CreateBoard},
+        onInviteComplete = { emails ->
+            // TODO: 서버 전달 (예: viewModel.inviteMembers(boardId, emails))
+        }
     )
 }
 

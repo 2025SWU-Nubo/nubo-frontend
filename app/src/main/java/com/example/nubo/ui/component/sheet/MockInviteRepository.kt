@@ -1,12 +1,17 @@
 package com.example.nubo.ui.component.sheet
 
+import com.example.nubo.data.model.UserItem
 import kotlinx.coroutines.delay
 
 class MockInviteRepository : InviteRepository {
     private val seed = listOf(
         InviteUserItem("1", "NUBO", "nubo@gmail.com"),
         InviteUserItem("2", "NUBO", "nubo1@gmail.com"),
-        InviteUserItem("3", "NUBO", "nubo12@gmail.com")
+        InviteUserItem("3", "NUBO", "nubo12@gmail.com"),
+        InviteUserItem("4", "NUBO", "nubo123@gmail.com"),
+        InviteUserItem("5", "Alex", "alex@example.com"),
+        InviteUserItem("6", "Jin", "jin@mail.com"),
+
     )
 
     override suspend fun searchByEmail(keyword: String): List<InviteUserItem> {
