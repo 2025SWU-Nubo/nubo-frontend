@@ -6,7 +6,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,15 +22,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.PersonAdd
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -40,7 +31,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -67,6 +57,8 @@ import com.example.nubo.ui.theme.Purple700
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.sp
 import com.example.nubo.ui.theme.Grey200
+import com.example.nubo.ui.theme.PinkError
+import com.example.nubo.ui.theme.RedError
 
 
 @Composable
@@ -74,10 +66,16 @@ fun CreateBoardSheet(
     onClose: () -> Unit,
     onBack: () -> Unit,
     onInviteClick: () -> Unit,
-    onCreate: (name : String, inShared: Boolean) -> Unit
+    onCreate: (name : String, inShared: Boolean) -> Unit,
+    name: String,
+    isShared: Boolean,
+    onNameChange: (String) -> Unit,
+    onSharedChange: (Boolean) -> Unit
 ){
-    var name by rememberSaveable { mutableStateOf("") }
-    var isShared by rememberSaveable { mutableStateOf(false) }
+    var touched by rememberSaveable { mutableStateOf(false) }
+
+    val nameTrim = name.trim()
+    val nameValid = nameTrim.isNotEmpty()
 
     Column(
         modifier = Modifier
@@ -128,7 +126,10 @@ fun CreateBoardSheet(
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
                 value = name,
-                onValueChange = { name = it },          // it: String
+                onValueChange = {
+                    onNameChange(it)
+                    if(!touched) touched = true
+                                },
                 singleLine = true,
                 maxLines = 1,
                 modifier = Modifier
@@ -139,14 +140,32 @@ fun CreateBoardSheet(
                     fontSize = 14.sp,
                     lineHeight = 16.sp
                 ),
+                isError = touched && !nameValid,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = PurpleMain500,
                     unfocusedBorderColor = Grey50,
+                    errorBorderColor = RedError,
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Grey10,
                 ),
                 placeholder = { Text("보드 이름", style = AppTextStyles.b3_regular_14, color = Grey200) }
             )
+
+            Spacer(Modifier.height(8.dp))
+
+            // 에러 메시지 (필드 하단)
+            AnimatedVisibility(
+                visible = touched && !nameValid,
+                enter = fadeIn(tween(150)) + expandVertically(tween(150)),
+                exit = fadeOut(tween(150)) + shrinkVertically(tween(150))
+            ) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = "보드 이름을 입력해주세요.",
+                    style = AppTextStyles.b3_regular_14,
+                    color = RedError
+                )
+            }
         }
 
         Spacer(Modifier.height(22.dp))
@@ -166,14 +185,20 @@ fun CreateBoardSheet(
                 SegButton(
                     text ="개인 보드",
                     selected = !isShared,
-                    onClick = {isShared = false},
+                    onClick = {
+                        if (isShared) {
+                            onSharedChange(false)
+                        }
+                    },
                     iconRes = R.drawable.unselected_private
                 )
 
                 SegButton(
                     text ="공유 보드",
                     selected = isShared,
-                    onClick = {isShared = true},
+                    onClick = { if (!isShared) {
+                        onSharedChange(true)
+                    } },
                     iconRes = R.drawable.unselected_share
                 )
             }
@@ -226,10 +251,16 @@ fun CreateBoardSheet(
         }
 
         //추가하기 버튼
-        Button(modifier = Modifier.fillMaxWidth().height(50.dp), onClick ={} ,
+        Button(modifier = Modifier.fillMaxWidth().height(50.dp),
+            onClick = {
+            touched = true
+            if (nameValid) {
+                onCreate(nameTrim, isShared)
+            }},
             shape = RoundedCornerShape(8.dp),
+            enabled = nameValid,
             colors = ButtonDefaults.buttonColors(
-                containerColor = PurpleMain500
+                containerColor = if (nameValid) PurpleMain500 else Grey50
             )) {
             Text(text = "추가하기", style = AppTextStyles.b1_bold_18)
         }

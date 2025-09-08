@@ -19,9 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.nubo.data.model.CardDetailResponse
-import com.example.nubo.model.card.CardDetailDialogItem
+import com.example.nubo.model.card.CardDetailItem
 import com.example.nubo.model.card.CardItem
-import com.example.nubo.model.card.toShortformItem
 import com.example.nubo.model.myBoard.BoardItem
 import formatIsoDateToDisplayLegacy
 import kotlin.random.Random
@@ -107,7 +106,7 @@ fun BoardDetailContent(
         }
 
         cardDetail?.let { detail ->
-            val detailItem = CardDetailDialogItem(
+            val detailItem = CardDetailItem(
                 id = detail.id,
                 imageUrl = detail.videoThumbnailUrl ?: "",
                 videoUrl = detail.videoUrl ?: "",

@@ -51,7 +51,7 @@ class MyCardViewModel @Inject constructor(
                         if (response.isSuccessful) {
                             _cards.value = response.body()?.map {
                                 MyCardItem(
-                                    id = it.id,
+                                    id = it.cardId,
                                     imageUrl = it.videoThumbnailUrl
                                 )
                             } ?: emptyList()

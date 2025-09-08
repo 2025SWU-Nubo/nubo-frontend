@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.nubo.data.model.CardDetailResponse
-import com.example.nubo.model.card.CardDetailDialogItem
+import com.example.nubo.model.card.CardDetailItem
 import com.example.nubo.model.myBoard.MyCardItem
 import com.example.nubo.ui.screen.myBoard.MyCardViewModel
 import com.example.nubo.ui.theme.Grey50
@@ -90,7 +90,7 @@ fun MyCardContent(
         }
 
         cardDetail?.let { detail ->
-            val detailItem = CardDetailDialogItem(
+            val detailItem = CardDetailItem(
                 id = detail.id,
                 imageUrl = detail.videoThumbnailUrl ?: "",
                 videoUrl = detail.videoUrl ?: "",

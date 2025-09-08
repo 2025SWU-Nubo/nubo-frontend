@@ -10,6 +10,8 @@ import com.example.nubo.data.model.UserInfo
 import com.example.nubo.data.network.AuthService
 import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import retrofit2.Call
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -28,6 +30,30 @@ class AuthRepository @Inject constructor(
         private const val KEY_USER_INFO = "user_info"
     }
 
+    private val _accessTokenFlow = MutableStateFlow<String?>(null)
+    val accessTokenFlow: StateFlow<String?> = _accessTokenFlow
+
+    private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
+        if (key == KEY_ACCESS_TOKEN) {
+            _accessTokenFlow.value = prefs.getString(KEY_ACCESS_TOKEN, null)
+        }
+        if (key == KEY_USER_ID) {
+            // no-op here; kept for completeness
+        }
+        if (key == KEY_USER_INFO) {
+            // no-op here; kept for completeness
+        }
+    }
+
+
+    init {
+        // set initial value & register listener
+        _accessTokenFlow.value = sharedPreferences.getString(KEY_ACCESS_TOKEN, null)
+        sharedPreferences.registerOnSharedPreferenceChangeListener(prefListener)
+    }
+
+
+    // --- API calls ---
     fun loginWithGoogle(request: LoginRequest): Call<LoginResponse> {
         return authService.loginWithGoogle(request)
     }
@@ -43,6 +69,7 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    // --- Token & user info persistence ---
     fun saveAccessToken(token: String) {
         sharedPreferences.edit().apply {
             putString(KEY_ACCESS_TOKEN, token)
@@ -61,8 +88,9 @@ class AuthRepository @Inject constructor(
         return sharedPreferences.getString(KEY_ACCESS_TOKEN, null)
     }
 
-    fun getUserId(): String? {
-        return sharedPreferences.getString(KEY_USER_ID, null)
+    fun getUserId(): Int? {
+        val v = sharedPreferences.getInt(KEY_USER_ID, Int.MIN_VALUE)
+        return if (v == Int.MIN_VALUE) null else v
     }
 
     fun isLoggedIn(): Boolean {

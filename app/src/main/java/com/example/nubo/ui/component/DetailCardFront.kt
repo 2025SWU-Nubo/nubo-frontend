@@ -38,14 +38,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.nubo.R
-import com.example.nubo.model.card.CardDetailDialogItem
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.PurpleMain500
 import androidx.core.net.toUri
+import com.example.nubo.model.card.CardDetailItem
 
 @Composable
 fun DetailCardFront(
-    item: CardDetailDialogItem,
+    item: CardDetailItem,
     onDismiss: () -> Unit,
     onFlip: () -> Unit,
 ) {
