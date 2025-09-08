@@ -57,7 +57,7 @@ fun ProfileScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.FillBounds
             )
-            // 상태바 안전영역 안의 아이콘(뒤로/알림)
+            // 상태바 안전영역 안의 아이콘(타이틀/알림)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -66,21 +66,15 @@ fun ProfileScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 뒤로가기 버튼
-                Box(
-                    modifier = Modifier
-                        .size(38.dp) // 버튼 크기
-                        .background(Color.Black.copy(alpha = 0.05f), CircleShape) // 반투명 원 배경
-                        .clickable(onClick = onBack), // 클릭 이벤트
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_arrow_back),
-                        contentDescription = "뒤로",
-                        tint = Grey1000,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+                // 왼쪽 영역 비워두기 (Spacer로 공간 확보)
+                Spacer(modifier = Modifier.size(38.dp))
+
+                // 가운데 텍스트
+                Text(
+                    text = "마이페이지",
+                    style = AppTextStyles.subtitle_semibold_20,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
 
                 // 알림 버튼
                 Box(
@@ -98,6 +92,7 @@ fun ProfileScreen(
                     )
                 }
             }
+
 
             //프로필 클러스터
             Column(
