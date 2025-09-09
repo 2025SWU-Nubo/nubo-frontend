@@ -24,8 +24,8 @@ import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.PurpleMain500
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.keyframes
 import androidx.compose.foundation.background
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -42,12 +42,18 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.SpanStyle
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.nubo.ui.screen.cardupload.CardUploadViewModel
 import com.example.nubo.ui.theme.GreyMain100
 
 
 @Composable
 fun AddVideoSheet(
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    viewModel: AddVideoViewModel = hiltViewModel(), // ilt로 VideoService 주입된 VM 획득
+    cardUploadViewModel: CardUploadViewModel = hiltViewModel(), // 업로드 재사용 (이미 존재) :contentReference[oaicite:5]{index=5}
+    accessToken: String? = null // 상위에서 넘겨주면 사용(또는 VM에서 Auth 주입)
 ) {
     // 페이지/입력/선택 상태 (네 코드 그대로)
     var page by rememberSaveable { mutableStateOf(SheetPage.SAVE_VIDEO) }
@@ -62,18 +68,22 @@ fun AddVideoSheet(
     val shake = remember { Animatable(0f) }                       // 좌우 흔들기
 
     // 영상 링크용 토스트
-    var toastVisible by rememberSaveable { mutableStateOf(false) }
+    var toastVisible by rememberSaveable { mutableStateOf(false) } // 링크 무효할 때 토스트
+    var networkErrorToastVisible by rememberSaveable { mutableStateOf(false) } // 네트워크 에러 토스트
 
     // 보드용 토스트
     var boardToastVisible by rememberSaveable { mutableStateOf(false) }
     // 한 번만 자동 노출되게 플래그
     var boardToastShown by rememberSaveable { mutableStateOf(false) }
 
-    // 보드 페이지로 진입하면 자동으로 토스트 띄우기
+
+    // 보드 페이지로 진입하면 자동 토스트 + 서버 데이터(보드와 섹션 계층 구조) 로드
     LaunchedEffect(page) {
         if (page == SheetPage.PICK_BOARD && !boardToastShown) {
             boardToastVisible = true
             boardToastShown = true
+            // ★ 토큰이 있으면 보드 트리 로드
+            accessToken?.let { viewModel.loadBoards(it) }
         }
     }
 
@@ -81,7 +91,13 @@ fun AddVideoSheet(
     val density = LocalDensity.current
     var sheetHeightPx by remember { mutableStateOf(0) }   // 현재 시트 높이(px)
 
-// 에러 시 흔들기 트리거
+
+    // 뷰모델의 검증 상태를 Compose에서 구독
+    val validateState by viewModel.state.collectAsStateWithLifecycle(AddVideoViewModel.ValidateState.Idle)
+    // 보드 트리 상태 구독
+    val boardsState by viewModel.boards.collectAsStateWithLifecycle(AddVideoViewModel.BoardsState.Idle)
+
+    // 에러 시 흔들기 트리거
     LaunchedEffect(showError) {
         if (showError) {
             shake.snapTo(0f)
@@ -89,7 +105,6 @@ fun AddVideoSheet(
                 targetValue = 0f,
                 animationSpec = keyframes {
                     durationMillis = 420
-                    // 좌우로 왕복
                     -8f at 60 using LinearEasing
                     8f  at 120 using LinearEasing
                     -6f at 180 using LinearEasing
@@ -99,6 +114,38 @@ fun AddVideoSheet(
                     0f  at 420
                 }
             )
+        }
+    }
+    // 서버 응답에 따라 화면/모션 분기
+    LaunchedEffect(validateState) {
+        when (validateState) {
+            is AddVideoViewModel.ValidateState.Success -> {
+                // 유효 → 보드 선택 화면으로 이동
+                page = SheetPage.PICK_BOARD
+                showError = false
+                toastVisible = false
+            }
+
+            AddVideoViewModel.ValidateState.Invalid -> {
+                // 무효 → 흔들기 + 토스트
+                showError = true
+                toastVisible = true
+                // 3초 후 입력/에러 초기화 (기존 UX 유지)
+                scope.launch {
+                    delay(3000)
+                    showError = false
+                    input = ""
+                }
+            }
+
+            is AddVideoViewModel.ValidateState.Error -> {
+                // 네트워크/서버 에러 → 동일 모션과 네트워크 에러용 토스트
+                showError = true
+                networkErrorToastVisible = true // 네트워크 에러 토스트
+            }
+
+            AddVideoViewModel.ValidateState.Loading,
+            AddVideoViewModel.ValidateState.Idle -> Unit
         }
     }
 
@@ -185,39 +232,31 @@ fun AddVideoSheet(
                         // 캡슐형 버튼 (56dp, 외곽선 + 연한 배경)
                         Button(
                             onClick = {
-                                // --- 임시 유효성(서버 대신) ---
-                                val isValid = true // TODO: 서버 검증 결과로 대체
-
-                                if (isValid) {
-                                    page = SheetPage.PICK_BOARD
-                                } else {
-                                    // 에러 처리: 흔들기 + 토스트 + 3초 후 초기화
-                                    showError = true
-                                    toastVisible = true
-                                    scope.launch {
-                                        delay(3000)
-                                        // 초기 상태로 복귀
-                                        showError = false
-                                        input = ""
-                                    }
-                                }
+                                // 서버에 검증 요청 (링크는 앞뒤 공백 제거)
+                                viewModel.validate(input.trim())
                             },
-                            // 색상은 입력만 있으면 보라(활성처럼 보이게)
-                            enabled = input.isNotBlank(),                 // 입력 없으면 비활성(회색)
+                            enabled = input.isNotBlank() && validateState !is AddVideoViewModel.ValidateState.Loading,
                             modifier = Modifier.height(49.dp),
                             shape = RoundedCornerShape(28.dp),
                             border = if (input.isNotBlank()) null else BorderStroke(1.dp, Grey50),
                             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
                             colors = ButtonDefaults.buttonColors(
-                                // 활성처럼 보이는 색 세팅
                                 containerColor = PurpleMain500,
                                 contentColor = Grey0,
-                                // 입력이 없을 때(비활성) 회색
                                 disabledContainerColor = Grey10,
                                 disabledContentColor = Grey1000
                             )
                         ) {
-                            Text("추가", style = AppTextStyles.b3_medium_14)
+                            // 로딩 중이면 인디케이터, 아니면 텍스트
+                            if (validateState is AddVideoViewModel.ValidateState.Loading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Grey0
+                                )
+                            } else {
+                                Text("추가", style = AppTextStyles.b3_medium_14)
+                            }
                         }
                     }
 
@@ -233,22 +272,42 @@ fun AddVideoSheet(
                             .fillMaxWidth()
                             .height(fixedHeight)   // ← 시트 고정 높이
                     ) {
-                        // 리스트는 내부에서만 스크롤
+                        // 서버에서 내려온 보드+섹션 상태로 바인딩
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(1f),       // ← 남는 공간 채우고 스크롤
+                                .weight(1f),
                             contentPadding = PaddingValues(bottom = 8.dp)
                         ) {
-                            items(sampleTree(), key = { it.id }) { node ->
-                                BoardNodeItem(
-                                    node = node,
-                                    level = 0,
-                                    isChecked = { id -> checkedIds.contains(id) },
-                                    onCheckedChange = { id, isOn ->
-                                        checkedIds = if (isOn) checkedIds + id else checkedIds - id
+                            when (boardsState) {
+                                AddVideoViewModel.BoardsState.Idle, AddVideoViewModel.BoardsState.Loading -> {
+                                    item {
+                                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                                     }
-                                )
+                                }
+                                is AddVideoViewModel.BoardsState.Error -> {
+                                    item {
+                                        Text(
+                                            text = "보드 목록을 불러오지 못했어요.",
+                                            style = AppTextStyles.b3_medium_14,
+                                            color = Grey500,
+                                            modifier = Modifier.padding(16.dp)
+                                        )
+                                    }
+                                }
+                                is AddVideoViewModel.BoardsState.Loaded -> {
+                                    val tree = (boardsState as AddVideoViewModel.BoardsState.Loaded).boards
+                                    items(tree, key = { it.id }) { node ->
+                                        BoardNodeItem(
+                                            node = node.toUi(),            // ← 아래 B)에 추가할 변환 함수
+                                            level = 0,
+                                            isChecked = { id -> checkedIds.contains(id) },
+                                            onCheckedChange = { id, isOn ->
+                                                checkedIds = if (isOn) checkedIds + id else checkedIds - id
+                                            }
+                                        )
+                                    }
+                                }
                             }
                         }
 
@@ -273,10 +332,11 @@ fun AddVideoSheet(
             }
         }
     }
-    // 영상 링크용 토스트
+    // 영상 링크용 영상 무효 토스트
     if (toastVisible) {
         val annotatedTitle = buildAnnotatedString {
-            append("잘못된 링크!")}
+            append("잘못된 링크!")
+        }
         SheetTopToast(
             title = annotatedTitle,
             message = "유효하지 않은 링크입니다.\n영상 URL 확인 후 다시 입력해주세요.",
@@ -286,10 +346,23 @@ fun AddVideoSheet(
             bottomOffset = 240.dp
         )
     }
+
+    // 영상 링크용 네트워크 에러 토스트
+    if (networkErrorToastVisible) {
+        val annotatedTitle = buildAnnotatedString { append("네트워크 오류") }
+        SheetTopToast(
+            title = annotatedTitle,
+            message = "네트워크 오류로 잠시 후 다시 시도해주세요.",
+            visible = networkErrorToastVisible,
+            onDismiss = { networkErrorToastVisible = false },
+            durationMillis = 3000L,
+            bottomOffset = 240.dp
+        )
+    }
     // 보드 선택용 토스트
     if (boardToastVisible) {
         // 시트 고정 높이 + 100dp만큼 위에 토스트
-        val fixedHeight =340.dp
+        val fixedHeight = 340.dp
         val offsetFromBottom = fixedHeight + 150.dp
 
         val annotatedTitle = buildAnnotatedString {
@@ -321,6 +394,16 @@ private data class BoardNode(
     val children: List<BoardNode> = emptyList(),
     val selectable: Boolean = true
 )
+
+// 서버 UI모델(UiBoardNode) -> 화면용 BoardNode 변환
+// 최상위 UiBoardNode를 받도록 수정
+private fun UiBoardNode.toUi(): BoardNode {
+    return BoardNode(
+        id = id.toString(),        // Long -> String
+        title = title,
+        children = children.map { it.toUi() }
+    )
+}
 
 @Composable
 private fun BoardNodeItem(
@@ -417,14 +500,3 @@ private fun BoardNodeItem(
         }
     }
 }
-private fun sampleTree() = listOf(
-    BoardNode("g1", "맛집", selectable = false, children = listOf(
-        BoardNode("c1", "디저트"),
-        BoardNode("c2", "성수동"),
-        BoardNode("c3", "피자")
-    )),
-    BoardNode("g2", "패션", selectable = false, children = listOf(
-        BoardNode("c4", "상의"),
-        BoardNode("c5", "하의")
-    ))
-)

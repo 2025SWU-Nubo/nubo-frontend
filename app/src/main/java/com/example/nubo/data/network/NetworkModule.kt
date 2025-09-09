@@ -55,6 +55,12 @@ object NetworkModule {
         return retrofit.create(CardService::class.java)
     }
 
+    @Provides
+    @Singleton
+    fun provideVideoApiService(retrofit: Retrofit): VideoService {
+        return retrofit.create(VideoService::class.java)
+    }
+
 }
 
 

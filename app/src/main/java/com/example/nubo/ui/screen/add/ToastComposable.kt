@@ -67,7 +67,7 @@ fun SheetTopToast(
                         .width(391.dp)
                         .height(95.dp)
                         .background(
-                            color = Color(0xCCFFFFFF),
+                            color = Color(0xE6FFFFFF),
                             shape = RoundedCornerShape(size = 16.dp)
                         )
                         .padding(
