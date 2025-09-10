@@ -199,7 +199,7 @@ private fun ProfileAvatar(
             ) {
                 // 실제 사진
                 Image(
-                    painter = painterResource(id = R.drawable.profile_image),
+                    painter = painterResource(id = R.drawable.basic_profile_image),
                     contentDescription = "프로필",
                     modifier = Modifier
                         .fillMaxSize()

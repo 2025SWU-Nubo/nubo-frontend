@@ -6,6 +6,7 @@ import com.example.nubo.data.network.BoardService
 import com.example.nubo.data.network.CardService
 import com.example.nubo.data.network.TokenInterceptor
 import com.example.nubo.data.network.UserService
+import com.example.nubo.data.network.VideoService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -70,4 +71,9 @@ object NetworkModule {
     @Provides @Singleton
     fun provideUserService(retrofit: Retrofit): UserService =
         retrofit.create(UserService::class.java)
+
+    @Provides @Singleton
+    fun provideVideoApiService(retrofit: Retrofit): VideoService {
+        return retrofit.create(VideoService::class.java)
+    }
 }
