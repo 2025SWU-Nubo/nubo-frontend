@@ -27,6 +27,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.keyframes
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -39,6 +40,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.SpanStyle
@@ -53,10 +55,9 @@ fun AddVideoSheet(
     onClose: () -> Unit,
     viewModel: AddVideoViewModel = hiltViewModel(), // ilt로 VideoService 주입된 VM 획득
     cardUploadViewModel: CardUploadViewModel = hiltViewModel(), // 업로드 재사용 (이미 존재) :contentReference[oaicite:5]{index=5}
-    accessToken: String? = null // 상위에서 넘겨주면 사용(또는 VM에서 Auth 주입)
 ) {
     // 페이지/입력/선택 상태 (네 코드 그대로)
-    var page by rememberSaveable { mutableStateOf(SheetPage.SAVE_VIDEO) }
+    var page by remember { mutableStateOf(SheetPage.SAVE_VIDEO) }
     var input by rememberSaveable { mutableStateOf("") }
     var checkedIds by rememberSaveable { mutableStateOf(setOf<String>()) }
 
@@ -77,13 +78,12 @@ fun AddVideoSheet(
     var boardToastShown by rememberSaveable { mutableStateOf(false) }
 
 
-    // 보드 페이지로 진입하면 자동 토스트 + 서버 데이터(보드와 섹션 계층 구조) 로드
+    // 보드 페이지 진입 시, 무조건 보드 트리 로드 호출
     LaunchedEffect(page) {
         if (page == SheetPage.PICK_BOARD && !boardToastShown) {
             boardToastVisible = true
             boardToastShown = true
-            // ★ 토큰이 있으면 보드 트리 로드
-            accessToken?.let { viewModel.loadBoards(it) }
+            viewModel.loadBoards()           // ← 토큰 없이 호출 (VM 내부에서 처리)
         }
     }
 
@@ -106,12 +106,12 @@ fun AddVideoSheet(
                 animationSpec = keyframes {
                     durationMillis = 420
                     -8f at 60 using LinearEasing
-                    8f  at 120 using LinearEasing
+                    8f at 120 using LinearEasing
                     -6f at 180 using LinearEasing
-                    6f  at 240 using LinearEasing
+                    6f at 240 using LinearEasing
                     -3f at 300 using LinearEasing
-                    3f  at 360 using LinearEasing
-                    0f  at 420
+                    3f at 360 using LinearEasing
+                    0f at 420
                 }
             )
         }
@@ -165,7 +165,24 @@ fun AddVideoSheet(
                 .padding(horizontal = 0.dp, vertical = 0.dp)
         ) {
             //닫기 버튼
-            IconButton(onClick = onClose, modifier = Modifier.align(Alignment.CenterStart)) {
+            IconButton(
+                onClick = {
+                    // 시트 상태 초기화
+                    page = SheetPage.SAVE_VIDEO
+                    input = ""
+                    checkedIds = emptySet()
+                    boardToastShown = false
+                    boardToastVisible = false
+                    toastVisible = false
+                    networkErrorToastVisible = false
+
+                    // ViewModel 상태도 초기화
+                    viewModel.resetForNewSession()
+
+                    // 시트 닫기
+                    onClose()
+                },modifier = Modifier.align(Alignment.CenterStart))
+            {
                 Icon(
                     painter = painterResource(id = R.drawable.close_icon),
                     contentDescription = "닫기",
@@ -279,12 +296,13 @@ fun AddVideoSheet(
                                 .weight(1f),
                             contentPadding = PaddingValues(bottom = 8.dp)
                         ) {
+                            // Loaded인데 보드가 비어 있으면 안내를 보여주기 (무한 로딩처럼 보이지 않게)
                             when (boardsState) {
-                                AddVideoViewModel.BoardsState.Idle, AddVideoViewModel.BoardsState.Loading -> {
-                                    item {
-                                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                                    }
+                                AddVideoViewModel.BoardsState.Idle,
+                                AddVideoViewModel.BoardsState.Loading -> {
+                                    item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
                                 }
+
                                 is AddVideoViewModel.BoardsState.Error -> {
                                     item {
                                         Text(
@@ -295,17 +313,29 @@ fun AddVideoSheet(
                                         )
                                     }
                                 }
+
                                 is AddVideoViewModel.BoardsState.Loaded -> {
                                     val tree = (boardsState as AddVideoViewModel.BoardsState.Loaded).boards
-                                    items(tree, key = { it.id }) { node ->
-                                        BoardNodeItem(
-                                            node = node.toUi(),            // ← 아래 B)에 추가할 변환 함수
-                                            level = 0,
-                                            isChecked = { id -> checkedIds.contains(id) },
-                                            onCheckedChange = { id, isOn ->
-                                                checkedIds = if (isOn) checkedIds + id else checkedIds - id
-                                            }
-                                        )
+                                    if (tree.isEmpty()) {
+                                        item {
+                                            Text(
+                                                text = "보드가 아직 없어요. \n 먼저 보드를 만들어주세요.",
+                                                style = AppTextStyles.b3_medium_14,
+                                                color = Grey500,
+                                                modifier = Modifier.padding(16.dp)
+                                            )
+                                        }
+                                    } else {
+                                        items(tree, key = { it.id }) { node ->
+                                            BoardNodeItem(
+                                                node = node.toUi(),
+                                                level = 0,
+                                                isChecked = { id -> checkedIds.contains(id) },
+                                                onCheckedChange = { id, isOn ->
+                                                    checkedIds = if (isOn) checkedIds + id else checkedIds - id
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -313,8 +343,44 @@ fun AddVideoSheet(
 
                         Spacer(Modifier.height(12.dp))
 
+                        //추가하기 버튼
                         Button(
-                            onClick = { boardToastVisible = true },
+                            onClick = {
+                                // 업로드할 URL 결정: 검증 성공 시 저장된 URL 우선, 없으면 입력값 사용
+                                val urlToUpload = viewModel.rememberedUrl ?: input.trim()
+
+                                // 체크된 보드/섹션 ID들을 Long 리스트로 변환 (섹션도 보드로 취급)
+                                val selectedIds: List<Long> = checkedIds
+                                    .mapNotNull { it.toLongOrNull() }
+                                    .distinct()
+
+                                // 액세스 토큰 확보 (없으면 업로드 불가하므로 안내 후 반환)
+                                val token = viewModel.getAccessTokenOrNull()
+                                if (token.isNullOrEmpty()) {
+                                    // 토큰 없으면 시트는 닫지 않고 안내만 (필요시 정책 변경)
+                                    boardToastVisible = false
+                                    networkErrorToastVisible = true
+                                    return@Button
+                                }
+
+                                // 업로드 트리거: 네트워크 호출은 비동기로 진행 → UI와 독립
+                                cardUploadViewModel.uploadCard(
+                                    token = token,                      // 저장형태(이미 "Bearer ..."면 그대로)
+                                    videoUrl = urlToUpload,
+                                    boardIds = selectedIds.ifEmpty { null }   // 비었으면 null → AI 자동 분류
+                                )
+
+                                // 즉시 시트 초기화 + 닫기 (업로드는 백그라운드에서 계속됨)
+                                page = SheetPage.SAVE_VIDEO
+                                input = ""
+                                checkedIds = emptySet()
+                                boardToastShown = false
+                                boardToastVisible = false
+                                toastVisible = false
+                                networkErrorToastVisible = false
+                                viewModel.resetForNewSession()  // VM 상태도 초기화
+                                onClose()
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp)
@@ -382,6 +448,13 @@ fun AddVideoSheet(
             bottomOffset = offsetFromBottom          // 시트 상대 위치에 맞춰 토스트 위치
         )
     }
+    // 시트 내리면 다시 처음 화면으로
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.resetForNewSession()
+        }
+    }
+
 }
 
 private enum class SheetPage { SAVE_VIDEO, PICK_BOARD }
@@ -414,6 +487,9 @@ private fun BoardNodeItem(
 ) {
     var expanded by remember { mutableStateOf(true) }
 
+    // 섹션(자식) 존재 여부
+    val hasChildren = node.children.isNotEmpty()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -426,18 +502,34 @@ private fun BoardNodeItem(
                 .padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 펼침/접힘 아이콘
-            Icon(
-                painter = painterResource(id = R.drawable.ic_arrow_down),
-                contentDescription = if (expanded) "접기" else "펼치기",
-                modifier = Modifier
-                    .size(24.dp)
-                    .clickable { expanded = !expanded }
-                    .graphicsLayer { rotationZ = if (expanded) 0f else 180f } // 접힘 시 위로
-            )
+            // 화살표 영역: 자식이 있으면 보이고 클릭 가능, 없으면 투명으로 공간만 유지
+            val arrowSize = Modifier.size(24.dp)
 
-            Spacer(Modifier.width(8.dp))                  // 아이콘-텍스트 사이 8dp
+            if (hasChildren) {
+                // 자식이 있는 경우: 아이콘 보임 + 클릭 토글 + 회전
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_arrow_down),
+                    contentDescription = if (expanded) "접기" else "펼치기",
+                    modifier = arrowSize
+                        .clickable { expanded = !expanded } // 자식 있을 때만 클릭 동작
+                        .graphicsLayer { rotationZ = if (expanded) 0f else 180f },
+                    tint = Color.Unspecified
+                )
+            } else {
+                // 자식이 없는 경우: 아이콘은 투명 처리하여 공간만 차지 (접근성에서는 제외)
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_arrow_down),
+                    contentDescription = null,                // 접근성에 노출하지 않음
+                    modifier = arrowSize
+                        .alpha(0f)                           // 아이콘을 보이지 않게
+                        .clearAndSetSemantics { },           // 접근성 포커스에서 제거
+                    tint = Color.Unspecified
+                )
+            }
 
+            Spacer(Modifier.width(8.dp)) // 아이콘-텍스트 간격 유지
+
+            // 아이콘-텍스트 사이 8dp
             Text(
                 text = node.title,
                 style = AppTextStyles.b3_medium_14,
@@ -445,12 +537,25 @@ private fun BoardNodeItem(
                 modifier = Modifier.weight(1f)
             )
 
-            // 부모 줄 오른쪽에는 체크박스 없음
+            // 부모 보드 체크박스 추가
+            val checkedParent = isChecked(node.id)
+            val parentIconRes = if (checkedParent) R.drawable.ic_add_fill_checkbox
+            else R.drawable.ic_add_blank_check_box
+
+            Icon(
+                painter = painterResource(id = parentIconRes),
+                contentDescription = if (checkedParent) "선택됨" else "선택",
+                modifier = Modifier
+                    .size(24.dp)
+                    .clickable { onCheckedChange(node.id, !checkedParent) },
+                tint = Color.Unspecified
+            )
+
             Spacer(Modifier.width(8.dp))
         }
 
-        // 펼쳐진 자식 리스트
-        if (expanded) {
+        // 섹션이 있고, 펼쳐진 경우에만 섹션 리스트 표시
+        if (hasChildren && expanded) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -460,7 +565,7 @@ private fun BoardNodeItem(
                         val strokeWidth = 1.dp.toPx()
                         val y = size.height - strokeWidth / 2
                         drawLine(
-                            color = GreyMain100,           // 원하는 색상
+                            color = GreyMain100,
                             start = Offset(0f, y),
                             end = Offset(size.width, y),
                             strokeWidth = strokeWidth

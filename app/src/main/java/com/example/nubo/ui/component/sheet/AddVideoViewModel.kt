@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.nubo.data.model.BoardWithSectionsResponse
 import com.example.nubo.data.network.VideoService
+import com.example.nubo.data.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,7 +21,8 @@ data class UiBoardNode(
 // 서버 검증 호출과 임시 URL 저장을 담당하는 뷰모델
 @HiltViewModel
 class AddVideoViewModel @Inject constructor(
-    private val videoService: VideoService
+    private val videoService: VideoService,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     // UI 상태: Idle/Loading/Success(유효)/Invalid(무효)/Error(에러)
@@ -47,7 +49,9 @@ class AddVideoViewModel @Inject constructor(
             rememberedUrl = null
 
             try {
-                val res = videoService.validateLink(url)
+                // 토큰 로직 추가
+                val token = "Bearer ${authRepository.getAccessToken()}" // 토큰 가져오기
+                val res = videoService.validateLink(url, token) // 토큰 전달
                 if (res.isSuccessful) {
                     val body = res.body()
                     if (body?.valid == true) {
@@ -65,6 +69,7 @@ class AddVideoViewModel @Inject constructor(
         }
     }
 
+
     // --- 보드 트리 로딩 상태 ---
     sealed class BoardsState {
         data object Idle : BoardsState()
@@ -76,14 +81,18 @@ class AddVideoViewModel @Inject constructor(
     private val _boards = MutableStateFlow<BoardsState>(BoardsState.Idle)
     val boards: StateFlow<BoardsState> = _boards
 
-    // 토큰은 Hilt로 AuthRepository를 받거나, 호출 측에서 넘겨줘도 됨.
-    // 여기서는 호출 측(Compose)에서 accessToken을 파라미터로 넘겨준다고 가정.
-    fun loadBoards(accessToken: String) {
-        if (_boards.value is BoardsState.Loading) return
+    // 토큰을 파라미터로 받지 않고, 내부에서 AuthRepository로 가져와 호출
+    fun loadBoards() {
+        // 이미 로딩/완료 상태면 중복 호출 방지
+        if (_boards.value is BoardsState.Loading || _boards.value is BoardsState.Loaded) return
+
         viewModelScope.launch {
             _boards.value = BoardsState.Loading
             try {
-                val res = videoService.getBoardsWithSections("Bearer $accessToken")
+                // 토큰 내부에서 확보
+                val token = "Bearer ${authRepository.getAccessToken()}"  // ← 토큰 가져오기
+                val res = videoService.getBoardsWithSections(token)
+
                 if (res.isSuccessful) {
                     val body = res.body().orEmpty()
                     _boards.value = BoardsState.Loaded(body.toUiNodes())
@@ -108,4 +117,18 @@ class AddVideoViewModel @Inject constructor(
             )
         }
     }
+
+    // 시트가 닫힐 때 상태를 초기화하는 함수
+    fun resetForNewSession() {
+        _state.value = ValidateState.Idle
+        rememberedUrl = null
+        _boards.value = BoardsState.Idle
+    }
+
+    // 저장된 액세스 토큰 반환 (없으면 null)
+    fun getAccessTokenOrNull(): String? {
+        return authRepository.getAccessToken() // "Bearer " 유무는 저장된 형태 그대로 사용
+    }
 }
+
+

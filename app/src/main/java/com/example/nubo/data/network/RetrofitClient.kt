@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit
 
 
 object RetrofitClient {
-    private const val BASE_URL = "https://3ceab6ad8959.ngrok-free.app"
+    private const val BASE_URL = "https://f4cecda9fec8.ngrok-free.app"
     private val logging = HttpLoggingInterceptor(PrettyJsonLogger()).apply {
         level = HttpLoggingInterceptor.Level.BODY
     }
