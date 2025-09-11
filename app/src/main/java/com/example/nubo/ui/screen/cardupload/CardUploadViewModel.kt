@@ -20,8 +20,8 @@ class CardUploadViewModel @Inject constructor(
     private val _uploadResult = MutableLiveData<CardUploadResponse>()
     val uploadResult: LiveData<CardUploadResponse> get() = _uploadResult
 
-    fun uploadCard(token: String, videoUrl: String, boardId: Long? = null) {
-        val request = CardUploadRequest(videoUrl, boardId)
+    fun uploadCard(token: String, videoUrl: String, boardIds: List<Long>? = null) {
+        val request = CardUploadRequest(videoUrl, boardIds)
         repository.uploadCard(token, request).enqueue(object : Callback<CardUploadResponse> {
             override fun onResponse(
                 call: Call<CardUploadResponse>,
