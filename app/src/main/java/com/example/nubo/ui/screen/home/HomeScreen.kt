@@ -48,55 +48,165 @@ import com.example.nubo.ui.theme.NuboAppTheme
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.nubo.data.model.CardResponse
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.example.nubo.data.model.CardDetailResponse
+import com.example.nubo.model.card.CardDetailItem
+import com.example.nubo.model.card.CardItem
 import com.example.nubo.model.home.RecommendChipItem
 import com.example.nubo.ui.component.RecommendationChipsRow
+import com.example.nubo.ui.screen.card.CardDetailScreen
+import formatIsoDateToDisplayLegacy
 
 
+// com/example/nubo/ui/screen/home/HomeScreen.kt
 @Composable
 fun HomeScreen(
     padding: PaddingValues = PaddingValues(),
     onMoreClick: () -> Unit = {}
 ) {
-    val homeViewModel: HomeViewModel = hiltViewModel()
+    val vm: HomeViewModel = hiltViewModel()
 
-    val cards by homeViewModel.cards.observeAsState(emptyList())
-    val chips by homeViewModel.chips.observeAsState(emptyList())
-    val selectedChipId by homeViewModel.selectedChipId.observeAsState("all")
+    val cards by vm.cards.observeAsState(emptyList())
+    val chips by vm.chips.observeAsState(emptyList())
+    val selectedChipId by vm.selectedChipId.observeAsState("all")
+
+    // 카드 선택 상태 관리
+    var selectedCardId by rememberSaveable { mutableStateOf<Int?>(null) }
+    var lastClickedItem by remember { mutableStateOf<CardItem?>(null) }
+    val detail by vm.cardDetail.observeAsState()
+    val isDetailLoading by vm.isDetailLoading.observeAsState(false)
 
 
-    LazyColumn(
-        modifier = Modifier
-            .padding(padding)
-            .fillMaxSize()
-            .background(Color.White),
-        contentPadding = PaddingValues(bottom = 60.dp)
-    ) {
-        item { Spacer(modifier = Modifier.height(12.dp)) }
-        item { RecentBoardSection() }
-        item { Spacer(modifier = Modifier.height(24.dp)) }
-        item {  Column {
-            Spacer(modifier = Modifier.height(10.dp)) // 위 여백
-            Box(
+    LaunchedEffect(Unit) {
+        vm.loadBoards()
+        vm.refreshForCurrentSelection()
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val obs = LifecycleEventObserver { _, e ->
+            if (e == Lifecycle.Event.ON_RESUME) {
+                vm.loadBoards()
+                vm.refreshForCurrentSelection()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
+
+    when (selectedCardId) {
+        null -> {
+            // ─── 홈(목록) ───
+            LazyColumn(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp)
-                    .background(Grey10)
-            )
-            Spacer(modifier = Modifier.height(18.dp)) // 아래 여백
-        } }
-        item { RecommendedVideosSection(
-            cards = cards,
-            chips = chips,
-            selectedChipId = selectedChipId,
-            onChipClick = {homeViewModel.onChipClick(it)}
-        )
+                    .padding(padding)
+                    .fillMaxSize()
+                    .background(Color.White),
+                contentPadding = PaddingValues(bottom = 60.dp)
+            ) {
+                item { Spacer(Modifier.height(12.dp)) }
+                item { RecentBoardSection() }
+                item {
+                    Column {
+                        Spacer(Modifier.height(10.dp))
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .background(Grey10)
+                        )
+                        Spacer(Modifier.height(18.dp))
+                    }
+                }
+                item {
+                    RecommendedVideosSection(
+                        cards = cards,
+                        chips = chips,
+                        selectedChipId = selectedChipId,
+                        onChipClick = { vm.onChipClick(it) },
+                        onCardClick = { item ->
+                            lastClickedItem = item
+                            selectedCardId = item.id
+                            vm.getCardDetail(item.id)
+                        }
+                    )
+                }
+            }
+        }
+        else -> {
+            // ─── 상세(전체 페이지) ───
+            when {
+                isDetailLoading -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+                detail != null -> {
+                    // 매핑 함수 없이 여기서 바로 UI용 객체 생성
+                    val item = CardDetailItem(
+                        id = detail!!.id,
+                        imageUrl = detail!!.videoThumbnailUrl ?: "",
+                        videoUrl = detail!!.videoUrl ?: "",
+                        title = detail!!.title ?: "제목 없음",
+                        category = detail!!.boardName ?: "카테고리 없음",
+                        boardSource = detail!!.boardSource ?: "",
+                        description = detail!!.summary ?: "설명 없음",
+                        date = formatIsoDateToDisplayLegacy(detail!!.createdAt),
+                        videoPlatform = detail!!.videoPlatform ?: "알 수 없음"
+                    )
+                    CardDetailScreen(
+                        item = item,
+                        onBack = {
+                            selectedCardId = null
+                            vm.clearCardDetail()
+                        }
+                    )
+                }
+                else -> {
+                    // Fallback: 마지막 클릭한 CardItem으로 상세 구성(제목/설명/카테고리 그대로 표시)
+                    lastClickedItem?.let { item ->
+                        val fallback = CardDetailItem(
+                            id = item.id,
+                            imageUrl = item.imageUrl,
+                            videoUrl = "",
+                            title = item.title,
+                            category = item.category,
+                            boardSource = "",
+                            description = item.description,
+                            date = "",
+                            videoPlatform = ""
+                        )
+                        CardDetailScreen(
+                            item = fallback,
+                            onBack = {
+                                selectedCardId = null
+                                vm.clearCardDetail()
+                            }
+                        )
+                    } ?: run {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                }
+            }
         }
     }
 }
+
+
+
 
 @Composable
 fun BoardThumbnailCard(item: BoardThumbnailCardItem) {
@@ -177,7 +287,8 @@ fun RecommendedVideosSection(
     cards: List<CardResponse>,
     chips: List<RecommendChipItem>,
     selectedChipId: String,
-    onChipClick: (RecommendChipItem) -> Unit
+    onChipClick: (RecommendChipItem) -> Unit,
+    onCardClick: (CardItem) -> Unit
 ) {
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Text(text = "추천 영상", style = AppTextStyles.title_semibold_24)
@@ -192,7 +303,7 @@ fun RecommendedVideosSection(
     Spacer(modifier = Modifier.height(12.dp))
 
     Column(modifier = Modifier.padding(horizontal = 16.dp))
-    {     CardContent(cards) }
+    {     CardContent(cards = cards, onCardClick = onCardClick) }
 
 }
 

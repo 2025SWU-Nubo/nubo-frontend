@@ -28,7 +28,7 @@ class HomeViewModel @Inject constructor(
 ) : ViewModel() {
 
     // --- Cards ---
-    private val _cards = MutableLiveData<List<CardResponse>>()
+    private val _cards = MutableLiveData<List<CardResponse>>(emptyList())
     val cards: LiveData<List<CardResponse>> get() = _cards
 
     // --- Card Detail ---
@@ -69,7 +69,40 @@ class HomeViewModel @Inject constructor(
 
     fun refreshAll() {
         loadBoards()
-        loadCards()
+        refreshForCurrentSelection()
+    }
+    /** 현재 선택된 칩("all" or boardId)에 맞춰 카드만 새로고침 */
+    fun refreshForCurrentSelection(){
+        val token = authRepository.getAccessToken() ?: return
+        val sel = _selectedChipId.value ?: "all"
+
+        if(sel == "all"){
+            loadCards()
+        }else{
+            val boardId = sel.toLongOrNull() ?: return
+            _isLoading.value = true
+
+            //미지청 추천 영상 조회
+            cardRepository.getUnviewedCardsByBoard(token,boardId)
+                .enqueue(object : Callback<List<CardResponse>>{
+                    override fun onResponse(call: Call<List<CardResponse>?>, response: Response<List<CardResponse>?>) {
+                        _isLoading.value = false
+                        if (response.isSuccessful) {
+                            _cards.value = response.body().orEmpty()
+                            Log.d("HomeViewModel", "✅ Board $boardId cards loaded: size=${_cards.value?.size}")
+                        } else {
+                            _cards.value = emptyList()
+                            Log.e("HomeViewModel", "❌ Failed to load board $boardId cards: code=${response.code()}")
+                        }
+                    }
+
+                    override fun onFailure(call: Call<List<CardResponse>?>, t: Throwable) {
+                        _isLoading.value = false
+                        _cards.value = emptyList()
+                        Log.e("HomeViewModel", "❌ Board $boardId cards request failed: ${t.localizedMessage}", t)
+                    }
+                })
+        }
     }
 
     fun loadCards() {
@@ -143,34 +176,9 @@ class HomeViewModel @Inject constructor(
         _chips.value = _chips.value.orEmpty().map { it.copy(isSelected = it.id == chip.id) }
         Log.d("HomeViewModel", "🔘 Chip clicked: id=${chip.id}, title=${chip.title}")
 
-        val token = authRepository.getAccessToken() ?: return
+        //새로고침
+        refreshForCurrentSelection()
 
-        if(chip.id == "all"){loadCards()}
-        else{
-            val boardId = chip.id.toLongOrNull() ?: return
-            _isLoading.value = true
-            cardRepository.getUnviewedCardsByBoard(token,boardId)
-                .enqueue(object : Callback<List<CardResponse>>{override fun onResponse(
-                    call: Call<List<CardResponse>>,
-                    response: Response<List<CardResponse>>
-                ) {
-                    _isLoading.value = false
-                    if (response.isSuccessful) {
-                        _cards.value = response.body().orEmpty()
-                        Log.d("HomeViewModel", "✅ Board $boardId cards loaded: size=${_cards.value?.size}")
-                    } else {
-                        _cards.value = emptyList()
-                        Log.e("HomeViewModel", "❌ Failed to load board $boardId cards: code=${response.code()}")
-                    }
-                }
-
-                    override fun onFailure(call: Call<List<CardResponse>>, t: Throwable) {
-                        _isLoading.value = false
-                        _cards.value = emptyList()
-                        Log.e("HomeViewModel", "❌ Board $boardId cards request failed: ${t.localizedMessage}", t)
-                    }
-                })
-        }
     }
 
 
