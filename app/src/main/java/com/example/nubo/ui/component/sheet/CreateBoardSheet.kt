@@ -70,12 +70,24 @@ fun CreateBoardSheet(
     name: String,
     isShared: Boolean,
     onNameChange: (String) -> Unit,
-    onSharedChange: (Boolean) -> Unit
+    onSharedChange: (Boolean) -> Unit,
+    isLoading: Boolean,
+    nameError: String?,
+    onSubmit: () -> Unit
 ){
     var touched by rememberSaveable { mutableStateOf(false) }
 
     val nameTrim = name.trim()
-    val nameValid = nameTrim.isNotEmpty()
+    val localValid = nameTrim.isNotEmpty()
+    val showLocalError = touched && !localValid
+    val hasRemoteError = nameError != null
+    val isError = showLocalError || hasRemoteError
+
+    val errorMessage = when {
+        hasRemoteError -> nameError!!                         // 서버/VM에서 내려준 에러(예: 중복)
+        showLocalError -> "보드 이름을 입력해주세요."           // 로컬 공란/길이 등
+        else -> null
+    }
 
     Column(
         modifier = Modifier
@@ -140,7 +152,7 @@ fun CreateBoardSheet(
                     fontSize = 14.sp,
                     lineHeight = 16.sp
                 ),
-                isError = touched && !nameValid,
+                isError = isError,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = PurpleMain500,
                     unfocusedBorderColor = Grey50,
@@ -155,13 +167,13 @@ fun CreateBoardSheet(
 
             // 에러 메시지 (필드 하단)
             AnimatedVisibility(
-                visible = touched && !nameValid,
+                visible =  errorMessage != null,
                 enter = fadeIn(tween(150)) + expandVertically(tween(150)),
                 exit = fadeOut(tween(150)) + shrinkVertically(tween(150))
             ) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "보드 이름을 입력해주세요.",
+                    text = errorMessage!!,
                     style = AppTextStyles.b3_regular_14,
                     color = RedError
                 )
@@ -254,13 +266,13 @@ fun CreateBoardSheet(
         Button(modifier = Modifier.fillMaxWidth().height(50.dp),
             onClick = {
             touched = true
-            if (nameValid) {
-                onCreate(nameTrim, isShared)
+            if (localValid && !isLoading) {
+                onSubmit()
             }},
             shape = RoundedCornerShape(8.dp),
-            enabled = nameValid,
+            enabled = localValid && !isLoading,
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (nameValid) PurpleMain500 else Grey50
+                containerColor = if (localValid && !isLoading ) PurpleMain500 else Grey50
             )) {
             Text(text = "추가하기", style = AppTextStyles.b1_bold_18)
         }

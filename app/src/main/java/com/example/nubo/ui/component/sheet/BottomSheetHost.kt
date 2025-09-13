@@ -1,6 +1,7 @@
 package com.example.nubo.ui.component.sheet
 
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.ExperimentalAnimationApi
@@ -13,6 +14,8 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalContext
+import androidx.hilt.navigation.compose.hiltViewModel
 
 
 @OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
@@ -34,12 +37,32 @@ fun BottomSheetHost(
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    var createBoardName by rememberSaveable { mutableStateOf("") }
-    var isShared by rememberSaveable { mutableStateOf(false) }
-
     // 참여자 초대 상대 관리
     var invitedEmails by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var inviteResetVersion by remember { mutableStateOf(0) }
+
+    val createBoardViewModel: CreateBoardViewModel = hiltViewModel()
+    val ui by createBoardViewModel.ui.collectAsState() // CreateBoardUiState(name, isShared, isLoading, nameError, created)
+
+    val context = LocalContext.current
+
+    LaunchedEffect(ui.created) {
+        ui.created?.let { created ->
+            val typeKo = if (ui.isShared) "공유" else "개인"
+            Toast.makeText(
+                context,
+                "‘${created.name}’ ${if (ui.isShared) "공유" else "개인"} 보드를 생성했어요.",
+                Toast.LENGTH_SHORT
+            ).show()
+            // 1) 상위에 알림 (여기서는 상위가 리스트 새로고침 등을 하도록 name/shared 전달)
+            onCreateBoard(ui.name.trim(), ui.isShared)
+            // 2) VM 내부 created 신호 소비 및 입력 초기화
+            createBoardViewModel.consumeCreated()
+            // 3) 시트 닫기
+            onDismiss()
+        }
+    }
+
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -72,21 +95,30 @@ fun BottomSheetHost(
                 )
                 SheetRoute.CreateBoard -> CreateBoardSheet(
                     onClose = onDismiss,
-                    onBack = onBackToAddMenu,
-                    onInviteClick = onGoInvite,
-                    onCreate = {
-                               name,shared -> onCreateBoard(name,shared)
-                               },
-                    name = createBoardName,
-                    isShared = isShared,
-                    onNameChange = { createBoardName = it },
-                    onSharedChange = { newShared ->
-                        if (isShared && !newShared) {
+                    onBack = {
+                        if (ui.isShared) {
                             invitedEmails = emptyList()
-                            inviteResetVersion++   // InviteSheet 내부 선택도 리셋하게 신호
+                            inviteResetVersion++
+                            createBoardViewModel.setInvitedEmails(emptyList())
                         }
-                        isShared = newShared
-                    }
+                        onBackToAddMenu()
+                    },
+                    onInviteClick = onGoInvite,
+                    onCreate = {_,_ ->},
+                    name = ui.name,
+                    isShared = ui.isShared,
+                    onNameChange = createBoardViewModel::onNameChange,
+                    onSharedChange = { shared ->
+                        if (ui.isShared && !shared) {
+                            invitedEmails = emptyList()
+                            inviteResetVersion++
+                            createBoardViewModel.setInvitedEmails(emptyList())
+                        }
+                        createBoardViewModel.onSharedChange(shared)
+                    },
+                    isLoading = ui.isLoading,
+                    nameError = ui.nameError,
+                    onSubmit = createBoardViewModel::submit
                 )
                 SheetRoute.Invite -> InviteSheet(
                     onClose = onDismiss,
@@ -96,6 +128,7 @@ fun BottomSheetHost(
                     onComplete = { emails ->
                         invitedEmails = emails
                         // 1) 부모에 초대 이메일 전달(서버 전송은 부모/VM에서 처리 권장)
+                        createBoardViewModel.setInvitedEmails(emails)
                         onInviteComplete(emails)
                         // 2) CreateBoard 시트로 되돌아가기
                         onBackToCreateBoard()
