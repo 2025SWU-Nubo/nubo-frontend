@@ -14,6 +14,7 @@ import com.example.nubo.data.model.LoginResponse
 import com.example.nubo.data.model.TokenValidationResponse
 import com.example.nubo.data.model.UserInfo
 import com.example.nubo.data.repository.AuthRepository
+import com.example.nubo.utils.NotificationPermissionHelper
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.common.api.ApiException
@@ -41,6 +42,10 @@ class OnBoardingViewModel @Inject constructor(
 
     private val _toastMessage = MutableStateFlow<String?>(null)
     val toastMessage: StateFlow<String?> get() = _toastMessage
+
+    // 알림 권한 요청이 필요한지 상태 관리
+    private val _shouldRequestNotificationPermission = MutableStateFlow(false)
+    val shouldRequestNotificationPermission: StateFlow<Boolean> get() = _shouldRequestNotificationPermission
 
 
     private lateinit var googleSignInClient: com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -99,8 +104,8 @@ class OnBoardingViewModel @Inject constructor(
                         if (response.isSuccessful) {
                             response.body()?.let { tokenResponse ->
                                 if (tokenResponse.valid) {
-                                    // 토큰이 유효하면 메인으로 이동
-                                    navigateToMain()
+                                    // 토큰이 유효하면 알림 권한 확인 후 메인으로 이동
+                                    checkNotificationPermissionAndNavigate()
                                 } else {
                                     // 토큰이 유효하지 않으면 로그아웃 처리
                                     handleTokenExpired()
@@ -153,6 +158,22 @@ class OnBoardingViewModel @Inject constructor(
         )
     }
 
+    // 알림 권한 확인 후 메인 화면으로 이동
+    private fun checkNotificationPermissionAndNavigate() {
+        if (NotificationPermissionHelper.shouldRequestNotificationPermission(context)) {
+            // 알림 권한 요청이 필요한 경우
+            _shouldRequestNotificationPermission.value = true
+        } else {
+            // 알림 권한이 이미 있거나 필요하지 않은 경우 바로 메인으로 이동
+            navigateToMain()
+        }
+    }
+
+    // 알림 권한 요청 후 메인 화면으로 이동
+//    fun onNotificationPermissionHandled() {
+//        _shouldRequestNotificationPermission.value = false
+//        navigateToMain()
+//    }
 
     fun handleSignInResult(task: Task<GoogleSignInAccount>, onLoginComplete: (Intent) -> Unit) {
         viewModelScope.launch {
@@ -218,9 +239,36 @@ class OnBoardingViewModel @Inject constructor(
         authRepository.saveAccessToken(token)
         authRepository.saveUserId(user.id)
         authRepository.saveUserInfo(user)
-        onLoginComplete(Intent(context, MainActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-        })
+
+        // 로그인 성공 후 알림 권한 확인
+        if (NotificationPermissionHelper.shouldRequestNotificationPermission(context)) {
+            _shouldRequestNotificationPermission.value = true
+            // onLoginComplete는 알림 권한 처리 후 호출됨
+            _pendingLoginComplete = onLoginComplete
+        } else {
+            // 알림 권한이 이미 있거나 필요하지 않은 경우 바로 메인으로 이동
+            onLoginComplete(Intent(context, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            })
+        }
+    }
+
+    // 로그인 완료 콜백을 임시 저장
+    private var _pendingLoginComplete: ((Intent) -> Unit)? = null
+
+    // 로그인 후 알림 권한 처리 완료
+    fun onLoginNotificationPermissionHandled() {
+        _shouldRequestNotificationPermission.value = false
+        _pendingLoginComplete?.let { complete ->
+            complete(Intent(context, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            })
+            _pendingLoginComplete = null
+            return
+        }
+
+        // Otherwise we came from token-validated path
+        navigateToMain()
     }
 
     private fun navigateToMain() {
