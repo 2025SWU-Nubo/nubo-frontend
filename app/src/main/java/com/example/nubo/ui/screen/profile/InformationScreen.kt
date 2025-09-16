@@ -11,8 +11,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -24,7 +26,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey20
@@ -39,30 +43,44 @@ import com.example.nubo.ui.theme.Grey50
 @Composable
 fun InformationScreen(
     navController: NavController,
-    name: String = "김누보",
-    email: String = "nubokim@gmail.com",
     onBack: () -> Unit = {},
     onEditProfileImage: () -> Unit = {},
     onLogout: () -> Unit = {},
     onWithdraw: () -> Unit = {},
-    onEditName: (String) -> Unit = {}
+    onEditName: (String) -> Unit = {},
+    viewModel: ProfileViewModel = hiltViewModel()
 ) {
-    //네비에서 받아오는 정보
-     // NavController 주입받는 부분 (혹은 파라미터)
+    // 서버 상태 구독
+    val state = viewModel.uiState.collectAsState().value
+
+    // 서버 값 → 기본값 폴백
+    val name = state.data?.name?.takeIf { !it.isNullOrBlank() } ?: "이름 없음"
+    val email = state.data?.email?.takeIf { !it.isNullOrBlank() } ?: "이메일 없음"
+    val imageUrl = state.data?.profileImageUrl
+
+    // 현재 화면에서 표시할 이름 상태 (이후 이름 수정 반영)
     var currentName by rememberSaveable { mutableStateOf(name) }
 
-    // EditNameScreen에서 수정값을 받아오기
-    LaunchedEffect(Unit) {
-        navController.currentBackStackEntry
-            ?.savedStateHandle
-            ?.getLiveData<String>("edited_name")
-            ?.observeForever { updated ->
-                currentName = updated
-            }
+    LaunchedEffect(name) {
+        currentName = name
     }
+
+    // EditNameScreen에서 돌아온 값 반영
+    val editedNameFlow = navController.currentBackStackEntry
+        ?.savedStateHandle
+        ?.getStateFlow("edited_name", name)
+    val editedName by (editedNameFlow?.collectAsState() ?: remember { mutableStateOf(name) })
+    LaunchedEffect(editedName) { currentName = editedName }
+
     Scaffold(
         topBar = {
-            TopBar(onBack = onBack)
+            TopBar(onBack = {
+                navController.previousBackStackEntry
+                    ?.savedStateHandle
+                    ?.set("profile_name_override", currentName)
+
+                onBack()  // 기존 onBack() 실행 (popBackStack)
+            })
         }
     ) { innerPadding ->
         Column(
@@ -81,7 +99,8 @@ fun InformationScreen(
                 ProfileAvatarMini(
                     imageSize = 128.dp,
                     purple = Purple300,
-                    onEdit = onEditProfileImage
+                    onEdit = onEditProfileImage,
+                    imageUrl = imageUrl
                 )
             }
 
@@ -233,7 +252,8 @@ private fun InfoCard(
 private fun ProfileAvatarMini(
     imageSize: Dp,
     purple: Color,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    imageUrl: String?
 ) {
     val strokeGrey = 1.dp
     val strokeWhite = 3.dp
@@ -258,8 +278,14 @@ private fun ProfileAvatarMini(
                     .background(Color.White, CircleShape)
                     .padding(strokeWhite)
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.profile_image),
+                // URL 있으면 네트워크 이미지, 없으면 기본 리소스
+                val model: Any = if (imageUrl.isNullOrBlank()) {
+                    R.drawable.basic_profile_image
+                } else {
+                    imageUrl
+                }
+                AsyncImage(
+                    model = model,
                     contentDescription = "프로필",
                     modifier = Modifier
                         .fillMaxSize()
