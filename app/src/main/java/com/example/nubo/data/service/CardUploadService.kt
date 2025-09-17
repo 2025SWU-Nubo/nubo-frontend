@@ -40,7 +40,7 @@ class CardUploadService: Service() {
         private const val RESULT_NOTIFICATION_ID = 1002
 
         private const val PROGRESS_CHANNEL_ID = "card_upload_progress_v2" // progress channel (DEFAULT)
-        private const val RESULT_CHANNEL_ID = "card_upload_result_v1"     // result channel (HIGH)
+        private const val RESULT_CHANNEL_ID = "card_upload_result_v2"     // result channel (HIGH)
 
 
         const val EXTRA_ACCESS_TOKEN = "access_token" // Intent에서 토큰을 전달받기 위한 키
@@ -110,7 +110,7 @@ class CardUploadService: Service() {
             val progress = NotificationChannel(
                 PROGRESS_CHANNEL_ID,
                 "카드 업로드 진행",
-                NotificationManager.IMPORTANCE_DEFAULT// 중요도 낮음 (소리 없음)
+                NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = "카드 업로드 진행 상황을 표시합니다."
             }
@@ -118,7 +118,7 @@ class CardUploadService: Service() {
             val result = NotificationChannel(
                 RESULT_CHANNEL_ID,
                 "카드 업로드 결과",
-                NotificationManager.IMPORTANCE_DEFAULT // heads-up (if policy allows)
+                NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "업로드 완료/실패 결과를 표시합니다."
             }
@@ -133,6 +133,7 @@ class CardUploadService: Service() {
         val builder = NotificationCompat.Builder(this,PROGRESS_CHANNEL_ID)
             .setContentTitle("카드 생성 중")
             .setContentText("영상을 업로드하고 있습니다..")
+            .setSmallIcon(R.drawable.basic_profile_image)
             .setProgress(0, 0, true) // 무한 진행바 표시
             .setOngoing(true) // 사용자가 스와이프로 제거할 수 없도록 설정
             .setProgress(0, 0, true)
@@ -153,7 +154,7 @@ class CardUploadService: Service() {
         val builder = NotificationCompat.Builder(this, RESULT_CHANNEL_ID)
             .setContentTitle(if (success) "카드 생성 완료" else "카드 생성 실패")
             .setContentText(message)
-            .setSmallIcon(if(success)R.drawable.add_board else R.drawable.close_icon)
+            .setSmallIcon(R.drawable.basic_profile_image)
             .setAutoCancel(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
@@ -180,10 +181,12 @@ class CardUploadService: Service() {
 
                 if (response.isSuccessful) {
                     Log.d("CardUploadService", "카드 업로드 성공: ${response.body()}")
-                    showResultNotification(true, "영상 업로드가 완료되었습니다.")
+                    stopForeground(true)
+                    showResultNotification(true, "영상이 누보에 저장되었어요. 확인하러 갈까요?👉🏻")
                 } else {
                     Log.e("CardUploadService", "카드 업로드 실패: ${response.code()} ${response.message()}")
-                    showResultNotification(false,  "오류(${response.code()}) 다시 시도해주세요.")
+                    stopForeground(true)
+                    showResultNotification(false,  "다시 시도해주세요.")
                 }
                 stopSelf()
             }
