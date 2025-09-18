@@ -1,35 +1,129 @@
 package com.example.nubo.ui.screen.profile
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
-import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey20
 import com.example.nubo.ui.theme.Purple300
 
+// Route: ViewModel과 상태 바인딩
+@Composable
+fun ProfileRoute(
+    navController: NavController,
+    onBack: () -> Unit = {},
+    onBellClick: () -> Unit = {},
+    onEditProfileImage: () -> Unit = {},
+    onMyInfo: () -> Unit = {},
+    onNotification: () -> Unit = {},
+    onHelp: () -> Unit = {},
+    onPrivacy: () -> Unit = {},
+    viewModel: ProfileViewModel = hiltViewModel()
+) {
+    // InformationScreen에서 넘어온 override 값 구독
+    val backStackEntry = navController.currentBackStackEntry
+    val overrideFlow = backStackEntry?.savedStateHandle
+        ?.getStateFlow("profile_name_override", "")
+    val override by (overrideFlow?.collectAsState() ?: remember { mutableStateOf("") })
+
+    LaunchedEffect(override) {
+        if (override.isNotBlank()) {
+            viewModel.applyLocalName(override)
+            backStackEntry?.savedStateHandle?.remove<String>("profile_name_override")
+        }
+    }
+
+    // 서버에서 가져온 프로필 UI 상태 구독
+    val state by viewModel.uiState.collectAsState()
+
+    when {
+        // 로딩 상태
+        state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        // 에러 상태
+        state.error != null -> {
+            val context = LocalContext.current
+
+            // 에러가 발생했을 때 한 번만 토스트 출력
+            LaunchedEffect(state.error) {
+                Toast.makeText(context, "프로필 정보를 불러오지 못했어요.", Toast.LENGTH_SHORT).show()
+            }
+
+            // 실패해도 기본값으로 UI는 계속 표시
+            ProfileScreen(
+                nickname = "이름 없음",
+                email = "이메일 없음",
+                profileImageUrl = null,
+                onBack = onBack,
+                onBellClick = onBellClick,
+                onEditProfileImage = onEditProfileImage,
+                onMyInfo = onMyInfo,
+                onNotification = onNotification,
+                onHelp = onHelp,
+                onPrivacy = onPrivacy
+            )
+        }
+
+        // 성공 상태
+        else -> {
+            val name = state.data?.name?.takeIf { !it.isNullOrBlank() } ?: "이름 없음"
+            val email = state.data?.email?.takeIf { !it.isNullOrBlank() } ?: "이메일 없음"
+            val imageUrl = state.data?.profileImageUrl
+
+            ProfileScreen(
+                nickname = name,
+                email = email,
+                profileImageUrl = imageUrl,
+                onBack = onBack,
+                onBellClick = onBellClick,
+                onEditProfileImage = onEditProfileImage,
+                onMyInfo = onMyInfo,
+                onNotification = onNotification,
+                onHelp = onHelp,
+                onPrivacy = onPrivacy
+            )
+        }
+    }
+}
+
+//실제 화면 UI: 서버 값 전달받아 렌더링
 @Composable
 fun ProfileScreen(
-    nickname: String = "김누보",
-    email: String = "nubokim@gmail.com",
+    nickname: String,
+    email: String,
+    profileImageUrl: String?,
     onBack: () -> Unit = {},
     onBellClick: () -> Unit = {},
     onEditProfileImage: () -> Unit = {},
@@ -105,7 +199,8 @@ fun ProfileScreen(
                 ProfileAvatar(
                     imageSize = profileImageSize,
                     onEdit = onEditProfileImage,
-                    purple = MaterialTheme.colorScheme.primary
+                    purple = MaterialTheme.colorScheme.primary,
+                    imageUrl = profileImageUrl // ← 추가
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -173,7 +268,8 @@ fun ProfileScreen(
 private fun ProfileAvatar(
     imageSize: Dp,            // 정확히 128.dp
     purple: Color,            // 보라색(테마 토큰)
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    imageUrl: String?
 ) {
     val strokeWhite = 2.dp
     val strokePurple = 2.dp
@@ -198,33 +294,18 @@ private fun ProfileAvatar(
                     .padding(strokePurple)     // 보라 2dp 만큼 내부로
             ) {
                 // 실제 사진
-                Image(
-                    painter = painterResource(id = R.drawable.basic_profile_image),
+                val model: Any = if (imageUrl.isNullOrBlank()) {
+                    R.drawable.basic_profile_image
+                } else {
+                    imageUrl
+                }
+                AsyncImage(
+                    model = model,
                     contentDescription = "프로필",
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape),    // 이미지에만 원형 클립
+                    modifier = Modifier.fillMaxSize().clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
             }
-        }
-
-        // 편집 버튼
-        Box(
-            modifier = Modifier
-                .offset(x = -3.dp, y = -3.dp)
-                .size(34.dp) // 버튼 배경 크기
-                .shadow(3.dp, CircleShape, clip = true)
-                .background(MaterialTheme.colorScheme.surface, CircleShape)
-                .clickable(onClick = onEdit),    // Box + clickable
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_profile_edit),
-                contentDescription = "프로필 편집",
-                modifier = Modifier.size(24.dp),   // 아이콘 크기 고정
-                tint = Color.Unspecified
-            )
         }
     }
 }

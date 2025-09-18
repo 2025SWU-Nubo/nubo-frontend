@@ -27,13 +27,13 @@ import androidx.navigation.navArgument
 import com.example.nubo.ui.screen.home.HomeScreen
 import com.example.nubo.ui.screen.learn.LearnScreen
 import com.example.nubo.ui.screen.myBoard.MyBoardScreen
-import com.example.nubo.ui.screen.profile.ProfileScreen
 import com.example.nubo.ui.component.BottomNavBar
 import com.example.nubo.ui.component.sheet.BottomSheetHost
 import com.example.nubo.ui.component.sheet.SheetRoute
 import com.example.nubo.ui.screen.myBoard.BoardDetailScreen
 import com.example.nubo.ui.screen.profile.EditNameScreen
 import com.example.nubo.ui.screen.profile.InformationScreen
+import com.example.nubo.ui.screen.profile.ProfileRoute
 import com.example.nubo.ui.theme.NuboAppTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -52,8 +52,8 @@ class MainActivity : AppCompatActivity() {
         insetsController.isAppearanceLightStatusBars = true
         insetsController.isAppearanceLightNavigationBars = true
 
-        setContent{
-            NuboAppTheme{
+        setContent {
+            NuboAppTheme {
                 MainScreen()
             }
         }
@@ -68,14 +68,14 @@ fun MainScreen() {
     val currentRoute = navBackStackEntry?.destination?.route
 
     // 상세 화면에서는 BottomNavBar 숨기기
-    val showBottomBar = currentRoute in listOf("home", "myboard", "add", "learn", "profile","information")
+    val showBottomBar = currentRoute in listOf("home", "myboard", "add", "learn", "profile", "information")
     var sheetRoute by remember { mutableStateOf<SheetRoute?>(null) }
 
 
     Scaffold(
 
         // 프로필 화면일 때만 시스템 인셋 자동패딩 제거
-        contentWindowInsets = if (currentRoute == "profile"||currentRoute == "information"||currentRoute == "edit_name?initial={initial}") {
+        contentWindowInsets = if (currentRoute == "profile" || currentRoute == "information" || currentRoute == "edit_name?initial={initial}") {
             WindowInsets(0)
         } else {
             ScaffoldDefaults.contentWindowInsets
@@ -106,8 +106,14 @@ fun MainScreen() {
                 composable("home") { HomeScreen(onMoreClick = { navController.navigate("learn") }) }
                 composable("myboard") { MyBoardScreen(navController) }
                 composable("learn") { LearnScreen() }
-                composable("profile") { ProfileScreen(onBack = { navController.popBackStack() },
-                onMyInfo = { navController.navigate("information") }) }
+                composable("profile") {
+                    // ViewModel과 묶인 Route로 교체
+                    ProfileRoute(
+                        navController = navController,
+                        onBack = { navController.popBackStack() },
+                        onMyInfo = { navController.navigate("information") }
+                    )
+                }
                 composable(
                     "board_detail/{boardId}/{boardTitle}"
                 ) { backStackEntry ->
@@ -118,11 +124,11 @@ fun MainScreen() {
                 composable("information") {
                     InformationScreen(
                         navController = navController,
-                        onBack = { navController.popBackStack() },  // 뒤로가기
+                        onBack = { navController.popBackStack() }, // 뒤로가기
                         onEditProfileImage = { /* 편집 처리 */ },
                         onLogout = { /* 로그아웃 처리 */ },
                         onWithdraw = { /* 탈퇴 처리 */ },
-                        onEditName = { current -> navController.navigate("edit_name?initial=${Uri.encode(current)}")}
+                        onEditName = { current -> navController.navigate("edit_name?initial=${Uri.encode(current)}") }
                     )
                 }
                 composable(
@@ -133,7 +139,12 @@ fun MainScreen() {
 
                     EditNameScreen(
                         initial = initial,
-                        onBack = { navController.popBackStack() },
+                        onBack = {
+                            navController.previousBackStackEntry
+                                ?.savedStateHandle
+                                ?.remove<String>("edited_name")   // ← 취소 시 잔여값 제거
+                            navController.popBackStack()
+                        },
                         onDone = { newName ->
                             // 값 반환 후 이전 화면으로
                             navController.previousBackStackEntry
@@ -163,7 +174,7 @@ fun MainScreen() {
         },
         onGoAddVideo = { sheetRoute = SheetRoute.AddVideo },
         onBackToAddMenu = { sheetRoute = SheetRoute.AddMenu },
-        onBackToCreateBoard = { sheetRoute = SheetRoute.CreateBoard},
+        onBackToCreateBoard = { sheetRoute = SheetRoute.CreateBoard },
         onInviteComplete = { emails ->
             // TODO: 서버 전달 (예: viewModel.inviteMembers(boardId, emails))
         }
