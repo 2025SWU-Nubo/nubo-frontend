@@ -97,7 +97,7 @@ fun TabHeader(
     selectedTabIndex: Int,
     onTabSelected: (Int) -> Unit
 ) {
-    val tabs = listOf("영상", "보드")
+    val tabs = listOf("카드", "보드")
 
     Column(modifier = Modifier.padding(top = 30.dp)) {
         // 탭 전체 중앙 정렬
@@ -146,7 +146,7 @@ fun TabHeader(
 
 @Composable
 fun TitleBar(selectedTab: Int) {
-    val titleText = if (selectedTab == 0) "나의 영상" else "나의 보드"
+    val titleText = if (selectedTab == 0) "나의 카드" else "나의 보드"
 
     Column(modifier = Modifier.padding(top = 27.dp)) {
         Row(
