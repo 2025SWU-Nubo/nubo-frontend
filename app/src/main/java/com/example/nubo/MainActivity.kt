@@ -7,7 +7,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
@@ -19,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -31,6 +35,7 @@ import com.example.nubo.ui.screen.profile.ProfileScreen
 import com.example.nubo.ui.component.BottomNavBar
 import com.example.nubo.ui.component.sheet.BottomSheetHost
 import com.example.nubo.ui.component.sheet.SheetRoute
+import com.example.nubo.ui.screen.card.CardDetailRoute
 import com.example.nubo.ui.screen.myBoard.BoardDetailScreen
 import com.example.nubo.ui.screen.profile.EditNameScreen
 import com.example.nubo.ui.screen.profile.InformationScreen
@@ -41,6 +46,7 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
 
         // 시스템바를 투명하게 설정 (핵심 부분)
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -71,6 +77,8 @@ fun MainScreen() {
     val showBottomBar = currentRoute in listOf("home", "myboard", "add", "learn", "profile","information")
     var sheetRoute by remember { mutableStateOf<SheetRoute?>(null) }
 
+    val contentInsets =
+        WindowInsets.safeDrawing
 
     Scaffold(
 
@@ -78,7 +86,7 @@ fun MainScreen() {
         contentWindowInsets = if (currentRoute == "profile"||currentRoute == "information"||currentRoute == "edit_name?initial={initial}") {
             WindowInsets(0)
         } else {
-            ScaffoldDefaults.contentWindowInsets
+            contentInsets
         },
         bottomBar = {
             if (showBottomBar) {
@@ -93,6 +101,7 @@ fun MainScreen() {
                             4 -> navController.navigate("profile") { popUpTo("home"); launchSingleTop = true }
                         }
                     }
+
                 )
             }
         }
@@ -103,7 +112,8 @@ fun MainScreen() {
                 startDestination = "home",
                 modifier = Modifier.fillMaxSize()
             ) {
-                composable("home") { HomeScreen(onMoreClick = { navController.navigate("learn") }) }
+                composable("home") { HomeScreen(onMoreClick = { navController.navigate("learn") },
+                    onOpenCardDetail = {id -> navController.navigate("card_detail/$id")}) }
                 composable("myboard") { MyBoardScreen(navController) }
                 composable("learn") { LearnScreen() }
                 composable("profile") { ProfileScreen(onBack = { navController.popBackStack() },
@@ -141,6 +151,15 @@ fun MainScreen() {
                                 ?.set("edited_name", newName)
                             navController.popBackStack()
                         }
+                    )
+                }
+
+                composable(
+                    route = "card_detail/{cardId}",
+                    arguments = listOf(navArgument("cardId") { type = NavType.IntType })
+                ) {
+                    CardDetailRoute(
+                        onBack = { navController.popBackStack() }
                     )
                 }
             }

@@ -73,7 +73,8 @@ import formatIsoDateToDisplayLegacy
 @Composable
 fun HomeScreen(
     padding: PaddingValues = PaddingValues(),
-    onMoreClick: () -> Unit = {}
+    onMoreClick: () -> Unit = {},
+    onOpenCardDetail:(Int) -> Unit
 ) {
     val vm: HomeViewModel = hiltViewModel()
 
@@ -81,131 +82,46 @@ fun HomeScreen(
     val chips by vm.chips.observeAsState(emptyList())
     val selectedChipId by vm.selectedChipId.observeAsState("all")
 
-    // 카드 선택 상태 관리
-    var selectedCardId by rememberSaveable { mutableStateOf<Int?>(null) }
-    var lastClickedItem by remember { mutableStateOf<CardItem?>(null) }
-    val detail by vm.cardDetail.observeAsState()
-    val isDetailLoading by vm.isDetailLoading.observeAsState(false)
-
-
     LaunchedEffect(Unit) {
         vm.loadBoards()
         vm.refreshForCurrentSelection()
     }
 
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val obs = LifecycleEventObserver { _, e ->
-            if (e == Lifecycle.Event.ON_RESUME) {
-                vm.loadBoards()
-                vm.refreshForCurrentSelection()
+    LazyColumn(
+        modifier = Modifier
+            .padding(padding)
+            .fillMaxSize()
+            .background(Color.White),
+        contentPadding = PaddingValues(bottom = 60.dp)
+    ) {
+        item { Spacer(Modifier.height(12.dp)) }
+        item { RecentBoardSection() }
+        item {
+            Column {
+                Spacer(Modifier.height(10.dp))
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .background(Grey10)
+                )
+                Spacer(Modifier.height(18.dp))
             }
         }
-        lifecycleOwner.lifecycle.addObserver(obs)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
-    }
-
-    when (selectedCardId) {
-        null -> {
-            // ─── 홈(목록) ───
-            LazyColumn(
-                modifier = Modifier
-                    .padding(padding)
-                    .fillMaxSize()
-                    .background(Color.White),
-                contentPadding = PaddingValues(bottom = 60.dp)
-            ) {
-                item { Spacer(Modifier.height(12.dp)) }
-                item { RecentBoardSection() }
-                item {
-                    Column {
-                        Spacer(Modifier.height(10.dp))
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .height(6.dp)
-                                .background(Grey10)
-                        )
-                        Spacer(Modifier.height(18.dp))
-                    }
+        item {
+            RecommendedVideosSection(
+                cards = cards,
+                chips = chips,
+                selectedChipId = selectedChipId,
+                onChipClick = { vm.onChipClick(it) },
+                onCardClick = { item ->
+                    // 👉 NavHost 라우트로 이동만 수행
+                    onOpenCardDetail(item.id)
                 }
-                item {
-                    RecommendedVideosSection(
-                        cards = cards,
-                        chips = chips,
-                        selectedChipId = selectedChipId,
-                        onChipClick = { vm.onChipClick(it) },
-                        onCardClick = { item ->
-                            lastClickedItem = item
-                            selectedCardId = item.id
-                            vm.getCardDetail(item.id)
-                        }
-                    )
-                }
-            }
-        }
-        else -> {
-            // ─── 상세(전체 페이지) ───
-            when {
-                isDetailLoading -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                }
-                detail != null -> {
-                    // 매핑 함수 없이 여기서 바로 UI용 객체 생성
-                    val item = CardDetailItem(
-                        id = detail!!.id,
-                        imageUrl = detail!!.videoThumbnailUrl ?: "",
-                        videoUrl = detail!!.videoUrl ?: "",
-                        title = detail!!.title ?: "제목 없음",
-                        category = detail!!.boardName ?: "카테고리 없음",
-                        boardSource = detail!!.boardSource ?: "",
-                        description = detail!!.summary ?: "설명 없음",
-                        date = formatIsoDateToDisplayLegacy(detail!!.createdAt),
-                        videoPlatform = detail!!.videoPlatform ?: "알 수 없음"
-                    )
-                    CardDetailScreen(
-                        item = item,
-                        onBack = {
-                            selectedCardId = null
-                            vm.clearCardDetail()
-                        }
-                    )
-                }
-                else -> {
-                    // Fallback: 마지막 클릭한 CardItem으로 상세 구성(제목/설명/카테고리 그대로 표시)
-                    lastClickedItem?.let { item ->
-                        val fallback = CardDetailItem(
-                            id = item.id,
-                            imageUrl = item.imageUrl,
-                            videoUrl = "",
-                            title = item.title,
-                            category = item.category,
-                            boardSource = "",
-                            description = item.description,
-                            date = "",
-                            videoPlatform = ""
-                        )
-                        CardDetailScreen(
-                            item = fallback,
-                            onBack = {
-                                selectedCardId = null
-                                vm.clearCardDetail()
-                            }
-                        )
-                    } ?: run {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                    }
-                }
-            }
+            )
         }
     }
 }
-
-
 
 
 @Composable
@@ -307,10 +223,10 @@ fun RecommendedVideosSection(
 
 }
 
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun HomeScreenPreview() {
-    NuboAppTheme {
-        HomeScreen()
-    }
-}
+//@Preview(showBackground = true, showSystemUi = true)
+//@Composable
+//fun HomeScreenPreview() {
+//    NuboAppTheme {
+//        HomeScreen()
+//    }
+//}
