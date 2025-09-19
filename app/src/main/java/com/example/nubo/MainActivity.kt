@@ -7,7 +7,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
@@ -17,6 +19,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.navigation.compose.NavHost
@@ -74,8 +77,10 @@ fun MainScreen() {
 
     Scaffold(
 
-        // 프로필 화면일 때만 시스템 인셋 자동패딩 제거
-        contentWindowInsets = if (currentRoute == "profile" || currentRoute == "information" || currentRoute == "edit_name?initial={initial}") {
+        // 특정 화면일 때만 시스템 인셋 자동패딩 제거
+        contentWindowInsets = if (currentRoute == "profile" || currentRoute == "information" ||
+            currentRoute == "edit_name?initial={initial}" || currentRoute == "learn"
+        ) {
             WindowInsets(0)
         } else {
             ScaffoldDefaults.contentWindowInsets
@@ -92,68 +97,82 @@ fun MainScreen() {
                             3 -> navController.navigate("learn") { popUpTo("home"); launchSingleTop = true }
                             4 -> navController.navigate("profile") { popUpTo("home"); launchSingleTop = true }
                         }
-                    }
+                    },isLearnScreen = (currentRoute == "learn"),modifier = Modifier.navigationBarsPadding()
                 )
             }
         }
     ) { innerPadding ->
-        Box(Modifier.padding(innerPadding)) {
-            NavHost(
-                navController = navController,
-                startDestination = "home",
-                modifier = Modifier.fillMaxSize()
-            ) {
-                composable("home") { HomeScreen(onMoreClick = { navController.navigate("learn") }) }
-                composable("myboard") { MyBoardScreen(navController) }
-                composable("learn") { LearnScreen() }
-                composable("profile") {
-                    // ViewModel과 묶인 Route로 교체
-                    ProfileRoute(
-                        navController = navController,
-                        onBack = { navController.popBackStack() },
-                        onMyInfo = { navController.navigate("information") }
-                    )
-                }
-                composable(
-                    "board_detail/{boardId}/{boardTitle}"
-                ) { backStackEntry ->
-                    val boardId = backStackEntry.arguments?.getString("boardId") ?: ""
-                    val boardTitle = backStackEntry.arguments?.getString("boardTitle") ?: "로딩 중..."
-                    BoardDetailScreen(boardId = boardId, boardTitle = boardTitle, navController = navController)
-                }
-                composable("information") {
-                    InformationScreen(
-                        navController = navController,
-                        onBack = { navController.popBackStack() }, // 뒤로가기
-                        onEditProfileImage = { /* 편집 처리 */ },
-                        onLogout = { /* 로그아웃 처리 */ },
-                        onWithdraw = { /* 탈퇴 처리 */ },
-                        onEditName = { current -> navController.navigate("edit_name?initial=${Uri.encode(current)}") }
-                    )
-                }
-                composable(
-                    route = "edit_name?initial={initial}",
-                    arguments = listOf(navArgument("initial") { defaultValue = "" })
-                ) { backStackEntry ->
-                    val initial = backStackEntry.arguments?.getString("initial").orEmpty()
+        // 기존의 Box를 제거하고 NavHost를 바로 배치
+        NavHost(
+            navController = navController,
+            startDestination = "home",
+            modifier = Modifier.fillMaxSize()
+        ) {
+            composable("home") { HomeScreen(onMoreClick = { navController.navigate("learn") },
+                modifier = Modifier
+                .padding(innerPadding)
+                .statusBarsPadding()) }
+            composable("myboard") { MyBoardScreen(navController,
+                modifier = Modifier
+                .padding(innerPadding)
+                .statusBarsPadding()) }
+            composable("learn") {
+                // learn 화면은 패딩을 적용하지 않음
+                LearnScreen()
+            }
+            composable("profile") {
+                ProfileRoute(
+                    navController = navController,
+                    onBack = { navController.popBackStack() },
+                    onMyInfo = { navController.navigate("information") },
+                    modifier = Modifier.padding(innerPadding)
+                )
+            }
+            composable(
+                "board_detail/{boardId}/{boardTitle}"
+            ) { backStackEntry ->
+                val boardId = backStackEntry.arguments?.getString("boardId") ?: ""
+                val boardTitle = backStackEntry.arguments?.getString("boardTitle") ?: "로딩 중..."
+                BoardDetailScreen(boardId = boardId, boardTitle = boardTitle, navController = navController, modifier = Modifier
+                    .padding(innerPadding)
+                    .statusBarsPadding())}
+            composable("information") {
+                InformationScreen(
+                    navController = navController,
+                    onBack = { navController.popBackStack() }, // 뒤로가기
+                    onEditProfileImage = { /* 편집 처리 */ },
+                    onLogout = { /* 로그아웃 처리 */ },
+                    onWithdraw = { /* 탈퇴 처리 */ },
+                    onEditName = { current -> navController.navigate("edit_name?initial=${Uri.encode(current)}") },
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .statusBarsPadding()
+                )
+            }
+            composable(
+                route = "edit_name?initial={initial}",
+                arguments = listOf(navArgument("initial") { defaultValue = "" })
+            ) { backStackEntry ->
+                val initial = backStackEntry.arguments?.getString("initial").orEmpty()
 
-                    EditNameScreen(
-                        initial = initial,
-                        onBack = {
-                            navController.previousBackStackEntry
-                                ?.savedStateHandle
-                                ?.remove<String>("edited_name")   // ← 취소 시 잔여값 제거
-                            navController.popBackStack()
-                        },
-                        onDone = { newName ->
-                            // 값 반환 후 이전 화면으로
-                            navController.previousBackStackEntry
-                                ?.savedStateHandle
-                                ?.set("edited_name", newName)
-                            navController.popBackStack()
-                        }
-                    )
-                }
+                EditNameScreen(
+                    initial = initial,
+                    onBack = {
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.remove<String>("edited_name")
+                        navController.popBackStack()
+                    },
+                    onDone = { newName ->
+                        // 값 반환 후 이전 화면으로
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.set("edited_name", newName)
+                        navController.popBackStack()
+                    },
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .statusBarsPadding())
             }
         }
     }

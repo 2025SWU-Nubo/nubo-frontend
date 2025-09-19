@@ -48,7 +48,8 @@ fun InformationScreen(
     onLogout: () -> Unit = {},
     onWithdraw: () -> Unit = {},
     onEditName: (String) -> Unit = {},
-    viewModel: ProfileViewModel = hiltViewModel()
+    viewModel: ProfileViewModel = hiltViewModel(),
+    modifier: Modifier = Modifier
 ) {
     // 서버 상태 구독
     val state = viewModel.uiState.collectAsState().value

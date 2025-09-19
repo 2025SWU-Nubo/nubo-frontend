@@ -73,7 +73,9 @@ import formatIsoDateToDisplayLegacy
 @Composable
 fun HomeScreen(
     padding: PaddingValues = PaddingValues(),
-    onMoreClick: () -> Unit = {}
+    onMoreClick: () -> Unit = {},
+    modifier: Modifier = Modifier
+
 ) {
     val vm: HomeViewModel = hiltViewModel()
 
@@ -110,7 +112,6 @@ fun HomeScreen(
             // ─── 홈(목록) ───
             LazyColumn(
                 modifier = Modifier
-                    .padding(padding)
                     .fillMaxSize()
                     .background(Color.White),
                 contentPadding = PaddingValues(bottom = 60.dp)
