@@ -15,6 +15,7 @@ import com.example.nubo.ui.theme.AppTextStyles
 @Composable
 fun CardDetailRoute(
     onBack: () -> Unit,
+    onEdit: () -> Unit,
     onInfoClick: (() -> Unit)? = null,
     viewModel: CardDetailViewModel = hiltViewModel()
 ) {
@@ -58,6 +59,7 @@ fun CardDetailRoute(
             CardDetailScreen(
                 item = state.item,
                 onBack = onBack,
+                onEdit = onEdit,
                 onInfoClick = onInfoClick
             )
         }

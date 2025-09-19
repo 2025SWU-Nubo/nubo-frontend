@@ -36,6 +36,7 @@ import com.example.nubo.ui.component.BottomNavBar
 import com.example.nubo.ui.component.sheet.BottomSheetHost
 import com.example.nubo.ui.component.sheet.SheetRoute
 import com.example.nubo.ui.screen.card.CardDetailRoute
+import com.example.nubo.ui.screen.card.EditCardRoute
 import com.example.nubo.ui.screen.myBoard.BoardDetailScreen
 import com.example.nubo.ui.screen.profile.EditNameScreen
 import com.example.nubo.ui.screen.profile.InformationScreen
@@ -157,11 +158,27 @@ fun MainScreen() {
                 composable(
                     route = "card_detail/{cardId}",
                     arguments = listOf(navArgument("cardId") { type = NavType.IntType })
-                ) {
+                ) { backStackEntry ->
+                    val cardId = backStackEntry.arguments?.getInt("cardId") ?: return@composable
                     CardDetailRoute(
+                        onBack = { navController.popBackStack() },
+                        onEdit = {
+                            android.util.Log.d("Nav", "navigate -> card_edit/$cardId")
+                            navController.navigate("card_edit/$cardId")
+                        }
+                    )
+                }
+
+                composable(
+                    route = "card_edit/{cardId}",
+                    arguments = listOf(navArgument("cardId") { type = NavType.IntType })
+                ) {
+                    EditCardRoute(
                         onBack = { navController.popBackStack() }
                     )
                 }
+
+
             }
         }
     }

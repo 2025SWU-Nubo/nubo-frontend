@@ -23,6 +23,7 @@ sealed interface CardDetailUiState {
     data class Error(val message: String) : CardDetailUiState
 }
 
+
 @HiltViewModel
 class CardDetailViewModel @Inject constructor(
     private val repository: CardRepository,
@@ -69,13 +70,18 @@ class CardDetailViewModel @Inject constructor(
             }
         }
     }
+
+
+
+
 }
+
 
 // Mapper from API model to UI model
 private fun CardDetailResponse.toUi(): CardDetailItem {
     // NOTE: Adjust fields to match your real response model
     return CardDetailItem(
-        id = id,
+        id = cardId,
         imageUrl = videoThumbnailUrl.orEmpty(),
         videoUrl = videoUrl.orEmpty(),
         title = title ?: "제목 없음",

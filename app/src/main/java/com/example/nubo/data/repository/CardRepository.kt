@@ -4,6 +4,8 @@ import com.example.nubo.data.model.CardDetailResponse
 import com.example.nubo.data.model.CardResponse
 import com.example.nubo.data.model.CardUploadRequest
 import com.example.nubo.data.model.CardUploadResponse
+import com.example.nubo.data.model.EditSummaryRequest
+import com.example.nubo.data.model.EditSummaryResponse
 import com.example.nubo.data.network.CardService
 import retrofit2.Call
 import javax.inject.Inject
@@ -28,5 +30,10 @@ class CardRepository @Inject constructor(private val apiService: CardService) {
     //상세 카드 조회
     fun getCardDetail(token: String, cardId: Int): Call<CardDetailResponse> {
         return apiService.getCardDetail("Bearer $token", cardId = cardId)
+    }
+
+    // 요약 노트 수정
+    fun updateCardSummary(token: String, cardId: Int,body: EditSummaryRequest):Call<EditSummaryResponse>{
+        return apiService.updateCardSummary("Bearer $token", "application/json", cardId, body)
     }
 }
