@@ -42,7 +42,7 @@ class CardDetailViewModel @Inject constructor(
     }
 
     // Load card detail by id
-    private fun load() {
+     private fun load() {
         viewModelScope.launch {
             _uiState.value = CardDetailUiState.Loading
 
@@ -72,8 +72,8 @@ class CardDetailViewModel @Inject constructor(
     }
 
 
-
-
+    // 요약 노트 수정 요약 노트 리프레쉬 함수
+    fun refresh() { load() }
 }
 
 

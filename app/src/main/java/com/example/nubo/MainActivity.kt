@@ -15,6 +15,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -36,6 +39,7 @@ import com.example.nubo.ui.component.BottomNavBar
 import com.example.nubo.ui.component.sheet.BottomSheetHost
 import com.example.nubo.ui.component.sheet.SheetRoute
 import com.example.nubo.ui.screen.card.CardDetailRoute
+import com.example.nubo.ui.screen.card.CardDetailViewModel
 import com.example.nubo.ui.screen.card.EditCardRoute
 import com.example.nubo.ui.screen.myBoard.BoardDetailScreen
 import com.example.nubo.ui.screen.profile.EditNameScreen
@@ -47,7 +51,6 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
 
         // 시스템바를 투명하게 설정 (핵심 부분)
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -66,6 +69,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -160,6 +164,29 @@ fun MainScreen() {
                     arguments = listOf(navArgument("cardId") { type = NavType.IntType })
                 ) { backStackEntry ->
                     val cardId = backStackEntry.arguments?.getInt("cardId") ?: return@composable
+
+                    // 노트 수정 페이지에서 돌아올 경으 true로 세팅, 서버 재요청
+                    val refreshFlow = remember(backStackEntry) {
+                        backStackEntry.savedStateHandle.getStateFlow("refresh_detail",false)
+                    }
+                    val refresh by refreshFlow.collectAsState(initial = false)
+
+                    // 카드 상세 VM을 현재 backStackEntry 스코프로 획득
+                    val detailVm: CardDetailViewModel = hiltViewModel(backStackEntry)
+
+                    // 최초 진입 시 로드 (VM에 load(cardId) 함수가 있다고 가정)
+                    LaunchedEffect(cardId) {
+                        detailVm.refresh()
+                    }
+
+                    // 편집 완료 후 복귀 시 재요청
+                    LaunchedEffect(refresh) {
+                        if (refresh) {
+                            detailVm.refresh()                              // 서버에서 최신 상세 재조회
+                            backStackEntry.savedStateHandle["refresh_detail"] = false // 플래그 초기화
+                        }
+                    }
+
                     CardDetailRoute(
                         onBack = { navController.popBackStack() },
                         onEdit = {
@@ -174,11 +201,17 @@ fun MainScreen() {
                     arguments = listOf(navArgument("cardId") { type = NavType.IntType })
                 ) {
                     EditCardRoute(
-                        onBack = { navController.popBackStack() }
+                        onBack = { navController.popBackStack() },
+                        //저장 성공 시
+                        onSaved = {
+                            navController.previousBackStackEntry
+                                ?.savedStateHandle
+                                ?.set("refresh_detail", true)
+                            navController.popBackStack()
+
+                        }
                     )
                 }
-
-
             }
         }
     }

@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -48,13 +51,19 @@ import com.example.nubo.ui.theme.NuboAppTheme
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.nubo.data.model.CardResponse
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LiveData
@@ -66,6 +75,7 @@ import com.example.nubo.model.card.CardItem
 import com.example.nubo.model.home.RecommendChipItem
 import com.example.nubo.ui.component.RecommendationChipsRow
 import com.example.nubo.ui.screen.card.CardDetailScreen
+import com.example.nubo.ui.theme.PurpleMain500
 import formatIsoDateToDisplayLegacy
 
 
@@ -74,7 +84,9 @@ import formatIsoDateToDisplayLegacy
 fun HomeScreen(
     padding: PaddingValues = PaddingValues(),
     onMoreClick: () -> Unit = {},
-    onOpenCardDetail:(Int) -> Unit
+    onOpenCardDetail:(Int) -> Unit,
+    onLogoClick: (() -> Unit)? = null,
+    onNotificationsClick: (() -> Unit)? = null,
 ) {
     val vm: HomeViewModel = hiltViewModel()
 
@@ -87,40 +99,99 @@ fun HomeScreen(
         vm.refreshForCurrentSelection()
     }
 
-    LazyColumn(
-        modifier = Modifier
-            .padding(padding)
-            .fillMaxSize()
-            .background(Color.White),
-        contentPadding = PaddingValues(bottom = 60.dp)
-    ) {
-        item { Spacer(Modifier.height(12.dp)) }
-        item { RecentBoardSection() }
-        item {
-            Column {
-                Spacer(Modifier.height(10.dp))
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(6.dp)
-                        .background(Grey10)
+    Scaffold(
+        topBar = {
+            CustomTopBar(
+                onLogoClick = onLogoClick,
+                onNotificationsClick = onNotificationsClick
                 )
-                Spacer(Modifier.height(18.dp))
+        },
+        contentWindowInsets = WindowInsets(0)
+    ) { innerPadding ->
+        val mergedPadding = PaddingValues(
+            top = innerPadding.calculateTopPadding() + padding.calculateTopPadding(),
+            bottom = innerPadding.calculateBottomPadding() + padding.calculateBottomPadding(),
+            start = padding.calculateStartPadding(LayoutDirection.Ltr),
+            end = padding.calculateEndPadding(LayoutDirection.Ltr)
+        )
+
+
+        LazyColumn(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .background(Color.White),
+            contentPadding = mergedPadding
+        ) {
+            item { Spacer(Modifier.height(12.dp)) }
+            item { RecentBoardSection() }
+            item {
+                Column {
+                    Spacer(Modifier.height(16.dp))
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .background(Grey10)
+                    )
+                    Spacer(Modifier.height(20.dp))
+                }
+            }
+            item {
+                RecommendedVideosSection(
+                    cards = cards,
+                    chips = chips,
+                    selectedChipId = selectedChipId,
+                    onChipClick = { vm.onChipClick(it) },
+                    onCardClick = { item ->
+                        onOpenCardDetail(item.id)
+                    }
+                )
             }
         }
-        item {
-            RecommendedVideosSection(
-                cards = cards,
-                chips = chips,
-                selectedChipId = selectedChipId,
-                onChipClick = { vm.onChipClick(it) },
-                onCardClick = { item ->
-                    // 👉 NavHost 라우트로 이동만 수행
-                    onOpenCardDetail(item.id)
-                }
-            )
-        }
+
+
     }
+
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CustomTopBar(
+    onLogoClick: (() -> Unit)?,
+    onNotificationsClick: (() -> Unit)?
+){
+
+    CenterAlignedTopAppBar(
+        modifier = Modifier.padding(horizontal = 12.dp),
+        windowInsets = WindowInsets(0),
+        // If you prefer title centered text, set `title = { Text("Nubo") }`
+        navigationIcon = {
+            // Left logo (clickable)
+            IconButton(
+                onClick = { onLogoClick?.invoke() },
+                modifier = Modifier.size(68.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.nubo_logo),
+                    contentDescription = "앱 로고",
+                    tint = PurpleMain500
+
+                )
+            }
+        },
+        title = { /* keep empty or place brand text */ },
+        actions = {
+            IconButton(onClick = { onNotificationsClick?.invoke() }) {
+                // You can use painterResource or Material Icons
+                Icon(
+                    painter = painterResource(R.drawable.alarm),
+                    contentDescription = "알림"
+                )
+
+            }
+        },
+    )
 }
 
 
@@ -179,7 +250,7 @@ fun RecentBoardSection() {
 
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Text(text = "최근 본 보드", style = AppTextStyles.title_semibold_24)
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(14.dp))
         LazyRow {
             itemsIndexed(items) { index, item ->
                 //맨 처음과 맨 끝 보드는 패딩값 0으로
@@ -209,7 +280,7 @@ fun RecommendedVideosSection(
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Text(text = "추천 영상", style = AppTextStyles.title_semibold_24)
     }
-    Spacer(modifier = Modifier.height(12.dp))
+    Spacer(modifier = Modifier.height(16.dp))
     //칩 컨포넌트
     RecommendationChipsRow(
         chips = chips,
@@ -222,11 +293,3 @@ fun RecommendedVideosSection(
     {     CardContent(cards = cards, onCardClick = onCardClick) }
 
 }
-
-//@Preview(showBackground = true, showSystemUi = true)
-//@Composable
-//fun HomeScreenPreview() {
-//    NuboAppTheme {
-//        HomeScreen()
-//    }
-//}
