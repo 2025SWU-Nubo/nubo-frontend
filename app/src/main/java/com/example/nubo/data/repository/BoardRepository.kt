@@ -2,6 +2,7 @@ package com.example.nubo.data.repository
 
 import com.example.nubo.data.model.BoardItemResponse
 import com.example.nubo.data.model.BoardResponse
+import com.example.nubo.data.model.RecentBoardResponse
 import com.example.nubo.data.model.UpsertBoardRequest
 import com.example.nubo.data.network.BoardService
 import com.google.gson.JsonObject
@@ -11,6 +12,14 @@ import javax.inject.Inject
 class BoardRepository @Inject constructor(
     private val boardService: BoardService
 ) {
+    // 최근 본 보드 조회
+    suspend fun getRecentBoards(token: String): Result<List<RecentBoardResponse>> = runCatching {
+        boardService.getRecentBoard(
+            authHeader = "Bearer $token",
+            acceptHeader = "application/json"
+        )
+    }
+
     suspend fun getMyBoards(token: String): Result<List<BoardResponse>> = runCatching {
         boardService.getMyBoards(
             authHeader = "Bearer $token",

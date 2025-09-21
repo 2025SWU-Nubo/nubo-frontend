@@ -46,6 +46,8 @@ import com.example.nubo.ui.screen.profile.EditNameScreen
 import com.example.nubo.ui.screen.profile.InformationScreen
 import com.example.nubo.ui.theme.NuboAppTheme
 import dagger.hilt.android.AndroidEntryPoint
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -117,19 +119,45 @@ fun MainScreen() {
                 startDestination = "home",
                 modifier = Modifier.fillMaxSize()
             ) {
-                composable("home") { HomeScreen(onMoreClick = { navController.navigate("learn") },
-                    onOpenCardDetail = {id -> navController.navigate("card_detail/$id")}) }
+                composable("home") {
+                    HomeScreen(
+                        onMoreClick = { navController.navigate("learn") },
+                        onOpenBoard = { boardId, boardName ->
+                            // Encode title for route
+                            val encoded = URLEncoder.encode(boardName, StandardCharsets.UTF_8.toString())
+                            navController.navigate("board_detail/$boardId/$encoded")
+                        },
+                        onOpenCardDetail = {id -> navController.navigate("card_detail/$id")}
+                    )
+                }
                 composable("myboard") { MyBoardScreen(navController) }
                 composable("learn") { LearnScreen() }
                 composable("profile") { ProfileScreen(onBack = { navController.popBackStack() },
                 onMyInfo = { navController.navigate("information") }) }
                 composable(
-                    "board_detail/{boardId}/{boardTitle}"
+                    route = "board_detail/{boardId}/{boardTitle}",
+                    arguments = listOf(
+                        navArgument("boardId") { type = NavType.IntType },       // boardId is Int
+                        navArgument("boardTitle") { type = NavType.StringType }   // title is String
+                    )
                 ) { backStackEntry ->
-                    val boardId = backStackEntry.arguments?.getString("boardId") ?: ""
+                    // Safe: types match the navArguments above
+                    val boardId = backStackEntry.arguments?.getInt("boardId") ?: return@composable
                     val boardTitle = backStackEntry.arguments?.getString("boardTitle") ?: "로딩 중..."
-                    BoardDetailScreen(boardId = boardId, boardTitle = boardTitle, navController = navController)
+
+                    BoardDetailScreen(
+                        boardId = boardId,
+                        boardTitle = boardTitle,
+                        navController = navController
+                    )
                 }
+//                composable(
+//                    "board_detail/{boardId}/{boardTitle}"
+//                ) { backStackEntry ->
+//                    val boardId = backStackEntry.arguments?.getInt("boardId") ?: return@composable
+//                    val boardTitle = backStackEntry.arguments?.getString("boardTitle") ?: "로딩 중..."
+//                    BoardDetailScreen(boardId = boardId, boardTitle = boardTitle, navController = navController)
+//                }
                 composable("information") {
                     InformationScreen(
                         navController = navController,

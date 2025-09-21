@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.nubo.R
-import com.example.nubo.data.dto.CardItemDto
+import com.example.nubo.data.model.CardItemDto
 import com.example.nubo.data.dto.SectionDto
 import com.example.nubo.model.myBoard.BoardItem
 import com.example.nubo.ui.component.BoardDetailContent
@@ -55,7 +55,7 @@ import java.net.URLDecoder
 
 @Composable
 fun BoardDetailScreen(
-    boardId: String,
+    boardId: Int,
     boardTitle: String,
     navController: NavController,
     viewModel: BoardDetailViewModel = hiltViewModel(),

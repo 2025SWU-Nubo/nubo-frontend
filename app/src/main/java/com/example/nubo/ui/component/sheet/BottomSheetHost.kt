@@ -46,19 +46,33 @@ fun BottomSheetHost(
 
     val context = LocalContext.current
 
+//    LaunchedEffect(ui.created) {
+//        ui.created?.let { created ->
+//            val typeKo = if (ui.isShared) "공유" else "개인"
+//            Toast.makeText(
+//                context,
+//                "‘${created.name}’ ${if (ui.isShared) "공유" else "개인"} 보드를 생성했어요.",
+//                Toast.LENGTH_SHORT
+//            ).show()
+//            // 1) 상위에 알림 (여기서는 상위가 리스트 새로고침 등을 하도록 name/shared 전달)
+//            onCreateBoard(ui.name.trim(), ui.isShared)
+//            // 2) VM 내부 created 신호 소비 및 입력 초기화
+//            createBoardViewModel.consumeCreated()
+//            // 3) 시트 닫기
+//            onDismiss()
+//        }
+//    }
+
+    // 성공 처리 (토스트 이후 상위 알림도 생성 결과 이름 사용 권장)
     LaunchedEffect(ui.created) {
         ui.created?.let { created ->
-            val typeKo = if (ui.isShared) "공유" else "개인"
             Toast.makeText(
                 context,
                 "‘${created.name}’ ${if (ui.isShared) "공유" else "개인"} 보드를 생성했어요.",
                 Toast.LENGTH_SHORT
             ).show()
-            // 1) 상위에 알림 (여기서는 상위가 리스트 새로고침 등을 하도록 name/shared 전달)
-            onCreateBoard(ui.name.trim(), ui.isShared)
-            // 2) VM 내부 created 신호 소비 및 입력 초기화
+            onCreateBoard(created.name, ui.isShared)   // ← ui.name.trim() 대신 created.name 사용
             createBoardViewModel.consumeCreated()
-            // 3) 시트 닫기
             onDismiss()
         }
     }
@@ -118,7 +132,9 @@ fun BottomSheetHost(
                     },
                     isLoading = ui.isLoading,
                     nameError = ui.nameError,
-                    onSubmit = createBoardViewModel::submit
+                    onSubmit = { nameText ->           // ← 시그니처 바뀜 (아래 3번 참고)
+                        createBoardViewModel.submitWith(nameText)
+                    }
                 )
                 SheetRoute.Invite -> InviteSheet(
                     onClose = onDismiss,

@@ -20,7 +20,7 @@ class BoardDetailViewModel @Inject constructor(
     val board: StateFlow<BoardResponse?> = _board
 
 
-    fun fetchBoardDetail(boardId: String) {
+    fun fetchBoardDetail(boardId: Int) {
         viewModelScope.launch {
             try {
                 val token = "Bearer ${authRepository.getAccessToken()}"

@@ -70,11 +70,13 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.nubo.data.model.CardDetailResponse
+import com.example.nubo.data.model.RecentBoardResponse
 import com.example.nubo.model.card.CardDetailItem
 import com.example.nubo.model.card.CardItem
 import com.example.nubo.model.home.RecommendChipItem
 import com.example.nubo.ui.component.RecommendationChipsRow
 import com.example.nubo.ui.screen.card.CardDetailScreen
+import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.PurpleMain500
 import formatIsoDateToDisplayLegacy
 
@@ -87,15 +89,21 @@ fun HomeScreen(
     onOpenCardDetail:(Int) -> Unit,
     onLogoClick: (() -> Unit)? = null,
     onNotificationsClick: (() -> Unit)? = null,
+//    onOpenBoard: (Int) -> Unit = {},
+    onOpenBoard: (Int, String) -> Unit = { _, _ -> }
+
 ) {
     val vm: HomeViewModel = hiltViewModel()
 
     val cards by vm.cards.observeAsState(emptyList())
     val chips by vm.chips.observeAsState(emptyList())
     val selectedChipId by vm.selectedChipId.observeAsState("all")
+    // 최근 본 보드
+    val recentBoards by vm.recentBoards.observeAsState(emptyList())
 
     LaunchedEffect(Unit) {
         vm.loadBoards()
+        vm.loadRecentBoards()
         vm.refreshForCurrentSelection()
     }
 
@@ -124,7 +132,12 @@ fun HomeScreen(
             contentPadding = mergedPadding
         ) {
             item { Spacer(Modifier.height(12.dp)) }
-            item { RecentBoardSection() }
+            item {
+                RecentBoardSection(
+                    items = recentBoards,
+                    onBoardClick = onOpenBoard // pass through to parent
+                )
+            }
             item {
                 Column {
                     Spacer(Modifier.height(16.dp))
@@ -194,7 +207,7 @@ fun CustomTopBar(
     )
 }
 
-
+//미사용
 @Composable
 fun BoardThumbnailCard(item: BoardThumbnailCardItem) {
     Column(
@@ -236,21 +249,31 @@ fun BoardThumbnailCard(item: BoardThumbnailCardItem) {
 
 
 @Composable
-fun RecentBoardSection() {
-
-    // 더미 데이터
-    // 리스트 순서대로 인덱스 생성
-    val items = listOf(
-        BoardThumbnailCardItem("엔터테인먼트",imageResId = R.drawable.thumbnail_entertainment),
-        BoardThumbnailCardItem("AI 및 개발", imageResId = R.drawable.thumbnail_it),
-        BoardThumbnailCardItem("기초 디자인", imageResId = R.drawable.thumbnail_design),
-        BoardThumbnailCardItem("요리 레시피", imageResId = R.drawable.thumbnail_recipe),
-        BoardThumbnailCardItem("아이돌",imageResId = R.drawable.thumbnail_entertainment),
-    )
+fun RecentBoardSection(
+    items: List<RecentBoardResponse>,
+    onBoardClick: (Int, String) -> Unit
+) {
 
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Text(text = "최근 본 보드", style = AppTextStyles.title_semibold_24)
         Spacer(modifier = Modifier.height(14.dp))
+
+        if (items.isEmpty()){
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(80.dp),
+                contentAlignment = Alignment.Center
+            ){
+                Text(
+                    text = "아직 최근 본 보드가 없어요!",
+                    style = AppTextStyles.b2_semibold_16,
+                    color = GreyMain300
+                )
+            }
+            return@Column
+        }
+
         LazyRow {
             itemsIndexed(items) { index, item ->
                 //맨 처음과 맨 끝 보드는 패딩값 0으로
@@ -261,9 +284,60 @@ fun RecentBoardSection() {
                     modifier = Modifier
                         .padding(start = leftPadding, end = rightPadding)
                 ) {
-                    BoardThumbnailCard(item)
+                    RecentBoardCard(
+                        boardId = item.boardId,
+                        boardName = item.boardName,
+                        // If API uses a different field, replace here (e.g., item.thumbnail)
+                        videoThumbnailUrl = item.videoThumbnailUrl,
+                        onClick = onBoardClick
+                    )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun RecentBoardCard(
+    boardId: Int,
+    boardName: String,
+    videoThumbnailUrl: String?,
+    onClick: (Int, String) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .size(width = 120.dp, height = 110.dp)
+            .shadow(2.dp, shape = RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(enabled = boardId > 0) { onClick(boardId, boardName) },
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        // Top image
+        AsyncImage(
+            model = videoThumbnailUrl ?: R.drawable.basic_profile_image, // fallback
+            contentDescription = "보드 썸네일",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(58.dp)
+                .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+        )
+
+        // Bottom title
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.White)
+                .padding(6.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Text(
+                text = boardName,
+                style = AppTextStyles.b2_medium_16,
+                color = Color.Black,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
