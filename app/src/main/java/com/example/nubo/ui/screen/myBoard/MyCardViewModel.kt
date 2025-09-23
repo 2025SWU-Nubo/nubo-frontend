@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.compose.runtime.State
 import com.example.nubo.data.model.CardDetailResponse
 import com.example.nubo.data.model.CardResponse
+import com.example.nubo.data.network.CardSort
 import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.data.repository.CardRepository
 import com.example.nubo.model.myBoard.MyCardItem
@@ -41,7 +42,7 @@ class MyCardViewModel @Inject constructor(
         _isLoading.value = true
 
         authRepository.getAccessToken()?.let { token ->
-            cardRepository.getCards("Bearer $token", "latest", null, null)
+            cardRepository.getCards("Bearer $token", CardSort.LATEST, null, null)
                 .enqueue(object : Callback<List<CardResponse>> {
                     override fun onResponse(
                         call: Call<List<CardResponse>>,

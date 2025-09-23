@@ -207,46 +207,6 @@ fun CustomTopBar(
     )
 }
 
-//미사용
-@Composable
-fun BoardThumbnailCard(item: BoardThumbnailCardItem) {
-    Column(
-        modifier = Modifier
-            .size(width = 120.dp, height = 110.dp)
-            .shadow(2.dp, shape = RoundedCornerShape(12.dp))
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.White),
-        verticalArrangement = Arrangement.Top
-    ) {
-        // 이미지 상단 (80dp 높이)
-        AsyncImage(
-            model = item.imageResId,
-            contentDescription = "썸네일",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(58.dp)
-                .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-        )
-
-        // 텍스트 하단 (카테고리명)
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.White)
-                .padding(6.dp),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            Text(
-                text = item.category,
-                style = AppTextStyles.b2_medium_16,
-                color = Color.Black,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
 
 @Composable
 fun RecentBoardSection(

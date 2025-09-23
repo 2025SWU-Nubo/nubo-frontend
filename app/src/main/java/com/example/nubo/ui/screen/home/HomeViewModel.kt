@@ -9,6 +9,7 @@ import com.example.nubo.data.model.BoardResponse
 import com.example.nubo.data.model.CardDetailResponse
 import com.example.nubo.data.model.CardResponse
 import com.example.nubo.data.model.RecentBoardResponse
+import com.example.nubo.data.network.CardSort
 import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.data.repository.BoardRepository
 import com.example.nubo.data.repository.CardRepository
@@ -114,7 +115,7 @@ class HomeViewModel @Inject constructor(
         _isLoading.value = true
 
         authRepository.getAccessToken()?.let { token ->
-            cardRepository.getCards("Bearer $token", "latest", null, null)
+            cardRepository.getCards("Bearer $token", CardSort.LATEST, null, null)
                 .enqueue(object : Callback<List<CardResponse>> {
                     override fun onResponse(
                         call: Call<List<CardResponse>>,

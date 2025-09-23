@@ -7,13 +7,14 @@ import com.example.nubo.data.model.CardUploadResponse
 import com.example.nubo.data.model.EditSummaryRequest
 import com.example.nubo.data.model.EditSummaryResponse
 import com.example.nubo.data.network.CardService
+import com.example.nubo.data.network.CardSort
 import retrofit2.Call
 import javax.inject.Inject
 
 //hilt di 적용
 class CardRepository @Inject constructor(private val apiService: CardService) {
 
-    fun getCards(token: String, sort: String, page: Int?, size: Int?) =
+    fun getCards(token: String, sort: CardSort?, page: Int?, size: Int?) =
         apiService.getCards(token, "application/json", sort, page, size)
 
     fun getUnviewedCardsByBoard(token: String, boardId: Long, limit: Int = 10): Call<List<CardResponse>> {

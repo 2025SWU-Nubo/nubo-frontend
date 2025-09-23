@@ -15,12 +15,14 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 
+enum class CardSort { LATEST, POPULAR }
+
 interface CardService {
     @GET("api/card")
     fun getCards(
         @Header("Authorization") authorization: String,
         @Header("Accept") accept: String = "application/json",
-        @Query("sort") sort: String,
+        @Query("sort") sort: CardSort? = null,
         @Query("page") page: Int? = null,
         @Query("size") size: Int? = null
     ): Call<List<CardResponse>>
