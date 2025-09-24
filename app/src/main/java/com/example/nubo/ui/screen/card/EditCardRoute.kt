@@ -24,12 +24,16 @@ fun EditCardRoute(
     onSaved: ()-> Unit,
     viewModel: EditCardViewModel = hiltViewModel()
 ) {
-    val state = viewModel.uiState.collectAsStateWithLifecycle().value
-    val snackbarHostState = remember { SnackbarHostState() }
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+//    val state = viewModel.uiState.collectAsStateWithLifecycle().value
+//    val snackbarHostState = remember { SnackbarHostState() }
 
     when (state) {
         is EditCardUiState.Loading -> LoadingBox()
-        is EditCardUiState.Error -> ErrorBox(state.message, onBack)
+        is EditCardUiState.Error -> {
+            val msg = (state as EditCardUiState.Error).message
+            ErrorBox(msg, onBack)
+        }
         is EditCardUiState.Saving -> LoadingBox()
         is EditCardUiState.Saved -> {
             // Option A: 바로 뒤로가기
@@ -39,29 +43,10 @@ fun EditCardRoute(
             // Scaffold 제거하고 EditCardScreen이 직접 Scaffold를 처리하도록
             Box(modifier = Modifier.fillMaxSize()) {
                 EditCardScreen(
-                    summary = state.summary,
-                    highlights = state.highlights,
                     onBack = onBack,
-                    onSummaryChange = viewModel::updateSummary,
-                    onToggleHighlight = viewModel::toggleHighlight,
-                    onSave = { viewModel.save(
-                        onSuccess = {
-                            // 상태 처리
-                        }
-                    )}
+                    onSave = { viewModel.save() },
+                    viewModel = viewModel
                 )
-
-                // SnackbarHost는 EditCardScreen 위에 오버레이로 표시
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .navigationBarsPadding()
-                        .imePadding()
-                        .padding(16.dp),
-                    contentAlignment = androidx.compose.ui.Alignment.BottomCenter
-                ) {
-                    SnackbarHost(snackbarHostState)
-                }
             }
         }
     }

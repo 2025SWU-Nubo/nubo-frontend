@@ -3,20 +3,27 @@ package com.example.nubo.ui.screen.card
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -24,118 +31,131 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Devices
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import kotlinx.coroutines.delay
 import com.example.nubo.R
 import com.example.nubo.data.dto.HighlightDto
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey5
+import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.PurpleMain500
 import com.example.nubo.utils.sanitizeToAllowedMarkdown
 import com.example.nubo.utils.toggleBoldMarkdown
 import com.example.nubo.utils.toggleHeadingMarkdown
-import com.example.nubo.utils.toggleListForSelection
-import com.halilibo.richtext.ui.material3.RichText
 import com.halilibo.richtext.commonmark.Markdown
+import com.halilibo.richtext.ui.material3.RichText
 import com.mohamedrejeb.richeditor.model.RichTextState
 import com.mohamedrejeb.richeditor.model.rememberRichTextState
 import com.mohamedrejeb.richeditor.ui.material3.RichTextEditor
+import kotlinx.coroutines.flow.collectLatest
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EditCardScreen(
-    summary: String,
-    highlights: List<HighlightDto>,
     onBack: () -> Unit,
-    onSummaryChange: (String) -> Unit,
-    onToggleHighlight: (start: Int, end: Int) -> Unit,
-    onSave: () -> Unit
+    onSave: () -> Unit,
+    viewModel: EditCardViewModel = androidx.hilt.navigation.compose.hiltViewModel()
 ) {
+    // 에디터 상태
     val rtState = rememberRichTextState()
+
+    // 뷰모델 상태
+    val uiState by viewModel.uiState.collectAsState()
+    val showAiBar by viewModel.showAiBar.collectAsState()
+    val aiQuery by viewModel.aiQuery.collectAsState()
+    val aiLoading by viewModel.aiLoading.collectAsState()
+    val toast by viewModel.toast.collectAsState()
+
     val focusManager = LocalFocusManager.current
-    val density = LocalDensity.current
 
-    // === 상태 관리 ===
-    // 에디터 포커스 상태
+    // 포커스/경계
     var editorFocused by remember { mutableStateOf(false) }
-
-    // 터치 영역 추적을 위한 경계 정보 (Compose Rect 사용)
     var editorBounds by remember { mutableStateOf<Rect?>(null) }
     var toolbarBounds by remember { mutableStateOf<Rect?>(null) }
 
-    // === IME(키보드) 상태 계산 ===
-    val imeInsets = WindowInsets.ime
-    val navInsets = WindowInsets.navigationBars
-    val imeHeight = imeInsets.getBottom(density)
-    val navHeight = navInsets.getBottom(density)
-
-    // 키보드 표시 상태 (높이가 0보다 크면 키보드가 올라왔다고 판단)
-    val imeVisible by remember { derivedStateOf { imeHeight > 0 } }
-
-    // 툴바를 키보드 바로 위에 위치시키기 위한 오프셋
-    // IME 높이에서 네비게이션 바 높이를 뺀 만큼 올림
-    val toolbarOffset = if (imeVisible) (imeHeight - navHeight).coerceAtLeast(0) else 0
-
-    // === 수정 모드 상태 결정 ===
-    // 수정 모드: 에디터에 포커스가 있고 키보드가 표시된 상태
-    val isEditMode by remember { derivedStateOf { editorFocused && imeVisible } }
-
-    // 디버깅용 로그 (개발 중에만 사용)
-    LaunchedEffect(editorFocused, imeVisible, isEditMode) {
-        println("EditCardScreen - editorFocused: $editorFocused, imeVisible: $imeVisible, isEditMode: $isEditMode")
-    }
-
-    // === 초기화 및 이벤트 처리 ===
-    // 최초 진입 시 마크다운 내용 설정
-    LaunchedEffect(summary) {
-        rtState.setMarkdown(sanitizeToAllowedMarkdown(summary))
-    }
-
-    // 키보드가 내려가면 포커스를 강제로 해제하여 읽기 모드로 전환
-    // 딜레이를 두어 키보드 애니메이션과 충돌하지 않도록 함
-    LaunchedEffect(imeVisible) {
-        if (!imeVisible && editorFocused) {
-            // 키보드가 완전히 내려간 후 포커스 해제
-            kotlinx.coroutines.delay(150)
-            focusManager.clearFocus(force = true)
+    // 스낵바
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(toast) {
+        toast?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.consumeToast()
         }
     }
 
+    // 뷰모델 Ready → 에디터 세팅
+    LaunchedEffect(uiState) {
+        val ready = uiState as? EditCardUiState.Ready ?: return@LaunchedEffect
+        val current = rtState.toMarkdown()
+        val target = sanitizeToAllowedMarkdown(ready.summary)
+        if (current != target) rtState.setMarkdown(target)
+    }
+
+    // 에디터 → 뷰모델 동기화
+    LaunchedEffect(rtState) {
+        snapshotFlow { rtState.toMarkdown() }
+            .collectLatest { md ->
+                (uiState as? EditCardUiState.Ready)?.let {
+                    if (it.summary != md) viewModel.updateSummary(md)
+                }
+            }
+    }
+
     Scaffold(
-        contentWindowInsets = WindowInsets(0),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+
+        // ── FAB: 간소화된 위치 계산 ──
+        floatingActionButton = {
+            AnimatedVisibility(
+                visible = !showAiBar,
+                modifier = Modifier.zIndex(30f)
+            ) {
+                FloatingActionButton(
+                    onClick = {
+                        focusManager.clearFocus(force = true)
+                        viewModel.toggleAiBar(true)
+                    },
+                    containerColor = Grey5,
+                    contentColor = androidx.compose.ui.graphics.Color.Unspecified,
+                    elevation = FloatingActionButtonDefaults.elevation(
+                        defaultElevation = 4.dp,
+                        pressedElevation = 5.dp
+                    ),
+                    modifier = Modifier.size(56.dp),
+                    shape = CircleShape
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ai_prompt_logo),
+                        contentDescription = "AI 요약 편집",
+                        tint = androidx.compose.ui.graphics.Color.Unspecified,
+                        modifier = Modifier.size(56.dp)
+                    )
+                }
+            }
+        },
+
         topBar = {
             CenterAlignedTopAppBar(
-                windowInsets = WindowInsets(0),
                 title = { Text("요약 노트") },
                 navigationIcon = {
-                    IconButton(
-                        onClick = {
-                            // 뒤로가기 시 포커스 해제 후 콜백 호출
-                            focusManager.clearFocus(force = true)
-                            onBack()
-                        }
-                    ) {
+                    IconButton(onClick = {
+                        focusManager.clearFocus(force = true)
+                        onBack()
+                    }) {
                         Icon(painterResource(R.drawable.arrow_back), contentDescription = "뒤로가기")
                     }
                 },
                 actions = {
-                    TextButton(
-                        onClick = {
-                            // 완료 버튼: 수정된 내용을 전달하고 키보드 내림
-                            val markdown = sanitizeToAllowedMarkdown(rtState.toMarkdown())
-                            onSummaryChange(markdown)
-                            focusManager.clearFocus(force = true)
-                            onSave()
-                        }
-                    ) {
-                        Text(
-                            text = "완료",
-                            style = AppTextStyles.b1_bold_18,
-                            color = PurpleMain500
-                        )
+                    TextButton(onClick = {
+                        val markdown = sanitizeToAllowedMarkdown(rtState.toMarkdown())
+                        viewModel.updateSummary(markdown)
+                        focusManager.clearFocus(force = true)
+                        onSave()
+                    }) {
+                        Text(text = "완료", style = AppTextStyles.b1_bold_18, color = PurpleMain500)
                     }
                 }
             )
@@ -146,39 +166,28 @@ fun EditCardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .pointerInput(editorBounds, toolbarBounds, imeVisible) {
-                    // 에디터나 툴바 밖의 영역을 터치하면 포커스 해제
+                .pointerInput(editorBounds, toolbarBounds) {
+                    // 에디터/툴바 외 영역 터치 시 포커스 해제
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
-                        val touchPosition = down.position
-
-                        val touchedEditor = editorBounds?.contains(touchPosition) == true
-                        val touchedToolbar = toolbarBounds?.contains(touchPosition) == true
-
-                        // 키보드가 표시된 상태에서 에디터나 툴바가 아닌 곳을 터치하면 포커스 해제
-                        if (imeVisible && !touchedEditor && !touchedToolbar) {
+                        val p = down.position
+                        val inEditor = editorBounds?.contains(p) == true
+                        val inToolbar = toolbarBounds?.contains(p) == true
+                        if (!inEditor && !inToolbar) {
                             focusManager.clearFocus(force = true)
                         }
                     }
                 }
         ) {
-            // === 메인 콘텐츠 영역 ===
+            // 본문: 기본 패딩만 적용
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 16.dp)
-                    .windowInsetsPadding(
-                        // 키보드 상태에 따라 다른 inset 적용
-                        if (imeVisible)
-                            WindowInsets.ime.only(WindowInsetsSides.Bottom)
-                        else
-                            WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)
-                    )
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // === 리치 텍스트 에디터 ===
-                // 시스템 기본 선택 툴바를 숨기고 커스텀 툴바 사용
+                // 시스템 기본 선택 툴바 숨김
                 NoSelectionToolbar {
                     RichTextEditor(
                         state = rtState,
@@ -186,39 +195,35 @@ fun EditCardScreen(
                             .fillMaxWidth()
                             .heightIn(min = 220.dp)
                             .background(Grey5)
-                            .onFocusChanged { focusState ->
-                                editorFocused = focusState.isFocused
+                            .onFocusChanged { fs ->
+                                editorFocused = fs.isFocused
+                                if (fs.isFocused) {
+                                    // 에디터 포커스 시 AI 바 닫기
+                                    viewModel.toggleAiBar(false)
+                                }
                             }
-                            .onGloballyPositioned { coordinates ->
-                                // 터치 영역 판단을 위한 에디터 경계 저장
-                                editorBounds = coordinates.boundsInParent()
-                            }
+                            .onGloballyPositioned { editorBounds = it.boundsInParent() }
                     )
                 }
 
                 HorizontalDivider()
 
-                // === 실시간 마크다운 미리보기 ===
-                // 에디터의 내용을 실시간으로 렌더링하여 표시
-                val liveMarkdown by remember(rtState) {
-                    derivedStateOf { rtState.toMarkdown() }
-                }
-                val sanitizedMarkdown = remember(liveMarkdown) {
-                    sanitizeToAllowedMarkdown(liveMarkdown)
-                }
+                // 라이브 미리보기
+                val liveMd by remember(rtState) { derivedStateOf { rtState.toMarkdown() } }
+                val sanitized = remember(liveMd) { sanitizeToAllowedMarkdown(liveMd) }
+                RichText { Markdown(sanitized) }
 
-                RichText {
-                    Markdown(sanitizedMarkdown)
-                }
+                // 하단 바들을 위한 여백
+                Spacer(modifier = Modifier.height(120.dp))
             }
 
-            // === 마크다운 편집 툴바 ===
-            // 에디터에 포커스가 있을 때만 표시 (키보드 상태 무관하게 테스트)
+            // ── 마크다운 툴바: 에디터 포커스 && AI 바 닫힘 ──
             AnimatedVisibility(
-                visible = editorFocused,
+                visible = editorFocused && !showAiBar,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .zIndex(10f), // 다른 요소들 위에 표시
+                    .fillMaxWidth()
+                    .zIndex(10f),
                 enter = fadeIn(),
                 exit = fadeOut()
             ) {
@@ -226,24 +231,44 @@ fun EditCardScreen(
                     rtState = rtState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .offset {
-                            // 키보드가 있을 때만 오프셋 적용
-                            IntOffset(0, if (imeVisible) -toolbarOffset else 0)
-                        }
-                        .onGloballyPositioned { coordinates ->
-                            // 터치 영역 판단을 위한 툴바 경계 저장
-                            toolbarBounds = coordinates.boundsInParent()
-                        }
+                        .imePadding() // 키보드 위로
+                        .navigationBarsPadding()
+                        .onGloballyPositioned { toolbarBounds = it.boundsInParent() }
+                )
+            }
+
+            // ── AI 프롬프트 바: FAB로 열릴 때만 ──
+            AnimatedVisibility(
+                visible = showAiBar,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .zIndex(20f),
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                AiPromptBar(
+                    value = aiQuery,
+                    loading = aiLoading,
+                    onValueChange = viewModel::onAiQueryChange,
+                    onClose = { viewModel.toggleAiBar(false) },
+                    onSubmit = {
+                        viewModel.updateSummary(rtState.toMarkdown())
+                        viewModel.requestAiEdit()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .imePadding() // 키보드 위로
+                        .navigationBarsPadding()
                 )
             }
         }
     }
 }
 
-/**
- * 마크다운 편집을 위한 커스텀 툴바
- * 키보드 위에 표시되며 다양한 마크다운 스타일을 적용할 수 있는 버튼들을 제공
- */
+/* ───────────────────────────────────────────────────────────────
+   마크다운 편집 툴바
+   ─────────────────────────────────────────────────────────────── */
 @Composable
 private fun MarkdownToolbar(
     rtState: RichTextState,
@@ -259,72 +284,174 @@ private fun MarkdownToolbar(
         Row(
             modifier = Modifier
                 .padding(horizontal = 16.dp, vertical = 8.dp)
-                .horizontalScroll(rememberScrollState()), // 버튼이 많을 경우 가로 스크롤 가능
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // H2 제목 버튼
             AssistChip(
                 onClick = { toggleHeadingMarkdown(rtState, 2) },
                 label = { Text("H2", style = MaterialTheme.typography.titleMedium) }
             )
-
-            // H3 제목 버튼
             AssistChip(
                 onClick = { toggleHeadingMarkdown(rtState, 3) },
                 label = { Text("H3", style = MaterialTheme.typography.titleSmall) }
             )
-
-            // 볼드 텍스트 버튼
             FilterChip(
                 selected = false,
                 onClick = { toggleBoldMarkdown(rtState) },
                 label = { Text("B", fontWeight = FontWeight.Bold) }
             )
-
-            // 순서 없는 리스트 버튼
             AssistChip(
-                onClick = { toggleListForSelection(rtState, ordered = false) },
+                onClick = { runCatching { rtState.toggleUnorderedList() } },
                 label = { Text("• 리스트", style = MaterialTheme.typography.labelMedium) }
             )
-
-            // 순서 있는 리스트 버튼
             AssistChip(
-                onClick = { toggleListForSelection(rtState, ordered = true) },
-                label = { Text("1. 리스트", style = MaterialTheme.typography.labelMedium) }
+                onClick = { runCatching { rtState.toggleOrderedList() } },
+                label = { Text("1 리스트", style = MaterialTheme.typography.labelMedium) }
             )
         }
     }
 }
 
-/**
- * 시스템 기본 텍스트 선택 툴바를 숨기는 컴포넌트
- * 커스텀 툴바를 사용하기 위해 기본 복사/붙여넣기 툴바를 비활성화
- */
+/* ───────────────────────────────────────────────────────────────
+   AI 프롬프트 입력바 (프리셋 칩 + 입력 + 전송)
+   ─────────────────────────────────────────────────────────────── */
+@Composable
+private fun AiPromptBar(
+    value: String,
+    loading: Boolean,
+    onValueChange: (String) -> Unit,
+    onClose: () -> Unit,
+    onSubmit: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
+    val presets = remember {
+        listOf("➔➔  더 간결하게", "↔  더 자세하게", "✎  핵심만 하이라이트")
+    }
+
+    Surface(
+        tonalElevation = 8.dp,
+        shadowElevation = 16.dp,
+        color = Grey5,
+        shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                presets.forEach { text ->
+                    AssistChip(
+                        onClick = {
+                            val cleaned = text.replace(Regex("^([➔↔✎ ]+)"), "")
+                            val next = if (value.isBlank()) cleaned else "$value "
+                            onValueChange(next)
+                        },
+                        label = { Text(text.replace(Regex("^([➔↔✎ ]+)"), "")) },
+                        leadingIcon = { Text(text.take(2)) }
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ai_prompt_logo),
+                    contentDescription = null,
+                    tint = androidx.compose.ui.graphics.Color.Unspecified,
+                    modifier = Modifier.size(28.dp)
+                )
+
+                Spacer(Modifier.width(12.dp))
+
+                TextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(focusRequester),
+                    placeholder = { Text("더 간결하게 요약해줘.") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                        unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent
+                    ),
+                    keyboardOptions = KeyboardOptions(
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Send
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onSend = { if (!loading && value.isNotBlank()) onSubmit() }
+                    ),
+                    enabled = !loading
+                )
+
+                Spacer(Modifier.width(12.dp))
+
+                FilledIconButton(
+                    onClick = onSubmit,
+                    enabled = !loading,
+                    shape = CircleShape,
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = Color.Transparent,
+                        contentColor = if(value.isNotBlank()) PurpleMain500 else GreyMain300
+                    )
+                ) {
+                    if (loading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            painterResource(R.drawable.ai_prompt_send),
+                            contentDescription = "전송",
+                            tint = Color.Unspecified
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/* ───────────────────────────────────────────────────────────────
+   시스템 기본 텍스트 선택 툴바 숨김
+   ─────────────────────────────────────────────────────────────── */
 @Composable
 private fun NoSelectionToolbar(content: @Composable () -> Unit) {
     val noToolbar = remember {
         object : androidx.compose.ui.platform.TextToolbar {
             override val status = androidx.compose.ui.platform.TextToolbarStatus.Hidden
-
             override fun showMenu(
                 rect: androidx.compose.ui.geometry.Rect,
                 onCopyRequest: (() -> Unit)?,
                 onPasteRequest: (() -> Unit)?,
                 onCutRequest: (() -> Unit)?,
                 onSelectAllRequest: (() -> Unit)?
-            ) {
-                // 기본 툴바 표시하지 않음
-            }
-
-            override fun hide() {
-                // 툴바 숨김 처리 (빈 구현)
-            }
+            ) { /* 표시 안 함 */ }
+            override fun hide() { /* 없음 */ }
         }
     }
-
-    androidx.compose.runtime.CompositionLocalProvider(
+    CompositionLocalProvider(
         androidx.compose.ui.platform.LocalTextToolbar provides noToolbar
-    ) {
-        content()
-    }
+    ) { content() }
 }

@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.nubo.data.dto.HighlightDto
+import com.example.nubo.data.model.EditSummaryAiRequest
 import com.example.nubo.data.model.EditSummaryRequest
 import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.data.repository.CardRepository
@@ -38,6 +39,19 @@ class EditCardViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<EditCardUiState>(EditCardUiState.Loading)
     val uiState = _uiState.asStateFlow()
 
+    // ai 입력바 관련 상태
+    private val _showAiBar = MutableStateFlow(false)
+    val showAiBar = _showAiBar.asStateFlow()
+
+    private val _aiQuery = MutableStateFlow("")
+    val aiQuery = _aiQuery.asStateFlow()
+
+    private val _aiLoading = MutableStateFlow(false)
+    val aiLoading = _aiLoading.asStateFlow()
+
+    private val _toast = MutableStateFlow<String?>(null)
+    val toast = _toast.asStateFlow()
+
     init { bootstrap() }
 
     // Load initial summary/highlights to edit
@@ -58,7 +72,7 @@ class EditCardViewModel @Inject constructor(
             .onFailure { _uiState.value = EditCardUiState.Error(it.humanMessage()) }
     }
 
-    // Update local summary text
+    // 요약 텍스트 로컬 반영
     fun updateSummary(newText: String) {
         val s = _uiState.value
         if (s is EditCardUiState.Ready) {
@@ -66,7 +80,7 @@ class EditCardViewModel @Inject constructor(
         }
     }
 
-    // Toggle highlight by selection range (add if absent, remove if exact match exists)
+    // 하이라이트 토글
     fun toggleHighlight(start: Int, end: Int) {
         val s = _uiState.value
         if (s is EditCardUiState.Ready) {
@@ -85,7 +99,7 @@ class EditCardViewModel @Inject constructor(
         }
     }
 
-    // Save to server once (summary + highlights)
+    // 저장 요청
     fun save(onSuccess: () -> Unit = {}) = viewModelScope.launch {
         val token = authRepository.getAccessToken()
         val s = _uiState.value
@@ -110,6 +124,38 @@ class EditCardViewModel @Inject constructor(
             _uiState.value = EditCardUiState.Error(it.humanMessage())
         }
     }
+
+
+    fun toggleAiBar(show: Boolean? =  null){
+        _showAiBar.value = show ?: !_showAiBar.value
+    }
+
+    fun onAiQueryChange(text:String){_aiQuery.value = text}
+    fun consumeToast() { _toast.value = null }
+
+    fun requestAiEdit() = viewModelScope.launch {
+        val token = authRepository.getAccessToken()
+        val s = _uiState.value
+        val prompt = _aiQuery.value.trim()
+        if(token.isNullOrEmpty() || s !is EditCardUiState.Ready || prompt.isEmpty() || _aiLoading.value) return@launch
+
+        _aiLoading.value = true
+        runCatching {
+            val body = EditSummaryAiRequest(prompt)
+            cardRepository.updateSummaryWithAi(token,cardId, body).await()
+        }.onSuccess { resp ->
+            _uiState.value = EditCardUiState.Ready(
+                summary = resp.summary,
+                highlights = resp.highlights
+            )
+            _aiQuery.value = ""
+            _showAiBar.value = false
+        }.onFailure { e ->
+        _toast.value = e.humanMessage()
+        }
+        _aiLoading.value = false
+    }
+
 }
 
 // --- small helper for human-readable errors

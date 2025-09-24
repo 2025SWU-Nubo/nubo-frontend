@@ -4,6 +4,7 @@ import com.example.nubo.data.model.CardResponse
 import com.example.nubo.data.model.CardUploadRequest
 import com.example.nubo.data.model.CardUploadResponse
 import com.example.nubo.data.model.CardDetailResponse
+import com.example.nubo.data.model.EditSummaryAiRequest
 import com.example.nubo.data.model.EditSummaryRequest
 import com.example.nubo.data.model.EditSummaryResponse
 import retrofit2.Call
@@ -56,6 +57,14 @@ interface CardService {
         @Header("Accept") accept: String = "application/json",
         @Path("cardId") cardId: Int,
         @Body body: EditSummaryRequest
+    ): Call<EditSummaryResponse>
+
+    @PATCH("/api/card/{cardId}/summary/ai")
+    fun updateCardSummaryWithAi(
+        @Header("Authorization") bearer: String,
+        @Header("Accept") accept: String = "application/json",
+        @Path("cardId") cardId: Int,
+        @Body body: EditSummaryAiRequest
     ): Call<EditSummaryResponse>
 
 }

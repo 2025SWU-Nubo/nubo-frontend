@@ -100,6 +100,8 @@ dependencies {
     implementation(libs.richtext.ui.material3.v100alpha03)
     implementation(libs.richtext.commonmark.v100alpha03)
     implementation("com.mohamedrejeb.richeditor:richeditor-compose:1.0.0-rc13")
+    implementation (libs.coil.compose)
+    implementation ("io.coil-kt:coil-svg:2.6.0")
 
 }
 

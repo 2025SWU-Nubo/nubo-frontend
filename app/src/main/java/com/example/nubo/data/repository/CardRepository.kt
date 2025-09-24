@@ -4,6 +4,7 @@ import com.example.nubo.data.model.CardDetailResponse
 import com.example.nubo.data.model.CardResponse
 import com.example.nubo.data.model.CardUploadRequest
 import com.example.nubo.data.model.CardUploadResponse
+import com.example.nubo.data.model.EditSummaryAiRequest
 import com.example.nubo.data.model.EditSummaryRequest
 import com.example.nubo.data.model.EditSummaryResponse
 import com.example.nubo.data.network.CardService
@@ -36,5 +37,10 @@ class CardRepository @Inject constructor(private val apiService: CardService) {
     // 요약 노트 수정
     fun updateCardSummary(token: String, cardId: Int,body: EditSummaryRequest):Call<EditSummaryResponse>{
         return apiService.updateCardSummary("Bearer $token", "application/json", cardId, body)
+    }
+
+    // ai 요약 노트 수정
+    fun updateSummaryWithAi(token: String,cardId: Int,body: EditSummaryAiRequest):Call<EditSummaryResponse>{
+        return apiService.updateCardSummaryWithAi("Bearer $token", "application/json", cardId, body)
     }
 }
