@@ -4,6 +4,7 @@ package com.example.nubo.di
 import com.example.nubo.data.network.AuthService
 import com.example.nubo.data.network.BoardService
 import com.example.nubo.data.network.CardService
+import com.example.nubo.data.network.ProfileService
 import com.example.nubo.data.network.TokenInterceptor
 import com.example.nubo.data.network.UserService
 import com.example.nubo.data.network.VideoService
@@ -75,5 +76,10 @@ object NetworkModule {
     @Provides @Singleton
     fun provideVideoApiService(retrofit: Retrofit): VideoService {
         return retrofit.create(VideoService::class.java)
+    }
+
+    @Provides @Singleton
+    fun provideProfileApiService(retrofit: Retrofit): ProfileService {
+        return retrofit.create(ProfileService::class.java)
     }
 }

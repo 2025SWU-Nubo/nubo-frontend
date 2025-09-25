@@ -1,5 +1,6 @@
 package com.example.nubo.ui.screen.profile
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -38,10 +39,12 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey1000
@@ -51,7 +54,8 @@ import com.example.nubo.ui.theme.GreyMain100
 fun EditNameScreen(
     initial: String,                 // 초기 이름
     onBack: () -> Unit,              // 뒤로가기
-    onDone: (String) -> Unit         // 완료(서버 전송은 추후 onDone 내부에서 처리)
+    onDone: (String) -> Unit,         // 완료(서버 전송은 추후 onDone 내부에서 처리)
+    viewModel: ProfileViewModel = hiltViewModel()
 ) {
     // ----- 간격 규격 -----
     val H_PADDING = 42.dp            // 좌/우 42
@@ -77,6 +81,8 @@ fun EditNameScreen(
     val interaction = remember { MutableInteractionSource() }
     val indicatorFocused = GreyMain100
     val indicatorUnfocused = MaterialTheme.colorScheme.outline
+
+    val context = LocalContext.current
 
     // 진입 시 자동 포커스
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
@@ -129,7 +135,20 @@ fun EditNameScreen(
                                 triedSubmit = true
                             } else {
                                 keyboard?.hide()
-                                onDone(trimmed)
+                                // --- 서버 호출 ---
+                                viewModel.updateName(trimmed) { ok, msg ->
+                                    if (ok) {
+                                        // 상위에 알려주고, 이전 화면으로
+                                        onDone(trimmed)
+                                    } else {
+                                        // 실패: 토스트로 사용자에게 안내
+                                        Toast.makeText(
+                                            context,
+                                            msg ?: "닉네임 변경에 실패했습니다.",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
                             }
                         }
                 )
