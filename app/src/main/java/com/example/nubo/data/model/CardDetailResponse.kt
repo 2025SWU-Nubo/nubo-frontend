@@ -1,11 +1,14 @@
 package com.example.nubo.data.model
 
+import com.example.nubo.data.dto.HighlightDto
+
 
 data class CardDetailResponse(
-    val id: Int,
+    val cardId: Int,
     val title: String,
     val summary: String,
     val tags: List<String>,
+    val highlights: List<HighlightDto>? = null,
     val boardSource: String,
     val boardName: String,
     val videoUrl: String,

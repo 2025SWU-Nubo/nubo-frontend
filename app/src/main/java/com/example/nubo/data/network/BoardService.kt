@@ -2,6 +2,7 @@ package com.example.nubo.data.network
 
 import com.example.nubo.data.model.BoardItemResponse
 import com.example.nubo.data.model.BoardResponse
+import com.example.nubo.data.model.RecentBoardResponse
 import com.example.nubo.data.model.UpsertBoardRequest
 import com.google.gson.JsonObject
 import retrofit2.http.Body
@@ -23,7 +24,7 @@ interface BoardService {
     suspend fun getBoardDetail(
         @Header("Authorization") authHeader: String,
         @Header("Accept") acceptHeader: String = "application/json",
-        @Path("id") boardId: String
+        @Path("id") boardId: Int
     ): BoardResponse
 
     @GET("/api/board/check-name")
@@ -37,4 +38,11 @@ interface BoardService {
         @Body body:UpsertBoardRequest,
         @Header("Authorization")authHeader: String
     ):BoardItemResponse
+
+    //홈_최근 본 보드 조회
+    @GET("/api/home/boards/recent")
+    suspend fun getRecentBoard(
+        @Header("Authorization") authHeader: String,
+        @Header("Accept") acceptHeader: String = "application/json"
+    ):List<RecentBoardResponse>
 }

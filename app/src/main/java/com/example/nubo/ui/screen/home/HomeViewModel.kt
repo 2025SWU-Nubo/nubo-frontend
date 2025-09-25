@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.nubo.data.model.BoardResponse
 import com.example.nubo.data.model.CardDetailResponse
 import com.example.nubo.data.model.CardResponse
+import com.example.nubo.data.model.RecentBoardResponse
+import com.example.nubo.data.network.CardSort
 import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.data.repository.BoardRepository
 import com.example.nubo.data.repository.CardRepository
@@ -44,6 +46,9 @@ class HomeViewModel @Inject constructor(
     private val _boards = MutableLiveData<List<BoardResponse>>(emptyList())
     val boards: LiveData<List<BoardResponse>> = _boards
 
+    private val _recentBoards = MutableLiveData<List<RecentBoardResponse>>(emptyList())
+    val recentBoards: LiveData<List<RecentBoardResponse>> = _recentBoards
+
     private val _chips = MutableLiveData<List<RecommendChipItem>>(emptyList())
     val chips: LiveData<List<RecommendChipItem>> = _chips
 
@@ -69,6 +74,7 @@ class HomeViewModel @Inject constructor(
 
     fun refreshAll() {
         loadBoards()
+        loadRecentBoards()
         refreshForCurrentSelection()
     }
     /** 현재 선택된 칩("all" or boardId)에 맞춰 카드만 새로고침 */
@@ -109,7 +115,7 @@ class HomeViewModel @Inject constructor(
         _isLoading.value = true
 
         authRepository.getAccessToken()?.let { token ->
-            cardRepository.getCards("Bearer $token", "latest", null, null)
+            cardRepository.getCards("Bearer $token", CardSort.LATEST, null, null)
                 .enqueue(object : Callback<List<CardResponse>> {
                     override fun onResponse(
                         call: Call<List<CardResponse>>,
@@ -131,6 +137,23 @@ class HomeViewModel @Inject constructor(
         } ?: run {
             _isLoading.value = false
             _cards.value = emptyList()
+        }
+    }
+
+    fun loadRecentBoards(){
+        viewModelScope.launch {
+            val token = authRepository.getAccessToken() ?: run {
+                Log.d("HomeViewModel", "❌ Token is null, cannot load boards")
+                return@launch
+            }
+            boardRepository.getRecentBoards(token)
+                .onSuccess { list ->
+                    _recentBoards.value = list
+                    Log.d("HomeViewModel", "✅ Recent Boards loaded: size=${list.size}, data=$list")
+                }.onFailure { e ->
+                    _recentBoards.value = emptyList()
+                    Log.e("HomeViewModel", "❌ Failed to load recent boards: ${e.localizedMessage}", e)
+                }
         }
     }
 
@@ -174,12 +197,14 @@ class HomeViewModel @Inject constructor(
         _selectedChipId.value = chip.id
         // Update selection flags in chips
         _chips.value = _chips.value.orEmpty().map { it.copy(isSelected = it.id == chip.id) }
-        Log.d("HomeViewModel", "🔘 Chip clicked: id=${chip.id}, title=${chip.title}")
+        Log.d("HomeViewModel", "Chip clicked: id=${chip.id}, title=${chip.title}")
 
         //새로고침
         refreshForCurrentSelection()
 
     }
+
+
 
 
     fun getCardDetail(cardId: Int) {

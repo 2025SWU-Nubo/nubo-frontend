@@ -107,7 +107,7 @@ fun BoardDetailContent(
 
         cardDetail?.let { detail ->
             val detailItem = CardDetailItem(
-                id = detail.id,
+                id = detail.cardId,
                 imageUrl = detail.videoThumbnailUrl ?: "",
                 videoUrl = detail.videoUrl ?: "",
                 title = detail.title ?: "제목 없음",

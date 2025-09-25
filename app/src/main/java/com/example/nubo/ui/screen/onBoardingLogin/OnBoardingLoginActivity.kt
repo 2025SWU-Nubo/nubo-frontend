@@ -122,32 +122,6 @@ class OnBoardingLoginActivity : ComponentActivity() {
         }
     }
 
-//    @Deprecated("This method has been deprecated in favor of using the Activity Result API")
-//    override fun onRequestPermissionsResult(
-//        requestCode: Int,
-//        permissions: Array<String>,
-//        grantResults: IntArray
-//    ) {
-//        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-//
-//        NotificationPermissionHelper.handlePermissionResult(
-//            requestCode = requestCode,
-//            permissions = permissions,
-//            grantResults = grantResults,
-//            onGranted = {
-//                Toast.makeText(this, "알림 권한이 허용되었습니다.", Toast.LENGTH_SHORT).show()
-//                Log.d("NotificationPermission", "알림 권한이 허용되었습니다.")
-//            },
-//            onDenied = {
-//                Toast.makeText(
-//                    this,
-//                    "알림 권한이 거부되어 업로드 완료를 토스트로 알려드립니다.",
-//                    Toast.LENGTH_LONG
-//                ).show()
-//                Log.d("NotificationPermission", "알림 권한이 거부되었습니다.")
-//            }
-//        )
-//    }
 }
 
 @Composable

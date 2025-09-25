@@ -1,6 +1,5 @@
 package com.example.nubo.data.model
 
-import com.example.nubo.data.dto.CardItemDto
 import com.example.nubo.data.dto.SectionDto
 
 // 보드

@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -33,6 +35,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -55,6 +58,8 @@ import com.example.nubo.R
 import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.ui.theme.Purple700
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.sp
 import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.PinkError
@@ -73,18 +78,28 @@ fun CreateBoardSheet(
     onSharedChange: (Boolean) -> Unit,
     isLoading: Boolean,
     nameError: String?,
-    onSubmit: () -> Unit
+    onSubmit: (String) -> Unit
 ){
     var touched by rememberSaveable { mutableStateOf(false) }
 
-    val nameTrim = name.trim()
+    var nameValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(text = name)) // VM 값으로 초기화
+    }
+
+    LaunchedEffect(name) {
+        if (nameValue.text != name && nameValue.composition == null) {
+            nameValue = nameValue.copy(text = name, selection = nameValue.selection)
+        }
+    }
+
+    val nameTrim = nameValue.text.trim()
     val localValid = nameTrim.isNotEmpty()
     val showLocalError = touched && !localValid
     val hasRemoteError = nameError != null
     val isError = showLocalError || hasRemoteError
 
     val errorMessage = when {
-        hasRemoteError -> nameError!!                         // 서버/VM에서 내려준 에러(예: 중복)
+        hasRemoteError -> nameError                         // 서버/VM에서 내려준 에러(예: 중복)
         showLocalError -> "보드 이름을 입력해주세요."           // 로컬 공란/길이 등
         else -> null
     }
@@ -137,9 +152,9 @@ fun CreateBoardSheet(
             Text("보드 이름", style = AppTextStyles.b2_semibold_16)
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
-                value = name,
-                onValueChange = {
-                    onNameChange(it)
+                value = nameValue,
+                onValueChange = {v ->
+                    nameValue = v
                     if(!touched) touched = true
                                 },
                 singleLine = true,
@@ -160,23 +175,32 @@ fun CreateBoardSheet(
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Grey10,
                 ),
-                placeholder = { Text("보드 이름", style = AppTextStyles.b3_regular_14, color = Grey200) }
+                placeholder = { Text("보드 이름", style = AppTextStyles.b3_regular_14, color = Grey200) },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        touched = true
+                        if (nameTrim.isNotEmpty() && !isLoading) onSubmit(nameTrim)
+                    }
+                )
             )
 
             Spacer(Modifier.height(8.dp))
 
             // 에러 메시지 (필드 하단)
-            AnimatedVisibility(
-                visible =  errorMessage != null,
-                enter = fadeIn(tween(150)) + expandVertically(tween(150)),
-                exit = fadeOut(tween(150)) + shrinkVertically(tween(150))
-            ) {
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = errorMessage!!,
-                    style = AppTextStyles.b3_regular_14,
-                    color = RedError
-                )
+            errorMessage?.let{msg ->
+                AnimatedVisibility(
+                    visible = true,
+                    enter = fadeIn(tween(150)) + expandVertically(tween(150)),
+                    exit = fadeOut(tween(150)) + shrinkVertically(tween(150))
+                ) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = msg,          // !! 제거
+                        style = AppTextStyles.b3_regular_14,
+                        color = RedError
+                    )
+                }
             }
         }
 
@@ -267,7 +291,7 @@ fun CreateBoardSheet(
             onClick = {
             touched = true
             if (localValid && !isLoading) {
-                onSubmit()
+                onSubmit(nameTrim)
             }},
             shape = RoundedCornerShape(8.dp),
             enabled = localValid && !isLoading,

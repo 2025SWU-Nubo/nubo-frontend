@@ -4,20 +4,26 @@ import com.example.nubo.data.model.CardResponse
 import com.example.nubo.data.model.CardUploadRequest
 import com.example.nubo.data.model.CardUploadResponse
 import com.example.nubo.data.model.CardDetailResponse
+import com.example.nubo.data.model.EditSummaryAiRequest
+import com.example.nubo.data.model.EditSummaryRequest
+import com.example.nubo.data.model.EditSummaryResponse
 import retrofit2.Call
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
+
+enum class CardSort { LATEST, POPULAR }
 
 interface CardService {
     @GET("api/card")
     fun getCards(
         @Header("Authorization") authorization: String,
         @Header("Accept") accept: String = "application/json",
-        @Query("sort") sort: String,
+        @Query("sort") sort: CardSort? = null,
         @Query("page") page: Int? = null,
         @Query("size") size: Int? = null
     ): Call<List<CardResponse>>
@@ -44,5 +50,21 @@ interface CardService {
         @Path("boardId") boardId: Long,
         @Query("limit") limit: Int = 10
     ): Call<List<CardResponse>>
+
+    @PATCH("/api/card/{cardId}/summary")
+    fun updateCardSummary(
+        @Header("Authorization") bearer: String,
+        @Header("Accept") accept: String = "application/json",
+        @Path("cardId") cardId: Int,
+        @Body body: EditSummaryRequest
+    ): Call<EditSummaryResponse>
+
+    @PATCH("/api/card/{cardId}/summary/ai")
+    fun updateCardSummaryWithAi(
+        @Header("Authorization") bearer: String,
+        @Header("Accept") accept: String = "application/json",
+        @Path("cardId") cardId: Int,
+        @Body body: EditSummaryAiRequest
+    ): Call<EditSummaryResponse>
 
 }
