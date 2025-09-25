@@ -77,6 +77,7 @@ fun EditCardScreen(
     var editorBounds by remember { mutableStateOf<Rect?>(null) }
     var toolbarBounds by remember { mutableStateOf<Rect?>(null) }
 
+
     // 스낵바
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(toast) {
@@ -106,6 +107,7 @@ fun EditCardScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
+//        contentWindowInsets = WindowInsets(0),
 
         // ── FAB: 간소화된 위치 계산 ──
         floatingActionButton = {
@@ -139,6 +141,7 @@ fun EditCardScreen(
 
         topBar = {
             CenterAlignedTopAppBar(
+                windowInsets = WindowInsets(0),
                 title = { Text("요약 노트") },
                 navigationIcon = {
                     IconButton(onClick = {
@@ -166,6 +169,7 @@ fun EditCardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .consumeWindowInsets(innerPadding)
                 .pointerInput(editorBounds, toolbarBounds) {
                     // 에디터/툴바 외 영역 터치 시 포커스 해제
                     awaitEachGesture {
@@ -212,27 +216,23 @@ fun EditCardScreen(
                 val liveMd by remember(rtState) { derivedStateOf { rtState.toMarkdown() } }
                 val sanitized = remember(liveMd) { sanitizeToAllowedMarkdown(liveMd) }
                 RichText { Markdown(sanitized) }
-
-                // 하단 바들을 위한 여백
-                Spacer(modifier = Modifier.height(120.dp))
             }
 
             // ── 마크다운 툴바: 에디터 포커스 && AI 바 닫힘 ──
             AnimatedVisibility(
                 visible = editorFocused && !showAiBar,
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
+                    .align(Alignment.BottomEnd)
                     .fillMaxWidth()
+//                    .imePadding()
                     .zIndex(10f),
                 enter = fadeIn(),
-                exit = fadeOut()
+                exit = fadeOut(),
             ) {
                 MarkdownToolbar(
                     rtState = rtState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .imePadding() // 키보드 위로
-                        .navigationBarsPadding()
                         .onGloballyPositioned { toolbarBounds = it.boundsInParent() }
                 )
             }
@@ -242,6 +242,7 @@ fun EditCardScreen(
                 visible = showAiBar,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
+//                    .imePadding()
                     .fillMaxWidth()
                     .zIndex(20f),
                 enter = fadeIn(),
@@ -258,8 +259,6 @@ fun EditCardScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .imePadding() // 키보드 위로
-                        .navigationBarsPadding()
                 )
             }
         }
