@@ -73,6 +73,9 @@ fun InformationScreen(
     val editedName by (editedNameFlow?.collectAsState() ?: remember { mutableStateOf(name) })
     LaunchedEffect(editedName) { currentName = editedName }
 
+    //로그아웃 뷰모델
+    val authViewModel: AuthViewModel = hiltViewModel()
+
     Scaffold(
         topBar = {
             TopBar(onBack = {
@@ -111,7 +114,12 @@ fun InformationScreen(
             InfoCard(
                 name = currentName,
                 email = email,
-                onLogout = onLogout,
+                onLogout = {
+                    //  토큰/유저정보 삭제
+                    authViewModel.logoutClearAll()
+                    // 화면 전환은 상위(MainActivity)에서 처리하도록 콜백 호출
+                    onLogout()
+                },
                 onWithdraw = onWithdraw,
                 onEditName = onEditName
             )

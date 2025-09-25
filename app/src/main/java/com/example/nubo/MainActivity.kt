@@ -1,5 +1,6 @@
 package com.example.nubo
 
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.setContent
@@ -20,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.navigation.compose.NavHost
@@ -27,6 +29,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.ui.screen.home.HomeScreen
 import com.example.nubo.ui.screen.learn.LearnScreen
 import com.example.nubo.ui.screen.myBoard.MyBoardScreen
@@ -34,6 +37,7 @@ import com.example.nubo.ui.component.BottomNavBar
 import com.example.nubo.ui.component.sheet.BottomSheetHost
 import com.example.nubo.ui.component.sheet.SheetRoute
 import com.example.nubo.ui.screen.myBoard.BoardDetailScreen
+import com.example.nubo.ui.screen.onBoardingLogin.OnBoardingLoginActivity
 import com.example.nubo.ui.screen.profile.EditNameScreen
 import com.example.nubo.ui.screen.profile.InformationScreen
 import com.example.nubo.ui.screen.profile.ProfileRoute
@@ -74,6 +78,8 @@ fun MainScreen() {
     val showBottomBar = currentRoute in listOf("home", "myboard", "add", "learn", "profile", "information")
     var sheetRoute by remember { mutableStateOf<SheetRoute?>(null) }
 
+    // Composable 컨텍스트에서 미리 Context를 받아둔다
+    val context = LocalContext.current
 
     Scaffold(
 
@@ -141,7 +147,13 @@ fun MainScreen() {
                     navController = navController,
                     onBack = { navController.popBackStack() }, // 뒤로가기
                     onEditProfileImage = { /* 편집 처리 */ },
-                    onLogout = { /* 로그아웃 처리 */ },
+                    onLogout = {
+                        // 이미 InformationScreen에서 토큰/유저정보 삭제 후 이 콜백을 호출함
+                        // 여기서는 온보딩 로그인 액티비티로 전환만 수행
+                        val intent = Intent(context, OnBoardingLoginActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        }
+                        context.startActivity(intent)},
                     onWithdraw = { /* 탈퇴 처리 */ },
                     onEditName = { current -> navController.navigate("edit_name?initial=${Uri.encode(current)}") },
                     modifier = Modifier

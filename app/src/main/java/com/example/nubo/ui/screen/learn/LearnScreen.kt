@@ -79,7 +79,7 @@ fun LearnScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF8AC4F3)) // 배경 느낌만 잡는 임시색
+            .background(Color(0xFF92C8EF)) // 배경 느낌만 잡는 임시색
             .padding(horizontal = 16.dp)
     ) {
         Column(
@@ -202,14 +202,16 @@ private fun WeeklyCalendar(
     ) {
         dates.forEachIndexed { idx, date ->
             val isSelected = selectedIndex == idx
+            val isToday = idx == todayIndex
 
             Box(
                 modifier = Modifier
                     .weight(1f),
                 contentAlignment = Alignment.Center
             ) {
-                // 선택 시: 뒤에 하얀 동그라미
-                if (isSelected) {
+
+                // 선택했거나 오늘인 경우: 뒤에 하얀 동그라미
+                if (isSelected || isToday) {
                     Box(
                         modifier = Modifier
                             .size(circleSize)
@@ -229,7 +231,7 @@ private fun WeeklyCalendar(
                     Text(
                         text = date.dayOfMonth.toString(),
                         style = AppTextStyles.subtitle_semibold_20,
-                        color = if (isSelected) Grey1000 else Grey0
+                        color = if (isSelected||isToday) Grey1000 else Grey0
                     )
                 }
             }
