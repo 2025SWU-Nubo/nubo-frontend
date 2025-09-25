@@ -39,7 +39,10 @@ import androidx.compose.ui.zIndex
 import com.example.nubo.R
 import com.example.nubo.data.dto.HighlightDto
 import com.example.nubo.ui.theme.AppTextStyles
+import com.example.nubo.ui.theme.Grey10
+import com.example.nubo.ui.theme.Grey20
 import com.example.nubo.ui.theme.Grey5
+import com.example.nubo.ui.theme.GreyMain100
 import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.PurpleMain500
 import com.example.nubo.utils.sanitizeToAllowedMarkdown
@@ -77,6 +80,11 @@ fun EditCardScreen(
     var editorBounds by remember { mutableStateOf<Rect?>(null) }
     var toolbarBounds by remember { mutableStateOf<Rect?>(null) }
 
+    // 키보드 닫힘 열림 여부 상태
+    val keyboardVisible by rememberKeyboardVisible()
+
+
+
 
     // 스낵바
     val snackbarHostState = remember { SnackbarHostState() }
@@ -107,12 +115,38 @@ fun EditCardScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-//        contentWindowInsets = WindowInsets(0),
+        contentWindowInsets = WindowInsets(0),
+
+
+        topBar = {
+            CenterAlignedTopAppBar(
+                windowInsets = WindowInsets(0),
+                title = { Text("요약 노트") },
+                navigationIcon = {
+                    IconButton(onClick = {
+                        focusManager.clearFocus(force = true)
+                        onBack()
+                    }) {
+                        Icon(painterResource(R.drawable.arrow_back), contentDescription = "뒤로가기")
+                    }
+                },
+                actions = {
+                    TextButton(onClick = {
+                        val markdown = sanitizeToAllowedMarkdown(rtState.toMarkdown())
+                        viewModel.updateSummary(markdown)
+                        focusManager.clearFocus(force = true)
+                        onSave()
+                    }) {
+                        Text(text = "완료", style = AppTextStyles.b1_bold_18, color = PurpleMain500)
+                    }
+                }
+            )
+        },
 
         // ── FAB: 간소화된 위치 계산 ──
         floatingActionButton = {
             AnimatedVisibility(
-                visible = !showAiBar,
+                visible =  !editorFocused && !showAiBar,
                 modifier = Modifier.zIndex(30f)
             ) {
                 FloatingActionButton(
@@ -139,37 +173,15 @@ fun EditCardScreen(
             }
         },
 
-        topBar = {
-            CenterAlignedTopAppBar(
-                windowInsets = WindowInsets(0),
-                title = { Text("요약 노트") },
-                navigationIcon = {
-                    IconButton(onClick = {
-                        focusManager.clearFocus(force = true)
-                        onBack()
-                    }) {
-                        Icon(painterResource(R.drawable.arrow_back), contentDescription = "뒤로가기")
-                    }
-                },
-                actions = {
-                    TextButton(onClick = {
-                        val markdown = sanitizeToAllowedMarkdown(rtState.toMarkdown())
-                        viewModel.updateSummary(markdown)
-                        focusManager.clearFocus(force = true)
-                        onSave()
-                    }) {
-                        Text(text = "완료", style = AppTextStyles.b1_bold_18, color = PurpleMain500)
-                    }
-                }
-            )
-        }
-    ) { innerPadding ->
+
+
+        ) { innerPadding ->
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .consumeWindowInsets(innerPadding)
+//                .padding(innerPadding)
+//                .consumeWindowInsets(innerPadding)
                 .pointerInput(editorBounds, toolbarBounds) {
                     // 에디터/툴바 외 영역 터치 시 포커스 해제
                     awaitEachGesture {
@@ -181,33 +193,37 @@ fun EditCardScreen(
                             focusManager.clearFocus(force = true)
                         }
                     }
-                }
+                },
         ) {
             // 본문: 기본 패딩만 적용
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp)
+                    .padding(innerPadding)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // 시스템 기본 선택 툴바 숨김
-                NoSelectionToolbar {
-                    RichTextEditor(
-                        state = rtState,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 220.dp)
-                            .background(Grey5)
-                            .onFocusChanged { fs ->
-                                editorFocused = fs.isFocused
-                                if (fs.isFocused) {
-                                    // 에디터 포커스 시 AI 바 닫기
-                                    viewModel.toggleAiBar(false)
+                Surface(
+                    color = Color.White
+                ) {
+                    NoSelectionToolbar {
+                        RichTextEditor(
+                            state = rtState,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 220.dp)
+                                .background(Color.White)
+                                .onFocusChanged { fs ->
+                                    editorFocused = fs.isFocused
+                                    if (fs.isFocused) {
+                                        // 에디터 포커스 시 AI 바 닫기
+                                        viewModel.toggleAiBar(false)
+                                    }
                                 }
-                            }
-                            .onGloballyPositioned { editorBounds = it.boundsInParent() }
-                    )
+                                .onGloballyPositioned { editorBounds = it.boundsInParent() }
+                        )
+                    }
                 }
 
                 HorizontalDivider()
@@ -222,7 +238,7 @@ fun EditCardScreen(
             AnimatedVisibility(
                 visible = editorFocused && !showAiBar,
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
+                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
 //                    .imePadding()
                     .zIndex(10f),
@@ -237,6 +253,7 @@ fun EditCardScreen(
                 )
             }
 
+            // 키보드를 내리면 ai 프롬 프트 바가 보이지 않도록 추가
             // ── AI 프롬프트 바: FAB로 열릴 때만 ──
             AnimatedVisibility(
                 visible = showAiBar,
@@ -360,8 +377,20 @@ private fun AiPromptBar(
                             val next = if (value.isBlank()) cleaned else "$value "
                             onValueChange(next)
                         },
-                        label = { Text(text.replace(Regex("^([➔↔✎ ]+)"), "")) },
-                        leadingIcon = { Text(text.take(2)) }
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = GreyMain100,
+                            labelColor = Color.Black,
+                            leadingIconContentColor = PurpleMain500
+                        ),
+                        border = null,
+                        label = {
+                            Text(
+                                text = text.replace(Regex("^([➔↔✎ ]+)"), ""),
+                                style = AppTextStyles.label_medium_12, // 라벨 텍스트 스타일 적용
+//                                color = MaterialTheme.colorScheme.onSurface, // 필요 시 색상 명시
+                        ) },
+                        leadingIcon = { Text(text.take(2)) },
+                        shape = RoundedCornerShape(45.dp)
                     )
                 }
             }
@@ -454,3 +483,22 @@ private fun NoSelectionToolbar(content: @Composable () -> Unit) {
         androidx.compose.ui.platform.LocalTextToolbar provides noToolbar
     ) { content() }
 }
+
+@Composable
+fun rememberKeyboardVisible(): State<Boolean> {
+    // 한글 주석: 키보드(IME) 영역의 하단값을 픽셀로 가져오기 위해 Density 필요
+    val density = LocalDensity.current
+    // 한글 주석: Compose에서 제공하는 IME 인셋
+    val ime = WindowInsets.ime
+
+    // 한글 주석: 외부에서 관찰 가능한 가시성 상태
+    val isVisible = remember { mutableStateOf(false) }
+
+    // 한글 주석: 인셋 하단값이 0 초과이면 키보드가 올라온 상태로 판단
+    LaunchedEffect(ime, density) {
+        snapshotFlow { ime.getBottom(density) > 0 }
+            .collect { visible -> isVisible.value = visible }
+    }
+    return isVisible
+}
+
