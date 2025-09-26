@@ -34,8 +34,10 @@ class CardRepository @Inject constructor(private val apiService: CardService) {
     }
 
     fun getUnviewedCardsByBoard(token: String, boardId: Long, limit: Int = 10): Call<List<CardResponse>> {
-        return apiService.getUnviewedCardsByBoard("Bearer $token", "application/json", boardId, limit)
+        return apiService.getUnviewedCardsByBoard("Bearer $token", boardId, limit)
     }
+
+
 
     fun uploadCard(
         token: String,

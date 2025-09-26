@@ -88,24 +88,68 @@ class HomeViewModel @Inject constructor(
     }
 
     /** 현재 선택된 칩("all" or boardId)에 맞춰 카드만 새로고침 */
+//    fun refreshForCurrentSelection(){
+//        val token = authRepository.getAccessToken() ?: return
+//        val sel = _selectedChipId.value ?: "all"
+//
+//        if(sel == "all"){
+//            loadCards()
+//        }else{
+//            val boardId = sel.toLongOrNull() ?: return
+//            _isLoading.value = true
+//
+//            //미지청 추천 영상 조회
+//            cardRepository.getUnviewedCardsByBoard(token,boardId)
+//                .enqueue(object : Callback<List<CardResponse>>{
+//                    override fun onResponse(call: Call<List<CardResponse>?>, response: Response<List<CardResponse>?>) {
+//                        _isLoading.value = false
+//                        if (response.isSuccessful) {
+//                            _cards.value = response.body().orEmpty()
+//                            Log.d("HomeViewModel", "✅ Board $boardId cards loaded: size=${_cards.value?.size}")
+//                        } else {
+//                            _cards.value = emptyList()
+//                            Log.e("HomeViewModel", "❌ Failed to load board $boardId cards: code=${response.code()}")
+//                        }
+//                    }
+//
+//                    override fun onFailure(call: Call<List<CardResponse>?>, t: Throwable) {
+//                        _isLoading.value = false
+//                        _cards.value = emptyList()
+//                        Log.e("HomeViewModel", "❌ Board $boardId cards request failed: ${t.localizedMessage}", t)
+//                    }
+//                })
+//        }
+//    }
+
     fun refreshForCurrentSelection(){
         val token = authRepository.getAccessToken() ?: return
         val sel = _selectedChipId.value ?: "all"
 
         if(sel == "all"){
-            loadCards()
+            cardPage = 0
+            cardPageSize = 20
+            cardIsLast = false
+            loadCards(reset = true)
+            return
         }else{
             val boardId = sel.toLongOrNull() ?: return
             _isLoading.value = true
 
-            //미지청 추천 영상 조회
-            cardRepository.getUnviewedCardsByBoard(token,boardId)
-                .enqueue(object : Callback<List<CardResponse>>{
+            // 미시청 카드 조회
+            cardRepository.getUnviewedCardsByBoard(token,boardId = boardId, limit = 10)
+                .enqueue(object : Callback<List<CardResponse>> {
                     override fun onResponse(call: Call<List<CardResponse>?>, response: Response<List<CardResponse>?>) {
                         _isLoading.value = false
                         if (response.isSuccessful) {
-                            _cards.value = response.body().orEmpty()
-                            Log.d("HomeViewModel", "✅ Board $boardId cards loaded: size=${_cards.value?.size}")
+                            val list = response.body().orEmpty()
+                            if (list.isEmpty()) {
+                                Log.d("HomeViewModel", "❌ No unviewed cards for board $boardId")
+                            }
+                            _cards.value = list
+                            // 보드 칩 모드에서는 전체 페이징과 무관하게 고정
+                            cardPage = 0
+                            cardIsLast = true
+                            Log.d("HomeViewModel", "✅ Board $boardId cards loaded: size=${list.size}")
                         } else {
                             _cards.value = emptyList()
                             Log.e("HomeViewModel", "❌ Failed to load board $boardId cards: code=${response.code()}")
@@ -121,10 +165,12 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+
     fun loadCards(reset: Boolean = false) {
         val token = authRepository.getAccessToken() ?: run {
             _isLoading.value = false
             _cards.value = emptyList()
+            cardIsLast = true
             return
         }
 

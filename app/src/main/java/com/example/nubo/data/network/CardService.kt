@@ -12,6 +12,7 @@ import retrofit2.Call
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.Headers
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -44,10 +45,10 @@ interface CardService {
         @Path("cardId") cardId: Int
     ): Call<CardDetailResponse>
 
+    @Headers("Accept: application/json")
     @GET("/api/home/boards/{boardId}/unviewed-cards")
     fun getUnviewedCardsByBoard(
         @Header("Authorization") token: String,
-        @Header("Accept") accept: String = "application/json",
         @Path("boardId") boardId: Long,
         @Query("limit") limit: Int = 10
     ): Call<List<CardResponse>>
