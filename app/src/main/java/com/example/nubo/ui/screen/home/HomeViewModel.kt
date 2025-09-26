@@ -51,8 +51,9 @@ class HomeViewModel @Inject constructor(
 
 
     // --- Boards / Chips ---
-    private val _boards = MutableLiveData<List<BoardResponse>>(emptyList())
-    val boards: LiveData<List<BoardResponse>> = _boards
+    private val _boards = MutableLiveData<List<com.example.nubo.domain.model.BoardSummary>>(emptyList())
+    val boards: LiveData<List<com.example.nubo.domain.model.BoardSummary>> = _boards
+
 
     private val _recentBoards = MutableLiveData<List<RecentBoardResponse>>(emptyList())
     val recentBoards: LiveData<List<RecentBoardResponse>> = _recentBoards
@@ -192,19 +193,27 @@ class HomeViewModel @Inject constructor(
             val token = authRepository.getAccessToken() ?: run {
                 Log.d("HomeViewModel", "❌ Token is null, cannot load boards")
                 return@launch}
-            boardRepository.getMyBoards(token)
-                .onSuccess { list ->
+
+            boardRepository.getMyBoards(
+                token = token,
+                sort = com.example.nubo.domain.model.BoardCardSort.LATEST,
+                filter = com.example.nubo.domain.model.BoardCardFilter.ALL,
+                page = 0,
+                size = 20
+            )
+
+                .onSuccess { paged ->
+                    val list = paged.items
                     _boards.value = list
                     Log.d("HomeViewModel", "✅ Boards loaded: size=${list.size}, data=$list")
+
                     val built = buildList {
                         add(RecommendChipItem(id = "all", title = "전체", isSelected = false))
                         list.forEach { b ->
-                            add(RecommendChipItem(id = b.id.toString(), title = b.name, isSelected = false ))
+                            add(RecommendChipItem(id = b.id.toString(), title = b.name, isSelected = false))
                         }
                     }
-
                     val current = _selectedChipId.value ?: "all"
-
                     val adjusted = if (current == "all" || built.any { it.id == current }) {
                         built.map { it.copy(isSelected = it.id == current) }
                     } else {
@@ -212,7 +221,6 @@ class HomeViewModel @Inject constructor(
                         built.map { it.copy(isSelected = it.id == "all") }
                     }
                     _chips.value = adjusted
-
                 }
                 .onFailure { e ->
                     _boards.value = emptyList()

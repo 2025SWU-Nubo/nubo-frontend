@@ -1,7 +1,9 @@
 package com.example.nubo.data.network
 
 import com.example.nubo.data.model.BoardItemResponse
+import com.example.nubo.data.model.BoardListItemResponse
 import com.example.nubo.data.model.BoardResponse
+import com.example.nubo.data.model.PagedResponse
 import com.example.nubo.data.model.RecentBoardResponse
 import com.example.nubo.data.model.UpsertBoardRequest
 import com.google.gson.JsonObject
@@ -17,8 +19,12 @@ interface BoardService {
     @GET("/api/board")
     suspend fun getMyBoards(
         @Header("Authorization") authHeader: String,
-        @Header("Accept") acceptHeader: String = "application/json"
-    ): List<BoardResponse>
+        @Header("Accept") acceptHeader: String = "application/json",
+        @Query("sort") sort: String? = null,     // LATEST | OLDEST | ALPHABET
+        @Query("filter") filter: String? = null, // ALL | FAVORITE | SHARED
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 20
+    ): PagedResponse<BoardListItemResponse>
 
     @GET("/api/board/{id}")
     suspend fun getBoardDetail(
