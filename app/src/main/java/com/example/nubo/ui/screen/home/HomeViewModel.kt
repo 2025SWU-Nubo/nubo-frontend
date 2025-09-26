@@ -8,11 +8,13 @@ import androidx.lifecycle.viewModelScope
 import com.example.nubo.data.model.BoardResponse
 import com.example.nubo.data.model.CardDetailResponse
 import com.example.nubo.data.model.CardResponse
+import com.example.nubo.data.model.PagedResponse
 import com.example.nubo.data.model.RecentBoardResponse
 import com.example.nubo.data.network.CardSort
 import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.data.repository.BoardRepository
 import com.example.nubo.data.repository.CardRepository
+import com.example.nubo.domain.model.CardFilter
 import com.example.nubo.model.home.RecommendChipItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -34,6 +36,12 @@ class HomeViewModel @Inject constructor(
     val cards: LiveData<List<CardResponse>> get() = _cards
 
     // --- Card Detail ---
+
+    // Paging state for "전체 카드"
+    private var cardPage: Int = 0                 // current page index
+    private var cardPageSize: Int = 20            // page size
+    private var cardIsLast: Boolean = false
+
     private val _cardDetail = MutableLiveData<CardDetailResponse?>()
     val cardDetail: LiveData<CardDetailResponse?> = _cardDetail
 
@@ -77,6 +85,7 @@ class HomeViewModel @Inject constructor(
         loadRecentBoards()
         refreshForCurrentSelection()
     }
+
     /** 현재 선택된 칩("all" or boardId)에 맞춰 카드만 새로고침 */
     fun refreshForCurrentSelection(){
         val token = authRepository.getAccessToken() ?: return
@@ -111,33 +120,54 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun loadCards() {
-        _isLoading.value = true
-
-        authRepository.getAccessToken()?.let { token ->
-            cardRepository.getCards("Bearer $token", CardSort.LATEST, null, null)
-                .enqueue(object : Callback<List<CardResponse>> {
-                    override fun onResponse(
-                        call: Call<List<CardResponse>>,
-                        response: Response<List<CardResponse>>
-                    ) {
-                        _isLoading.value = false
-                        if (response.isSuccessful) {
-                            _cards.value = response.body() ?: emptyList()
-                        } else {
-                            _cards.value = emptyList()
-                        }
-                    }
-
-                    override fun onFailure(call: Call<List<CardResponse>>, t: Throwable) {
-                        _isLoading.value = false
-                        _cards.value = emptyList()
-                    }
-                })
-        } ?: run {
+    fun loadCards(reset: Boolean = false) {
+        val token = authRepository.getAccessToken() ?: run {
             _isLoading.value = false
             _cards.value = emptyList()
+            return
         }
+
+        if (!reset && cardIsLast) return
+
+        _isLoading.value = true
+        viewModelScope.launch {
+            try {
+                val targetPage = if (reset) 0 else cardPage + 1
+                val result = cardRepository.getCards(
+                    token = token,
+                    sort = CardSort.LATEST,
+                    filter = CardFilter.ALL,
+                    page = targetPage,
+                    size = cardPageSize
+                )
+
+                val page: PagedResponse<CardResponse> = result.getOrThrow()
+
+                // merge or replace list
+                val newList = if (reset) {
+                    page.content
+                } else {
+                    _cards.value.orEmpty() + page.content
+                }
+                _cards.value = newList
+
+                // update paging flags
+                cardPage = page.number
+                cardPageSize = page.size
+                cardIsLast = page.last
+            } catch (e: Exception) {
+                if (reset) _cards.value = emptyList()
+                Log.e("HomeViewModel", "❌ Failed to load cards: ${e.localizedMessage}", e)
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun loadMoreCardsIfPossible() {
+        // only works for "전체" chip
+        if (_selectedChipId.value != "all") return
+        loadCards(reset = false)
     }
 
     fun loadRecentBoards(){

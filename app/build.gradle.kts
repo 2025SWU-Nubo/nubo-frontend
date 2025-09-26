@@ -100,8 +100,16 @@ dependencies {
     implementation(libs.richtext.ui.material3.v100alpha03)
     implementation(libs.richtext.commonmark.v100alpha03)
     implementation("com.mohamedrejeb.richeditor:richeditor-compose:1.0.0-rc13")
-    implementation (libs.coil.compose)
     implementation ("io.coil-kt:coil-svg:2.6.0")
+
+    // Firebase BOM으로 버전 통합 관리
+    implementation( platform("com.google.firebase:firebase-bom:33.3.0"))
+
+    // FCM
+    implementation ("com.google.firebase:firebase-messaging-ktx")
+
+    // (선택) 로그용
+    implementation ("com.google.firebase:firebase-analytics-ktx")
 
 }
 
