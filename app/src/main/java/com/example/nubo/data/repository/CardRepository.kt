@@ -7,20 +7,37 @@ import com.example.nubo.data.model.CardUploadResponse
 import com.example.nubo.data.model.EditSummaryAiRequest
 import com.example.nubo.data.model.EditSummaryRequest
 import com.example.nubo.data.model.EditSummaryResponse
+import com.example.nubo.data.model.PagedResponse
 import com.example.nubo.data.network.CardService
 import com.example.nubo.data.network.CardSort
+import com.example.nubo.domain.model.CardFilter
 import retrofit2.Call
 import javax.inject.Inject
 
 //hilt di 적용
 class CardRepository @Inject constructor(private val apiService: CardService) {
 
-    fun getCards(token: String, sort: CardSort?, page: Int?, size: Int?) =
-        apiService.getCards(token, "application/json", sort, page, size)
+    suspend fun getCards(
+        token: String,
+        sort: CardSort? = CardSort.LATEST,
+        filter: CardFilter? = CardFilter.ALL,
+        page: Int = 0,
+        size: Int = 20
+    ): Result<PagedResponse<CardResponse>> = runCatching {
+        apiService.getCards(
+            authorization = "Bearer $token",
+            sort = sort?.name,          // ensures UPPERCASE
+            filter = filter?.name,
+            page = page,
+            size = size
+        )
+    }
 
     fun getUnviewedCardsByBoard(token: String, boardId: Long, limit: Int = 10): Call<List<CardResponse>> {
-        return apiService.getUnviewedCardsByBoard("Bearer $token", "application/json", boardId, limit)
+        return apiService.getUnviewedCardsByBoard("Bearer $token", boardId, limit)
     }
+
+
 
     fun uploadCard(
         token: String,

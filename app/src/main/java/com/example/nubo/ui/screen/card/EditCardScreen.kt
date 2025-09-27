@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
@@ -42,6 +43,7 @@ import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey10
 import com.example.nubo.ui.theme.Grey20
 import com.example.nubo.ui.theme.Grey5
+import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.GreyMain100
 import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.PurpleMain500
@@ -54,6 +56,8 @@ import com.mohamedrejeb.richeditor.model.RichTextState
 import com.mohamedrejeb.richeditor.model.rememberRichTextState
 import com.mohamedrejeb.richeditor.ui.material3.RichTextEditor
 import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.unit.dp
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -256,7 +260,7 @@ fun EditCardScreen(
             // 키보드를 내리면 ai 프롬 프트 바가 보이지 않도록 추가
             // ── AI 프롬프트 바: FAB로 열릴 때만 ──
             AnimatedVisibility(
-                visible = showAiBar,
+                visible = showAiBar && keyboardVisible,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
 //                    .imePadding()
@@ -274,6 +278,7 @@ fun EditCardScreen(
                         viewModel.updateSummary(rtState.toMarkdown())
                         viewModel.requestAiEdit()
                     },
+                    showAiBar = showAiBar,
                     modifier = Modifier
                         .fillMaxWidth()
                 )
@@ -339,6 +344,7 @@ private fun AiPromptBar(
     onValueChange: (String) -> Unit,
     onClose: () -> Unit,
     onSubmit: () -> Unit,
+    showAiBar: Boolean,
     modifier: Modifier = Modifier
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -346,8 +352,10 @@ private fun AiPromptBar(
         focusRequester.requestFocus()
     }
 
+    var selectedPreset by remember { mutableStateOf<Int?>(null) }  //프리셋 칩 인덱스 상태
+
     val presets = remember {
-        listOf("➔➔  더 간결하게", "↔  더 자세하게", "✎  핵심만 하이라이트")
+        listOf("➔➔ 더 간결하게", "↔ 더 자세하게", "✎ 핵심만 하이라이트")
     }
 
     Surface(
@@ -363,6 +371,7 @@ private fun AiPromptBar(
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            // 프리셋 칩 영역
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -370,90 +379,100 @@ private fun AiPromptBar(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                presets.forEach { text ->
-                    AssistChip(
-                        onClick = {
-                            val cleaned = text.replace(Regex("^([➔↔✎ ]+)"), "")
-                            val next = if (value.isBlank()) cleaned else "$value "
-                            onValueChange(next)
-                        },
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = GreyMain100,
-                            labelColor = Color.Black,
-                            leadingIconContentColor = PurpleMain500
-                        ),
-                        border = null,
-                        label = {
-                            Text(
-                                text = text.replace(Regex("^([➔↔✎ ]+)"), ""),
-                                style = AppTextStyles.label_medium_12, // 라벨 텍스트 스타일 적용
+                presets.forEachIndexed { index, text ->
+                    val cleaned = text.replace(Regex("^([➔↔✎ ]+)"), "")
+                    val selected = selectedPreset == index
+
+                    presets.forEach { text ->
+                        AssistChip(
+                            onClick = {
+                                val next = if (value.isBlank()) cleaned else "$value $cleaned "
+                                onValueChange(next)
+                                selectedPreset = index  //선택 상태 갱신
+                            },
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = Grey50,
+                                labelColor = Color.Black,
+                                leadingIconContentColor = PurpleMain500
+                            ),
+                            // 선택 시 보라색 테두리
+                            border = if (selected) BorderStroke(1.dp, PurpleMain500) else null,
+                            label = {
+                                Text(
+                                    text = cleaned,
+                                    style = AppTextStyles.label_medium_12, // 라벨 텍스트 스타일 적용
 //                                color = MaterialTheme.colorScheme.onSurface, // 필요 시 색상 명시
-                        ) },
-                        leadingIcon = { Text(text.take(2)) },
-                        shape = RoundedCornerShape(45.dp)
-                    )
+                                )
+                            },
+                            leadingIcon = { Text(text.take(2)) },
+                            shape = RoundedCornerShape(45.dp)
+                        )
+                    }
                 }
-            }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ai_prompt_logo),
-                    contentDescription = null,
-                    tint = androidx.compose.ui.graphics.Color.Unspecified,
-                    modifier = Modifier.size(28.dp)
-                )
-
-                Spacer(Modifier.width(12.dp))
-
-                TextField(
-                    value = value,
-                    onValueChange = onValueChange,
-                    modifier = Modifier
-                        .weight(1f)
-                        .focusRequester(focusRequester),
-                    placeholder = { Text("더 간결하게 요약해줘.") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                        focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-                        unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent
-                    ),
-                    keyboardOptions = KeyboardOptions(
-                        imeAction = androidx.compose.ui.text.input.ImeAction.Send
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onSend = { if (!loading && value.isNotBlank()) onSubmit() }
-                    ),
-                    enabled = !loading
-                )
-
-                Spacer(Modifier.width(12.dp))
-
-                FilledIconButton(
-                    onClick = onSubmit,
-                    enabled = !loading,
-                    shape = CircleShape,
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = Color.Transparent,
-                        contentColor = if(value.isNotBlank()) PurpleMain500 else GreyMain300
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (loading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp
+                    Icon(
+                        painter = painterResource(R.drawable.ai_prompt_logo),
+                        contentDescription = null,
+                        tint = androidx.compose.ui.graphics.Color.Unspecified,
+                        modifier = Modifier.size(28.dp)
+                    )
+
+                    Spacer(Modifier.width(12.dp))
+
+                    TextField(
+                        value = value,
+                        onValueChange = {
+                            onValueChange(it)
+                            if(it.isBlank()) selectedPreset = null
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .focusRequester(focusRequester),
+                        placeholder = { Text("더 간결하게 요약해줘.") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor =Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                            unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent
+                        ),
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = androidx.compose.ui.text.input.ImeAction.Send
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onSend = { if (!loading && value.isNotBlank()) onSubmit() }
+                        ),
+                        enabled = !loading
+                    )
+
+                    Spacer(Modifier.width(12.dp))
+
+                    FilledIconButton(
+                        onClick = onSubmit,
+                        enabled = !loading,
+                        shape = CircleShape,
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = Color.Transparent,
+                            contentColor = if (value.isNotBlank()) PurpleMain500 else GreyMain300
                         )
-                    } else {
-                        Icon(
-                            painterResource(R.drawable.ai_prompt_send),
-                            contentDescription = "전송",
-                            tint = Color.Unspecified
-                        )
+                    ) {
+                        if (loading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                painterResource(R.drawable.ai_prompt_send),
+                                contentDescription = "전송",
+                                tint = Color.Unspecified
+                            )
+                        }
                     }
                 }
             }

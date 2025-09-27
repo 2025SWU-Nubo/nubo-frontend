@@ -1,10 +1,16 @@
 package com.example.nubo.data.repository
 
+import com.example.nubo.data.mapper.toDomain
 import com.example.nubo.data.model.BoardItemResponse
 import com.example.nubo.data.model.BoardResponse
+import com.example.nubo.data.model.PageState
+import com.example.nubo.data.model.PagedResult
 import com.example.nubo.data.model.RecentBoardResponse
 import com.example.nubo.data.model.UpsertBoardRequest
 import com.example.nubo.data.network.BoardService
+import com.example.nubo.domain.model.BoardCardFilter
+import com.example.nubo.domain.model.BoardCardSort
+import com.example.nubo.domain.model.BoardSummary
 import com.google.gson.JsonObject
 import retrofit2.HttpException
 import javax.inject.Inject
@@ -20,10 +26,34 @@ class BoardRepository @Inject constructor(
         )
     }
 
-    suspend fun getMyBoards(token: String): Result<List<BoardResponse>> = runCatching {
-        boardService.getMyBoards(
+    // 보드 목록 조회 신포맷
+    suspend fun getMyBoards(
+        token: String,
+        sort: BoardCardSort? = BoardCardSort.LATEST,
+        filter: BoardCardFilter? = BoardCardFilter.ALL,
+        page: Int = 0,
+        size: Int = 20
+    ): Result<PagedResult<BoardSummary>> = runCatching {
+        val res = boardService.getMyBoards(
             authHeader = "Bearer $token",
-            acceptHeader = "application/json"
+            acceptHeader = "application/json",
+            sort = sort?.name,        // 대문자 그대로 전달
+            filter = filter?.name,
+            page = page,
+            size = size
+        )
+        PagedResult(
+            items = res.content.map { it.toDomain() },
+            pageState = PageState(
+                page = res.number,
+                size = res.size,
+                totalPages = res.totalPages,
+                totalElements = res.totalElements,
+                isFirst = res.first,
+                isLast = res.last,
+                numberOfElements = res.numberOfElements,
+                sorted = res.sort?.sorted == true
+            )
         )
     }
 

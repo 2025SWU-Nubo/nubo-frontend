@@ -7,10 +7,12 @@ import com.example.nubo.data.model.CardDetailResponse
 import com.example.nubo.data.model.EditSummaryAiRequest
 import com.example.nubo.data.model.EditSummaryRequest
 import com.example.nubo.data.model.EditSummaryResponse
+import com.example.nubo.data.model.PagedResponse
 import retrofit2.Call
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.Headers
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -20,14 +22,14 @@ enum class CardSort { LATEST, POPULAR }
 
 interface CardService {
     @GET("api/card")
-    fun getCards(
+    suspend fun getCards(
         @Header("Authorization") authorization: String,
         @Header("Accept") accept: String = "application/json",
-        @Query("sort") sort: CardSort? = null,
+        @Query("sort") sort: String? = null,    // LATEST | OLDEST | ALPHABET
+        @Query("filter") filter: String? = null,// ALL | FAVORITE | SHARED
         @Query("page") page: Int? = null,
         @Query("size") size: Int? = null
-    ): Call<List<CardResponse>>
-
+    ): PagedResponse<CardResponse>
 
     @POST("api/card")
     fun uploadCard(
@@ -43,10 +45,10 @@ interface CardService {
         @Path("cardId") cardId: Int
     ): Call<CardDetailResponse>
 
+    @Headers("Accept: application/json")
     @GET("/api/home/boards/{boardId}/unviewed-cards")
     fun getUnviewedCardsByBoard(
         @Header("Authorization") token: String,
-        @Header("Accept") accept: String = "application/json",
         @Path("boardId") boardId: Long,
         @Query("limit") limit: Int = 10
     ): Call<List<CardResponse>>
