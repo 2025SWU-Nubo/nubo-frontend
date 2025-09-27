@@ -67,10 +67,16 @@ import com.mohamedrejeb.richeditor.ui.material3.RichTextEditor
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.components.toast.AppToastHost
+import com.example.components.toast.AppToastLayout
+import com.example.components.toast.AppToastOverlay
+import com.example.components.toast.AppToastType
+import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.ui.theme.Grey30
 import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.utils.toggleListForSelection
@@ -96,9 +102,11 @@ fun EditCardScreen(
     val aiQuery by viewModel.aiQuery.collectAsState()
     val aiLoading by viewModel.aiLoading.collectAsState()
     val toast by viewModel.toast.collectAsState()
+    val toastHost = rememberAppToastHostState()
     val canUndo by viewModel.canUndoAiEdit.collectAsState()
 
     val focusManager = LocalFocusManager.current
+
 
     // 포커스/경계
     var editorFocused by remember { mutableStateOf(false) }
@@ -113,19 +121,20 @@ fun EditCardScreen(
 
     var keepToolbar by remember { mutableStateOf(false) }      // 툴바 가시성 유지 플래그
 
+    // 바 높이(대략치) — 토스트를 바 위로 띄우기 위한 패딩
+    val aiBarHeight = 84.dp      // AiPromptBar 높이(+여유)
+    val mdBarHeight = 64.dp      // MarkdownToolbar 높이(+여유)
+    val toastBottomPadding = when {
+        showAiBar -> aiBarHeight + 16.dp
+        editorFocused && keyboardVisible && !showAiBar -> mdBarHeight + 16.dp
+        else -> 16.dp
+    }
+
+
     // FAB 가시성 로컬 상태(조건 연동)
     var fabVisible by remember { mutableStateOf(true) }
     LaunchedEffect(showAiBar, editorFocused) {
         fabVisible = !showAiBar && !editorFocused
-    }
-
-    // 스낵바
-    val snackbarHostState = remember { SnackbarHostState() }
-    LaunchedEffect(toast) {
-        toast?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.consumeToast()
-        }
     }
 
     // 뷰모델 Ready → 에디터 세팅
@@ -153,11 +162,22 @@ fun EditCardScreen(
         }
     }
 
+    // VM의 문자열 토스트를 커스텀 토스트로 라우팅
+    LaunchedEffect(toast) {
+        toast?.let { msg ->
+            // ... type 계산 생략 ...
+            toastHost.show(
+                title = AnnotatedString(msg),
+                layout = AppToastLayout.TitleOnly,
+                type = AppToastType.NORMAL,
+                durationMillis = 2000
+            )
+            viewModel.consumeToast()
+        }
+    }
+
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         contentWindowInsets = WindowInsets(0),
-
-
         topBar = {
             CenterAlignedTopAppBar(
                 windowInsets = WindowInsets(0),
@@ -239,6 +259,14 @@ fun EditCardScreen(
                     }
                 },
         ) {
+            AppToastHost(
+                hostState = toastHost,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .zIndex(100f)                 // 어떤 바보다 위
+                    .padding(bottom = toastBottomPadding)
+            )
+
             // 본문: 기본 패딩만 적용
             Column(
                 modifier = Modifier
@@ -479,16 +507,10 @@ private fun AiPromptBar(
                             selectedPreset = index
                             focusRequester.requestFocus() // IME 유지
                         },
-//                            val next = if (tfv.text.isBlank()) cleaned else "${tfv.text} $cleaned "
-//                            tfv = TextFieldValue(text = next, selection = TextRange(next.length))
-//                            onValueChange(next)
-//                            selectedPreset = index  //선택 상태 갱신
-//                            focusRequester.requestFocus()
                         label = {
                             Text(
                                 text = cleaned,
                                 style = if (selected) AppTextStyles.label_SemiBold_12 else AppTextStyles.label_medium_12, // 라벨 텍스트 스타일 적용
-//                                color = MaterialTheme.colorScheme.onSurface, // 필요 시 색상 명시
                             )
                         },
                         leadingIcon = { Text(text.take(2)) },
@@ -497,48 +519,12 @@ private fun AiPromptBar(
                             labelColor = if (selected) PurpleMain500 else Color.Black,
                             leadingIconContentColor = PurpleMain500,
                         ),
-//                        colors = AssistChipDefaults.assistChipColors(
-//                            containerColor = if(selected) Purple100 else Grey10,
-//                            labelColor = if(selected) PurpleMain500 else Color.Black,
-//                            leadingIconContentColor = PurpleMain500
-//                        ),
-                        // 선택 시 보라색 테두리
                         border = if (selected) BorderStroke(1.dp, PurpleMain500) else null,
-
-//                        leadingIcon = { Text(text.take(2)) },
                         shape = RoundedCornerShape(45.dp)
                     )
                 }
 
                 /* 되돌리기 칩 */
-//                AssistChip(
-//                    onClick = {
-//                        if (canUndo) {
-//                            onUndo()
-//                            selectedPreset = null
-//                            focusRequester.requestFocus() // 키보드 유지
-//                        }
-//                    },
-//                    enabled = canUndo,
-//                    label = {  },
-//                    leadingIcon = {
-//                        Icon(
-//                            painter = painterResource(R.drawable.replay),
-//                            contentDescription = "되돌리기",
-//                            tint = Color.Unspecified // 원본 색 유지(필요 없으면 제거)
-//                        )
-//                    }, // 필요시 리소스로 교체
-//                    colors = AssistChipDefaults.assistChipColors(
-//                        disabledContainerColor = Grey30,
-//                        containerColor = Purple100,
-//                        leadingIconContentColor = if(canUndo)PurpleMain500 else GreyMain300,
-//                        labelColor = if(canUndo)PurpleMain500 else Color.Black
-//                    ),
-//                    border = if (canUndo) BorderStroke(1.dp, PurpleMain500) else null,
-//                    shape = RoundedCornerShape(45.dp)
-//                )
-//            }
-
                 IconOnlyChip(
                     enabled = canUndo,
                     onClick = {
@@ -551,7 +537,7 @@ private fun AiPromptBar(
                     borderColor = if (canUndo) PurpleMain500 else null,
                     icon = {
                         Icon(
-                            painter = painterResource(R.drawable.replay), // SVG → Vector로 임포트된 아이콘
+                            painter = painterResource(R.drawable.replay),
                             contentDescription = "되돌리기",
                             tint = Color.Unspecified,
                             modifier = Modifier.size(18.dp)
@@ -580,6 +566,11 @@ private fun AiPromptBar(
                     TextField(
                         value = tfv,
                         onValueChange = { newValue ->
+                            if (loading) {
+                                // 로딩 중에는 내용 변경은 막고, 커서만 유지해 사용감 자연스럽게
+                                tfv = tfv.copy(selection = newValue.selection)
+                                return@TextField
+                            }
                             tfv = newValue
                             onValueChange(newValue.text)
                             selectedPreset = null // 사용자가 수정하면 칩 선택 해제
@@ -590,7 +581,7 @@ private fun AiPromptBar(
                         placeholder = {Text(if (loading) "AI가 편집 중입니다..." else "더 간결하게 요약해줘.") },
                         singleLine = true,
                         enabled = true,
-                        readOnly = loading,
+                        readOnly = false,
                         shape = RoundedCornerShape(12.dp),
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor =Color.Transparent,
@@ -640,7 +631,7 @@ private fun AiPromptBar(
                 Spacer(Modifier.width(12.dp))
 
 //                val sendContainerColor = if (canSend) PurpleMain500 else GreyMain100
-                val sendContentColor = if (canSend) PurpleMain500 else GreyMain300
+                val sendContentColor = if (canSend) PurpleMain500 else GreyMain100
 
 
                 FilledIconButton(
@@ -666,7 +657,7 @@ private fun AiPromptBar(
                         Icon(
                             painterResource(R.drawable.ai_prompt_send),
                             contentDescription = "전송",
-                            tint = Color.Unspecified
+                            tint = sendContentColor
                         )
                     }
                 }

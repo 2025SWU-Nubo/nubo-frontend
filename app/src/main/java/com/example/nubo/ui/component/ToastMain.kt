@@ -4,6 +4,9 @@ package com.example.components.toast
 
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -22,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
@@ -41,6 +45,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.zIndex
 
 // ──────────────────────────────────────────────────────────────
 // 3가지 레이아웃 유형
@@ -113,11 +120,20 @@ class AppToastHostState {
     private val mutex = Mutex()
     var current by mutableStateOf<AppToastData?>(null)
         private set
+
+    /** 토스트를 순차 처리 + 자동 사라짐 */
     suspend fun show(data: AppToastData) {
         mutex.withLock {
             current = data
-            delay(data.durationMillis.toLong())
-            if (current?.id == data.id) current = null
+            try {
+                // 표시 유지
+                delay(data.durationMillis.coerceAtLeast(800).toLong())
+            } finally {
+                // 아직 내가 올린 토스트면 닫기
+                if (current?.id == data.id) current = null
+            }
+            // exit 애니메이션 시간만큼 대기 후 다음 토스트 허용
+            delay(220)
         }
     }
 
@@ -162,16 +178,31 @@ fun AppToastHost(
     modifier: Modifier = Modifier,
     contentAlignment: Alignment = Alignment.BottomCenter,
     styleProvider: (AppToastType) -> AppToastStyle = defaultToastStyleProvider(),
+    matchParentSize: Boolean = true,
 ) {
     val data = hostState.current
+    val rootModifier =
+        if (matchParentSize) modifier.fillMaxSize() else modifier
+
+
     Box(
-        modifier = modifier.fillMaxSize().semantics(mergeDescendants = true) {},
+        modifier = rootModifier.semantics(mergeDescendants = true) {},
         contentAlignment = contentAlignment
     ) {
         AnimatedVisibility(
             visible = data != null,
-            enter = slideInVertically { it / 2 } + fadeIn(),
-            exit = slideOutVertically { it / 2 } + fadeOut()
+            enter = slideInVertically(
+                // 처음 위치: 자신의 높이의 1/3 아래 → 위로 살짝 끌어올려 보이는 효과
+                initialOffsetY = { it / 3 },
+                animationSpec = tween(durationMillis = 240, easing = FastOutLinearInEasing)
+            ) + fadeIn(animationSpec = tween(180)),
+            exit = run {
+                val extra = with(LocalDensity.current) { 24.dp.roundToPx() } // 바깥 여백만큼 더 내려가게
+                slideOutVertically(
+                    targetOffsetY = { it + extra },
+                    animationSpec = tween(durationMillis = 260, easing = LinearOutSlowInEasing)
+                )
+            } + fadeOut(animationSpec = tween(200))
         ) {
             data?.let { t ->
                 val style = styleProvider(t.type)
@@ -180,12 +211,9 @@ fun AppToastHost(
                     modifier = Modifier
                         .navigationBarsPadding()
                         .padding(horizontal = 20.dp, vertical = 16.dp)
-                        .clickable(
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() }
-                        ) { hostState.dismiss() }
                 ) {
                     Surface(
+                        onClick = { hostState.dismiss() },
                         color = style.bg,
                         shape = style.shape,
                         tonalElevation = 2.dp,
@@ -336,6 +364,35 @@ fun ToastDemoScreen(
         }
     }
 }
+
+
+@Composable
+fun AppToastOverlay(
+    hostState: AppToastHostState,
+) {
+    Popup(
+        alignment = Alignment.BottomCenter,
+        properties = PopupProperties(
+            focusable = false,
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false,
+            excludeFromSystemGesture = false
+        )
+    ) {
+        AppToastHost(
+            hostState = hostState,
+            matchParentSize = false,
+            contentAlignment = Alignment.BottomCenter,
+            modifier = Modifier
+                .statusBarsPadding()
+                .padding(top = 12.dp)
+                .zIndex(1000f)
+        )
+    }
+}
+
+
+
 
 // ──────────────────────────────────────────────────────────────
 // 프리뷰  기본 아이콘으로 동작 확인  아이콘이 꼭 필요하면 iconRes에 벡터 리소스 전달
