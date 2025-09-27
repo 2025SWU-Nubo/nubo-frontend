@@ -33,6 +33,7 @@ import com.example.components.toast.AppToastOverlay
 import com.example.components.toast.AppToastType
 import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.R
+import com.example.nubo.ui.component.dialog.NotificationPermissionDialog
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.PurpleMain500
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -100,11 +101,13 @@ class OnBoardingLoginActivity : ComponentActivity() {
             Box(Modifier.fillMaxSize()) {
                 if (askPermission) {
                     NotificationPermissionDialog(
-                        onConfirm = {
+                        visible = askPermission,
+                        onAllow = {
                             requestNotificationPermissionLauncher.launch(
                                 android.Manifest.permission.POST_NOTIFICATIONS
                             )
                         },
+                        onLater = { viewModel.onLoginNotificationPermissionHandled() },
                         onDismiss = { viewModel.onLoginNotificationPermissionHandled() }
                     )
                 }
@@ -132,51 +135,51 @@ class OnBoardingLoginActivity : ComponentActivity() {
 }
 
 
-@Composable
-fun NotificationPermissionDialog(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = "알림 권한 설정",
-                style = AppTextStyles.b1_bold_18
-            )
-        },
-        text = {
-            Column {
-                Text(
-                    text = "카드 업로드 완료 알림을 받으시겠습니까?",
-                    style = AppTextStyles.b2_medium_16
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "• 허용 시: 업로드 완료를 알림으로 안내\n• 거부 시: 업로드 완료를 토스트로 안내",
-                    style = AppTextStyles.b3_medium_14,
-                    color = Color.Gray
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(containerColor = PurpleMain500)
-            ) {
-                Text("허용", color = Color.White, style = AppTextStyles.b3_medium_14)
-            }
-        },
-        dismissButton = {
-            Button(
-                onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
-            ) {
-                Text("나중에", color = Color.White, style = AppTextStyles.b3_medium_14)
-            }
-        }
-    )
-}
+//@Composable
+//fun NotificationPermissionDialog(
+//    onConfirm: () -> Unit,
+//    onDismiss: () -> Unit
+//) {
+//    AlertDialog(
+//        onDismissRequest = onDismiss,
+//        title = {
+//            Text(
+//                text = "알림 권한 설정",
+//                style = AppTextStyles.b1_bold_18
+//            )
+//        },
+//        text = {
+//            Column {
+//                Text(
+//                    text = "카드 업로드 완료 알림을 받으시겠습니까?",
+//                    style = AppTextStyles.b2_medium_16
+//                )
+//                Spacer(modifier = Modifier.height(8.dp))
+//                Text(
+//                    text = "• 허용 시: 업로드 완료를 알림으로 안내\n• 거부 시: 업로드 완료를 토스트로 안내",
+//                    style = AppTextStyles.b3_medium_14,
+//                    color = Color.Gray
+//                )
+//            }
+//        },
+//        confirmButton = {
+//            Button(
+//                onClick = onConfirm,
+//                colors = ButtonDefaults.buttonColors(containerColor = PurpleMain500)
+//            ) {
+//                Text("허용", color = Color.White, style = AppTextStyles.b3_medium_14)
+//            }
+//        },
+//        dismissButton = {
+//            Button(
+//                onClick = onDismiss,
+//                colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
+//            ) {
+//                Text("나중에", color = Color.White, style = AppTextStyles.b3_medium_14)
+//            }
+//        }
+//    )
+//}
 
 @Composable
 fun OnBoardingScreen(
