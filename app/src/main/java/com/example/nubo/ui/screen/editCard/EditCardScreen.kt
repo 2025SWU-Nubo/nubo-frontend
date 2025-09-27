@@ -1,20 +1,20 @@
-package com.example.nubo.ui.screen.card
+package com.example.nubo.ui.screen.editCard
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -41,49 +41,40 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Devices
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.example.nubo.R
-import com.example.nubo.data.dto.HighlightDto
 import com.example.nubo.ui.theme.AppTextStyles
-import com.example.nubo.ui.theme.Grey10
-import com.example.nubo.ui.theme.Grey20
 import com.example.nubo.ui.theme.Grey5
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.GreyMain100
 import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.PurpleMain500
 import com.example.nubo.utils.sanitizeToAllowedMarkdown
-import com.example.nubo.utils.toggleBoldMarkdown
 import com.example.nubo.utils.toggleHeadingMarkdown
-import com.halilibo.richtext.commonmark.Markdown
-import com.halilibo.richtext.ui.material3.RichText
 import com.mohamedrejeb.richeditor.model.RichTextState
 import com.mohamedrejeb.richeditor.model.rememberRichTextState
 import com.mohamedrejeb.richeditor.ui.material3.RichTextEditor
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalTextToolbar
+import androidx.compose.ui.platform.TextToolbar
+import androidx.compose.ui.platform.TextToolbarStatus
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.components.toast.AppToastHost
 import com.example.components.toast.AppToastLayout
-import com.example.components.toast.AppToastOverlay
 import com.example.components.toast.AppToastType
 import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.ui.theme.Grey30
+import com.example.nubo.ui.theme.Grey700
 import com.example.nubo.ui.theme.Purple100
-import com.example.nubo.utils.toggleListForSelection
 import com.mohamedrejeb.richeditor.ui.material3.RichTextEditorDefaults
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -91,7 +82,7 @@ import kotlinx.coroutines.launch
 fun EditCardScreen(
     onBack: () -> Unit,
     onSave: () -> Unit,
-    viewModel: EditCardViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+    viewModel: EditCardViewModel = hiltViewModel()
 ) {
     // 에디터 상태
     val rtState = rememberRichTextState()
@@ -259,6 +250,7 @@ fun EditCardScreen(
                     }
                 },
         ) {
+            /* 토스트 */
             AppToastHost(
                 hostState = toastHost,
                 modifier = Modifier
@@ -307,6 +299,20 @@ fun EditCardScreen(
                 }
             }
 
+            // 3) AI 처리 오버레이
+            AiLoadingOverlay(
+                visible = aiLoading,
+                modifier = Modifier
+                    .matchParentSize()            // Box 꽉 채움
+                    .padding(innerPadding)        // 앱바 제외  핵심
+                    .align(Alignment.Center)
+                    .zIndex(12f),
+                consumeTouch = true
+            ) {
+                Text("AI가 요약 노트를 다듬고 있어요", style = AppTextStyles.b2_medium_16, color = Grey700)
+            }
+
+
             // ── 마크다운 툴바: 에디터 포커스 && AI 바 닫힘 ──
             AnimatedVisibility(
                 visible = editorFocused && keyboardVisible && !showAiBar,
@@ -334,6 +340,8 @@ fun EditCardScreen(
                         .onGloballyPositioned { toolbarBounds = it.boundsInParent() }
                 )
             }
+
+
 
             // 키보드를 내리면 ai 프롬 프트 바가 보이지 않도록 추가
             // ── AI 프롬프트 바: FAB로 열릴 때만 ──
@@ -553,7 +561,7 @@ private fun AiPromptBar(
                 Icon(
                     painter = painterResource(R.drawable.ai_prompt_logo),
                     contentDescription = null,
-                    tint = androidx.compose.ui.graphics.Color.Unspecified,
+                    tint = Color.Unspecified,
                     modifier = Modifier.size(28.dp)
                 )
 
@@ -586,12 +594,12 @@ private fun AiPromptBar(
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor =Color.Transparent,
                             unfocusedContainerColor = Color.Transparent,
-                            focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-                            unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
                             disabledIndicatorColor = Color.Transparent
                         ),
                         keyboardOptions = KeyboardOptions(
-                            imeAction = androidx.compose.ui.text.input.ImeAction.Send
+                            imeAction = ImeAction.Send
                         ),
                         keyboardActions = KeyboardActions(
                             onSend = {
@@ -607,23 +615,15 @@ private fun AiPromptBar(
                         Box(
                             modifier = Modifier
                                 .matchParentSize()
-                                .background(Color.White.copy(alpha = 0.6f)),
-                            contentAlignment = Alignment.Center
+                                .background(Color.White)
+                                .padding(horizontal = 8.dp),
+                            contentAlignment = Alignment.CenterStart
                         ){
-                            Row (
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ){
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp
-                                )
                                 Text(
-                                    text = "Al가 편집 중입니다...",
-                                    style = AppTextStyles.b3_regular_14,
-                                    color = Grey50
+                                    text = "Al가 편집 중이에요...",
+                                    style = AppTextStyles.label_semibold_14,
+                                    color = PurpleMain500
                                 )
-                            }
                         }
                     }
 
@@ -667,15 +667,26 @@ private fun AiPromptBar(
 }
 
 /* ───────────────────────────────────────────────────────────────
+   AI 처리 오버레이: 점 3개 펄스 + 안내문구
+   - visible = true일 때만 중앙에 표시
+   - 키보드가 올라오면 살짝 위로 올려 시야 중앙 유지
+   ─────────────────────────────────────────────────────────────── */
+
+/* ───────────────────────────────────────────────────────────────
+   점 3개 펄스 애니메이션
+   - 크기/투명도/수직 이동을 약간씩 시간차로 줘서 생동감
+   ─────────────────────────────────────────────────────────────── */
+
+/* ───────────────────────────────────────────────────────────────
    시스템 기본 텍스트 선택 툴바 숨김
    ─────────────────────────────────────────────────────────────── */
 @Composable
 private fun NoSelectionToolbar(content: @Composable () -> Unit) {
     val noToolbar = remember {
-        object : androidx.compose.ui.platform.TextToolbar {
-            override val status = androidx.compose.ui.platform.TextToolbarStatus.Hidden
+        object : TextToolbar {
+            override val status = TextToolbarStatus.Hidden
             override fun showMenu(
-                rect: androidx.compose.ui.geometry.Rect,
+                rect: Rect,
                 onCopyRequest: (() -> Unit)?,
                 onPasteRequest: (() -> Unit)?,
                 onCutRequest: (() -> Unit)?,
@@ -685,7 +696,7 @@ private fun NoSelectionToolbar(content: @Composable () -> Unit) {
         }
     }
     CompositionLocalProvider(
-        androidx.compose.ui.platform.LocalTextToolbar provides noToolbar
+        LocalTextToolbar provides noToolbar
     ) { content() }
 }
 

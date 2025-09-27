@@ -1,4 +1,4 @@
-package com.example.nubo.ui.screen.card
+package com.example.nubo.ui.screen.editCard
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
