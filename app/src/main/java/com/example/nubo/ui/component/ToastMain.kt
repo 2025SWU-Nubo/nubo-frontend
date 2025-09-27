@@ -2,6 +2,7 @@
 
 package com.example.components.toast
 
+import android.R.style
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -11,6 +12,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -25,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.semantics
@@ -48,6 +51,7 @@ import kotlinx.coroutines.sync.withLock
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
+import com.example.nubo.R
 
 // ──────────────────────────────────────────────────────────────
 // 3가지 레이아웃 유형
@@ -88,7 +92,9 @@ data class AppToastStyle(
     val bg: Color,
     val titleColor: Color,
     val textColor: Color,
-    val shape: RoundedCornerShape = RoundedCornerShape(24.dp) // 피그마처럼 둥글게
+    val shape: RoundedCornerShape = RoundedCornerShape(24.dp),
+    @DrawableRes val backgroundRes: Int? = null,     // ← 추가
+    val scrim: Color = Color.Transparent // 텍스트 가독성용 (0 = 미적용)
 )
 
 @Composable
@@ -97,17 +103,20 @@ fun defaultToastStyleProvider(): (AppToastType) -> AppToastStyle = { t ->
         AppToastType.NORMAL -> AppToastStyle(
             bg = Color.White,
             titleColor = Color.Black,
-            textColor = Grey700
+            textColor = Grey700,
+            backgroundRes = R.drawable.toast_bg
         )
         AppToastType.POSITIVE -> AppToastStyle(
             bg = Color.White,
             titleColor = Color.Black,
-            textColor = Grey700
+            textColor = Grey700,
+            backgroundRes = R.drawable.toast_bg
         )
         AppToastType.NEGATIVE -> AppToastStyle(
             bg = Color.White,
             titleColor = Color.Black,
-            textColor = Grey700
+            textColor = Grey700,
+            backgroundRes = R.drawable.toast_bg
         )
     }
 }
@@ -205,7 +214,7 @@ fun AppToastHost(
             } + fadeOut(animationSpec = tween(200))
         ) {
             data?.let { t ->
-                val style = styleProvider(t.type)
+                val toastStyle = styleProvider(t.type)
 
                 Box(
                     modifier = Modifier
@@ -214,12 +223,36 @@ fun AppToastHost(
                 ) {
                     Surface(
                         onClick = { hostState.dismiss() },
-                        color = style.bg,
-                        shape = style.shape,
-                        tonalElevation = 2.dp,
-                        modifier = Modifier
-                            .shadow(elevation = 8.dp, shape = style.shape) // 외곽 그림자
+                        color = Color.Transparent,                 // ← 투명
+                        shape = toastStyle.shape,
+                        tonalElevation = 0.dp,
+                        modifier = Modifier.shadow(elevation = 8.dp, shape = toastStyle.shape)
                     ) {
+                        // 1) 배경: PNG 있으면 이미지, 없으면 단색
+                        if (toastStyle.backgroundRes != null) {
+                            Image(
+                                painter = painterResource(toastStyle.backgroundRes),
+                                contentDescription = null,
+                                modifier = Modifier.matchParentSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                            // 2) 스크림(가독성): alpha 0으로 두면 사실상 미적용
+                            if (toastStyle.scrim.alpha > 0f) {
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .background(toastStyle.scrim)
+                                )
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .background(toastStyle.bg)
+                            )
+                        }
+
+
                         Row(
                             modifier = Modifier
                                 .padding(horizontal = 20.dp, vertical = 16.dp)
@@ -243,8 +276,8 @@ fun AppToastHost(
                                      ) {
                                 Text(
                                     text = t.title,
-                                    color = style.titleColor,
-                                    style = AppTextStyles.b2_bold_16,
+                                    color = toastStyle.titleColor,
+                                    style = AppTextStyles.b2_semibold_16,
                                     maxLines = if (t.layout == AppToastLayout.TitleOnly) 2 else 3,
                                     overflow = TextOverflow.Ellipsis,
                                     textAlign = TextAlign.Center
@@ -257,7 +290,7 @@ fun AppToastHost(
                                         Spacer(Modifier.height(6.dp))
                                         Text(
                                             text = t.summary.orEmpty(),
-                                            color = style.textColor,
+                                            color = toastStyle.textColor,
                                             style = AppTextStyles.b3_regular_14,
                                             lineHeight = 20.sp,
                                             maxLines = 2,
@@ -270,7 +303,7 @@ fun AppToastHost(
                                         Spacer(Modifier.height(8.dp))
                                         Text(
                                             text = t.body.orEmpty(),
-                                            color = style.textColor,
+                                            color = toastStyle.textColor,
                                             fontSize = 14.sp,
                                             lineHeight = 20.sp,
                                             maxLines = 4,
