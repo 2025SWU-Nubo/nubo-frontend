@@ -1,8 +1,13 @@
 package com.example.nubo
 
+import android.Manifest
+import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -19,6 +24,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -28,6 +35,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.nubo.deeplink.DeepLinkContract
+import com.example.nubo.deeplink.DeepLinkStore
 import com.example.nubo.ui.screen.home.HomeScreen
 import com.example.nubo.ui.screen.learn.LearnScreen
 import com.example.nubo.ui.screen.myBoard.MyBoardScreen
@@ -42,37 +51,97 @@ import com.example.nubo.ui.screen.profile.EditNameScreen
 import com.example.nubo.ui.screen.profile.InformationScreen
 import com.example.nubo.ui.screen.profile.ProfileRoute
 import com.example.nubo.ui.theme.NuboAppTheme
+import com.example.nubo.utils.cacheToStore
+import com.example.nubo.utils.startOnboardingForLogin
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.collectLatest
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+
+    // Compose로 딥링크 Intent를 흘려보내는 파이프
+    private val deepLinkEvents = MutableSharedFlow<Intent>(extraBufferCapacity = 1)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 시스템바를 투명하게 설정 (핵심 부분)
+        // 시스템바 투명/아이콘 색
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = android.graphics.Color.TRANSPARENT
         window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            isAppearanceLightStatusBars = true
+            isAppearanceLightNavigationBars = true
+        }
 
-        // 상태바/내비게이션바 아이콘 색 (밝은 배경일 경우 true = 어두운 아이콘)
-        val insetsController = WindowInsetsControllerCompat(window, window.decorView)
-        insetsController.isAppearanceLightStatusBars = true
-        insetsController.isAppearanceLightNavigationBars = true
+        // 최초 진입 인텐트 캐시 + 송출
+        intent?.let { cacheDeepLinkIfAny(it); deepLinkEvents.tryEmit(it) }
 
         setContent {
             NuboAppTheme {
-                MainScreen()
+                RequestNotificationPermissionOnce() // Android 13+ 권한
+                MainScreen(deepLinkEvents = deepLinkEvents) // ⬅️ 전달
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        cacheDeepLinkIfAny(intent)
+        deepLinkEvents.tryEmit(intent)
+    }
+}
+
+private fun cacheDeepLinkIfAny(intent: Intent) {
+    when (intent.getStringExtra(DeepLinkContract.EXTRA_DEEPLINK_TARGET)) {
+        DeepLinkContract.TARGET_CARD_DETAIL -> {
+            intent.getLongExtra(DeepLinkContract.EXTRA_CARD_ID, -1L)
+                .takeIf { it > 0 }?.let { DeepLinkStore.pendingCardId = it }
+        }
+        DeepLinkContract.TARGET_CARD_UNREAD_LIST -> {
+            DeepLinkStore.pendingGoUnread = true
+        }
+        DeepLinkContract.TARGET_BOARD_DETAIL,
+        DeepLinkContract.TARGET_BOARD_INVITE -> {
+            DeepLinkStore.pendingBoardId =
+                intent.getLongExtra(DeepLinkContract.EXTRA_BOARD_ID, -1L).takeIf { it > 0 }
+            DeepLinkStore.pendingBoardTitle =
+                intent.getStringExtra(DeepLinkContract.EXTRA_BOARD_TITLE)
+            DeepLinkStore.pendingInviteToken =
+                intent.getStringExtra(DeepLinkContract.EXTRA_INVITE_TOKEN)
         }
     }
 }
 
+@Composable
+fun RequestNotificationPermissionOnce() {
+    if (Build.VERSION.SDK_INT < 33) return
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* no-op */ }
+    LaunchedEffect(Unit) {
+        val granted = ContextCompat.checkSelfPermission(
+            context, Manifest.permission.POST_NOTIFICATIONS
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (!granted) launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen() {
+fun MainScreen(
+    deepLinkEvents: SharedFlow<Intent>,
+    vm: MainViewModel = hiltViewModel()
+) {
+    val isLoggedIn by vm.isLoggedIn.collectAsState()
+    val context = LocalContext.current
+
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -85,7 +154,6 @@ fun MainScreen() {
         WindowInsets.safeDrawing
 
     Scaffold(
-
         // 프로필 화면일 때만 시스템 인셋 자동패딩 제거
         contentWindowInsets = if (currentRoute == "profile" || currentRoute == "information" || currentRoute == "edit_name?initial={initial}") {
             WindowInsets(0)
@@ -154,13 +222,6 @@ fun MainScreen() {
                         navController = navController
                     )
                 }
-//                composable(
-//                    "board_detail/{boardId}/{boardTitle}"
-//                ) { backStackEntry ->
-//                    val boardId = backStackEntry.arguments?.getInt("boardId") ?: return@composable
-//                    val boardTitle = backStackEntry.arguments?.getString("boardTitle") ?: "로딩 중..."
-//                    BoardDetailScreen(boardId = boardId, boardTitle = boardTitle, navController = navController)
-//                }
                 composable("information") {
                     InformationScreen(
                         navController = navController,
@@ -251,6 +312,98 @@ fun MainScreen() {
             }
         }
     }
+
+    // ─────────────────────────────────────────────
+    // 딥링크 처리: (1) 앱 준비 시 보관분, (2) 실시간 이벤트
+    // ─────────────────────────────────────────────
+
+    // (1) 앱 준비 후, 보관된 딥링크 1회 소비
+    LaunchedEffect(isLoggedIn) {
+        if (!isLoggedIn) {
+            // 로그인 안 되었으면 온보딩으로 전환하고, Store 값은 유지
+            startOnboardingForLogin(context)
+            return@LaunchedEffect
+        }
+
+        // 카드 상세
+        DeepLinkStore.pendingCardId?.let { id ->
+            DeepLinkStore.pendingCardId = null
+            navController.navigate("card_detail/${id.toInt()}") {
+                popUpTo("home") { inclusive = false }
+                launchSingleTop = true
+            }
+        }
+
+        // 미시청 카드 → learn
+        if (DeepLinkStore.pendingGoUnread) {
+            DeepLinkStore.pendingGoUnread = false
+            navController.navigate("learn") {
+                popUpTo("home") { inclusive = false }
+                launchSingleTop = true
+            }
+        }
+
+        // 보드 상세/초대
+        DeepLinkStore.pendingBoardId?.let { bId ->
+            val title = DeepLinkStore.pendingBoardTitle ?: "로딩 중..."
+            DeepLinkStore.pendingBoardId = null
+            DeepLinkStore.pendingBoardTitle = null
+
+            val encoded = URLEncoder.encode(title, StandardCharsets.UTF_8.toString())
+            navController.navigate("board_detail/${bId.toInt()}/$encoded") {
+                popUpTo("home") { inclusive = false }
+                launchSingleTop = true
+            }
+            // 초대 토큰: DeepLinkStore.pendingInviteToken 은 상세에서 소비
+        }
+    }
+
+    // (2) 런타임 중 들어온 딥링크 처리
+    LaunchedEffect(Unit) {
+        deepLinkEvents.collectLatest { intent ->
+            val target = intent.getStringExtra(DeepLinkContract.EXTRA_DEEPLINK_TARGET)
+
+            if (!isLoggedIn) {
+                // 미로그인: Store에 보관 후 온보딩으로
+                cacheToStore(intent)
+                startOnboardingForLogin(context)
+                return@collectLatest
+            }
+
+            when (target) {
+                DeepLinkContract.TARGET_CARD_DETAIL -> {
+                    val id = intent.getLongExtra(DeepLinkContract.EXTRA_CARD_ID, -1L)
+                    if (id > 0) {
+                        navController.navigate("card_detail/${id.toInt()}") {
+                            popUpTo("home") { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    }
+                }
+                DeepLinkContract.TARGET_CARD_UNREAD_LIST -> {
+                    navController.navigate("learn") {
+                        popUpTo("home") { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
+                DeepLinkContract.TARGET_BOARD_DETAIL,
+                DeepLinkContract.TARGET_BOARD_INVITE -> {
+                    val boardId = intent.getLongExtra(DeepLinkContract.EXTRA_BOARD_ID, -1L)
+                    val title = intent.getStringExtra(DeepLinkContract.EXTRA_BOARD_TITLE) ?: "로딩 중..."
+                    if (boardId > 0) {
+                        val encoded = URLEncoder.encode(title, StandardCharsets.UTF_8.toString())
+                        navController.navigate("board_detail/${boardId.toInt()}/$encoded") {
+                            popUpTo("home") { inclusive = false }
+                            launchSingleTop = true
+                        }
+                        DeepLinkStore.pendingInviteToken =
+                            intent.getStringExtra(DeepLinkContract.EXTRA_INVITE_TOKEN)
+                    }
+                }
+            }
+        }
+    }
+
 
     BottomSheetHost(
         route = sheetRoute,
