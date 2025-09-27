@@ -3,7 +3,6 @@ package com.example.nubo.ui.screen.onBoardingLogin
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -28,14 +27,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
+import com.example.components.toast.AppToastOverlay
+import com.example.components.toast.AppToastType
+import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.PurpleMain500
-import com.example.nubo.utils.NotificationPermissionHelper
-import com.example.nubo.utils.NotificationPermissionHelper.Companion.shouldRequestNotificationPermission
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.delay
 
 @AndroidEntryPoint
@@ -56,24 +58,19 @@ class OnBoardingLoginActivity : ComponentActivity() {
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-
     private val requestNotificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            // Handle permission result
             if (granted) {
-                Toast.makeText(this, "알림 권한이 허용되었습니다.", Toast.LENGTH_SHORT).show()
+                // 시스템 Toast 제거 → ViewModel 이벤트로
+                viewModel.toast("알림 권한이 허용되었어요.⏰", AppToastType.POSITIVE)
                 Log.d("NotificationPermission", "알림 권한이 허용되었습니다.")
             } else {
-                Toast.makeText(
-                    this,
-                    "알림 권한이 거부되어 업로드 완료를 토스트로 알려드립니다.",
-                    Toast.LENGTH_LONG
-                ).show()
+                viewModel.toast("알림 권한이 거부되어, 업로드 완료를 토스트로 안내할게요.", AppToastType.NEGATIVE)
                 Log.d("NotificationPermission", "알림 권한이 거부되었습니다.")
             }
-            // 단일 콜백으로 후속 동작 위임
             viewModel.onLoginNotificationPermissionHandled()
         }
+
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -82,47 +79,58 @@ class OnBoardingLoginActivity : ComponentActivity() {
 
         setContent {
             val uiState = viewModel.uiState.collectAsState().value
-            val toastMessage by viewModel.toastMessage.collectAsState()
             val askPermission by viewModel.shouldRequestNotificationPermission.collectAsState()
 
-            toastMessage?.let { message ->
-                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-                viewModel.clearToastMessage() // 다시 null로 초기화해서 중복 방지
+            // AppToast 호스트 준비
+            val toastHost = rememberAppToastHostState()
+
+            // ViewModel의 SharedFlow 수신 → 커스텀 토스트 표시
+            LaunchedEffect(Unit) {
+                viewModel.toastEvents.collectLatest{ ev ->
+                    toastHost.show(
+                        title = AnnotatedString(ev.message),
+                        layout = ev.layout,
+                        type = ev.type,
+                        durationMillis = ev.durationMillis
+                        // 아이콘 쓰려면 iconRes = ev.iconRes
+                    )
+                }
             }
 
-            // 알림 권한 요청 다이얼로그
-            // ViewModel이 true로 올려줄 때만 표시 (로그인/토큰 처리 이후에만 뜸)
-            if (askPermission) {
-                NotificationPermissionDialog(
-                    onConfirm = {
-                        // Request POST_NOTIFICATIONS on Android 13+
-                        requestNotificationPermissionLauncher.launch(
-                            android.Manifest.permission.POST_NOTIFICATIONS
-                        )
+            Box(Modifier.fillMaxSize()) {
+                if (askPermission) {
+                    NotificationPermissionDialog(
+                        onConfirm = {
+                            requestNotificationPermissionLauncher.launch(
+                                android.Manifest.permission.POST_NOTIFICATIONS
+                            )
+                        },
+                        onDismiss = { viewModel.onLoginNotificationPermissionHandled() }
+                    )
+                }
+
+                OnBoardingScreen(
+                    uiState = uiState,
+                    onStartClick = { viewModel.onStartButtonClicked() },
+                    onGoogleLoginClick = {
+                        googleSignInLauncher.launch(viewModel.getGoogleSignInIntent())
                     },
-                    onDismiss = {
-                        // 사용자 취소 시에도 흐름 진행
-                        viewModel.onLoginNotificationPermissionHandled()
+                    onAccountSwitchConfirmed = {
+                        viewModel.confirmAccountSwitch { intent ->
+                            startActivity(intent)
+                            finish()
+                        }
                     }
                 )
+
+                // 커스텀 토스트 오버레이 부착 (하단)
+                AppToastOverlay(hostState = toastHost)
+                // 또는 전체화면 배치: AppToastHost(hostState = toastHost)
             }
-            OnBoardingScreen(
-                uiState = uiState,
-                onStartClick = { viewModel.onStartButtonClicked() },
-                onGoogleLoginClick = {
-                    googleSignInLauncher.launch(viewModel.getGoogleSignInIntent())
-                },
-                onAccountSwitchConfirmed = {
-                    viewModel.confirmAccountSwitch { intent ->
-                        startActivity(intent)
-                        finish()
-                    }
-                }
-            )
         }
     }
-
 }
+
 
 @Composable
 fun NotificationPermissionDialog(
