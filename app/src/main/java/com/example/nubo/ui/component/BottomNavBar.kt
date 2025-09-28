@@ -1,12 +1,17 @@
 package com.example.nubo.ui.component
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import com.example.nubo.R
@@ -17,9 +22,11 @@ import com.example.nubo.ui.theme.Grey700
 import com.example.nubo.ui.theme.Grey900
 
 @Composable
-fun BottomNavBar(selectedIndex: Int = 0, onItemSelected: (Int) -> Unit = {}) {
+fun BottomNavBar(selectedIndex: Int = 0, onItemSelected: (Int) -> Unit = {},isLearnScreen: Boolean = false,modifier: Modifier = Modifier) {
     NavigationBar(
-        containerColor = Color.White
+        // learn 화면만 반투명
+        containerColor = if (isLearnScreen) Color.White.copy(alpha = 0.8f) else Color.White,
+
     ) {
         NavigationBarItem(
             icon = {

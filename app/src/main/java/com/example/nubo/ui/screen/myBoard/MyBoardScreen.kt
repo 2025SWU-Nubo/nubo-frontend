@@ -42,7 +42,8 @@ import java.net.URLEncoder
 @Composable
 fun MyBoardScreen(
     navController: NavController,
-    boardViewModel: BoardViewModel = hiltViewModel()
+    boardViewModel: BoardViewModel = hiltViewModel(),
+    modifier: Modifier = Modifier
 ) {
     var selectedTab by remember { mutableStateOf(1) }
 
@@ -54,7 +55,9 @@ fun MyBoardScreen(
         cardViewModel.cards.value.map { randomCardHeight() }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier
+        .fillMaxSize()
+        .padding(vertical = 20.dp)) {
         TabHeader(
             selectedTabIndex = selectedTab,
             onTabSelected = { selectedTab = it }

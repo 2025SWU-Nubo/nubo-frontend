@@ -59,7 +59,8 @@ fun BoardDetailScreen(
     boardTitle: String,
     navController: NavController,
     viewModel: BoardDetailViewModel = hiltViewModel(),
-    myCardViewModel: MyCardViewModel = hiltViewModel()
+    myCardViewModel: MyCardViewModel = hiltViewModel(),
+    modifier: Modifier = Modifier
 ) {
     var selectedCardId by remember { mutableStateOf<Int?>(null) }
 

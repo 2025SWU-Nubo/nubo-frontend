@@ -86,6 +86,7 @@ import formatIsoDateToDisplayLegacy
 fun HomeScreen(
     padding: PaddingValues = PaddingValues(),
     onMoreClick: () -> Unit = {},
+    modifier: Modifier = Modifier,
     onOpenCardDetail:(Int) -> Unit,
     onLogoClick: (() -> Unit)? = null,
     onNotificationsClick: (() -> Unit)? = null,
@@ -165,7 +166,6 @@ fun HomeScreen(
 
 
     }
-
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
