@@ -79,7 +79,7 @@ fun LearnScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF92C8EF)) // 배경 느낌만 잡는 임시색
+            .background(Color(0xFF9EC5E1)) // 배경 느낌만 잡는 임시색
             .padding(horizontal = 16.dp)
     ) {
         Column(
@@ -99,6 +99,7 @@ fun LearnScreen(
                 dates = weekDates,
                 todayIndex = todayIndex,
                 selectedIndex = selectedIndex,
+                hasSelection = selectedIndex != null,
                 onClickDay = { idx ->
                     // 같은 날짜를 다시 클릭하면 해제, 다른 날짜 클릭 시 해당 날짜로 교체
                     selectedIndex = if (selectedIndex == idx) null else idx
@@ -172,6 +173,7 @@ private fun WeeklyCalendar(
     todayIndex: Int,
     selectedIndex: Int?,
     onClickDay: (Int) -> Unit,
+    hasSelection: Boolean,
     getBubbleCount: (Int) -> Int,
     bubbleImageRes: Int?,           // 말풍선 drawable 리소스 (null이면 색 박스)
     circleSize: Dp
@@ -193,7 +195,7 @@ private fun WeeklyCalendar(
         }
     }
 
-    Spacer(Modifier.height(8.dp))
+    Spacer(Modifier.height(16.dp))
 
     // 날짜 숫자 버튼 줄 ---------------------------------------------------------
     Row(
@@ -211,7 +213,7 @@ private fun WeeklyCalendar(
             ) {
 
                 // 선택했거나 오늘인 경우: 뒤에 하얀 동그라미
-                if (isSelected || isToday) {
+                if (isSelected || (isToday && !hasSelection)) {
                     Box(
                         modifier = Modifier
                             .size(circleSize)
@@ -228,10 +230,18 @@ private fun WeeklyCalendar(
                         .clickable { onClickDay(idx) },
                     contentAlignment = Alignment.Center
                 ) {
+                    if(isToday){
+                        Text(
+                        text = date.dayOfMonth.toString(),
+                        style = AppTextStyles.subtitle_semibold_20,
+                        color = PurpleMain500
+                        )
+                    }else
                     Text(
                         text = date.dayOfMonth.toString(),
                         style = AppTextStyles.subtitle_semibold_20,
                         color = if (isSelected||isToday) Grey1000 else Grey0
+
                     )
                 }
             }
@@ -368,7 +378,6 @@ private fun BottomProgressCard(
                     modifier = Modifier.padding(start = 3.dp, bottom = 3.dp)
                 )
             }
-
             Text(
                 text = title,
                 style = AppTextStyles.b2_semibold_16,
