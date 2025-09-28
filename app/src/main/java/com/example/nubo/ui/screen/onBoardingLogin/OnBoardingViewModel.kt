@@ -7,6 +7,8 @@ import android.content.Intent
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.components.toast.AppToastLayout
+import com.example.components.toast.AppToastType
 import com.example.nubo.MainActivity
 import com.example.nubo.R
 import com.example.nubo.data.model.LoginRequest
@@ -20,13 +22,24 @@ import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.tasks.Task
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import javax.inject.Inject
+
+data class UiToast(
+    val message: String,
+    val type: AppToastType = AppToastType.NORMAL,    // import com.example.components.toast.AppToastType
+    val layout: AppToastLayout = AppToastLayout.TitleOnly,
+    val durationMillis: Int = 2000,
+    @androidx.annotation.DrawableRes val iconRes: Int? = null
+)
 
 @HiltViewModel
 class OnBoardingViewModel @Inject constructor(
@@ -40,8 +53,16 @@ class OnBoardingViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(OnBoardingUiState())
     val uiState: StateFlow<OnBoardingUiState> get() = _uiState
 
-    private val _toastMessage = MutableStateFlow<String?>(null)
-    val toastMessage: StateFlow<String?> get() = _toastMessage
+    private val _toastEvents = MutableSharedFlow<UiToast>(
+        replay = 0,
+        extraBufferCapacity = 1
+    )
+    val toastEvents: SharedFlow<UiToast> = _toastEvents.asSharedFlow()
+
+
+    private suspend fun emitToast(toast: UiToast) {
+        _toastEvents.emit(toast)
+    }
 
     // 알림 권한 요청이 필요한지 상태 관리
     private val _shouldRequestNotificationPermission = MutableStateFlow(false)
@@ -52,6 +73,16 @@ class OnBoardingViewModel @Inject constructor(
 
     init {
         initializeGoogleAuth()
+    }
+
+    fun toast(
+        message: String,
+        type: AppToastType = AppToastType.NORMAL,
+        duration: Int = 2000
+    ) {
+        if (!_toastEvents.tryEmit(UiToast(message, type = type, durationMillis = duration))) {
+            viewModelScope.launch { _toastEvents.emit(UiToast(message, type = type, durationMillis = duration)) }
+        }
     }
 
     private fun initializeGoogleAuth() {
@@ -142,13 +173,10 @@ class OnBoardingViewModel @Inject constructor(
     // 토큰 만료 처리
     private fun handleTokenExpired() {
         Log.i("Auth", "Token expired, clearing stored data")
-        authRepository.clearAuthData() // 모든 인증 데이터 삭제
-        _toastMessage.value = "로그인이 만료되었습니다. 다시 로그인해주세요."
+        authRepository.clearAuthData()
+        // ⬇ 커스텀 토스트로 발행 (NEGATIVE)
+        toast("로그인이 만료되었습니다. 다시 로그인해주세요.", type = AppToastType.NEGATIVE)
         showLoginButton()
-    }
-
-    fun clearToastMessage() {
-        _toastMessage.value = null
     }
 
     private fun showLoginButton() {
@@ -158,22 +186,14 @@ class OnBoardingViewModel @Inject constructor(
         )
     }
 
-    // 알림 권한 확인 후 메인 화면으로 이동
+    // 권한 체크 후 이동
     private fun checkNotificationPermissionAndNavigate() {
         if (NotificationPermissionHelper.shouldRequestNotificationPermission(context)) {
-            // 알림 권한 요청이 필요한 경우
             _shouldRequestNotificationPermission.value = true
         } else {
-            // 알림 권한이 이미 있거나 필요하지 않은 경우 바로 메인으로 이동
             navigateToMain()
         }
     }
-
-    // 알림 권한 요청 후 메인 화면으로 이동
-//    fun onNotificationPermissionHandled() {
-//        _shouldRequestNotificationPermission.value = false
-//        navigateToMain()
-//    }
 
     fun handleSignInResult(task: Task<GoogleSignInAccount>, onLoginComplete: (Intent) -> Unit) {
         viewModelScope.launch {

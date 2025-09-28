@@ -60,7 +60,8 @@ import com.example.nubo.ui.theme.PurpleMain500
 fun CardDetailScreen(
     item: CardDetailItem,
     onBack: () -> Unit,
-    onInfoClick: (() -> Unit)? = null
+    onInfoClick: (() -> Unit)? = null,
+    onEdit: (()-> Unit)? = null
 ) {
     // 시스템 뒤로가기 키 처리
     BackHandler { onBack() }
@@ -70,7 +71,7 @@ fun CardDetailScreen(
 
     Scaffold(
         // 상단 바
-        topBar= {CustomTopBar(item.title,onBack,onInfoClick)},
+        topBar= {CustomTopBar(item.title,onBack,onEdit)},
 //        contentWindowInsets = WindowInsets(0)
 
     ) { inner ->
@@ -113,7 +114,7 @@ fun CardDetailScreen(
 private fun CustomTopBar(
     title: String,
     onBack: () -> Unit,
-    onInfoClick: (() -> Unit)?= null
+    onEdit: (() -> Unit)?= null
 ){
     CenterAlignedTopAppBar(
         windowInsets = WindowInsets(0),
@@ -134,7 +135,7 @@ private fun CustomTopBar(
             )
         },
         actions = {
-            IconButton(onClick = {onInfoClick?.invoke()}) {
+            IconButton(onClick = {onEdit?.invoke()}) {
                 Icon(
                     painter = painterResource(R.drawable.edit),
                     contentDescription = "수정하기"
