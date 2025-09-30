@@ -56,6 +56,7 @@ import com.example.nubo.ui.screen.myBoard.BoardDetailScreen
 import com.example.nubo.ui.screen.onBoardingLogin.OnBoardingLoginActivity
 import com.example.nubo.ui.screen.profile.EditNameScreen
 import com.example.nubo.ui.screen.profile.InformationScreen
+import com.example.nubo.ui.screen.profile.NotificationScreen
 import com.example.nubo.ui.screen.profile.ProfileRoute
 import com.example.nubo.ui.theme.NuboAppTheme
 import com.example.nubo.utils.cacheToStore
@@ -155,7 +156,7 @@ fun MainScreen(
     val currentRoute = navBackStackEntry?.destination?.route
 
     // 상세 화면에서는 BottomNavBar 숨기기
-    val showBottomBar = currentRoute in listOf("home", "myboard", "add", "learn", "profile", "information")
+    val showBottomBar = currentRoute in listOf("home", "myboard", "add", "learn", "profile", "information","notification")
     var sheetRoute by remember { mutableStateOf<SheetRoute?>(null) }
 
     // Composable 컨텍스트에서 미리 Context를 받아둔다
@@ -168,7 +169,7 @@ fun MainScreen(
 
         // 특정 화면일 때만 시스템 인셋 자동패딩 제거
         contentWindowInsets = if (currentRoute == "profile" || currentRoute == "information" ||
-            currentRoute == "edit_name?initial={initial}" || currentRoute == "learn"
+            currentRoute == "edit_name?initial={initial}" || currentRoute == "learn" || currentRoute == "notification"
         ) {
 
             WindowInsets(0)
@@ -229,7 +230,8 @@ fun MainScreen(
                     navController = navController,
                     onBack = { navController.popBackStack() },
                     onMyInfo = { navController.navigate("information") },
-                    modifier = Modifier.padding(innerPadding)
+                    modifier = Modifier.padding(innerPadding),
+                    onNotification = {navController.navigate("notification")}
                 )
             }
             composable(
@@ -270,6 +272,12 @@ fun MainScreen(
                     modifier = Modifier
                         .padding(innerPadding)
                         .statusBarsPadding()
+                )
+            }
+            composable("notification"){
+                NotificationScreen(
+                    navController = navController,
+                    onBack = { navController.popBackStack() } // 뒤로가기
                 )
             }
             composable(
