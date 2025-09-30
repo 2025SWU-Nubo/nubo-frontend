@@ -1,13 +1,9 @@
 package com.example.nubo.ui.component
 
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
@@ -16,16 +12,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
-import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.Grey500
-import com.example.nubo.ui.theme.Grey700
 import com.example.nubo.ui.theme.Grey900
 
 @Composable
 fun BottomNavBar(selectedIndex: Int = 0, onItemSelected: (Int) -> Unit = {},isLearnScreen: Boolean = false,modifier: Modifier = Modifier) {
     NavigationBar(
         // learn 화면만 반투명
-        containerColor = if (isLearnScreen) Color.White.copy(alpha = 0.8f) else Color.White,
+        containerColor = if (isLearnScreen) Color.White.copy(alpha = 0.7f) else Color.White,
 
     ) {
         NavigationBarItem(
@@ -95,12 +89,12 @@ fun BottomNavBar(selectedIndex: Int = 0, onItemSelected: (Int) -> Unit = {},isLe
             icon = {
                 Icon(
                     painter = painterResource(
-                        id = if (selectedIndex == 3) R.drawable.nav_book_selected else R.drawable.nav_book_unselected
+                        id = if (selectedIndex == 3) R.drawable.nav_learn_selected else R.drawable.nav_learn_unselected
                     ),
-                    contentDescription = "학습"
+                    contentDescription = "대시보드"
                 )
             },
-            label = { Text("학습", style = if(selectedIndex==3)AppTextStyles.label_semibold_14 else AppTextStyles.label_medium_14) },
+            label = { Text("대시보드", style = if(selectedIndex==3)AppTextStyles.label_semibold_14 else AppTextStyles.label_medium_14) },
             selected = selectedIndex == 3,
             onClick = { onItemSelected(3) },
             colors = NavigationBarItemDefaults.colors(
