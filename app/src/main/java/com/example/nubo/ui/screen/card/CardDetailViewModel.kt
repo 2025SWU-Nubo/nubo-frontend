@@ -38,6 +38,9 @@ class CardDetailViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<CardDetailUiState>(CardDetailUiState.Loading)
     val uiState = _uiState.asStateFlow()
 
+    private val _toast = MutableStateFlow<String?>(null)
+    val toast = _toast.asStateFlow()
+
     init {
         load()
     }
@@ -93,15 +96,27 @@ class CardDetailViewModel @Inject constructor(
                     body = CardFavoriteRequest(favorite = next)
                 ).await()
 
+                _toast.value = if(next)"즐겨 찾기 완료!" else "즐겨 찾기 해제!"
+
                 val confirmed = res.favorite
                 _uiState.value = CardDetailUiState.Success(old.copy(isFavorite = confirmed))
-            }.onFailure{
+            }.onFailure{e ->
+                /* 4 실패  되돌리기 가능 상태 유지  에러 토스트 */
+                _toast.value = e.humanMessage()
                 _uiState.value = CardDetailUiState.Success(old)
             }
-
         }
     }
+
+    fun consumeToast() { _toast.value = null }
+
 }
+
+private fun Throwable.humanMessage(): String = when (this) {
+    is HttpException -> "서버 오류(${code()})가 발생했습니다"
+    else -> message ?: "다시 시도 해주세요."
+}
+
 
 
 // Mapper from API model to UI model

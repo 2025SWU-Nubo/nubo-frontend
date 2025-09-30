@@ -87,9 +87,6 @@ fun EditCardScreen(
     // 키보드 닫힘 열림 여부 상태
     val keyboardVisible by rememberKeyboardVisible()
 
-
-
-
     // 스낵바
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(toast) {

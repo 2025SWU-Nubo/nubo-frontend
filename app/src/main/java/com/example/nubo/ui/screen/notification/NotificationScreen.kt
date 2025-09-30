@@ -24,6 +24,7 @@ import com.example.nubo.ui.theme.Grey30
 import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.Purple100
+import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.ui.theme.PurpleMain500
 
 // ===== Models =====
@@ -203,7 +204,7 @@ private fun NotiCard(
     onAcceptInvite: () -> Unit,
     onRejectInvite: () -> Unit,
 ) {
-    val container = if (tinted) Purple100 else Color.Transparent
+    val container = if (tinted) Purple50 else Color.Transparent
 
     Column(
         modifier = Modifier
@@ -231,13 +232,13 @@ private fun NotiCard(
             /* 알림 시간 */
             Text(item.timeLabel, style = AppTextStyles.b2_regular_16, color = GreyMain300)
         }
-
+//        Spacer(Modifier.height(8.dp))
         // 알림 내용
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { onClick() }
-                .padding(horizontal = 16.dp, vertical = 4.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
             Text(
                 item.title,
@@ -246,8 +247,6 @@ private fun NotiCard(
                 maxLines = 4,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(Modifier.height(4.dp))
-            Text(item.message, style = MaterialTheme.typography.bodyMedium)
         }
 
         // 액션 버튼(더보기, 공유하기_초대 수락,거절)

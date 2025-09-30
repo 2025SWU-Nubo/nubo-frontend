@@ -23,6 +23,8 @@ import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -37,7 +39,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
@@ -45,16 +49,109 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
 import com.halilibo.richtext.commonmark.Markdown
 import com.halilibo.richtext.ui.material3.RichText
 import androidx.core.net.toUri
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
+import com.example.components.toast.AppToastHost
+import com.example.components.toast.AppToastLayout
+import com.example.components.toast.AppToastType
+import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.model.card.CardDetailItem
 import com.example.nubo.ui.theme.GreyMain100
 import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.PurpleMain500
+import kotlin.math.max
+
+//@OptIn(ExperimentalMaterial3Api::class)
+//@Composable
+//fun CardDetailScreen(
+//    item: CardDetailItem,
+//    onBack: () -> Unit,
+//    onInfoClick: (() -> Unit)? = null,
+//    onEdit: (()-> Unit)? = null,
+//    onToggleFavorite: () -> Unit,
+//    viewModel: CardDetailViewModel = hiltViewModel()
+//) {
+//    // 시스템 뒤로가기 키 처리
+//    BackHandler { onBack() }
+//
+//    val context = LocalContext.current
+//    val scrollState = rememberScrollState() // 상위 하나만 스크롤 유지
+//
+//    val toast by viewModel.toast.collectAsState()
+//    val toastHost = rememberAppToastHostState()
+//
+//    LaunchedEffect(toast) {
+//        toast?.let { msg ->
+//            toastHost.show(
+//                title = AnnotatedString(msg),
+//                layout = AppToastLayout.TitleOnly,
+//                type = AppToastType.NORMAL,
+//                durationMillis = 2000
+//            )
+//            viewModel.consumeToast()
+//        }
+//    }
+//
+//    Scaffold(
+//        // 상단 바
+//        topBar= {
+//            CustomTopBar(
+//                item.title,
+//                onBack,
+//                onEdit,
+//                isFavorite = item.isFavorite,
+//                onToggleFavorite = onToggleFavorite
+//            )
+//                },
+////        contentWindowInsets = WindowInsets(0)
+//
+//    ) { inner ->
+//        Column(
+//            modifier = Modifier
+//                .fillMaxSize()
+//                .padding(inner)
+//                .padding(horizontal = 16.dp)
+//                .verticalScroll(scrollState), // 상위 한 곳에만 스크롤
+//            verticalArrangement = Arrangement.spacedBy(16.dp)
+//        ) {
+//
+//
+//            // ===== 원본 영상(바로가기 버튼, 상세 정보 아이콘) =====
+//            ImageWithButton(
+//                item,
+//                onInfoClick={ onInfoClick?.invoke() },
+//                onPlayClick = {
+//                    item.videoUrl.takeIf { it.isNotBlank() }?.let { url ->
+//                context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
+//                }
+//            )
+//
+//            Spacer(Modifier.height(8.dp))
+//
+//            // ===== 본문 섹션 =====
+//            DetailBodyMarkdown(
+//                description = item.summary,
+//            )
+////            Spacer(Modifier.height(12.dp))
+//            CardKeyword(item.tags)
+//        }
+//
+//        /* 토스트 */
+//        AppToastHost(
+//            hostState = toastHost,
+//            modifier = Modifier
+//                .align(Alignment.TopCenter)
+//                .zIndex(100f)                 // 어떤 바보다 위
+//                .padding(bottom = 16.dp)
+//        )
+//    }
+//}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,59 +159,93 @@ fun CardDetailScreen(
     item: CardDetailItem,
     onBack: () -> Unit,
     onInfoClick: (() -> Unit)? = null,
-    onEdit: (()-> Unit)? = null,
-    onToggleFavorite: () -> Unit
+    onEdit: (() -> Unit)? = null,
+    onToggleFavorite: () -> Unit,
+    toastMessage: String?,
+    onConsumeToast: () -> Unit
 ) {
-    // 시스템 뒤로가기 키 처리
+    // 뒤로가기 처리
     BackHandler { onBack() }
 
     val context = LocalContext.current
-    val scrollState = rememberScrollState() // 상위 하나만 스크롤 유지
+    val scrollState = rememberScrollState()
+    val toastHost = rememberAppToastHostState()
+
+    // 토스트 표시
+    LaunchedEffect(toastMessage) {
+        toastMessage?.let { msg ->
+            toastHost.show(
+                title = AnnotatedString(msg),
+                layout = AppToastLayout.TitleOnly,
+                type = AppToastType.NORMAL,
+                durationMillis = 2000
+            )
+            onConsumeToast()
+        }
+    }
 
     Scaffold(
-        // 상단 바
-        topBar= {
+        topBar = {
             CustomTopBar(
-                item.title,
-                onBack,
-                onEdit,
+                title = item.title,
+                onBack = onBack,
+                onEdit = onEdit,
                 isFavorite = item.isFavorite,
                 onToggleFavorite = onToggleFavorite
             )
-                },
-//        contentWindowInsets = WindowInsets(0)
-
+        }
     ) { inner ->
-        Column(
+
+        // 아래 오버레이 패딩 계산
+        val density = LocalDensity.current
+        val imeBottomPx = WindowInsets.ime.getBottom(density)
+        val navBottomPx = WindowInsets.navigationBars.getBottom(density)// 키보드 높이
+        // Int끼리 먼저 max
+        val bottomInsetPx = max(imeBottomPx, navBottomPx)
+        // Dp로 변환
+        val bottomInsetDp = with(density) { bottomInsetPx.toDp() }
+        // Scaffold의 패딩(Dp) + 계산된 Dp + 여백
+        val finalBottomPadding = inner.calculateBottomPadding() + bottomInsetDp + 16.dp
+
+
+        Box( // 오버레이 컨테이너
             modifier = Modifier
                 .fillMaxSize()
                 .padding(inner)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(scrollState), // 상위 한 곳에만 스크롤
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 본문
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(scrollState),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                ImageWithButton(
+                    item = item,
+                    onInfoClick = { onInfoClick?.invoke() },
+                    onPlayClick = {
+                        item.videoUrl.takeIf { it.isNotBlank() }?.let { url ->
+                            context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
+                        }
+                    }
+                )
+                Spacer(Modifier.height(8.dp))
+                DetailBodyMarkdown(description = item.summary)
+                CardKeyword(item.tags)
+            }
 
-            // ===== 원본 영상(바로가기 버튼, 상세 정보 아이콘) =====
-            ImageWithButton(
-                item,
-                onInfoClick={ onInfoClick?.invoke() },
-                onPlayClick = {
-                    item.videoUrl.takeIf { it.isNotBlank() }?.let { url ->
-                context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
-                }
+            // 토스트  아래 중앙 오버레이
+            AppToastHost(
+                hostState = toastHost,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = finalBottomPadding)
             )
-
-            Spacer(Modifier.height(8.dp))
-
-            // ===== 본문 섹션 =====
-            DetailBodyMarkdown(
-                description = item.summary,
-            )
-//            Spacer(Modifier.height(12.dp))
-            CardKeyword(item.tags)
         }
     }
 }
+
 
 
 /**
@@ -153,6 +284,7 @@ private fun CustomTopBar(
                     painter = painterResource(
                         if (isFavorite) R.drawable.selected_star else R.drawable.unselected_star
                     ),
+                    tint = Color.Unspecified,
                     contentDescription = if (isFavorite) "즐겨찾기 해제" else "즐겨찾기 설정"
                 )
             }
