@@ -86,6 +86,7 @@ import formatIsoDateToDisplayLegacy
 fun HomeScreen(
     padding: PaddingValues = PaddingValues(),
     onMoreClick: () -> Unit = {},
+    modifier: Modifier = Modifier,
     onOpenCardDetail:(Int) -> Unit,
     onLogoClick: (() -> Unit)? = null,
     onNotificationsClick: (() -> Unit)? = null,
@@ -165,7 +166,6 @@ fun HomeScreen(
 
 
     }
-
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -177,7 +177,6 @@ fun CustomTopBar(
 
     CenterAlignedTopAppBar(
         modifier = Modifier.padding(horizontal = 12.dp),
-        windowInsets = WindowInsets(0),
         // If you prefer title centered text, set `title = { Text("Nubo") }`
         navigationIcon = {
             // Left logo (clickable)

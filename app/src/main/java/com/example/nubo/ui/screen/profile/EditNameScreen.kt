@@ -55,7 +55,8 @@ fun EditNameScreen(
     initial: String,                 // 초기 이름
     onBack: () -> Unit,              // 뒤로가기
     onDone: (String) -> Unit,         // 완료(서버 전송은 추후 onDone 내부에서 처리)
-    viewModel: ProfileViewModel = hiltViewModel()
+    viewModel: ProfileViewModel = hiltViewModel(),
+    modifier: Modifier = Modifier
 ) {
     // ----- 간격 규격 -----
     val H_PADDING = 42.dp            // 좌/우 42

@@ -13,7 +13,7 @@ sealed class BottomNavItem(
         R.drawable.nav_dashboard_selected
     )
     object Add : BottomNavItem("추가", R.drawable.nav_add_unselected, R.drawable.nav_add_selected)
-    object Learn : BottomNavItem("학습", R.drawable.nav_book_unselected, R.drawable.nav_book_selected)
+    object Learn : BottomNavItem("학습", R.drawable.nav_learn_unselected, R.drawable.nav_learn_selected)
     object Profile : BottomNavItem("마이",
         R.drawable.nav_profile_unselected,
         R.drawable.nav_profile_selected

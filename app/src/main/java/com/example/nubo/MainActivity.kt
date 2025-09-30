@@ -1,5 +1,6 @@
 package com.example.nubo
 
+
 import android.Manifest
 import android.content.Intent
 import android.net.Uri
@@ -12,7 +13,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
@@ -24,7 +27,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -35,6 +41,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.deeplink.DeepLinkContract
 import com.example.nubo.deeplink.DeepLinkStore
 import com.example.nubo.ui.screen.home.HomeScreen
@@ -47,8 +54,10 @@ import com.example.nubo.ui.screen.card.CardDetailRoute
 import com.example.nubo.ui.screen.card.CardDetailViewModel
 import com.example.nubo.ui.screen.editCard.EditCardRoute
 import com.example.nubo.ui.screen.myBoard.BoardDetailScreen
+import com.example.nubo.ui.screen.onBoardingLogin.OnBoardingLoginActivity
 import com.example.nubo.ui.screen.profile.EditNameScreen
 import com.example.nubo.ui.screen.profile.InformationScreen
+import com.example.nubo.ui.screen.profile.NotificationScreen
 import com.example.nubo.ui.screen.profile.ProfileRoute
 import com.example.nubo.ui.screen.notification.NotificationScreen
 import com.example.nubo.ui.screen.notification.NotificationViewModel
@@ -105,9 +114,11 @@ private fun cacheDeepLinkIfAny(intent: Intent) {
             intent.getLongExtra(DeepLinkContract.EXTRA_CARD_ID, -1L)
                 .takeIf { it > 0 }?.let { DeepLinkStore.pendingCardId = it }
         }
+
         DeepLinkContract.TARGET_CARD_UNREAD_LIST -> {
             DeepLinkStore.pendingGoUnread = true
         }
+
         DeepLinkContract.TARGET_BOARD_DETAIL,
         DeepLinkContract.TARGET_BOARD_INVITE -> {
             DeepLinkStore.pendingBoardId =
@@ -144,26 +155,22 @@ fun MainScreen(
     vm: MainViewModel = hiltViewModel()
 ) {
     val isLoggedIn by vm.isLoggedIn.collectAsState()
-    val context = LocalContext.current
 
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
     // 상세 화면에서는 BottomNavBar 숨기기
-    val showBottomBar = currentRoute in listOf("home", "myboard", "add", "learn", "profile", "information")
+    val showBottomBar = currentRoute in listOf("home", "myboard", "add", "learn", "profile", "information","notification")
     var sheetRoute by remember { mutableStateOf<SheetRoute?>(null) }
+
+    // Composable 컨텍스트에서 미리 Context를 받아둔다
+    val context = LocalContext.current
 
     val contentInsets =
         WindowInsets.safeDrawing
 
     Scaffold(
-        // 프로필 화면일 때만 시스템 인셋 자동패딩 제거
-        contentWindowInsets = if (currentRoute == "profile" || currentRoute == "information" || currentRoute == "edit_name?initial={initial}") {
-            WindowInsets(0)
-        } else {
-            contentInsets
-        },
         bottomBar = {
             if (showBottomBar) {
                 BottomNavBar(
@@ -176,12 +183,12 @@ fun MainScreen(
                             3 -> navController.navigate("learn") { popUpTo("home"); launchSingleTop = true }
                             4 -> navController.navigate("profile") { popUpTo("home"); launchSingleTop = true }
                         }
-                    }
-
+                    }, isLearnScreen = (currentRoute == "learn"), modifier = Modifier.navigationBarsPadding()
                 )
             }
         }
     ) { innerPadding ->
+
         Box(Modifier.padding(innerPadding)) {
             NavHost(
                 navController = navController,
@@ -279,63 +286,167 @@ fun MainScreen(
                                 ?.savedStateHandle
                                 ?.set("edited_name", newName)
                             navController.popBackStack()
+        NavHost(
+            navController = navController,
+            startDestination = "home",
+            modifier = Modifier.fillMaxSize()
+        ) {
+            composable("home") {
+                HomeScreen(
+                    onMoreClick = { navController.navigate("learn") },
+                    onOpenBoard = { boardId, boardName ->
+                        // Encode title for route
+                        val encoded = URLEncoder.encode(boardName, StandardCharsets.UTF_8.toString())
+                        navController.navigate("board_detail/$boardId/$encoded")
+                    },
+                    onOpenCardDetail = { id -> navController.navigate("card_detail/$id") },
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .statusBarsPadding()
+                )
+            }
+            composable("myboard") {
+                MyBoardScreen(
+                    navController,
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .statusBarsPadding()
+                )
+            }
+            composable("learn") {
+                // learn 화면은 패딩을 적용하지 않음
+                LearnScreen()
+            }
+            composable("profile") {
+                // ViewModel과 묶인 Route로 교체
+                ProfileRoute(
+                    navController = navController,
+                    onBack = { navController.popBackStack() },
+                    onMyInfo = { navController.navigate("information") },
+                    modifier = Modifier.padding(innerPadding),
+                    onNotification = {navController.navigate("notification")}
+                )
+            }
+            composable(
+                route = "board_detail/{boardId}/{boardTitle}",
+                arguments = listOf(
+                    navArgument("boardId") { type = NavType.IntType },       // boardId is Int
+                    navArgument("boardTitle") { type = NavType.StringType }   // title is String
+                )
+            ) { backStackEntry ->
+                // Safe: types match the navArguments above
+                val boardId = backStackEntry.arguments?.getInt("boardId") ?: return@composable
+                val boardTitle = backStackEntry.arguments?.getString("boardTitle") ?: "로딩 중..."
+
+                BoardDetailScreen(
+                    boardId = boardId,
+                    boardTitle = boardTitle,
+                    navController = navController,
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .statusBarsPadding()
+                )
+            }
+            composable("information") {
+                InformationScreen(
+                    navController = navController,
+                    onBack = { navController.popBackStack() }, // 뒤로가기
+                    onEditProfileImage = { /* 편집 처리 */ },
+                    onLogout = {
+                        // 이미 InformationScreen에서 토큰/유저정보 삭제 후 이 콜백을 호출함
+                        // 여기서는 온보딩 로그인 액티비티로 전환만 수행
+                        val intent = Intent(context, OnBoardingLoginActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                         }
-                    )
+                        context.startActivity(intent)
+                    },
+                    onWithdraw = { /* 탈퇴 처리 */ },
+                    onEditName = { current -> navController.navigate("edit_name?initial=${Uri.encode(current)}") },
+                )
+            }
+            composable("notification"){
+                NotificationScreen(
+                    navController = navController,
+                    onBack = { navController.popBackStack() } // 뒤로가기
+                )
+            }
+            composable(
+                route = "edit_name?initial={initial}",
+                arguments = listOf(navArgument("initial") { defaultValue = "" })
+            ) { backStackEntry ->
+                val initial = backStackEntry.arguments?.getString("initial").orEmpty()
+
+                EditNameScreen(
+                    initial = initial,
+                    onBack = {
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.remove<String>("edited_name")
+                        navController.popBackStack()
+                    },
+                    onDone = { newName ->
+                        // 값 반환 후 이전 화면으로
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.set("edited_name", newName)
+                        navController.popBackStack()
+                    },
+                )
+            }
+
+            composable(
+                route = "card_detail/{cardId}",
+                arguments = listOf(navArgument("cardId") { type = NavType.IntType })
+            ) { backStackEntry ->
+                val cardId = backStackEntry.arguments?.getInt("cardId") ?: return@composable
+
+                // 노트 수정 페이지에서 돌아올 경으 true로 세팅, 서버 재요청
+                val refreshFlow = remember(backStackEntry) {
+                    backStackEntry.savedStateHandle.getStateFlow("refresh_detail", false)
+                }
+                val refresh by refreshFlow.collectAsState(initial = false)
+
+                // 카드 상세 VM을 현재 backStackEntry 스코프로 획득
+                val detailVm: CardDetailViewModel = hiltViewModel(backStackEntry)
+
+                // 최초 진입 시 로드 (VM에 load(cardId) 함수가 있다고 가정)
+                LaunchedEffect(cardId) {
+                    detailVm.refresh()
                 }
 
-                composable(
-                    route = "card_detail/{cardId}",
-                    arguments = listOf(navArgument("cardId") { type = NavType.IntType })
-                ) { backStackEntry ->
-                    val cardId = backStackEntry.arguments?.getInt("cardId") ?: return@composable
-
-                    // 노트 수정 페이지에서 돌아올 경으 true로 세팅, 서버 재요청
-                    val refreshFlow = remember(backStackEntry) {
-                        backStackEntry.savedStateHandle.getStateFlow("refresh_detail",false)
+                // 편집 완료 후 복귀 시 재요청
+                LaunchedEffect(refresh) {
+                    if (refresh) {
+                        detailVm.refresh()                              // 서버에서 최신 상세 재조회
+                        backStackEntry.savedStateHandle["refresh_detail"] = false // 플래그 초기화
                     }
-                    val refresh by refreshFlow.collectAsState(initial = false)
+                }
 
-                    // 카드 상세 VM을 현재 backStackEntry 스코프로 획득
-                    val detailVm: CardDetailViewModel = hiltViewModel(backStackEntry)
-
-                    // 최초 진입 시 로드 (VM에 load(cardId) 함수가 있다고 가정)
-                    LaunchedEffect(cardId) {
-                        detailVm.refresh()
-                    }
-
-                    // 편집 완료 후 복귀 시 재요청
-                    LaunchedEffect(refresh) {
-                        if (refresh) {
-                            detailVm.refresh()                              // 서버에서 최신 상세 재조회
-                            backStackEntry.savedStateHandle["refresh_detail"] = false // 플래그 초기화
-                        }
-                    }
-
+                Box(Modifier.fillMaxSize().padding( top = 50.dp)) {
                     CardDetailRoute(
                         onBack = { navController.popBackStack() },
-                        onEdit = {
-                            android.util.Log.d("Nav", "navigate -> card_edit/$cardId")
-                            navController.navigate("card_edit/$cardId")
-                        }
+                        onEdit = { navController.navigate("card_edit/$cardId") }
                     )
                 }
+            }
 
-                composable(
-                    route = "card_edit/{cardId}",
-                    arguments = listOf(navArgument("cardId") { type = NavType.IntType })
-                ) {
-                    EditCardRoute(
-                        onBack = { navController.popBackStack() },
-                        //저장 성공 시
-                        onSaved = {
-                            navController.previousBackStackEntry
-                                ?.savedStateHandle
-                                ?.set("refresh_detail", true)
-                            navController.popBackStack()
+            composable(
+                route = "card_edit/{cardId}",
+                arguments = listOf(navArgument("cardId") { type = NavType.IntType })
+            ) {
+                Box(Modifier.fillMaxSize().padding( top = 50.dp)) {
+                EditCardRoute(
+                    onBack = { navController.popBackStack() },
+                    //저장 성공 시
+                    onSaved = {
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.set("refresh_detail", true)
+                        navController.popBackStack()
 
-                        }
-                    )
-                }
+                    }
+                )
+            }
             }
         }
     }
@@ -407,12 +518,14 @@ fun MainScreen(
                         }
                     }
                 }
+
                 DeepLinkContract.TARGET_CARD_UNREAD_LIST -> {
                     navController.navigate("learn") {
                         popUpTo("home") { inclusive = false }
                         launchSingleTop = true
                     }
                 }
+
                 DeepLinkContract.TARGET_BOARD_DETAIL,
                 DeepLinkContract.TARGET_BOARD_INVITE -> {
                     val boardId = intent.getLongExtra(DeepLinkContract.EXTRA_BOARD_ID, -1L)
