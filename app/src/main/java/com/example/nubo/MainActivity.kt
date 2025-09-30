@@ -50,6 +50,8 @@ import com.example.nubo.ui.screen.myBoard.BoardDetailScreen
 import com.example.nubo.ui.screen.profile.EditNameScreen
 import com.example.nubo.ui.screen.profile.InformationScreen
 import com.example.nubo.ui.screen.profile.ProfileRoute
+import com.example.nubo.ui.screen.notification.NotificationScreen
+import com.example.nubo.ui.screen.notification.NotificationViewModel
 import com.example.nubo.ui.theme.NuboAppTheme
 import com.example.nubo.utils.cacheToStore
 import com.example.nubo.utils.startOnboardingForLogin
@@ -133,6 +135,8 @@ fun RequestNotificationPermissionOnce() {
     }
 }
 
+
+// == 메인 스크린 ==
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
@@ -192,7 +196,14 @@ fun MainScreen(
                             val encoded = URLEncoder.encode(boardName, StandardCharsets.UTF_8.toString())
                             navController.navigate("board_detail/$boardId/$encoded")
                         },
-                        onOpenCardDetail = {id -> navController.navigate("card_detail/$id")}
+                        onOpenCardDetail = {id -> navController.navigate("card_detail/$id")},
+                        // 알림
+                        onNotificationsClick = {
+                            navController.navigate("notification"){
+                                launchSingleTop = true
+                                popUpTo("home") { inclusive = false }
+                            }
+                        }
                     )
                 }
                 composable("myboard") { MyBoardScreen(navController) }
@@ -230,6 +241,22 @@ fun MainScreen(
                         onLogout = { /* 로그아웃 처리 */ },
                         onWithdraw = { /* 탈퇴 처리 */ },
                         onEditName = { current -> navController.navigate("edit_name?initial=${Uri.encode(current)}") }
+                    )
+                }
+                // == 알림 페이지 ==
+                composable("notification") {
+                    val vm: NotificationViewModel = hiltViewModel()
+                    val uiState by vm.uiState.collectAsState()
+
+                    NotificationScreen(
+                        state = uiState,
+                        onRefresh = { vm.refresh() },
+                        onBack = { navController.popBackStack() },
+                        onAlarmSetting = {  /* navController.navigate("notification_settings") */ },
+                        onClickItem = { item -> vm.onClickItem(item) },
+                        onAcceptInvite = { item -> vm.onClickPrimary(item) }, // ← 이름만 맞춰 연결
+                        onRejectInvite = { item -> vm.onClickSecondary(item) },
+                        onShowMore = { section -> vm.onClickMore() }
                     )
                 }
                 composable(

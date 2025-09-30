@@ -60,7 +60,8 @@ fun CardDetailRoute(
                 item = state.item,
                 onBack = onBack,
                 onEdit = onEdit,
-                onInfoClick = onInfoClick
+                onInfoClick = onInfoClick,
+                onToggleFavorite = { viewModel.toggleFavorite() }
             )
         }
     }

@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.nubo.data.model.CardDetailResponse
+import com.example.nubo.data.model.CardFavoriteRequest
 import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.data.repository.CardRepository
 import com.example.nubo.model.card.CardDetailItem
@@ -74,6 +75,32 @@ class CardDetailViewModel @Inject constructor(
 
     // 요약 노트 수정 요약 노트 리프레쉬 함수
     fun refresh() { load() }
+
+    fun toggleFavorite(){
+        val current = _uiState.value
+        if(current !is CardDetailUiState.Success) return
+        viewModelScope.launch {
+            val token = authRepository.getAccessToken() ?: return@launch
+            val old = current.item
+            val next = !old.isFavorite
+
+            _uiState.value = CardDetailUiState.Success(old.copy(isFavorite = next))
+
+            runCatching {
+                val res = repository.updateFavorite(
+                    token = token,
+                    cardId = old.cardId,
+                    body = CardFavoriteRequest(favorite = next)
+                ).await()
+
+                val confirmed = res.favorite
+                _uiState.value = CardDetailUiState.Success(old.copy(isFavorite = confirmed))
+            }.onFailure{
+                _uiState.value = CardDetailUiState.Success(old)
+            }
+
+        }
+    }
 }
 
 
@@ -81,14 +108,17 @@ class CardDetailViewModel @Inject constructor(
 private fun CardDetailResponse.toUi(): CardDetailItem {
     // NOTE: Adjust fields to match your real response model
     return CardDetailItem(
-        id = cardId,
-        imageUrl = videoThumbnailUrl.orEmpty(),
+        cardId = cardId,
+        videoThumbnailUrl = videoThumbnailUrl.orEmpty(),
         videoUrl = videoUrl.orEmpty(),
         title = title ?: "제목 없음",
-        category = boardName ?: "카테고리 없음",
+        boardName = boardName ?: "카테고리 없음",
         boardSource = boardSource.orEmpty(),
-        description = summary ?: "설명 없음",
-        date = formatIsoDateToDisplayLegacy(createdAt), // 기존 유틸 재사용
-        videoPlatform = videoPlatform ?: "알 수 없음"
+        summary = summary ?: "설명 없음",
+        videoPlatform = videoPlatform ?: "알 수 없음",
+        createdAt = formatIsoDateToDisplayLegacy(createdAt), // 기존 유틸 재사용
+        updatedAt = formatIsoDateToDisplayLegacy(updatedAt),
+        tags = tags,
+        isFavorite = isFavorite ?: false
     )
 }

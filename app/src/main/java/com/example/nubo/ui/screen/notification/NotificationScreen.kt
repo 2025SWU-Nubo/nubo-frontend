@@ -7,72 +7,32 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.*
+import androidx.compose.material3.BottomAppBarDefaults.windowInsets
+import androidx.compose.material3.ScaffoldDefaults.contentWindowInsets
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.tooling.preview.PreviewParameter
-import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
 import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey30
-import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Grey500
-import com.example.nubo.ui.theme.Grey700
 import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.Purple100
-import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.ui.theme.PurpleMain500
-import com.example.nubo.utils.sanitizeToAllowedMarkdown
 
 // ===== Models =====
-// English comments only as requested.
-
 enum class NotiSection { Recent, Past }
-
-enum class NotiType { UnviewedReminder, NewCard, Invite, System }
-
-data class NotificationItem(
-    val id: String,
-    val title: String,
-    val message: String,
-    val timeLabel: String,
-    val type: NotiType,
-    val unread: Boolean = true,
-    val action: NotiAction? = null,
-)
-
-/* 알림 버튼 타입 */
-sealed class NotiAction {
-    // 초대 알림용: 두 개의 버튼
-    data class Invite(
-        val acceptLabel: String = "수락",
-        val rejectLabel: String = "거절"
-    ) : NotiAction()
-
-    // 더보기용: 텍스트 버튼만
-    data class ShowMore(
-        val count: Int
-    ) : NotiAction()
-}
-
-data class NotificationFeedState(
-    val recent: List<NotificationItem>,
-    val past: List<NotificationItem>,
-    val loading: Boolean = false,
-)
 
 // ===== Screen =====
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NotificationFeedScreen(
+fun NotificationScreen(
     state: NotificationFeedState,
     onRefresh: () -> Unit,
     onBack: ()-> Unit,
@@ -102,6 +62,7 @@ fun NotificationFeedScreen(
         contentWindowInsets = WindowInsets(0),
         topBar = {
             CenterAlignedTopAppBar(
+                windowInsets = WindowInsets(0),
                 title = { },
                 navigationIcon = {
                     IconButton(onClick = {
@@ -418,7 +379,7 @@ private fun NotificationFeedInteractive() {
         )
     }
 
-    NotificationFeedScreen(
+    NotificationScreen(
         state = state,
         onRefresh = {},
         onClickItem = {},
