@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -319,19 +320,19 @@ fun MainScreen(
                     }
                 }
 
-                CardDetailRoute(
-                    onBack = { navController.popBackStack() },
-                    onEdit = {
-                        android.util.Log.d("Nav", "navigate -> card_edit/$cardId")
-                        navController.navigate("card_edit/$cardId")
-                    }
-                )
+                Box(Modifier.fillMaxSize().padding( top = 50.dp)) {
+                    CardDetailRoute(
+                        onBack = { navController.popBackStack() },
+                        onEdit = { navController.navigate("card_edit/$cardId") }
+                    )
+                }
             }
 
             composable(
                 route = "card_edit/{cardId}",
                 arguments = listOf(navArgument("cardId") { type = NavType.IntType })
             ) {
+                Box(Modifier.fillMaxSize().padding( top = 50.dp)) {
                 EditCardRoute(
                     onBack = { navController.popBackStack() },
                     //저장 성공 시
@@ -343,6 +344,7 @@ fun MainScreen(
 
                     }
                 )
+            }
             }
         }
     }
