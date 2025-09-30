@@ -63,6 +63,15 @@ fun AiPromptBar(
     LaunchedEffect(showAiBar) { if (showAiBar) focusRequester.requestFocus() }
 
     var selectedPreset by remember { mutableStateOf<Int?>(null) }
+
+    var wasLoading by remember { mutableStateOf(false) }
+    LaunchedEffect(loading, canUndo) {
+        if (wasLoading && !loading && canUndo) {
+            selectedPreset = null
+        }
+        wasLoading = loading
+    }
+
     val presets = remember {
         listOf(
             PresetAction("더 간결하게", R.drawable.arrows_inside),
@@ -112,7 +121,7 @@ fun AiPromptBar(
                             )
                         },
                         colors = AssistChipDefaults.assistChipColors(
-                            containerColor = if (selected) Purple100 else Grey30,
+                            containerColor = if (selected) Purple100 else Grey20,
                             labelColor = if (selected) PurpleMain500 else Color.Black,
                             leadingIconContentColor = if (selected) PurpleMain500 else Color.Unspecified,
                         ),
@@ -128,18 +137,20 @@ fun AiPromptBar(
                         selectedPreset = null
                         focusRequester.requestFocus()
                     },
-                    containerColor = if (canUndo) Purple100 else Grey30,
+                    containerColor = if (canUndo) Purple100 else Grey20,
                     contentColor = if (canUndo) PurpleMain500 else GreyMain300,
                     borderColor = if (canUndo) PurpleMain500 else null
                 ) {
-                    Icon(painter = painterResource(R.drawable.replay), contentDescription = "되돌리기", tint = Color.Unspecified, modifier = Modifier.size(18.dp))
+                    Icon(painter = painterResource(R.drawable.replay), contentDescription = "되돌리기", modifier = Modifier.size(18.dp))
                 }
             }
 
             // 입력 + 전송
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Icon(painter = painterResource(R.drawable.ai_prompt_logo), contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(28.dp))
-                Spacer(Modifier.width(12.dp))
+                Icon(painter = painterResource(R.drawable.ai_prompt_logo), contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(30.dp))
+
+                Spacer(Modifier.width(8.dp))
+
                 Box(Modifier.weight(1f)) {
                     TextField(
                         value = tfv,
@@ -153,7 +164,7 @@ fun AiPromptBar(
                             selectedPreset = null
                         },
                         modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
-                        placeholder = { Text(if (loading) "AI가 편집 중입니다..." else "더 간결하게 요약해줘.") },
+                        placeholder = { Text(text = if (loading) " AI가 편집 중입니다..." else " 더 간결하게 요약해줘.", color = GreyMain100, style = AppTextStyles.b2_regular_16) },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         colors = TextFieldDefaults.colors(
@@ -173,11 +184,13 @@ fun AiPromptBar(
                             modifier = Modifier.matchParentSize().background(Color.White).padding(horizontal = 8.dp),
                             contentAlignment = Alignment.CenterStart
                         ) {
-                            Text("Al가 편집 중이에요...", style = AppTextStyles.label_semibold_14, color = PurpleMain500)
+                            Text("Al가 편집 중이에요...", style = AppTextStyles.b2_regular_16, color = PurpleMain500)
                         }
                     }
                 }
-                Spacer(Modifier.width(12.dp))
+
+                Spacer(Modifier.width(8.dp))
+
                 val sendContentColor = if (canSend) PurpleMain500 else GreyMain100
                 FilledIconButton(
                     onClick = { if (canSend) { onSubmit(); focusRequester.requestFocus() } },
@@ -186,9 +199,9 @@ fun AiPromptBar(
                     colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color.Transparent, contentColor = sendContentColor)
                 ) {
                     if (loading) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = sendContentColor)
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = sendContentColor)
                     } else {
-                        Icon(painterResource(R.drawable.ai_prompt_send), contentDescription = "전송", tint = sendContentColor)
+                        Icon(painterResource(R.drawable.ai_prompt_send),modifier= Modifier.size(32.dp), contentDescription = "전송", tint = sendContentColor)
                     }
                 }
             }

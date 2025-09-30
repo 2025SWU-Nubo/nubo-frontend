@@ -42,8 +42,11 @@ import com.mohamedrejeb.richeditor.ui.material3.RichTextEditor
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.components.toast.AppToastHost
+import com.example.components.toast.AppToastHostState
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.AppToastType
 import com.example.components.toast.rememberAppToastHostState
@@ -148,7 +151,7 @@ fun EditCardScreen(
         contentWindowInsets = WindowInsets(0),
         topBar = {
             CenterAlignedTopAppBar(
-                windowInsets = WindowInsets(0),
+                windowInsets = WindowInsets.statusBars,
                 title = { Text("요약 노트") },
                 navigationIcon = {
                     IconButton(onClick = {
@@ -176,8 +179,9 @@ fun EditCardScreen(
             AnimatedVisibility(
                 visible =  !showAiBar,
                 modifier = Modifier
+                    .imePadding()
                     .zIndex(30f)
-                    .padding(bottom = if (editorFocused && keyboardVisible && !showAiBar) 72.dp else 0.dp),
+                    .padding(bottom = if (editorFocused && keyboardVisible && !showAiBar) 64.dp else 30.dp),
                 enter = EnterTransition.None,
                 exit = ExitTransition.None
             ) {
@@ -227,9 +231,28 @@ fun EditCardScreen(
                 hostState = toastHost,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .zIndex(100f)                 // 어떤 바보다 위
-                    .padding(bottom = toastBottomPadding)
+                    // 키보드(IME) 인셋을 반영해서 "항상 키보드 위"에 위치
+                    .imePadding()
+                    // 네비게이션 바 있는 기기에서 하단 소프트키 위로
+                    .windowInsetsPadding(WindowInsets.navigationBars)
+                    .zIndex(100f)
+                    // AI바/마크다운바 위로 조금 더 띄우는 추가 여백만 계산
+                    .padding(
+                        bottom = when {
+                            showAiBar -> 130.dp  // aiBarHeight + 여유
+                            editorFocused && keyboardVisible && !showAiBar -> 64.dp + 12.dp   // mdBarHeight + 여유
+                            else -> 12.dp
+                        }
+                    )
             )
+//            AppToastOverlay(hostState = toastHost, modifier =
+//                Modifier.padding(
+//                bottom = when {
+//                    showAiBar -> 130.dp  // aiBarHeight + 여유
+//                    editorFocused && keyboardVisible && !showAiBar -> 64.dp + 12.dp   // mdBarHeight + 여유
+//                    else -> 12.dp
+//                }
+//                ))
 
             // 본문: 기본 패딩만 적용
             Column(
@@ -275,8 +298,14 @@ fun EditCardScreen(
             AiLoadingOverlay(
                 visible = aiLoading,
                 modifier = Modifier
+                    .padding(
+                        bottom = when {
+                            showAiBar -> 90.dp  // aiBarHeight + 여유
+//                            editorFocused && keyboardVisible && !showAiBar -> 60.dp // mdBarHeight + 여유
+                            else -> 0.dp
+                        }
+                    )
                     .matchParentSize()            // Box 꽉 채움
-                    .padding(innerPadding)        // 앱바 제외  핵심
                     .align(Alignment.Center)
                     .zIndex(12f),
                 consumeTouch = true
@@ -291,7 +320,7 @@ fun EditCardScreen(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-//                    .imePadding()
+                    .imePadding()
                     .zIndex(10f),
                 enter = fadeIn(animationSpec = tween(50)) +
                     slideInVertically(
@@ -319,7 +348,7 @@ fun EditCardScreen(
                 visible = showAiBar,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-//                    .imePadding()
+                    .imePadding()
                     .fillMaxWidth()
                     .zIndex(20f),
                 enter = fadeIn(animationSpec = tween(50)) +
@@ -370,6 +399,30 @@ fun rememberKeyboardVisible(): State<Boolean> {
     }
     return isVisible
 }
+
+@Composable
+fun AppToastOverlay(hostState: AppToastHostState,modifier: Modifier) {
+    Popup(
+        alignment = Alignment.BottomCenter,
+        properties = PopupProperties(
+            focusable = false,
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false,
+            excludeFromSystemGesture = false
+        )
+    ) {
+        AppToastHost(
+            hostState = hostState,
+            matchParentSize = false,
+            contentAlignment = Alignment.BottomCenter,
+            modifier = Modifier
+                .imePadding()                         // ← 키보드 위
+                .windowInsetsPadding(WindowInsets.navigationBars) // ← 소프트키 위
+//                .padding(bottom = 12.dp)              // 약간의 여유
+        )
+    }
+}
+
 
 
 
