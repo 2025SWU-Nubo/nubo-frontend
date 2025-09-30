@@ -177,7 +177,6 @@ fun CustomTopBar(
 
     CenterAlignedTopAppBar(
         modifier = Modifier.padding(horizontal = 12.dp),
-        windowInsets = WindowInsets(0),
         // If you prefer title centered text, set `title = { Text("Nubo") }`
         navigationIcon = {
             // Left logo (clickable)

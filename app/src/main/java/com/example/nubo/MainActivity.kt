@@ -166,16 +166,6 @@ fun MainScreen(
         WindowInsets.safeDrawing
 
     Scaffold(
-
-        // 특정 화면일 때만 시스템 인셋 자동패딩 제거
-        contentWindowInsets = if (currentRoute == "profile" || currentRoute == "information" ||
-            currentRoute == "edit_name?initial={initial}" || currentRoute == "learn" || currentRoute == "notification"
-        ) {
-
-            WindowInsets(0)
-        } else {
-            contentInsets
-        },
         bottomBar = {
             if (showBottomBar) {
                 BottomNavBar(
@@ -269,9 +259,6 @@ fun MainScreen(
                     },
                     onWithdraw = { /* 탈퇴 처리 */ },
                     onEditName = { current -> navController.navigate("edit_name?initial=${Uri.encode(current)}") },
-                    modifier = Modifier
-                        .padding(innerPadding)
-                        .statusBarsPadding()
                 )
             }
             composable("notification"){
@@ -301,9 +288,6 @@ fun MainScreen(
                             ?.set("edited_name", newName)
                         navController.popBackStack()
                     },
-                    modifier = Modifier
-                        .padding(innerPadding)
-                        .statusBarsPadding()
                 )
             }
 
