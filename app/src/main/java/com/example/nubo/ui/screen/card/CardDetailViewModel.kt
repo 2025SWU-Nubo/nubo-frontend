@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.nubo.data.model.CardDetailResponse
+import com.example.nubo.data.model.CardFavoriteRequest
 import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.data.repository.CardRepository
 import com.example.nubo.model.card.CardDetailItem
@@ -36,6 +37,9 @@ class CardDetailViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<CardDetailUiState>(CardDetailUiState.Loading)
     val uiState = _uiState.asStateFlow()
+
+    private val _toast = MutableStateFlow<String?>(null)
+    val toast = _toast.asStateFlow()
 
     init {
         load()
@@ -74,21 +78,62 @@ class CardDetailViewModel @Inject constructor(
 
     // 요약 노트 수정 요약 노트 리프레쉬 함수
     fun refresh() { load() }
+
+    fun toggleFavorite(){
+        val current = _uiState.value
+        if(current !is CardDetailUiState.Success) return
+        viewModelScope.launch {
+            val token = authRepository.getAccessToken() ?: return@launch
+            val old = current.item
+            val next = !old.isFavorite
+
+            _uiState.value = CardDetailUiState.Success(old.copy(isFavorite = next))
+
+            runCatching {
+                val res = repository.updateFavorite(
+                    token = token,
+                    cardId = old.cardId,
+                    body = CardFavoriteRequest(favorite = next)
+                ).await()
+
+                _toast.value = if(next)"즐겨 찾기 완료!" else "즐겨 찾기 해제!"
+
+                val confirmed = res.favorite
+                _uiState.value = CardDetailUiState.Success(old.copy(isFavorite = confirmed))
+            }.onFailure{e ->
+                /* 4 실패  되돌리기 가능 상태 유지  에러 토스트 */
+                _toast.value = e.humanMessage()
+                _uiState.value = CardDetailUiState.Success(old)
+            }
+        }
+    }
+
+    fun consumeToast() { _toast.value = null }
+
 }
+
+private fun Throwable.humanMessage(): String = when (this) {
+    is HttpException -> "서버 오류(${code()})가 발생했습니다"
+    else -> message ?: "다시 시도 해주세요."
+}
+
 
 
 // Mapper from API model to UI model
 private fun CardDetailResponse.toUi(): CardDetailItem {
     // NOTE: Adjust fields to match your real response model
     return CardDetailItem(
-        id = cardId,
-        imageUrl = videoThumbnailUrl.orEmpty(),
+        cardId = cardId,
+        videoThumbnailUrl = videoThumbnailUrl.orEmpty(),
         videoUrl = videoUrl.orEmpty(),
         title = title ?: "제목 없음",
-        category = boardName ?: "카테고리 없음",
+        boardName = boardName ?: "카테고리 없음",
         boardSource = boardSource.orEmpty(),
-        description = summary ?: "설명 없음",
-        date = formatIsoDateToDisplayLegacy(createdAt), // 기존 유틸 재사용
-        videoPlatform = videoPlatform ?: "알 수 없음"
+        summary = summary ?: "설명 없음",
+        videoPlatform = videoPlatform ?: "알 수 없음",
+        createdAt = formatIsoDateToDisplayLegacy(createdAt), // 기존 유틸 재사용
+        updatedAt = formatIsoDateToDisplayLegacy(updatedAt),
+        tags = tags,
+        isFavorite = isFavorite ?: false
     )
 }

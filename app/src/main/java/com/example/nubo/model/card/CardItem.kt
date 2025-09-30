@@ -14,19 +14,20 @@ data class CardItem(
 )
 
 
-fun CardItem.toDetailFallback(): CardDetailItem {
-    return CardDetailItem(
-        id = this.id,
-        imageUrl = this.imageUrl,
-        videoUrl = "",               // 상세 응답 오기 전이라 비움
-        title = this.title,
-        category = this.category,
-        boardSource = "",            // 알 수 없음 → 기본값
-        description = this.description,
-        date = "",                   // 알 수 없음 → 기본값
-        videoPlatform = ""           // 알 수 없음 → 기본값
-    )
-}
+//fun CardItem.toDetailFallback(): CardDetailItem {
+//    return CardDetailItem(
+//        id = this.id,
+//        imageUrl = this.imageUrl,
+//        videoUrl = "",               // 상세 응답 오기 전이라 비움
+//        title = this.title,
+//        category = this.category,
+//        boardSource = "",            // 알 수 없음 → 기본값
+//        description = this.description,
+//        date = "",                   // 알 수 없음 → 기본값
+//        videoPlatform = "" ,          // 알 수 없음 → 기본값
+//        tags =
+//    )
+//}
 
 fun MyCardItem.toCardItem(): CardItem {
     return CardItem(

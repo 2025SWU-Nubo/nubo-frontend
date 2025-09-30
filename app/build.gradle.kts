@@ -108,8 +108,11 @@ dependencies {
     // FCM
     implementation ("com.google.firebase:firebase-messaging-ktx")
 
-    // (선택) 로그용
+    //
     implementation ("com.google.firebase:firebase-analytics-ktx")
+
+    // navhost 페이지 이동 애니메이션 커스텀
+    implementation(libs.accompanist.navigation.animation)
 
 }
 

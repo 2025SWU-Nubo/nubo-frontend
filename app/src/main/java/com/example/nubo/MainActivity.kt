@@ -59,6 +59,8 @@ import com.example.nubo.ui.screen.profile.EditNameScreen
 import com.example.nubo.ui.screen.profile.InformationScreen
 import com.example.nubo.ui.screen.profile.NotificationScreen
 import com.example.nubo.ui.screen.profile.ProfileRoute
+import com.example.nubo.ui.screen.notification.NotificationScreen
+import com.example.nubo.ui.screen.notification.NotificationViewModel
 import com.example.nubo.ui.theme.NuboAppTheme
 import com.example.nubo.utils.cacheToStore
 import com.example.nubo.utils.startOnboardingForLogin
@@ -144,6 +146,8 @@ fun RequestNotificationPermissionOnce() {
     }
 }
 
+
+// == 메인 스크린 ==
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
@@ -184,6 +188,104 @@ fun MainScreen(
             }
         }
     ) { innerPadding ->
+
+        Box(Modifier.padding(innerPadding)) {
+            NavHost(
+                navController = navController,
+                startDestination = "home",
+                modifier = Modifier.fillMaxSize()
+            ) {
+                composable("home") {
+                    HomeScreen(
+                        onMoreClick = { navController.navigate("learn") },
+                        onOpenBoard = { boardId, boardName ->
+                            // Encode title for route
+                            val encoded = URLEncoder.encode(boardName, StandardCharsets.UTF_8.toString())
+                            navController.navigate("board_detail/$boardId/$encoded")
+                        },
+                        onOpenCardDetail = {id -> navController.navigate("card_detail/$id")},
+                        // 알림
+                        onNotificationsClick = {
+                            navController.navigate("notification"){
+                                launchSingleTop = true
+                                popUpTo("home") { inclusive = false }
+                            }
+                        }
+                    )
+                }
+                composable("myboard") { MyBoardScreen(navController) }
+                composable("learn") { LearnScreen() }
+                composable("profile") {
+                    // ViewModel과 묶인 Route로 교체
+                    ProfileRoute(
+                        navController = navController,
+                        onBack = { navController.popBackStack() },
+                        onMyInfo = { navController.navigate("information") }
+                    )
+                }
+                composable(
+                    route = "board_detail/{boardId}/{boardTitle}",
+                    arguments = listOf(
+                        navArgument("boardId") { type = NavType.IntType },       // boardId is Int
+                        navArgument("boardTitle") { type = NavType.StringType }   // title is String
+                    )
+                ) { backStackEntry ->
+                    // Safe: types match the navArguments above
+                    val boardId = backStackEntry.arguments?.getInt("boardId") ?: return@composable
+                    val boardTitle = backStackEntry.arguments?.getString("boardTitle") ?: "로딩 중..."
+
+                    BoardDetailScreen(
+                        boardId = boardId,
+                        boardTitle = boardTitle,
+                        navController = navController
+                    )
+                }
+                composable("information") {
+                    InformationScreen(
+                        navController = navController,
+                        onBack = { navController.popBackStack() }, // 뒤로가기
+                        onEditProfileImage = { /* 편집 처리 */ },
+                        onLogout = { /* 로그아웃 처리 */ },
+                        onWithdraw = { /* 탈퇴 처리 */ },
+                        onEditName = { current -> navController.navigate("edit_name?initial=${Uri.encode(current)}") }
+                    )
+                }
+                // == 알림 페이지 ==
+                composable("notification") {
+                    val vm: NotificationViewModel = hiltViewModel()
+                    val uiState by vm.uiState.collectAsState()
+
+                    NotificationScreen(
+                        state = uiState,
+                        onRefresh = { vm.refresh() },
+                        onBack = { navController.popBackStack() },
+                        onAlarmSetting = {  /* navController.navigate("notification_settings") */ },
+                        onClickItem = { item -> vm.onClickItem(item) },
+                        onAcceptInvite = { item -> vm.onClickPrimary(item) }, // ← 이름만 맞춰 연결
+                        onRejectInvite = { item -> vm.onClickSecondary(item) },
+                        onShowMore = { section -> vm.onClickMore() }
+                    )
+                }
+                composable(
+                    route = "edit_name?initial={initial}",
+                    arguments = listOf(navArgument("initial") { defaultValue = "" })
+                ) { backStackEntry ->
+                    val initial = backStackEntry.arguments?.getString("initial").orEmpty()
+
+                    EditNameScreen(
+                        initial = initial,
+                        onBack = {
+                            navController.previousBackStackEntry
+                                ?.savedStateHandle
+                                ?.remove<String>("edited_name")   // ← 취소 시 잔여값 제거
+                            navController.popBackStack()
+                        },
+                        onDone = { newName ->
+                            // 값 반환 후 이전 화면으로
+                            navController.previousBackStackEntry
+                                ?.savedStateHandle
+                                ?.set("edited_name", newName)
+                            navController.popBackStack()
         NavHost(
             navController = navController,
             startDestination = "home",

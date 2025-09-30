@@ -104,26 +104,28 @@ fun DetailCardDialog(
 //    return LocalInspectionMode.current
 //}
 
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun DetailCardDialogScreenPreview() {
-    NuboAppTheme {
-        // 샘플 데이터 생성
-        val sampleItem = CardDetailItem(
-            id = 12344,
-            imageUrl = "https://picsum.photos/400/300",
-            videoUrl = "",
-            title = "샘플 카드",
-            category = "AI 개발",
-            boardSource = "AI",
-            description = "이것은 샘플 카드 설명입니다.",
-            date = "2025.06.11",
-            videoPlatform = "youtube"
-        )
-
-
-        DetailCardDialog(sampleItem,
-            onDismiss = {})
-    }
-}
+//@Preview(showBackground = true, showSystemUi = true)
+//@Composable
+//fun DetailCardDialogScreenPreview() {
+//    NuboAppTheme {
+//        val sample = listOf("전자렌지 요리","자취 요리","계란밥")
+//        // 샘플 데이터 생성
+//        val sampleItem = CardDetailItem(
+//            icad = 12344,
+//            imageUrl = "https://picsum.photos/400/300",
+//            videoUrl = "",
+//            title = "샘플 카드",
+//            category = "AI 개발",
+//            boardSource = "AI",
+//            description = "이것은 샘플 카드 설명입니다.",
+//            date = "2025.06.11",
+//            videoPlatform = "youtube",
+//            tags = sample
+//        )
+//
+//
+//        DetailCardDialog(sampleItem,
+//            onDismiss = {})
+//    }
+//}
 

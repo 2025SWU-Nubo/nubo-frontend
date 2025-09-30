@@ -107,15 +107,18 @@ fun BoardDetailContent(
 
         cardDetail?.let { detail ->
             val detailItem = CardDetailItem(
-                id = detail.cardId,
-                imageUrl = detail.videoThumbnailUrl ?: "",
+                cardId = detail.cardId,
+                videoThumbnailUrl = detail.videoThumbnailUrl ?: "",
                 videoUrl = detail.videoUrl ?: "",
                 title = detail.title ?: "제목 없음",
-                category = detail.boardName ?: "카테고리 없음",
+                boardName = detail.boardName ?: "카테고리 없음",
                 boardSource = detail.boardSource ?: "",
-                description = detail.summary ?: "설명 없음",
-                date = formatIsoDateToDisplayLegacy(detail.createdAt),
-                videoPlatform = detail.videoPlatform ?: "알 수 없음"
+                summary = detail.summary ?: "설명 없음",
+                createdAt = formatIsoDateToDisplayLegacy(detail.createdAt),
+                updatedAt =  formatIsoDateToDisplayLegacy(detail.updatedAt),
+                videoPlatform = detail.videoPlatform ?: "알 수 없음",
+                tags = detail.tags,
+                isFavorite = detail.isFavorite,
             )
             DetailCardDialog(
                 item = detailItem,

@@ -23,7 +23,10 @@ import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -36,7 +39,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
@@ -44,16 +49,109 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
 import com.halilibo.richtext.commonmark.Markdown
 import com.halilibo.richtext.ui.material3.RichText
 import androidx.core.net.toUri
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
+import com.example.components.toast.AppToastHost
+import com.example.components.toast.AppToastLayout
+import com.example.components.toast.AppToastType
+import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.model.card.CardDetailItem
 import com.example.nubo.ui.theme.GreyMain100
 import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.PurpleMain500
+import kotlin.math.max
+
+//@OptIn(ExperimentalMaterial3Api::class)
+//@Composable
+//fun CardDetailScreen(
+//    item: CardDetailItem,
+//    onBack: () -> Unit,
+//    onInfoClick: (() -> Unit)? = null,
+//    onEdit: (()-> Unit)? = null,
+//    onToggleFavorite: () -> Unit,
+//    viewModel: CardDetailViewModel = hiltViewModel()
+//) {
+//    // 시스템 뒤로가기 키 처리
+//    BackHandler { onBack() }
+//
+//    val context = LocalContext.current
+//    val scrollState = rememberScrollState() // 상위 하나만 스크롤 유지
+//
+//    val toast by viewModel.toast.collectAsState()
+//    val toastHost = rememberAppToastHostState()
+//
+//    LaunchedEffect(toast) {
+//        toast?.let { msg ->
+//            toastHost.show(
+//                title = AnnotatedString(msg),
+//                layout = AppToastLayout.TitleOnly,
+//                type = AppToastType.NORMAL,
+//                durationMillis = 2000
+//            )
+//            viewModel.consumeToast()
+//        }
+//    }
+//
+//    Scaffold(
+//        // 상단 바
+//        topBar= {
+//            CustomTopBar(
+//                item.title,
+//                onBack,
+//                onEdit,
+//                isFavorite = item.isFavorite,
+//                onToggleFavorite = onToggleFavorite
+//            )
+//                },
+////        contentWindowInsets = WindowInsets(0)
+//
+//    ) { inner ->
+//        Column(
+//            modifier = Modifier
+//                .fillMaxSize()
+//                .padding(inner)
+//                .padding(horizontal = 16.dp)
+//                .verticalScroll(scrollState), // 상위 한 곳에만 스크롤
+//            verticalArrangement = Arrangement.spacedBy(16.dp)
+//        ) {
+//
+//
+//            // ===== 원본 영상(바로가기 버튼, 상세 정보 아이콘) =====
+//            ImageWithButton(
+//                item,
+//                onInfoClick={ onInfoClick?.invoke() },
+//                onPlayClick = {
+//                    item.videoUrl.takeIf { it.isNotBlank() }?.let { url ->
+//                context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
+//                }
+//            )
+//
+//            Spacer(Modifier.height(8.dp))
+//
+//            // ===== 본문 섹션 =====
+//            DetailBodyMarkdown(
+//                description = item.summary,
+//            )
+////            Spacer(Modifier.height(12.dp))
+//            CardKeyword(item.tags)
+//        }
+//
+//        /* 토스트 */
+//        AppToastHost(
+//            hostState = toastHost,
+//            modifier = Modifier
+//                .align(Alignment.TopCenter)
+//                .zIndex(100f)                 // 어떤 바보다 위
+//                .padding(bottom = 16.dp)
+//        )
+//    }
+//}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,49 +159,93 @@ fun CardDetailScreen(
     item: CardDetailItem,
     onBack: () -> Unit,
     onInfoClick: (() -> Unit)? = null,
-    onEdit: (()-> Unit)? = null
+    onEdit: (() -> Unit)? = null,
+    onToggleFavorite: () -> Unit,
+    toastMessage: String?,
+    onConsumeToast: () -> Unit
 ) {
-    // 시스템 뒤로가기 키 처리
+    // 뒤로가기 처리
     BackHandler { onBack() }
 
     val context = LocalContext.current
-    val scrollState = rememberScrollState() // 상위 하나만 스크롤 유지
+    val scrollState = rememberScrollState()
+    val toastHost = rememberAppToastHostState()
+
+    // 토스트 표시
+    LaunchedEffect(toastMessage) {
+        toastMessage?.let { msg ->
+            toastHost.show(
+                title = AnnotatedString(msg),
+                layout = AppToastLayout.TitleOnly,
+                type = AppToastType.NORMAL,
+                durationMillis = 2000
+            )
+            onConsumeToast()
+        }
+    }
 
     Scaffold(
-        // 상단 바
-        topBar= {CustomTopBar(item.title,onBack,onEdit)},
-//        contentWindowInsets = WindowInsets(0)
-
+        topBar = {
+            CustomTopBar(
+                title = item.title,
+                onBack = onBack,
+                onEdit = onEdit,
+                isFavorite = item.isFavorite,
+                onToggleFavorite = onToggleFavorite
+            )
+        }
     ) { inner ->
-        Column(
+
+        // 아래 오버레이 패딩 계산
+        val density = LocalDensity.current
+        val imeBottomPx = WindowInsets.ime.getBottom(density)
+        val navBottomPx = WindowInsets.navigationBars.getBottom(density)// 키보드 높이
+        // Int끼리 먼저 max
+        val bottomInsetPx = max(imeBottomPx, navBottomPx)
+        // Dp로 변환
+        val bottomInsetDp = with(density) { bottomInsetPx.toDp() }
+        // Scaffold의 패딩(Dp) + 계산된 Dp + 여백
+        val finalBottomPadding = inner.calculateBottomPadding() + bottomInsetDp + 16.dp
+
+
+        Box( // 오버레이 컨테이너
             modifier = Modifier
                 .fillMaxSize()
                 .padding(inner)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(scrollState), // 상위 한 곳에만 스크롤
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 본문
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(scrollState),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                ImageWithButton(
+                    item = item,
+                    onInfoClick = { onInfoClick?.invoke() },
+                    onPlayClick = {
+                        item.videoUrl.takeIf { it.isNotBlank() }?.let { url ->
+                            context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
+                        }
+                    }
+                )
+                Spacer(Modifier.height(8.dp))
+                DetailBodyMarkdown(description = item.summary)
+                CardKeyword(item.tags)
+            }
 
-            // ===== 원본 영상(바로가기 버튼, 상세 정보 아이콘) =====
-            ImageWithButton(
-                item,
-                onInfoClick={ onInfoClick?.invoke() },
-                onPlayClick = {
-                    item.videoUrl.takeIf { it.isNotBlank() }?.let { url ->
-                context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
-                }
+            // 토스트  아래 중앙 오버레이
+            AppToastHost(
+                hostState = toastHost,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = finalBottomPadding)
             )
-
-            Spacer(Modifier.height(8.dp))
-
-            // ===== 본문 섹션 =====
-            DetailBodyMarkdown(
-                description = item.description,
-            )
-            Spacer(Modifier.height(12.dp))
         }
     }
 }
+
 
 
 /**
@@ -114,7 +256,9 @@ fun CardDetailScreen(
 private fun CustomTopBar(
     title: String,
     onBack: () -> Unit,
-    onEdit: (() -> Unit)?= null
+    onEdit: (() -> Unit)?= null,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit
 ){
     CenterAlignedTopAppBar(
         windowInsets = WindowInsets(0),
@@ -135,13 +279,24 @@ private fun CustomTopBar(
             )
         },
         actions = {
-            IconButton(onClick = {onEdit?.invoke()}) {
+            IconButton(onClick = onToggleFavorite) {
+                Icon(
+                    painter = painterResource(
+                        if (isFavorite) R.drawable.selected_star else R.drawable.unselected_star
+                    ),
+                    tint = Color.Unspecified,
+                    contentDescription = if (isFavorite) "즐겨찾기 해제" else "즐겨찾기 설정"
+                )
+            }
+            IconButton(onClick = { onEdit?.invoke() }) {
                 Icon(
                     painter = painterResource(R.drawable.edit),
                     contentDescription = "수정하기"
                 )
             }
-        }
+        },
+
+
     )
 }
 
@@ -161,7 +316,7 @@ private fun ImageWithButton(
             .height(215.dp)
     ) {
         Image(
-            painter = rememberAsyncImagePainter(item.imageUrl),
+            painter = rememberAsyncImagePainter(item.videoThumbnailUrl),
             contentDescription = null,
             modifier = Modifier
                 .fillMaxSize()
@@ -205,8 +360,6 @@ private fun ImageWithButton(
 }
 
 
-
-
 /**
  * 카드 상세(제목 + 구분선 + Markdown)
  */
@@ -242,16 +395,17 @@ private fun DetailBodyMarkdown(
         normalizedMd.lineSequence().count() > maxCollapseLines
     }
 
+    // ui
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(Color.White),
         border = BorderStroke(1.5.dp, GreyMain100),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp)) {
             Text(
                 text = "요약 노트",
-                style = AppTextStyles.label_semibold_14,
+                style = AppTextStyles.b2_semibold_16,
                 color = GreyMain300
             )
             Spacer(Modifier.height(8.dp))
@@ -301,7 +455,7 @@ private fun DetailBodyMarkdown(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { isExpanded = !isExpanded }
-                        .padding(vertical = 8.dp),
+                        .padding(top = 20.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -322,58 +476,81 @@ private fun DetailBodyMarkdown(
     }
 }
 
-
-// 프리뷰용 더미 데이터
-@Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun CardDetailScreenPreview() {
-    MaterialTheme {
-        CardDetailScreen(
-            item = CardDetailItem(
-                id = 1,
-                title = "Jetpack Compose 완벽 가이드(아주 길어지면 어떡하지?)",
-                description = """
-## Jetpack Compose 소개
+private fun CardKeyword(
+    keywords: List<String>
+){
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(Color.White),
+        border = BorderStroke(1.5.dp, GreyMain100),
+    ) {
+        Column (
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp)
+        ){
+            Text(text = "포함된 키워드", style = AppTextStyles.b2_semibold_16, color = GreyMain300)
+            Spacer(Modifier.height(12.dp))
 
-**Jetpack Compose**는 Android의 최신 UI 툴킷입니다.
-
-### 주요 특징
-
-### 1. 선언형 UI
-- 상태에 따라 UI가 자동으로 업데이트됩니다
-- `@Composable` 함수를 사용합니다
-
-### 2. 완전히 Kotlin으로 작성
-```kotlin
-@Composable
-fun Greeting(name: String) {
-    Text(text = "Hello ${'$'}name!")
-}
-```
-
-### 3. 기존 View 시스템과 상호 운용성
-- 기존 앱에 점진적으로 도입 가능
-- `ComposeView`와 `AndroidView` 사용
-
-## 장점
-- **빠른 개발**: 적은 코드로 더 많은 작업
-- **직관적**: UI가 어떻게 보일지 바로 알 수 있음
-- **강력함**: 애니메이션, 테마, 접근성 기본 제공
-
-> "Compose makes it fun to build Android UIs"
-> - Android Team
-
-더 자세한 내용은 [공식 문서](https://developer.android.com/jetpack/compose)를 참고하세요.
-                """.trimIndent(),
-                videoUrl = "https://www.youtube.com/watch?v=example",
-                date = "2024-01-15T09:00:00Z",
-                imageUrl = "https://picsum.photos/seed/compose/800/450",  // or ""
-                category = "Android",
-                boardSource = "Nubo",
-                videoPlatform = "YOUTUBE"
-            ),
-            onBack = { /* 미리보기에서는 동작하지 않음 */ },
-            onInfoClick = { /* 정보 버튼 클릭 */ }
-        )
+            val display = if(keywords.isEmpty()) "키워드가 없어요" else keywords.joinToString(separator = " ")
+            Text(text = display, style = AppTextStyles.b2_regular_16, color = GreyMain300)
+        }
     }
 }
+
+
+// 프리뷰용 더미 데이터
+//@Preview(showBackground = true, showSystemUi = true)
+//@Composable
+//fun CardDetailScreenPreview() {
+//    MaterialTheme {
+//        CardDetailScreen(
+//            item = CardDetailItem(
+//                id = 1,
+//                title = "Jetpack Compose 완벽 가이드(아주 길어지면 어떡하지?)",
+//                description = """
+//## Jetpack Compose 소개
+//
+//**Jetpack Compose**는 Android의 최신 UI 툴킷입니다.
+//
+//### 주요 특징
+//
+//### 1. 선언형 UI
+//- 상태에 따라 UI가 자동으로 업데이트됩니다
+//- `@Composable` 함수를 사용합니다
+//
+//### 2. 완전히 Kotlin으로 작성
+//```kotlin
+//@Composable
+//fun Greeting(name: String) {
+//    Text(text = "Hello ${'$'}name!")
+//}
+//```
+//
+//### 3. 기존 View 시스템과 상호 운용성
+//- 기존 앱에 점진적으로 도입 가능
+//- `ComposeView`와 `AndroidView` 사용
+//
+//## 장점
+//- **빠른 개발**: 적은 코드로 더 많은 작업
+//- **직관적**: UI가 어떻게 보일지 바로 알 수 있음
+//- **강력함**: 애니메이션, 테마, 접근성 기본 제공
+//
+//> "Compose makes it fun to build Android UIs"
+//> - Android Team
+//
+//더 자세한 내용은 [공식 문서](https://developer.android.com/jetpack/compose)를 참고하세요.
+//                """.trimIndent(),
+//                videoUrl = "https://www.youtube.com/watch?v=example",
+//                date = "2024-01-15T09:00:00Z",
+//                imageUrl = "https://picsum.photos/seed/compose/800/450",  // or ""
+//                category = "Android",
+//                boardSource = "Nubo",
+//                videoPlatform = "YOUTUBE",
+//                tags = ["# frontend","# android"]
+//            ),
+//            onBack = { /* 미리보기에서는 동작하지 않음 */ },
+//            onInfoClick = { /* 정보 버튼 클릭 */ }
+//        )
+//    }
+//}
