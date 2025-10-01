@@ -21,6 +21,7 @@ fun CardDetailRoute(
 ) {
     // Collect lifecycle-aware state from ViewModel
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
+    val toast = viewModel.toast.collectAsStateWithLifecycle().value
 
     when (state) {
         is CardDetailUiState.Loading -> {
@@ -60,7 +61,11 @@ fun CardDetailRoute(
                 item = state.item,
                 onBack = onBack,
                 onEdit = onEdit,
-                onInfoClick = onInfoClick
+                onInfoClick = onInfoClick,
+                onToggleFavorite = { viewModel.toggleFavorite() },
+                toastMessage = toast,                  // 라우트에서 내려줌
+                onConsumeToast = { viewModel.consumeToast() } // 소모 콜백
+
             )
         }
     }

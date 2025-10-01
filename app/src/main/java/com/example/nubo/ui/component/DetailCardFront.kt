@@ -61,7 +61,7 @@ fun DetailCardFront(
         ) {
             // 배경 이미지 (카드 배경 꽉 차게)
             AsyncImage(
-                model = item.imageUrl,
+                model = item.videoThumbnailUrl,
                 contentDescription = item.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
@@ -154,7 +154,7 @@ fun DetailCardFront(
                         verticalArrangement = Arrangement.SpaceBetween// 텍스트 좌측 정렬
                     ) {
                         Text(
-                            text = item.category,
+                            text = item.boardName,
                             color = Color.White,
                             style = AppTextStyles.label_medium_12,
                             textAlign = TextAlign.Center,
@@ -180,7 +180,7 @@ fun DetailCardFront(
                         verticalArrangement = Arrangement.Bottom // 텍스트 중앙 정렬
                     ) {
                         Text(
-                            text = item.date,
+                            text = item.createdAt,
                             color = Color.White,
                             style = AppTextStyles.label_medium_12,
                             textAlign = TextAlign.Center,

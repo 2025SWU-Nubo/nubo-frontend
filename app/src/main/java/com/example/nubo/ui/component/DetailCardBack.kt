@@ -96,7 +96,7 @@ fun DetailCardBack(
                         .verticalScroll(rememberScrollState())
                 ) {
                     RichText {
-                        Markdown(item.description)
+                        Markdown(item.summary)
                     }
                 }
             }

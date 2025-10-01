@@ -4,6 +4,8 @@ import com.example.nubo.data.model.CardResponse
 import com.example.nubo.data.model.CardUploadRequest
 import com.example.nubo.data.model.CardUploadResponse
 import com.example.nubo.data.model.CardDetailResponse
+import com.example.nubo.data.model.CardFavoriteRequest
+import com.example.nubo.data.model.CardFavoriteResponse
 import com.example.nubo.data.model.EditSummaryAiRequest
 import com.example.nubo.data.model.EditSummaryRequest
 import com.example.nubo.data.model.EditSummaryResponse
@@ -68,5 +70,13 @@ interface CardService {
         @Path("cardId") cardId: Int,
         @Body body: EditSummaryAiRequest
     ): Call<EditSummaryResponse>
+
+    @PATCH("/api/card/{cardId}/favorite")
+    fun updateCardFavorite(
+        @Header("Authorization") bearer: String,
+        @Header("Accept") accept: String = "application/json",
+        @Path("cardId") cardId: Int,
+        @Body body: CardFavoriteRequest
+    ): Call<CardFavoriteResponse>
 
 }

@@ -90,8 +90,8 @@ fun HomeScreen(
     onOpenCardDetail:(Int) -> Unit,
     onLogoClick: (() -> Unit)? = null,
     onNotificationsClick: (() -> Unit)? = null,
-//    onOpenBoard: (Int) -> Unit = {},
     onOpenBoard: (Int, String) -> Unit = { _, _ -> }
+
 
 ) {
     val vm: HomeViewModel = hiltViewModel()

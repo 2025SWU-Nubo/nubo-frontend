@@ -1,6 +1,8 @@
 package com.example.nubo.data.repository
 
 import com.example.nubo.data.model.CardDetailResponse
+import com.example.nubo.data.model.CardFavoriteRequest
+import com.example.nubo.data.model.CardFavoriteResponse
 import com.example.nubo.data.model.CardResponse
 import com.example.nubo.data.model.CardUploadRequest
 import com.example.nubo.data.model.CardUploadResponse
@@ -59,5 +61,10 @@ class CardRepository @Inject constructor(private val apiService: CardService) {
     // ai 요약 노트 수정
     fun updateSummaryWithAi(token: String,cardId: Int,body: EditSummaryAiRequest):Call<EditSummaryResponse>{
         return apiService.updateCardSummaryWithAi("Bearer $token", "application/json", cardId, body)
+    }
+
+    // 카드 즐겨찾기 수정
+    fun updateFavorite(token: String,cardId:Int,body: CardFavoriteRequest):Call<CardFavoriteResponse>{
+        return apiService.updateCardFavorite("Bearer $token", "application/json", cardId, body)
     }
 }

@@ -30,7 +30,7 @@ gsonVersion = "2.10.1"
 playServicesAuth = "21.3.0"
 
 ksp = "2.0.21-1.0.27"
-
+accompanist = "0.36.0"
 
 
 
@@ -83,3 +83,4 @@ javapoet = { group = "com.squareup", name = "javapoet", version.ref = "javapoet"
 richtext-commonmark-v100alpha03 = { module = "com.halilibo.compose-richtext:richtext-commonmark", version.ref = "richtextCommonmarkVersion" }
 
 richtext-ui-material3-v100alpha03 = { module = "com.halilibo.compose-richtext:richtext-ui-material3", version.ref = "richtextUiMaterial3Version" }
+accompanist-navigation-animation = { module = "com.google.accompanist:accompanist-navigation-animation", version.ref = "accompanist" }

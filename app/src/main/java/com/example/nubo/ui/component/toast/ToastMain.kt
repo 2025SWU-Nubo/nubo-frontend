@@ -2,7 +2,6 @@
 
 package com.example.components.toast
 
-import android.R.style
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -14,19 +13,14 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -34,7 +28,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -42,7 +35,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey700
-import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.PurpleMain500
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -201,17 +193,10 @@ fun AppToastHost(
         AnimatedVisibility(
             visible = data != null,
             enter = slideInVertically(
-                // 처음 위치: 자신의 높이의 1/3 아래 → 위로 살짝 끌어올려 보이는 효과
                 initialOffsetY = { it / 3 },
                 animationSpec = tween(durationMillis = 240, easing = FastOutLinearInEasing)
             ) + fadeIn(animationSpec = tween(180)),
-            exit = run {
-                val extra = with(LocalDensity.current) { 24.dp.roundToPx() } // 바깥 여백만큼 더 내려가게
-                slideOutVertically(
-                    targetOffsetY = { it + extra },
-                    animationSpec = tween(durationMillis = 260, easing = LinearOutSlowInEasing)
-                )
-            } + fadeOut(animationSpec = tween(200))
+            exit = fadeOut(animationSpec = tween(500))
         ) {
             data?.let { t ->
                 val toastStyle = styleProvider(t.type)
