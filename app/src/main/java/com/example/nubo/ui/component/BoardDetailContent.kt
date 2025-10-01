@@ -35,7 +35,8 @@ fun BoardDetailContent(
     cardDetail: CardDetailResponse?,
     isDetailLoading: Boolean,
     onCardClick: (Int) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onFavoriteClick: (BoardItem) -> Unit // 즐겨찾기 클릭 콜백
 ) {
     // 카드 Masonry
     val leftItems = cardItems.filterIndexed { i, _ -> i % 2 == 0 }
@@ -53,7 +54,8 @@ fun BoardDetailContent(
                 rowItems.forEach { item ->
                     BoardCardWithText(
                         board = item,
-                        onClick = { /*Todo*/ }
+                        onClick = { /*Todo*/ },
+                        onFavoriteClick = onFavoriteClick
                     )
                 }
                 if (rowItems.size < 2) {

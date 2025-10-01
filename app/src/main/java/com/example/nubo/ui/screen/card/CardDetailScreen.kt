@@ -61,7 +61,7 @@ fun CardDetailScreen(
     item: CardDetailItem,
     onBack: () -> Unit,
     onInfoClick: (() -> Unit)? = null,
-    onEdit: (()-> Unit)? = null
+    onEdit: (()-> Unit)? = null,
 ) {
     // 시스템 뒤로가기 키 처리
     BackHandler { onBack() }

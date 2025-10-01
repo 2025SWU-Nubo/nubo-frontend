@@ -184,7 +184,7 @@ fun AddVideoSheet(
                 },modifier = Modifier.align(Alignment.CenterStart))
             {
                 Icon(
-                    painter = painterResource(id = R.drawable.close_icon),
+                    painter = painterResource(id = R.drawable.ic_close),
                     contentDescription = "닫기",
                     tint = Grey500
                 )

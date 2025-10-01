@@ -101,6 +101,10 @@ fun BoardDetailScreen(
                     onDismiss = {
                         selectedCardId = null
                         myCardViewModel.clearCardDetail()
+                    },
+                        onFavoriteClick = { item ->
+                        // 한글 주석: 즐겨찾기 토글 콜백 → ViewModel 위임
+
                     }
                 )
             } else {
@@ -119,6 +123,10 @@ fun BoardDetailScreen(
                     onDismiss = {
                         selectedCardId = null
                         myCardViewModel.clearCardDetail()
+                    },
+                    onFavoriteClick = { item ->
+                        // 한글 주석: 즐겨찾기 토글 콜백 → ViewModel 위임
+
                     }
                 )
             }
@@ -135,7 +143,7 @@ fun DetailTopBar(onBack: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 10.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 65.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -269,8 +277,8 @@ fun BoardFilterButton() {
 
 fun SectionDto.toBoardItem(): BoardItem {
     return BoardItem(
-        id = this.id,
-        serverBoardId = this.id,
+        id = this.id.toInt(),              // ← Long → Int
+        serverBoardId = this.id.toInt(),
         title = this.name,
         subtitle = "${this.cardCount} 카드",
         createdAt = getDisplayDate(this.updatedAt),

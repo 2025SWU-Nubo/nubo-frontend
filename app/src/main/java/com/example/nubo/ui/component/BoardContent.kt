@@ -44,7 +44,8 @@ import kotlin.collections.chunked
 @Composable
 fun BoardContent(
     boards: List<BoardItem>,
-    onCardClick: (BoardItem) -> Unit
+    onCardClick: (BoardItem) -> Unit,
+    onFavoriteClick: (BoardItem) -> Unit // 즐겨찾기 클릭 콜백
 ) {
     LazyColumn(
         modifier = Modifier
@@ -59,12 +60,14 @@ fun BoardContent(
                     if (item.source == "AI") {
                         BoardCardWithText(
                             board = item,
-                            onClick = { onCardClick(item) }
+                            onClick = { onCardClick(item) },
+                            onFavoriteClick = onFavoriteClick
                         )
                     } else {
                         FullBoardCard(
                             board = item,
-                            onClick = { onCardClick(item) }
+                            onClick = { onCardClick(item) },
+                            onFavoriteClick = onFavoriteClick
                         )
                     }
                 }
@@ -79,7 +82,8 @@ fun BoardContent(
     @Composable
 fun BoardCardWithText(
         board: BoardItem,
-        onClick: () -> Unit
+        onClick: () -> Unit,
+        onFavoriteClick: (BoardItem) -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -135,15 +139,19 @@ fun BoardCardWithText(
                         color = DefaultText,
                         maxLines = 1
                     )
+                    // 즐겨찾기 아이콘 (빈별/채운별 리소스 교체)
                     Icon(
                         painter = painterResource(
                             id = if (board.isBookmarked)
-                                R.drawable.ic_board_star
+                                R.drawable.ic_board_fillstar
                             else
                                 R.drawable.ic_board_star
                         ),
                         contentDescription = "즐겨찾기 아이콘",
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clickable { onFavoriteClick(board) }, // 클릭 시 콜백 호출
+                        tint = Color.Unspecified // 리소스 원본 색 유지
                     )
                 }
 
@@ -170,7 +178,8 @@ fun BoardCardWithText(
 @Composable
 fun FullBoardCard(
     board: BoardItem,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onFavoriteClick: (BoardItem) -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -227,15 +236,19 @@ fun FullBoardCard(
                         color = DefaultText,
                         maxLines = 1
                     )
+                    // 즐겨찾기 아이콘 (빈별/채운별 리소스 교체)
                     Icon(
                         painter = painterResource(
                             id = if (board.isBookmarked)
-                                R.drawable.ic_board_star
+                                R.drawable.ic_board_fillstar
                             else
                                 R.drawable.ic_board_star
                         ),
                         contentDescription = "즐겨찾기 아이콘",
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clickable { onFavoriteClick(board) }, // 클릭 시 콜백 호출
+                        tint = Color.Unspecified // 리소스 원본 색 유지
                     )
                 }
 

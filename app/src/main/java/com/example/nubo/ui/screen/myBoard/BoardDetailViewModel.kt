@@ -32,3 +32,4 @@ class BoardDetailViewModel @Inject constructor(
         }
     }
 }
+

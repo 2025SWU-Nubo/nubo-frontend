@@ -62,7 +62,7 @@ fun DetailCardBack(
                     ) {
                         IconButton(onClick = { onDismiss() }) {
                             Icon(
-                                painter = painterResource(id = R.drawable.close_icon),
+                                painter = painterResource(id = R.drawable.ic_close),
                                 contentDescription = "닫기",
                                 tint = Color.Black
                             )
