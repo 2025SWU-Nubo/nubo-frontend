@@ -18,6 +18,13 @@ import retrofit2.Callback
 import retrofit2.Response
 import javax.inject.Inject
 
+// 카드 정렬/필터 값
+enum class CardSort { LATEST, OLDEST, ALPHABET }
+enum class CardFilter { ALL, FAVORITE, SHARED }
+// 현재 정렬/필터 상태
+private var sort: CardSort = CardSort.LATEST   // 기본 최신순
+private var filter: CardFilter = CardFilter.ALL
+
 @HiltViewModel
 class MyCardViewModel @Inject constructor(
     private val cardRepository: CardRepository,
@@ -55,6 +62,34 @@ class MyCardViewModel @Inject constructor(
     fun loadMore() {
         if (isLast || _isLoading.value) return
         loadCards(reset = false)
+    }
+
+    // 정렬 변경
+    fun setSort(newSort: String) {
+        val s = when (newSort) {
+            "LATEST" -> CardSort.LATEST
+            //"OLDEST" -> CardSort.OLDEST
+            //"ALPHABET" -> CardSort.ALPHABET
+            else -> sort
+        }
+        if (s != sort) {
+            sort = s
+            refresh()   // 재조회
+        }
+    }
+
+    // 필터 변경
+    fun setFilter(newFilter: String) {
+        val f = when (newFilter) {
+            "ALL" -> CardFilter.ALL
+            "FAVORITE" -> CardFilter.FAVORITE
+            "SHARED" -> CardFilter.SHARED
+            else -> filter
+        }
+        if (f != filter) {
+            filter = f
+            refresh()   // 재조회
+        }
     }
 
 //    private fun fetchCards() {
@@ -115,8 +150,8 @@ class MyCardViewModel @Inject constructor(
                 // Repository uses suspend + Result<PagedResponse<CardResponse>>
                 val pageRes = cardRepository.getCards(
                     token = token,
-                    sort = CardSort.LATEST,       // UPPERCASE to meet server spec
-                    filter = CardFilter.ALL,
+                    sort = sort,          // ← enum 그대로 넘김
+                    filter = filter,
                     page = targetPage,
                     size = size
                 ).getOrThrow()

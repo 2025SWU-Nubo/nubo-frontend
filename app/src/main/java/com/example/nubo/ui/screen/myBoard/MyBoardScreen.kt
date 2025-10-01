@@ -2,6 +2,7 @@ package com.example.nubo.ui.screen.myBoard
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
@@ -21,23 +22,36 @@ import com.example.nubo.ui.theme.Purple200
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Icon
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nubo.R
 import com.example.nubo.ui.component.BoardContent
-import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
 import com.example.nubo.ui.theme.Grey200
 import androidx.navigation.NavController
 import com.example.nubo.ui.theme.AppTextStyles
-import com.example.nubo.model.card.CardItem
-import com.example.nubo.model.card.toCardItem
+import com.example.nubo.model.myBoard.BoardItem
 import com.example.nubo.model.myBoard.MyCardItem
 import com.example.nubo.ui.component.MyCardContent
 import com.example.nubo.ui.component.randomCardHeight
-import dagger.hilt.android.AndroidEntryPoint
-import java.net.URLEncoder
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
+import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
+import com.example.nubo.ui.theme.Grey50
+import com.example.nubo.ui.theme.Purple100
+import com.example.nubo.ui.theme.Purple50
+import com.example.nubo.ui.theme.PurpleMain500
 
 @Composable
 fun MyBoardScreen(
@@ -48,53 +62,123 @@ fun MyBoardScreen(
     var selectedTab by remember { mutableStateOf(1) }
 
     val cardViewModel: MyCardViewModel = hiltViewModel()
-    var selectedCardId by remember { mutableStateOf<Int?>(null) }
 
-// 탭이 바뀔 때만 높이를 새로 생성
+    // 카드 / 보드 탭이 바뀔 때만 높이를 새로 생성
     val randomHeights = remember(selectedTab) {
         cardViewModel.cards.value.map { randomCardHeight() }
     }
 
-    Column(modifier = Modifier
-        .fillMaxSize()
-        .padding(vertical = 20.dp)) {
+    // 검색 기능 변수들
+    // MyBoardScreen() 내부 remember
+    var isSearchMode by remember { mutableStateOf(false) }      // 검색 모드 상태
+    var searchText by remember { mutableStateOf("") }           // 검색어
+    var searchResults by remember { mutableStateOf<List<BoardItem>?>(null) } // 검색 결과
+
+    val focusRequester = remember { FocusRequester() }          // 포커스 요청자
+    val focusManager = LocalFocusManager.current                // 포커스 매니저
+    val keyboard = LocalSoftwareKeyboardController.current      // 키보드 컨트롤러
+
+    // 검색 모드 진입 시 키보드 자동 표시
+    LaunchedEffect(isSearchMode) {
+        if (isSearchMode) {
+            focusRequester.requestFocus()   // 검색창 포커스
+            keyboard?.show()                // 키보드 올림
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(vertical = 20.dp)
+    ) {
         TabHeader(
             selectedTabIndex = selectedTab,
             onTabSelected = { selectedTab = it }
         )
-        TitleBar(selectedTab = selectedTab)
-        FilterButtons()
+        TitleBar(
+            selectedTab = selectedTab,
+            isSearchMode = isSearchMode,
+            searchText = searchText,
+            onSearchTextChange = { searchText = it },
+            onSearchOpen = { isSearchMode = true },
+            onSearchClose = {
+                isSearchMode = false
+                searchText = ""
+                searchResults = null
+                focusManager.clearFocus()
+                keyboard?.hide()
+                // 필요 시 전체 재조회
+                // boardViewModel.refresh()
+            },
+            onSearchSubmit = {
+                focusManager.clearFocus()
+                keyboard?.hide()
+                val q = searchText.trim()
+                searchResults =
+                    if (q.isBlank()) null
+                    else boardViewModel.boards.value.filter {
+                        it.title.contains(q, true) || it.subtitle.contains(q, true)
+                    }
+                // 서버 연동 자리
+            },
+            focusRequester = focusRequester
+        )
+        FilterButtons(
+            onRequestFilter = { f ->
+                if (selectedTab == 1) boardViewModel.setFilter(f)   // 보드 탭
+                else                cardViewModel.setFilter(f)       // 카드 탭
+            },
+            onRequestSort = { s ->
+                if (selectedTab == 1) boardViewModel.setSort(s)
+                else                cardViewModel.setSort(s)
+            }
+        )
         Box(modifier = Modifier.weight(1f)) {
             when (selectedTab) {
                 0 -> ScrollableCardContent(
                     cards = cardViewModel.cards.value,
-                    selectedCardId = selectedCardId,
                     cardHeights = randomHeights,
                     onCardClick = { id ->
-                        selectedCardId = id
-                        cardViewModel.getCardDetail(id)
-                    },
-                    onDismiss = {
-                        selectedCardId = null
-                        cardViewModel.clearCardDetail()
-                    }
-                )
-                1 -> BoardContent(
-                    boards = boardViewModel.boards.value.filter {
+                        // 카드 상세 화면으로 이동
+                        navController.navigate("card_detail/$id")
+                    })
+                1 -> {
+                    // 기본 리스트 계산
+                    val defaultBoards = boardViewModel.boards.value.filter {
                         val parts = it.subtitle.split(" ")
                         val cardCount = parts.getOrNull(2)?.toIntOrNull() ?: 0
-                        parts.getOrNull(3)?.contains("카드") == true && cardCount > 0
-                    },
-                    onCardClick = { boardItem ->
-                        navController.navigate("board_detail/${boardItem.serverBoardId}/${URLEncoder.encode(boardItem.title, "utf-8")}")
+                        val hasCards = parts.getOrNull(3)?.contains("카드") == true && cardCount > 0
+
+                        // 카드가 있거나, 사용자 보드면 표시
+                        hasCards || it.source.equals("USER", ignoreCase = true)
                     }
-                )
+
+                    // 검색 결과가 있으면 그걸 사용, 없으면 기본 리스트
+                    val visibleBoards = searchResults ?: defaultBoards
+
+                    BoardContent(
+                        boards = visibleBoards,
+                        onCardClick = { boardItem ->
+                            navController.navigate(
+                                "board_detail/${boardItem.serverBoardId}/${
+                                    java.net.URLEncoder.encode(boardItem.title, "utf-8")
+                                }"
+                            )
+                        },
+                        onFavoriteClick = { item ->
+                            boardViewModel.toggleFavorite(
+                                boardId = item.serverBoardId,
+                                currentFavorite = item.isBookmarked
+                            )
+                        }
+                    )
+                }
             }
         }
     }
 }
 
-
+// 상단 카드 / 보드 탭바
 @Composable
 fun TabHeader(
     selectedTabIndex: Int,
@@ -147,8 +231,19 @@ fun TabHeader(
     }
 }
 
+
+// 타이틀 & 검색
 @Composable
-fun TitleBar(selectedTab: Int) {
+fun TitleBar(
+    selectedTab: Int,
+    isSearchMode: Boolean,
+    searchText: String,
+    onSearchTextChange: (String) -> Unit,
+    onSearchOpen: () -> Unit,
+    onSearchClose: () -> Unit,
+    onSearchSubmit: () -> Unit,
+    focusRequester: FocusRequester
+) {
     val titleText = if (selectedTab == 0) "나의 카드" else "나의 보드"
 
     Column(modifier = Modifier.padding(top = 27.dp)) {
@@ -156,25 +251,102 @@ fun TitleBar(selectedTab: Int) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(start = 18.dp, end = 18.dp, bottom = 15.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = titleText,
-                style = AppTextStyles.headline_regular_26,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Icon(
-                painter = painterResource(id = R.drawable.ic_search),
-                contentDescription = "검색 아이콘",
-                modifier = Modifier.size(24.dp)
-            )
+            if (!isSearchMode) {
+                Text(text = titleText, style = AppTextStyles.headline_regular_26)
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_board_search),
+                    contentDescription = "검색",
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clickable { onSearchOpen() }
+                )
+            } // 검색 모드
+            else {
+                // 탭별 플레이스홀더
+                val placeholderText =
+                    if (selectedTab == 0) "카드명 또는 키워드로 카드 검색"
+                    else "보드명 또는 키워드로 보드 검색"
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // 입력 박스
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(36.dp)
+                            .clip(RoundedCornerShape(7.dp))
+                            .background(Color.White)
+                            .border(0.8.dp, Grey50, RoundedCornerShape(7.dp))
+                            .focusRequester(focusRequester)
+                            .padding(horizontal = 12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // 좌측 검색 아이콘 (선택)
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_board_search),
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+
+                            // 입력 필드
+                            BasicTextField(
+                                value = searchText,
+                                onValueChange = onSearchTextChange,
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                                textStyle = AppTextStyles.b3_medium_14.copy(
+                                    color = MaterialTheme.colorScheme.onSurface
+                                ),
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                keyboardActions = KeyboardActions(onSearch = { onSearchSubmit() }),
+                                //플레이스홀더
+                                decorationBox = { inner ->
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        if (searchText.isEmpty()) {
+                                            Text(
+                                                text = placeholderText,        // ← 여기만 교체
+                                                style = AppTextStyles.label_medium_12,
+                                                color = Grey200
+                                            )
+                                        }
+                                        inner()
+                                    }
+                                }
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_board_close),
+                        contentDescription = "닫기",
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clickable { onSearchClose() }
+                    )
+                }
+            }
         }
     }
 }
 
 
 @Composable
-fun FilterButtons() {
+fun FilterButtons(
+    onRequestFilter: (String) -> Unit,
+    onRequestSort: (String) -> Unit
+) {
     val filters = listOf("최근 저장순", "즐겨찾기", "공유됨")
     var selected by remember { mutableStateOf<String?>(null) }
 
@@ -187,13 +359,27 @@ fun FilterButtons() {
         filters.forEach { label ->
             val isSelected = selected == label
             OutlinedButton(
-                onClick = { selected = if (isSelected) null else label },
+                onClick = {
+                    when (label) {
+                        "최근 저장순" -> onRequestSort("LATEST")
+                        "즐겨찾기"   -> {
+                            val target = if (isSelected) "ALL" else "FAVORITE"
+                            selected = if (isSelected) null else "즐겨찾기"
+                            onRequestFilter(target)
+                        }
+                        "공유됨"     -> {
+                            val target = if (isSelected) "ALL" else "SHARED"
+                            selected = if (isSelected) null else "공유됨"
+                            onRequestFilter(target)
+                        }
+                    }
+                },
                 colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = if (isSelected) Purple200 else Color.Transparent,
-                    contentColor = MaterialTheme.colorScheme.onSurface
+                    containerColor = if (isSelected) Purple50 else Color.Transparent,
+                    contentColor = if (isSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
                 ),
                 shape = RoundedCornerShape(50),
-                border = BorderStroke(1.dp, Grey200),
+                border = BorderStroke(1.dp, if (isSelected) PurpleMain500 else Grey200),
                 modifier = Modifier.height(35.dp),
                 contentPadding = PaddingValues(horizontal = 15.dp, vertical = 8.dp)
             ) {
@@ -202,7 +388,7 @@ fun FilterButtons() {
                     Text(
                         text = label,
                         style = AppTextStyles.label_medium_12,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = if (isSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
                     )
                     when (label) {
                         "최근 저장순" -> {
@@ -238,13 +424,12 @@ fun FilterButtons() {
 @Composable
 fun ScrollableCardContent(
     cards: List<MyCardItem>,
-    selectedCardId: Int?,
     onCardClick: (Int) -> Unit,
     cardHeights: List<Dp>,
-    onDismiss: () -> Unit
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
             .padding(top = 4.dp),
         contentPadding = PaddingValues(bottom = 15.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -252,10 +437,8 @@ fun ScrollableCardContent(
         item {
             MyCardContent(
                 cards = cards,
-                selectedCardId = selectedCardId,
                 cardHeights = cardHeights,
-                onCardClick = onCardClick,
-                onDismiss = onDismiss
+                onCardClick = onCardClick
             )
         }
     }

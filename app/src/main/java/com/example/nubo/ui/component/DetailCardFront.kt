@@ -1,9 +1,7 @@
 package com.example.nubo.ui.component
 
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,7 +32,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.nubo.R
@@ -85,7 +82,7 @@ fun DetailCardFront(
                 ) {
                     IconButton(onClick = { onDismiss() }) {
                         Icon(
-                            painter = painterResource(id = R.drawable.close_icon),
+                            painter = painterResource(id = R.drawable.ic_close),
                             contentDescription = "닫기",
                             tint = Color.Black
                         )

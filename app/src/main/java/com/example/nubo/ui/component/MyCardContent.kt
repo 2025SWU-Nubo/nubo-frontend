@@ -37,10 +37,8 @@ import formatIsoDateToDisplayLegacy
 @Composable
 fun MyCardContent(
     cards: List<MyCardItem>,
-    selectedCardId: Int?,
     cardHeights: List<Dp>,
     onCardClick: (Int) -> Unit,
-    onDismiss: () -> Unit,
     myCardViewModel: MyCardViewModel = hiltViewModel()
 ) {
     val cardDetail = myCardViewModel.cardDetail.value
@@ -80,34 +78,6 @@ fun MyCardContent(
                     onClick = { onCardClick(item.id) }
                 )
             }
-        }
-    }
-
-    // 상세 다이얼로그
-    selectedCardId?.let {
-        if (isDetailLoading) {
-            // Optional: LoadingDialog()
-        }
-
-        cardDetail?.let { detail ->
-            val detailItem = CardDetailItem(
-                cardId = detail.cardId,
-                videoThumbnailUrl = detail.videoThumbnailUrl ?: "",
-                videoUrl = detail.videoUrl ?: "",
-                title = detail.title ?: "제목 없음",
-                boardName = detail.boardName ?: "카테고리 없음",
-                boardSource = detail.boardSource ?: "",
-                summary = detail.summary ?: "설명 없음",
-                createdAt = formatIsoDateToDisplayLegacy(detail.createdAt),
-                updatedAt =  formatIsoDateToDisplayLegacy(detail.updatedAt),
-                videoPlatform = detail.videoPlatform ?: "알 수 없음",
-                tags = detail.tags,
-                isFavorite = detail.isFavorite,
-            )
-            DetailCardDialog(
-                item = detailItem,
-                onDismiss = onDismiss
-            )
         }
     }
 }

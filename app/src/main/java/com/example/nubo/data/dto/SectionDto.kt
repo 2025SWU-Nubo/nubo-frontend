@@ -2,7 +2,7 @@ package com.example.nubo.data.dto
 
 // 섹션
 data class SectionDto(
-    val id: Int,
+    val id: Long,
     val name: String,
     val source: String,
     val updatedAt: String,
