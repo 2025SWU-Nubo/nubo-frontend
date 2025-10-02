@@ -25,7 +25,7 @@ import com.example.nubo.ui.theme.PurpleMain500
 // 알림 설정 화면
 
 @Composable
-fun NotificationScreen(
+fun NotificationSetScreen(
     navController: NavController? = null,   // 실제 화면에선 NavController 주입
     onBack: () -> Unit = { navController?.popBackStack() }
 ) {
@@ -162,5 +162,5 @@ private fun NotiTopBar(onBack: () -> Unit) {
 @Preview(showBackground = true, name = "알림 설정 기본")
 @Composable
 private fun PreviewNotification() {
-    NotificationScreen(navController = null)
+    NotificationSetScreen(navController = null)
 }
