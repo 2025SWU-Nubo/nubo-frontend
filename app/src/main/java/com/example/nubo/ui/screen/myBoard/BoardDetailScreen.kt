@@ -36,7 +36,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.nubo.R
 import com.example.nubo.data.model.CardItemDto
-import com.example.nubo.data.dto.SectionDto
+import com.example.nubo.data.model.SectionDto
 import com.example.nubo.model.myBoard.BoardItem
 import com.example.nubo.ui.component.BoardDetailContent
 import com.example.nubo.ui.theme.AppTextStyles.label_medium_12
@@ -64,24 +64,32 @@ fun BoardDetailScreen(
 ) {
     var selectedCardId by remember { mutableStateOf<Int?>(null) }
 
+    // 진입 시 한 번 초기 로드
     LaunchedEffect(boardId) {
-        viewModel.fetchBoardDetail(boardId)
+        viewModel.init(boardId)
     }
 
-    val boardState by viewModel.board.collectAsState()
-    val cardDetail = myCardViewModel.cardDetail.value
-    val isDetailLoading = myCardViewModel.isDetailLoading.value
+    // 뷰모델 상태 올바르게 구독
+    val ui by viewModel.ui.collectAsState()
+    val boardState = ui.board
+
 
     Column(modifier = Modifier.fillMaxSize()) {
         DetailTopBar(onBack = { navController.popBackStack() })
         BoardTitleBar(title = boardTitle)
-        BoardFilterButton()
+        // 즐겨찾기 필터만 뷰모델과 연결 (정렬 버튼은 UI만 유지, 서버 쿼리는 LATEST 고정)
+        BoardFilterButton(
+            favoriteSelected = ui.favoriteOnly,
+            onToggleFavorite = { enabled -> viewModel.setFavoriteFilter(enabled) }
+        )
 
         if (boardState != null) {
             val boardItems = boardState?.sections?.map { it.toBoardItem() } ?: emptyList()
-            val cardItems = boardState?.cards?.map { it.toCardItem() } ?: emptyList()
+            // 페이징 래퍼에서 실제 리스트 꺼내기
+            val cardItems = boardState.cards.content.map { it.toCardItem() }
 
-            val cardHeights by remember(boardId) {
+            // 카드 배열 길이가 바뀌면 높이도 재생성
+            val cardHeights by remember(boardId, cardItems.size) {
                 mutableStateOf(cardItems.map { randomCardHeight() })
             }
 
@@ -90,39 +98,25 @@ fun BoardDetailScreen(
                 BoardDetailContent(
                     boardItems = boardItems,
                     cardItems = cardItems,
-                    selectedCardId = selectedCardId,
                     cardHeights = cardHeights,
-                    cardDetail = cardDetail,
-                    isDetailLoading = isDetailLoading,
                     onCardClick = { cardId ->
-                        selectedCardId = cardId
-                        myCardViewModel.getCardDetail(cardId)
+                        // MyBoardScreen과 동일한 패턴으로 카드 상세 화면 이동
+                        navController.navigate("card_detail/$cardId")
                     },
-                    onDismiss = {
-                        selectedCardId = null
-                        myCardViewModel.clearCardDetail()
-                    },
-                        onFavoriteClick = { item ->
-                        // 한글 주석: 즐겨찾기 토글 콜백 → ViewModel 위임
-
+                    onFavoriteClick = { section ->
+                        // 섹션 즐겨찾기 토글을 붙일 경우 여기서 처리
+                        // viewModel.toggleSectionFavorite(section.id)
                     }
                 )
             } else {
                 // 보드가 없고 카드만 있을 경우에도 동일하게 처리
                 BoardDetailContent(
-                    boardItems = emptyList(),
+                    boardItems = boardItems,
                     cardItems = cardItems,
                     cardHeights = cardHeights,
-                    selectedCardId = selectedCardId,
-                    cardDetail = cardDetail,
-                    isDetailLoading = isDetailLoading,
                     onCardClick = { cardId ->
-                        selectedCardId = cardId
-                        myCardViewModel.getCardDetail(cardId)
-                    },
-                    onDismiss = {
-                        selectedCardId = null
-                        myCardViewModel.clearCardDetail()
+                        // MyBoardScreen과 동일한 패턴으로 카드 상세 화면 이동
+                        navController.navigate("card_detail/$cardId")
                     },
                     onFavoriteClick = { item ->
                         // 한글 주석: 즐겨찾기 토글 콜백 → ViewModel 위임
@@ -184,9 +178,14 @@ fun BoardTitleBar(title: String) {
 }
 
 @Composable
-fun BoardFilterButton() {
+fun BoardFilterButton(
+    favoriteSelected: Boolean,
+    onToggleFavorite: (Boolean) -> Unit
+) {
     val filters = listOf("최근 저장순", "즐겨찾기")
-    var selected by remember { mutableStateOf<String?>(null) }
+    var selected by remember(favoriteSelected) {
+        mutableStateOf(if (favoriteSelected) "즐겨찾기" else null)
+    }
 
     Row(
         modifier = Modifier
@@ -195,13 +194,18 @@ fun BoardFilterButton() {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 왼쪽: 기존 필터 버튼
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             filters.forEach { label ->
-
                 val isSelected = selected == label
                 OutlinedButton(
-                    onClick = { selected = if (isSelected) null else label },
+                    onClick = {
+                        val next = if (isSelected) null else label
+                        selected = next
+                        if (label == "즐겨찾기") {
+                            onToggleFavorite(next == "즐겨찾기")
+                        }
+                        // "최근 저장순"은 UI만 유지, 서버 쿼리는 LATEST 고정이라 별도 처리 없음
+                    },
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = if (isSelected) Purple200 else Color.Transparent,
                         contentColor = MaterialTheme.colorScheme.onSurface
@@ -213,11 +217,7 @@ fun BoardFilterButton() {
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Spacer(modifier = Modifier.width(2.dp))
-                        Text(
-                            text = label,
-                            style = label_medium_12,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        Text(text = label, style = label_medium_12, color = MaterialTheme.colorScheme.onSurface)
                         when (label) {
                             "최근 저장순" -> {
                                 Spacer(modifier = Modifier.width(3.dp))
@@ -227,7 +227,6 @@ fun BoardFilterButton() {
                                     modifier = Modifier.size(22.dp)
                                 )
                             }
-
                             "즐겨찾기" -> {
                                 Spacer(modifier = Modifier.width(5.dp))
                                 Icon(

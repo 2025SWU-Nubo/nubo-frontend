@@ -31,11 +31,16 @@ interface BoardService {
     ): PagedResponse<BoardListItemResponse>
 
     // 보드 디테일 화면 조회
+    // 보드 상세: 최신순만, 필터는 ALL/FAVORITE만 사용
     @GET("/api/board/{id}")
     suspend fun getBoardDetail(
         @Header("Authorization") authHeader: String,
         @Header("Accept") acceptHeader: String = "application/json",
-        @Path("id") boardId: Int
+        @Path("id") boardId: Int,
+        @Query("sort") sort: String = "LATEST",
+        @Query("filter") filter: String = "ALL",
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 20
     ): BoardResponse
 
     @GET("/api/board/check-name")
@@ -51,7 +56,7 @@ interface BoardService {
     ):BoardItemResponse
 
     // 보드 즐겨찾기 변경 (BoardItemResponse)
-    @PATCH("api/board/{boardId}/favorite")
+    @PATCH("/api/board/{boardId}/favorite")
     suspend fun setFavorite(
         @Header("Authorization") authHeader: String,
         @Header("Accept") acceptHeader: String = "application/json",
