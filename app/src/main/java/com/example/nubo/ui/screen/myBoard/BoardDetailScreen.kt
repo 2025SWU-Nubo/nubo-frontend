@@ -180,8 +180,14 @@ fun BoardDetailScreen(
                 placeholder = "새 이름",
                 initialValue = m.currentName,
                 onConfirm = { newName ->
-                    // 보드 id면 보드, 섹션 id면 섹션 이름을 변경
-                    viewModel.renameSection(sectionId = m.sectionId, newName = newName)
+                    // 보드 ID와 다이얼로그의 ID를 비교하여 올바른 함수를 호출합니다.
+                    if (m.sectionId == boardId) {
+                        // ID가 현재 보드 ID와 같으면 보드 이름 변경 함수를 호출합니다.
+                        viewModel.renameCurrentBoard(newName = newName)
+                    } else {
+                        // 다르다면 섹션 이름 변경 함수를 호출합니다.
+                        viewModel.renameSection(sectionId = m.sectionId, newName = newName)
+                    }
                 },
                 onDismiss = { dialogMode = null }
             )

@@ -103,11 +103,27 @@ fun MyBoardScreen(
     // 검색 모드 진입 시 키보드 자동 표시
     LaunchedEffect(isSearchMode) {
         val handle = navController.currentBackStackEntry?.savedStateHandle
-        val id = handle?.get<Int>("renamed_board_id")
-        val name = handle?.get<String>("renamed_board_name")
         if (isSearchMode) {
             focusRequester.requestFocus()   // 검색창 포커스
             keyboard?.show()                // 키보드 올림
+        }
+    }
+
+    // [추가] BoardDetailScreen에서 이름 변경 결과를 수신하는 부분
+    LaunchedEffect(navController.currentBackStackEntry) {
+        val handle = navController.currentBackStackEntry?.savedStateHandle
+        val id = handle?.get<Int>("renamed_board_id")
+        val name = handle?.get<String>("renamed_board_name")
+
+        // ID와 이름이 모두 정상적으로 전달되었다면
+        if (id != null && name != null) {
+            // 1. ViewModel의 함수를 호출하여 보드 목록의 데이터를 업데이트
+            boardViewModel.applyRename(id, name)
+
+            // 2. 한 번 사용한 데이터는 핸들에서 제거하여, 화면이 다시 그려질 때
+            //    중복으로 적용되는 것을 방지
+            handle.remove<Int>("renamed_board_id")
+            handle.remove<String>("renamed_board_name")
         }
     }
 
