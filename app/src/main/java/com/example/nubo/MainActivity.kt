@@ -49,6 +49,7 @@ import com.example.nubo.ui.screen.home.HomeScreen
 import com.example.nubo.ui.screen.learn.LearnScreen
 import com.example.nubo.ui.screen.myBoard.BoardDetailScreen
 import com.example.nubo.ui.screen.myBoard.MyBoardScreen
+import com.example.nubo.ui.screen.myBoard.SectionDetailScreen
 import com.example.nubo.ui.screen.notification.NotificationScreen
 import com.example.nubo.ui.screen.notification.NotificationViewModel
 import com.example.nubo.ui.screen.onBoardingLogin.OnBoardingLoginActivity
@@ -260,6 +261,22 @@ fun MainScreen(
                         boardTitle = boardTitle,
                         navController = navController,
                         modifier = Modifier.statusBarsPadding()
+                    )
+                }
+
+                composable(
+                    route = "section_detail/{sectionId}/{sectionTitle}",
+                    arguments = listOf(
+                        navArgument("sectionId") { type = NavType.IntType },
+                        navArgument("sectionTitle") { type = NavType.StringType }
+                    )
+                ) { backStackEntry ->
+                    val sectionId = backStackEntry.arguments?.getInt("sectionId") ?: return@composable
+                    val sectionTitle = backStackEntry.arguments?.getString("sectionTitle") ?: "로딩 중..."
+                    SectionDetailScreen(
+                        sectionId = sectionId,
+                        sectionTitle = sectionTitle,
+                        navController = navController,
                     )
                 }
 

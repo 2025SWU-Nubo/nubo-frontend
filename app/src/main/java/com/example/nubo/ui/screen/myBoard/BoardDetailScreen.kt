@@ -92,6 +92,19 @@ fun BoardDetailScreen(
         viewModel.init(boardId)
     }
 
+    // SectionDetailScreen에서 이름 변경 결과를 수신하는 부분
+    LaunchedEffect(navController.currentBackStackEntry) {
+        val handle = navController.currentBackStackEntry?.savedStateHandle
+        val id = handle?.get<Int>("renamed_section_id")
+        val name = handle?.get<String>("renamed_section_name")
+
+        if (id != null && name != null) {
+            viewModel.renameSection(sectionId = id, newName = name)
+            handle.remove<Int>("renamed_section_id")
+            handle.remove<String>("renamed_section_name")
+        }
+    }
+
     // 뷰모델 상태 올바르게 구독
     val ui by viewModel.ui.collectAsState()
     val boardState = ui.board
@@ -138,6 +151,9 @@ fun BoardDetailScreen(
                     onCardClick = { cardId ->
                         // MyBoardScreen과 동일한 패턴으로 카드 상세 화면 이동
                         navController.navigate("card_detail/$cardId")
+                    },onSectionClick = { section ->
+                        val encodedTitle = java.net.URLEncoder.encode(section.title, "utf-8")
+                        navController.navigate("section_detail/${section.id}/$encodedTitle")
                     },
                     onFavoriteClick = { section: BoardItem ->
                         viewModel.toggleSectionFavorite(
@@ -156,6 +172,7 @@ fun BoardDetailScreen(
                         // MyBoardScreen과 동일한 패턴으로 카드 상세 화면 이동
                         navController.navigate("card_detail/$cardId")
                     },
+                    onSectionClick = {/*카드만 있을 경우 섹션 동작 없음*/},
                     onFavoriteClick = { /* 섹션이 없을 때는 동작 없음 */ }
                 )
             }

@@ -33,6 +33,7 @@ fun BoardDetailContent(
     cardItems: List<CardItem>,
     cardHeights: List<Dp>,
     onCardClick: (Int) -> Unit,
+    onSectionClick: (BoardItem) -> Unit,
     onFavoriteClick: (BoardItem) -> Unit
 ) {
     // 카드 Masonry 좌/우 컬럼 분리
@@ -50,7 +51,7 @@ fun BoardDetailContent(
                 rowItems.forEach { item ->
                     BoardCardWithText(
                         board = item,
-                        onClick = { /* 섹션 클릭 액션 필요 시 연결 */ },
+                        onClick = { onSectionClick(item) },
                         onFavoriteClick = onFavoriteClick
                     )
                 }

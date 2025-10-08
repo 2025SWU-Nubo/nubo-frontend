@@ -93,35 +93,36 @@ class BoardDetailViewModel @Inject constructor(
         }
     }
 
+    // 즐겨찾기 설정
     fun toggleSectionFavorite(sectionId: Int, currentFavorite: Boolean) {
         val beforeState = _ui.value
         val board = beforeState.board ?: return
         val newFav = !currentFavorite
 
-        // 1) UI 먼저 반영
+        // 1) UI를 즉시 업데이트하여 사용자에게 빠른 피드백
         val updatedSections = board.sections.map { sec ->
             if (sec.id.toInt() == sectionId) sec.copy(favorite = newFav) else sec
         }
         _ui.value = beforeState.copy(board = board.copy(sections = updatedSections))
 
-        // 2) 서버 반영
+        // 2) 코루틴을 사용해 백그라운드에서 서버 API를 호출
         viewModelScope.launch {
             try {
                 val token = authRepository.getAccessToken().orEmpty()
-                // 프로젝트 API에 맞게 호출명만 맞춰주세요
-                // 예시) /api/section/{id}/favorite
+                // 보내주신 API 명세서와 동일한 boardService.setFavorite 함수를 호출
                 boardService.setFavorite(
                     authHeader = "Bearer $token",
-                    boardId = sectionId.toLong(),                    // ← Int → Long
+                    boardId = sectionId.toLong(), // 섹션 ID를 전달
                     body = FavoriteRequest(favorite = !currentFavorite)
                 )
-                // 성공 시 그대로 유지
+                // 성공하면 변경된 UI 상태가 유지
             } catch (t: Throwable) {
-                // 3) 실패하면 롤백
+                // 3) 만약 API 호출이 실패하면, 원래 상태로 UI를 롤백
                 _ui.value = beforeState
             }
         }
     }
+
     // 섹션 생성 api
     fun createSection(name: String) {
         val parentShared = _ui.value.board?.shared ?: false          // 부모 보드 공유 여부 따라감

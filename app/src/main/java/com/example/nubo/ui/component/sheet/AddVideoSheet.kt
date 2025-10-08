@@ -558,7 +558,7 @@ private fun BoardNodeItem(
                 tint = Color.Unspecified
             )
 
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(32.dp))
         }
 
         // 섹션이 있고, 펼쳐진 경우에만 섹션 리스트 표시
