@@ -2,18 +2,24 @@ package com.example.nubo.ui.screen.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.nubo.data.model.NotificationSetRequest
 import com.example.nubo.data.model.ProfileResponse
+import com.example.nubo.data.network.ProfileService
 import com.example.nubo.data.repository.ProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 import javax.inject.Inject
 
 data class ProfileUiState(
     val isLoading: Boolean = false,
     val data: ProfileResponse? = null,
-    val error: String? = null
+    val error: String? = null,
+    // ── 알림 설정 UI 상태 (서버 초기값이 있다면 refresh() 완료 시 채움)
+    val pushEnabled: Boolean = true,
+    val remindEnabled: Boolean = false
 )
 
 @HiltViewModel
@@ -24,22 +30,47 @@ class ProfileViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ProfileUiState(isLoading = true))
     val uiState: StateFlow<ProfileUiState> = _uiState
 
-    init { refresh() }
+    init {
+        // 로컬 캐시에서 마지막 알림 상태 복원
+        val (push, remind) = profileRepository.readNotificationPrefs()
+        _uiState.value = _uiState.value.copy(
+            pushEnabled = push,
+            remindEnabled = if (push) remind else false
+        )
+        refresh()
+    }
 
+    // ─────────────────────────────────────────────────────────────
     // 프로필 확인
+    // 알림 토글 값은 유지하고, 프로필 데이터/로딩/에러만 갱신하는 버전
     fun refresh() {
-        _uiState.value = ProfileUiState(isLoading = true)
+        // 로딩 시작: 기존 토글 상태 보존
+        _uiState.value = _uiState.value.copy(
+            isLoading = true,
+            error = null
+        )
+
         viewModelScope.launch {
             profileRepository.fetchProfile()
                 .onSuccess { resp ->
-                    _uiState.value = ProfileUiState(isLoading = false, data = resp)
+                    // 성공: 프로필 데이터만 갱신, 토글 값 보존
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        data = resp,
+                        error = null
+                    )
                 }
                 .onFailure { t ->
-                    _uiState.value = ProfileUiState(isLoading = false, error = t.message)
+                    // 실패: 에러만 갱신
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        error = t.message
+                    )
                 }
         }
     }
 
+    // ─────────────────────────────────────────────────────────────
     // 닉네임 변경 API 호출
     fun updateName(newName: String, onResult: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
@@ -62,6 +93,47 @@ class ProfileViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(
                 data = cur.copy(name = newName)
             )
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 전체 알림 토글
+    fun togglePush(checked: Boolean, onError: (String) -> Unit = {}) {
+        val prev = _uiState.value
+        val nextRemind = if (!checked) false else prev.remindEnabled
+        _uiState.value = prev.copy(pushEnabled = checked, remindEnabled = nextRemind)
+
+        viewModelScope.launch {
+            val req = NotificationSetRequest(
+                pushEnabled = checked,
+                remindEnabled = if (!checked) false else null
+            )
+            profileRepository.updateNotification(req)
+                .onSuccess { profileRepository.saveNotificationPrefs(checked, nextRemind) }
+                .onFailure {
+                    _uiState.value = prev
+                    onError(it.message ?: "알림 설정 저장에 실패했습니다")
+                }
+        }
+    }
+
+    // 리마인드 토글
+    fun toggleRemind(checked: Boolean, onError: (String) -> Unit = {}) {
+        if (!_uiState.value.pushEnabled) return
+
+        val prev = _uiState.value
+        _uiState.value = prev.copy(remindEnabled = checked)
+
+        viewModelScope.launch {
+            val req = NotificationSetRequest(remindEnabled = checked)
+            profileRepository.updateNotification(req)
+                .onSuccess {
+                    profileRepository.saveNotificationPrefs(_uiState.value.pushEnabled, checked)
+                }
+                .onFailure {
+                    _uiState.value = prev
+                    onError(it.message ?: "리마인드 설정 저장에 실패했습니다")
+                }
         }
     }
 }

@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
@@ -21,20 +22,24 @@ import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.PurpleMain500
+import kotlinx.coroutines.launch
 
 // 알림 설정 화면
 
 @Composable
 fun NotificationSetScreen(
     navController: NavController? = null,   // 실제 화면에선 NavController 주입
-    onBack: () -> Unit = { navController?.popBackStack() }
+    onBack: () -> Unit = { navController?.popBackStack() },
+    viewModel: ProfileViewModel = hiltViewModel()
 ) {
-    // 화면 상태 기억
-    var allEnabled by remember { mutableStateOf(true) }
-    var remindEnabled by remember { mutableStateOf(false) }
+    // VM 상태 바인딩/스낵바/코루틴
+    val ui = viewModel.uiState.collectAsState().value
+    val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
 
     Scaffold(
-        topBar = { NotiTopBar(onBack = onBack) }
+        topBar = { NotiTopBar(onBack = onBack) },
+        snackbarHost = { SnackbarHost(hostState = snackbar) } // ← 실패 시 안내 토스트
     ) { inner ->
         Column(
             modifier = Modifier
@@ -61,21 +66,29 @@ fun NotificationSetScreen(
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        text = if (allEnabled) "허용" else "미허용",
+                        text = if (ui.pushEnabled) "허용" else "미허용",
                         style = AppTextStyles.b1_semibold_18,
-                        color = if (allEnabled) PurpleMain500 else GreyMain300
+                        color = if (ui.pushEnabled) PurpleMain500 else GreyMain300
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    Switch(
+                        checked = ui.pushEnabled,
+                        onCheckedChange = { checked ->
+                            scope.launch {
+                                viewModel.togglePush(checked) { msg ->
+                                    scope.launch { snackbar.showSnackbar(msg) }
+                                }
+                            }
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedTrackColor = PurpleMain500,
+                            checkedThumbColor = Color.White,
+                            uncheckedTrackColor = Grey50,
+                            uncheckedThumbColor = Grey500
+                        )
                     )
                 }
-                Switch(
-                    checked = allEnabled,
-                    onCheckedChange = { allEnabled = it },
-                    colors = SwitchDefaults.colors(
-                        checkedTrackColor = PurpleMain500,
-                        checkedThumbColor = Color.White,
-                        uncheckedTrackColor = Grey50,
-                        uncheckedThumbColor = Grey500
-                    )
-                )
             }
 
             Spacer(Modifier.height(16.dp))
@@ -108,8 +121,15 @@ fun NotificationSetScreen(
                     )
                 }
                 Switch(
-                    checked = remindEnabled,
-                    onCheckedChange = { remindEnabled = it },
+                    checked = ui.remindEnabled,
+                    enabled = ui.pushEnabled, // 전체 알림 꺼져 있으면 비활성화
+                    onCheckedChange = { checked ->
+                        scope.launch {
+                            viewModel.toggleRemind(checked) { msg ->
+                                scope.launch { snackbar.showSnackbar(msg) }
+                            }
+                        }
+                    },
                     colors = SwitchDefaults.colors(
                         checkedTrackColor = PurpleMain500,
                         checkedThumbColor = Color.White,
@@ -121,6 +141,7 @@ fun NotificationSetScreen(
         }
     }
 }
+
 
 // 상단바
 @Composable
