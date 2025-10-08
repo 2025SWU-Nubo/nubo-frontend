@@ -2,7 +2,10 @@ package com.example.nubo.data.network
 
 import com.example.nubo.data.model.BoardItemResponse
 import com.example.nubo.data.model.BoardListItemResponse
+import com.example.nubo.data.model.BoardRenameRequest
 import com.example.nubo.data.model.BoardResponse
+import com.example.nubo.data.model.BoardSearchItemResponse
+import com.example.nubo.data.model.CardSearchItemResponse
 import com.example.nubo.data.model.FavoriteRequest
 import com.example.nubo.data.model.FavoriteResponse
 import com.example.nubo.data.model.PagedResponse
@@ -31,11 +34,16 @@ interface BoardService {
     ): PagedResponse<BoardListItemResponse>
 
     // 보드 디테일 화면 조회
+    // 보드 상세: 최신순만, 필터는 ALL/FAVORITE만 사용
     @GET("/api/board/{id}")
     suspend fun getBoardDetail(
         @Header("Authorization") authHeader: String,
         @Header("Accept") acceptHeader: String = "application/json",
-        @Path("id") boardId: Int
+        @Path("id") boardId: Int,
+        @Query("sort") sort: String = "LATEST",
+        @Query("filter") filter: String = "ALL",
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 20
     ): BoardResponse
 
     @GET("/api/board/check-name")
@@ -51,13 +59,40 @@ interface BoardService {
     ):BoardItemResponse
 
     // 보드 즐겨찾기 변경 (BoardItemResponse)
-    @PATCH("api/board/{boardId}/favorite")
+    @PATCH("/api/board/{boardId}/favorite")
     suspend fun setFavorite(
         @Header("Authorization") authHeader: String,
         @Header("Accept") acceptHeader: String = "application/json",
         @Path("boardId") boardId: Long,
         @Body body: FavoriteRequest // 요청 바디
     ): FavoriteResponse // 응답 모델
+
+    // 섹션/보드 공통 이름 변경 API
+    @PATCH("api/board/{boardId}/name")
+    suspend fun renameBoardOrSection(
+        @Header("Authorization") authHeader: String,
+        @Header("Accept") accept: String = "application/json",
+        @Path("boardId") boardId: Long,
+        @Body body: BoardRenameRequest
+    )
+
+    // 보드 검색
+    @GET("/api/board/search")
+    suspend fun searchBoards(
+        @Header("Authorization") authHeader: String,
+        @Header("Accept") acceptHeader: String = "application/json",
+        @Query("keyword") keyword: String,
+        @Query("sort") sort: String = "LATEST" // API 명세에 따라 LATEST, OLDEST, ALPHABET 사용 가능
+    ): List<BoardSearchItemResponse> // API 명세에 페이징 정보가 없으므로 List 형태로 받음
+
+    // 카드 검색
+    @GET("/api/card/search")
+    suspend fun searchCards(
+        @Header("Authorization") authHeader: String,
+        @Header("Accept") acceptHeader: String = "application/json",
+        @Query("keyword") keyword: String,
+        @Query("sort") sort: String = "LATEST"
+    ): List<CardSearchItemResponse>
 
     //홈_최근 본 보드 조회
     @GET("/api/home/boards/recent")

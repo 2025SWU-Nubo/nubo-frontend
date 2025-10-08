@@ -50,7 +50,7 @@ fun BoardContent(
     LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
         contentPadding = PaddingValues(bottom = 20.dp)
     ) {
@@ -64,7 +64,7 @@ fun BoardContent(
                             onFavoriteClick = onFavoriteClick
                         )
                     } else {
-                        FullBoardCard(
+                        BoardCardWithText(
                             board = item,
                             onClick = { onCardClick(item) },
                             onFavoriteClick = onFavoriteClick
@@ -91,7 +91,7 @@ fun BoardCardWithText(
             .clip(RoundedCornerShape(12.dp))
             .background(Color.White)
             .clickable { onClick() }
-            .padding(top=4.dp, start = 4.dp, end = 4.dp, bottom = 11.dp)
+            .padding(top = 4.dp, bottom = 11.dp)
     ) {
         Column(
             modifier = Modifier
