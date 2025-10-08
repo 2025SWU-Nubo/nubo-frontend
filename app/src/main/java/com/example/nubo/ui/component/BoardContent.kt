@@ -64,7 +64,7 @@ fun BoardContent(
                             onFavoriteClick = onFavoriteClick
                         )
                     } else {
-                        FullBoardCard(
+                        BoardCardWithText(
                             board = item,
                             onClick = { onCardClick(item) },
                             onFavoriteClick = onFavoriteClick

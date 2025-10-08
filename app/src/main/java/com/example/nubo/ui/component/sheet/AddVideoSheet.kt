@@ -44,9 +44,11 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.nubo.ui.screen.cardupload.CardUploadViewModel
+import com.example.nubo.ui.theme.AppTextStyles.b2_bold_16
 import com.example.nubo.ui.theme.GreyMain100
 
 
@@ -181,7 +183,8 @@ fun AddVideoSheet(
 
                     // 시트 닫기
                     onClose()
-                },modifier = Modifier.align(Alignment.CenterStart))
+                }, modifier = Modifier.align(Alignment.CenterStart)
+            )
             {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_close),
@@ -290,51 +293,55 @@ fun AddVideoSheet(
                             .height(fixedHeight)   // ← 시트 고정 높이
                     ) {
                         // 서버에서 내려온 보드+섹션 상태로 바인딩
-                        LazyColumn(
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(1f),
-                            contentPadding = PaddingValues(bottom = 8.dp)
+                                .weight(1f) // 시트 안에서 남은 영역 채우기
                         ) {
-                            // Loaded인데 보드가 비어 있으면 안내를 보여주기 (무한 로딩처럼 보이지 않게)
                             when (boardsState) {
                                 AddVideoViewModel.BoardsState.Idle,
                                 AddVideoViewModel.BoardsState.Loading -> {
-                                    item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+                                    LinearProgressIndicator(
+                                        modifier = Modifier
+                                            .align(Alignment.TopCenter)
+                                            .fillMaxWidth()
+                                    )
                                 }
 
                                 is AddVideoViewModel.BoardsState.Error -> {
-                                    item {
-                                        Text(
-                                            text = "보드 목록을 불러오지 못했어요.",
-                                            style = AppTextStyles.b3_medium_14,
-                                            color = Grey500,
-                                            modifier = Modifier.padding(16.dp)
-                                        )
-                                    }
+                                    Text(
+                                        text = "보드 목록을 불러오지 못했어요.\n 다시 시도해주세요.",
+                                        style = AppTextStyles.b3_medium_14,
+                                        color = Grey500,
+                                        modifier = Modifier
+                                            .align(Alignment.Center)
+                                            .padding(16.dp)
+                                    )
                                 }
 
                                 is AddVideoViewModel.BoardsState.Loaded -> {
                                     val tree = (boardsState as AddVideoViewModel.BoardsState.Loaded).boards
+
                                     if (tree.isEmpty()) {
-                                        item {
-                                            Text(
-                                                text = "보드가 아직 없어요. \n 먼저 보드를 만들어주세요.",
-                                                style = AppTextStyles.b3_medium_14,
-                                                color = Grey500,
-                                                modifier = Modifier.padding(16.dp)
-                                            )
-                                        }
+                                        EmptyBoardsState(
+                                            modifier = Modifier.align(Alignment.Center)
+                                        )
                                     } else {
-                                        items(tree, key = { it.id }) { node ->
-                                            BoardNodeItem(
-                                                node = node.toUi(),
-                                                level = 0,
-                                                isChecked = { id -> checkedIds.contains(id) },
-                                                onCheckedChange = { id, isOn ->
-                                                    checkedIds = if (isOn) checkedIds + id else checkedIds - id
-                                                }
-                                            )
+                                        LazyColumn(
+                                            modifier = Modifier.fillMaxSize(),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                                            contentPadding = PaddingValues(vertical = 8.dp)
+                                        ) {
+                                            items(tree, key = { it.id }) { node ->
+                                                BoardNodeItem(
+                                                    node = node.toUi(),
+                                                    level = 0,
+                                                    isChecked = { id -> checkedIds.contains(id) },
+                                                    onCheckedChange = { id, isOn ->
+                                                        checkedIds = if (isOn) checkedIds + id else checkedIds - id
+                                                    }
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -398,7 +405,7 @@ fun AddVideoSheet(
             }
         }
     }
-    // 영상 링크용 영상 무효 토스트
+// 영상 링크용 영상 무효 토스트
     if (toastVisible) {
         val annotatedTitle = buildAnnotatedString {
             append("잘못된 링크!")
@@ -413,7 +420,7 @@ fun AddVideoSheet(
         )
     }
 
-    // 영상 링크용 네트워크 에러 토스트
+// 영상 링크용 네트워크 에러 토스트
     if (networkErrorToastVisible) {
         val annotatedTitle = buildAnnotatedString { append("네트워크 오류") }
         SheetTopToast(
@@ -425,7 +432,7 @@ fun AddVideoSheet(
             bottomOffset = 240.dp
         )
     }
-    // 보드 선택용 토스트
+// 보드 선택용 토스트
     if (boardToastVisible) {
         // 시트 고정 높이 + 100dp만큼 위에 토스트
         val fixedHeight = 340.dp
@@ -448,7 +455,7 @@ fun AddVideoSheet(
             bottomOffset = offsetFromBottom          // 시트 상대 위치에 맞춰 토스트 위치
         )
     }
-    // 시트 내리면 다시 처음 화면으로
+// 시트 내리면 다시 처음 화면으로
     DisposableEffect(Unit) {
         onDispose {
             viewModel.resetForNewSession()
@@ -603,5 +610,49 @@ private fun BoardNodeItem(
                 }
             }
         }
+    }
+}
+
+// 빈 보드화면 안내문구
+@Composable
+fun EmptyBoardsState(
+    // 전체 레이아웃에 적용할 모디파이어
+    modifier: Modifier = Modifier,
+    // 제목/보조문구 텍스트
+    title: String = "보드가 아직 없어요",
+    subtitle: String = "먼저 보드를 만들거나\nAI 자동 분류를 사용해보세요!"
+) {
+    // 상단 이모지 (벡터 아이콘이 있으면 Image로 교체 가능)
+    val iconRes = R.drawable.error_face
+    // 가운데 정렬된 심플한 빈 상태 UI
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp) // 요소 간 간격
+    ) {
+        // 이모지 영역 (아이콘으로 바꾸려면 Icon/Image 사용)
+        Icon(
+            painter = painterResource(id = iconRes),
+            contentDescription = "이모지",
+            tint = Color.Unspecified
+        )
+
+        // 제목
+        Text(
+            text = title,
+            style = b2_bold_16,   // 앱 타이포에 맞춰 굵게
+            color = Grey1000,
+            textAlign = TextAlign.Center
+        )
+
+        // 보조 문구
+        Text(
+            text = subtitle,
+            style = AppTextStyles.b3_regular_14,
+            color = Grey1000,
+            textAlign = TextAlign.Center
+        )
     }
 }
