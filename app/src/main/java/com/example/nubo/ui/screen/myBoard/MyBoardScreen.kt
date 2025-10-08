@@ -209,8 +209,7 @@ fun MyBoardScreen(
                         ScrollableCardContent(
                             cards = cardViewModel.cards.value,
                             cardHeights = randomHeights,
-                            onCardClick = { id ->
-                                navController.navigate("card_detail/$id")
+                            onCardClick = { //없음
                             }
                         )
                     }

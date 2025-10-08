@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -41,8 +42,6 @@ fun MyCardContent(
     onCardClick: (Int) -> Unit,
     myCardViewModel: MyCardViewModel = hiltViewModel()
 ) {
-    val cardDetail = myCardViewModel.cardDetail.value
-    val isDetailLoading = myCardViewModel.isDetailLoading.value
 
     // Masonry 구성 동일
     val leftItems = cards.filterIndexed { i, _ -> i % 2 == 0 }
@@ -83,24 +82,35 @@ fun MyCardContent(
 }
 
 
-
 @Composable
 fun MyMasonryCard(height: Dp, imageUrl: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .width(182.dp)
             .height(height)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(12.dp)) // 확대된 이미지를 잘라내는 역할
             .background(Grey50)
             .clickable { onClick() },
         contentAlignment = Alignment.Center
 
     ) {
+        // 높이가 300dp일 때만 이미지를 1.2배 확대하는 Modifier 적용
+        val imageModifier = if (height == 300.dp) {
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer(
+                    scaleX = 1.2f, // 가로로 1.2배 확대
+                    scaleY = 1.2f  // 세로로 1.2배 확대
+                )
+        } else {
+            Modifier.fillMaxSize()
+        }
+
         AsyncImage(
             model = imageUrl,
             contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
+            modifier = imageModifier, // 위에서 만든 Modifier를 적용
+            contentScale = ContentScale.Crop // Crop을 기본으로 두어 안정적인 크롭을 보장
         )
     }
 }

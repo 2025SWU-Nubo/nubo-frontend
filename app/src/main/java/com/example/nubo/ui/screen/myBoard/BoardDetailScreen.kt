@@ -192,7 +192,7 @@ fun BoardDetailScreen(
 
             is InputDialogMode.Rename -> NuboInputDialog(
                 visible = true,
-                title = "이름 변경",
+                title = "보드 이름 변경",
                 confirmText = "완료",
                 placeholder = "새 이름",
                 initialValue = m.currentName,
@@ -222,7 +222,7 @@ fun DetailTopBar(onBack: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 65.dp, bottom = 10.dp),
+            .padding(start = 14.dp, end = 16.dp, top = 62.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -277,7 +277,7 @@ fun BoardFilterButton(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, bottom = 20.dp),
+            .padding(start = 16.dp, end = 16.dp, bottom = 18.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -473,7 +473,7 @@ fun NuboInputDialog(
                 )
             }
 
-            Spacer(Modifier.height(30.dp))
+            Spacer(Modifier.height(25.dp))
 
             // ▶ 입력 필드 바깥 여백 16dp
             Box(
