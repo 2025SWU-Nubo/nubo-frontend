@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Icon
@@ -43,10 +44,12 @@ import com.example.nubo.ui.component.MyCardContent
 import com.example.nubo.ui.component.randomCardHeight
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.style.TextAlign
+import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
 import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey50
@@ -240,7 +243,9 @@ fun MyBoardScreen(
                                                 boardId = item.serverBoardId,
                                                 currentFavorite = item.isBookmarked
                                             )
-                                        }
+                                        },
+                                        isSelectionMode = false,
+                                        selectedBoardIds = emptySet()
                                     )
                                 }
                             }
@@ -270,7 +275,9 @@ fun MyBoardScreen(
                                     boardId = item.serverBoardId,
                                     currentFavorite = item.isBookmarked
                                 )
-                            }
+                            },
+                            isSelectionMode = false,
+                            selectedBoardIds = emptySet()
                         )
                     }
                 }
@@ -307,7 +314,7 @@ fun TabHeader(
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
-                            .clickable { onTabSelected(index) } // 탭 클릭 처리
+                            .noRippleClickable {onTabSelected(index) } // 탭 클릭 처리
                     ) {
                         // 텍스트 설정
                         Text(
@@ -362,7 +369,7 @@ fun TitleBar(
                     contentDescription = "검색",
                     modifier = Modifier
                         .size(24.dp)
-                        .clickable { onSearchOpen() }
+                        .noRippleClickable { onSearchOpen() }
                 )
             } // 검색 모드
             else {
@@ -434,7 +441,7 @@ fun TitleBar(
                         contentDescription = "닫기",
                         modifier = Modifier
                             .size(24.dp)
-                            .clickable { onSearchClose() }
+                            .noRippleClickable { onSearchClose() }
                     )
                 }
             }
@@ -523,19 +530,23 @@ fun ScrollableCardContent(
     cards: List<MyCardItem>,
     onCardClick: (Int) -> Unit,
     cardHeights: List<Dp>,
+    isSelectionMode: Boolean = false,
+    selectedCardIds: Set<Int> = emptySet()
 ) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(top = 4.dp),
-        contentPadding = PaddingValues(bottom = 15.dp),
+        contentPadding = PaddingValues(bottom = 90.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         item {
             MyCardContent(
                 cards = cards,
                 cardHeights = cardHeights,
-                onCardClick = onCardClick
+                onCardClick = onCardClick,
+                isSelectionMode = isSelectionMode,
+                selectedCardIds = selectedCardIds
             )
         }
     }

@@ -1,10 +1,10 @@
 package com.example.nubo.ui.screen.myBoard
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.snapping.SnapPosition
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +33,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,7 +53,6 @@ import com.example.nubo.ui.theme.AppTextStyles.subtitle_medium_16
 import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.Purple100
-import com.example.nubo.ui.theme.Purple200
 import com.example.nubo.ui.theme.PurpleMain500
 import com.example.nubo.model.card.CardItem
 import com.example.nubo.ui.component.randomCardHeight
@@ -62,16 +62,27 @@ import getDisplayDate
 import java.net.URLDecoder
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import com.example.components.toast.AppToastHost
+import com.example.components.toast.AppToastLayout
+import com.example.components.toast.rememberAppToastHostState
+import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.Purple50
+import kotlinx.coroutines.launch
 
 // 어떤 다이얼로그를 띄울지 구분하기 위한 sealed class
 sealed class InputDialogMode {
     data object CreateSection : InputDialogMode()
     data class Rename(val sectionId: Int, val currentName: String) : InputDialogMode()
+}
+// 어떤 시트를 띄울지 관리하는 상태
+sealed class SheetMode {
+    data object None : SheetMode()
+    data class SelectBoard(val action: BoardAction) : SheetMode()
 }
 
 @Composable
@@ -84,12 +95,56 @@ fun BoardDetailScreen(
     modifier: Modifier = Modifier
 ) {
 
+    // --- 선택 모드 관리를 위한 상태 변수 ---
+    // 1. 선택 모드 활성화 여부
+    var isSelectionMode by remember { mutableStateOf(false) }
+
+    // 2. 선택된 섹션들의 ID를 저장하는 Set
+    var selectedSections by remember { mutableStateOf(emptySet<Int>()) }
+
+    // 3. 선택된 카드들의 ID를 저장하는 Set
+    var selectedCards by remember { mutableStateOf(emptySet<Int>()) }
+    // -----------------------------------------
+
+    // --- 선택 모드 바텀바 관련 변수 ---
+    var showBoardSelector by remember { mutableStateOf(false) }
+    var currentAction by remember { mutableStateOf<BoardAction?>(null) }
+    val boardsState by viewModel.boards.collectAsState()
+
+    val resetSelectionState = {
+        isSelectionMode = false
+        showBoardSelector = false
+        currentAction = null
+        selectedSections = emptySet()
+        selectedCards = emptySet()
+    }
+    // -----------------------------------------
+
     //  다이얼로그 모드 상태
     var dialogMode by remember { mutableStateOf<InputDialogMode?>(null) }
 
     // 진입 시 한 번 초기 로드
     LaunchedEffect(boardId) {
         viewModel.init(boardId)
+    }
+
+    // 토스트 상태 및 코루틴 스코프 선언
+    val toastHostState = rememberAppToastHostState()
+    val scope = rememberCoroutineScope()
+    val toastMessage by viewModel.toastMessage.collectAsState()
+
+    // ViewModel의 toastMessage 변경을 감지하여 토스트 표시
+    LaunchedEffect(toastMessage) {
+        toastMessage?.let { message ->
+            scope.launch {
+                toastHostState.show(
+                    title = buildAnnotatedString { append(message) },
+                    layout = AppToastLayout.TitleOnly // 제목만 있는 레이아웃 사용
+                )
+            }
+            // 토스트를 띄운 후에는 상태를 다시 null로 초기화하여 중복 표시 방지
+            viewModel.clearToastMessage()
+        }
     }
 
     // SectionDetailScreen에서 이름 변경 결과를 수신하는 부분
@@ -109,79 +164,145 @@ fun BoardDetailScreen(
     val ui by viewModel.ui.collectAsState()
     val boardState = ui.board
 
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        DetailTopBar(onBack = {
-            // 현재 보드의 최신 이름 전달
-            val latestName = ui.board?.name ?: boardTitle
-            navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_id", boardId)
-            navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_name", latestName)
-            navController.popBackStack()
-        })
-        BoardTitleBar(
-            title = ui.board?.name ?: boardTitle,
-            onClick = {
-            dialogMode = InputDialogMode.Rename(
-                sectionId = boardId, // 현재 보드 id
-                currentName = ui.board?.name ?: boardTitle
+            DetailTopBar(onBack = {
+                // 현재 보드의 최신 이름 전달
+                val latestName = ui.board?.name ?: boardTitle
+                navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_id", boardId)
+                navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_name", latestName)
+                navController.popBackStack()
+            })
+            BoardTitleBar(
+                title = ui.board?.name ?: boardTitle,
+                onClick = {
+                    dialogMode = InputDialogMode.Rename(
+                        sectionId = boardId, // 현재 보드 id
+                        currentName = ui.board?.name ?: boardTitle
+                    )
+                })
+            // 즐겨찾기 필터만 뷰모델과 연결 (정렬 버튼은 UI만 유지, 서버 쿼리는 LATEST 고정)
+            BoardFilterButton(
+                favoriteSelected = ui.favoriteOnly,
+                onToggleFavorite = { enabled -> viewModel.setFavoriteFilter(enabled) },
+                onAddClick = { dialogMode = InputDialogMode.CreateSection },
+                onSelectClick = {// 선택/취소 버튼 클릭 시 로직
+                    if (isSelectionMode) {
+                        resetSelectionState() // '취소' 시 모든 선택 상태 초기화
+                    } else {
+                        isSelectionMode = true // '선택' 시 선택 모드 시작
+                    }
+                },
+                onRequestSort = { sortKey -> viewModel.setSort(sortKey) },
+                isSelectionMode = isSelectionMode, // 선택 상태 변수 전달
             )
-        })
-        // 즐겨찾기 필터만 뷰모델과 연결 (정렬 버튼은 UI만 유지, 서버 쿼리는 LATEST 고정)
-        BoardFilterButton(
-            favoriteSelected = ui.favoriteOnly,
-            onToggleFavorite = { enabled -> viewModel.setFavoriteFilter(enabled) },
-            onAddClick = { dialogMode = InputDialogMode.CreateSection },
-            onSelectClick = {/* 삭제 복제 이동 */},
-            onRequestSort = {sortKey -> viewModel.setSort(sortKey)}
-        )
 
-        if (boardState != null) {
-            val boardItems = boardState?.sections?.map { it.toBoardItem() } ?: emptyList()
-            // 페이징 래퍼에서 실제 리스트 꺼내기
-            val cardItems = boardState.cards.content.map { it.toCardItem() }
+            if (boardState != null) {
+                val boardItems = boardState.sections?.map { it.toBoardItem() } ?: emptyList()
+                // 페이징 래퍼에서 실제 리스트 꺼내기
+                val cardItems = boardState.cards.content.map { it.toCardItem() }
+                // 카드 배열 길이가 바뀌면 높이도 재생성
+                val cardHeights by remember(boardId, cardItems.size) {
+                    mutableStateOf(cardItems.map { randomCardHeight() })
+                }
 
-            // 카드 배열 길이가 바뀌면 높이도 재생성
-            val cardHeights by remember(boardId, cardItems.size) {
-                mutableStateOf(cardItems.map { randomCardHeight() })
-            }
-
-
-            if (boardItems.isNotEmpty()) {
                 BoardDetailContent(
                     boardItems = boardItems,
                     cardItems = cardItems,
                     cardHeights = cardHeights,
                     onCardClick = { cardId ->
-                        // MyBoardScreen과 동일한 패턴으로 카드 상세 화면 이동
-                        navController.navigate("card_detail/$cardId")
-                    },onSectionClick = { section ->
-                        val encodedTitle = java.net.URLEncoder.encode(section.title, "utf-8")
-                        navController.navigate("section_detail/${section.id}/$encodedTitle")
+                        // 카드 클릭 시 선택/해제 로직 추가
+                        if (isSelectionMode) {
+                            selectedCards = if (selectedCards.contains(cardId)) {
+                                selectedCards - cardId
+                            } else {
+                                selectedCards + cardId
+                            }
+                        } else {
+                            navController.navigate("card_detail/$cardId")
+                        }
+                    },
+                    onSectionClick = { section ->
+                        if (isSelectionMode) {
+                            selectedSections = if (selectedSections.contains(section.id)) {
+                                selectedSections - section.id
+                            } else {
+                                selectedSections + section.id
+                            }
+                        } else {
+                            val encodedTitle = java.net.URLEncoder.encode(section.title, "utf-8")
+                            navController.navigate("section_detail/${section.id}/$encodedTitle")
+                        }
                     },
                     onFavoriteClick = { section: BoardItem ->
                         viewModel.toggleSectionFavorite(
                             sectionId = section.id,
                             currentFavorite = section.isBookmarked
                         )
-                    }
+                    },
+                    isSelectionMode = isSelectionMode,
+                    selectedSections = selectedSections,
+                    selectedCards = selectedCards
                 )
             } else {
-                // 보드가 없고 카드만 있을 경우에도 동일하게 처리
-                BoardDetailContent(
-                    boardItems = boardItems,
-                    cardItems = cardItems,
-                    cardHeights = cardHeights,
-                    onCardClick = { cardId ->
-                        // MyBoardScreen과 동일한 패턴으로 카드 상세 화면 이동
-                        navController.navigate("card_detail/$cardId")
+                Text("Loading...")
+            }
+        }
+        // 선택 모드일 때 화면 하단에 바텀 시트 표시
+        SelectionBottomBar(
+            modifier = Modifier.align(Alignment.BottomCenter),
+            isVisible = isSelectionMode,
+            showBoardSelector = showBoardSelector,
+            actionsContent = {
+                ActionsContent(
+                    selectedSectionCount = selectedSections.size,
+                    selectedCardCount = selectedCards.size,
+                    onDeleteClick = { /* TODO */ },
+                    onCopyClick = {
+                        currentAction = BoardAction.COPY
+                        showBoardSelector = true
+                        viewModel.loadBoards()
                     },
-                    onSectionClick = {/*카드만 있을 경우 섹션 동작 없음*/},
-                    onFavoriteClick = { /* 섹션이 없을 때는 동작 없음 */ }
+                    onMoveClick = {
+                        currentAction = BoardAction.MOVE
+                        showBoardSelector = true
+                        viewModel.loadBoards()
+                    }
+                )
+            },
+            boardSelectorContent = {
+                BoardSelectionSheetContent(
+                    action = currentAction ?: BoardAction.COPY,
+                    boardsState = boardsState,
+                    onBack = { showBoardSelector = false },
+                    onConfirm = { selectedId -> //selectedTargetIds -> selectedId (타입: String?)
+                        // selectedId가 null이 아닐 때만 로직 실행
+                        selectedId?.let { targetId ->
+                            when (currentAction) {
+                                BoardAction.COPY -> {
+                                    viewModel.copySelectedItems(
+                                        targetBoardId = targetId.toLong(),
+                                        selectedSectionIds = selectedSections,
+                                        selectedCardIds = selectedCards
+                                    )
+                                }
+                                BoardAction.MOVE -> {
+                                    viewModel.moveSelectedItems(
+                                        targetBoardId = targetId.toLong(),
+                                        selectedSectionIds = selectedSections,
+                                        selectedCardIds = selectedCards
+                                    )
+                                }
+                                null -> {}
+                            }
+                        }
+                        // 작업 완료 후 선택 모드 초기화
+                        resetSelectionState()
+                    }
                 )
             }
-        } else {
-            Text("Loading...")
-        }
+        )
         // ==== 다이얼로그 표시 ====
         when (val m = dialogMode) {
             InputDialogMode.CreateSection -> NuboInputDialog(
@@ -215,6 +336,8 @@ fun BoardDetailScreen(
             null -> Unit
         }
     }
+    // 토스트 UI를 화면에 배치
+    AppToastHost(hostState = toastHostState)
 }
 
 
@@ -246,14 +369,13 @@ fun DetailTopBar(onBack: () -> Unit) {
 
 
 @Composable
-fun BoardTitleBar(title: String,onClick: () -> Unit) {
+fun BoardTitleBar(title: String, onClick: () -> Unit) {
     val decodedTitle = URLDecoder.decode(title, "utf-8")
 
     Column(modifier = Modifier.padding(top = 27.dp)) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onClick() }
+                .noRippleClickable {onClick() }
                 .padding(start = 18.dp, end = 16.dp, bottom = 15.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -272,7 +394,8 @@ fun BoardFilterButton(
     onToggleFavorite: (Boolean) -> Unit,
     onAddClick: () -> Unit,
     onSelectClick: () -> Unit,
-    onRequestSort: (String) -> Unit
+    onRequestSort: (String) -> Unit,
+    isSelectionMode: Boolean
 ) {
     // '즐겨찾기' 버튼의 선택 상태를 관리
     var selected by remember(favoriteSelected) {
@@ -345,18 +468,24 @@ fun BoardFilterButton(
                 )
             }
 
+            // 선택 버튼 UI
+            // '선택' 또는 '취소' 버튼
+            val buttonText = if (isSelectionMode) "취소" else "선택"
+            val containerColor = if (isSelectionMode) PurpleMain500 else Purple100.copy(alpha = 0.3f)
+            val contentColor = if (isSelectionMode) Color.White else PurpleMain500
+
             Button(
-                onClick = onSelectClick,
+                onClick = onSelectClick, // 클릭 시 isSelectionMode 상태를 토글하는 람다 연결 예정
                 shape = RoundedCornerShape(5.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Purple100.copy(alpha = 0.3f),
-                    contentColor = PurpleMain500
+                    containerColor = containerColor,
+                    contentColor = contentColor
                 ),
-                border = BorderStroke(0.5.dp, PurpleMain500),
+                border = if (!isSelectionMode) BorderStroke(0.5.dp, PurpleMain500) else null,
                 contentPadding = PaddingValues(horizontal = 10.dp),
                 modifier = Modifier.height(32.dp)
             ) {
-                Text(text = "선택", style = label_medium_12, color = PurpleMain500)
+                Text(text = buttonText, style = label_medium_12)
             }
         }
     }
@@ -426,7 +555,7 @@ fun NuboInputDialog(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 16.dp),
+                    .padding(horizontal = 12.dp, vertical = 24.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
@@ -460,8 +589,6 @@ fun NuboInputDialog(
                         .padding(end = 4.dp)
                 )
             }
-
-            Spacer(Modifier.height(25.dp))
 
             // ▶ 입력 필드 바깥 여백 16dp
             Box(

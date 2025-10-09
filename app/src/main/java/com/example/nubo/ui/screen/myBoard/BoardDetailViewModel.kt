@@ -1,9 +1,11 @@
 package com.example.nubo.ui.screen.myBoard
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.nubo.data.model.BoardRenameRequest
 import com.example.nubo.data.model.BoardResponse
+import com.example.nubo.data.model.BoardWithSectionsResponse
 import com.example.nubo.data.model.FavoriteRequest
 import com.example.nubo.data.network.BoardService
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,6 +16,8 @@ import javax.inject.Inject
 import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.data.repository.BoardRepository
 import com.example.nubo.data.model.UpsertBoardRequest
+import com.example.nubo.data.model.BulkCopyRequest
+import com.example.nubo.data.model.BulkMoveRequest
 
 data class BoardDetailUiState(
     val isLoading: Boolean = false,
@@ -24,6 +28,15 @@ data class BoardDetailUiState(
     val isLast: Boolean = false,
     val sort: String = "LATEST"
 )
+
+// --- 보드 트리 UI를 위한 데이터 클래스 ---
+data class UiBoardNode(
+    val id: Long,
+    val title: String,
+    val children: List<UiBoardNode> = emptyList(),
+)
+// -----------------------------------------
+
 
 @HiltViewModel
 class BoardDetailViewModel @Inject constructor(
@@ -38,6 +51,14 @@ class BoardDetailViewModel @Inject constructor(
     private var bootstrapped = false
     private val pageSize = 20
 
+    //  토스트 메시지 상태 변수와 초기화 함수
+    private val _toastMessage = MutableStateFlow<String?>(null)
+    val toastMessage: StateFlow<String?> = _toastMessage
+
+    fun clearToastMessage() {
+        _toastMessage.value = null
+    }
+
     fun init(boardId: Int) {
         if (bootstrapped && currentBoardId == boardId) return
         bootstrapped = true
@@ -45,12 +66,14 @@ class BoardDetailViewModel @Inject constructor(
         _ui.value = BoardDetailUiState(isLoading = true, favoriteOnly = false)
         loadPage(reset = true)
     }
+
     // 즐겨찾기 필터
     fun setFavoriteFilter(enabled: Boolean) {
         if (_ui.value.favoriteOnly == enabled) return
         _ui.value = _ui.value.copy(favoriteOnly = enabled)
         loadPage(reset = true)
     }
+
     // 정렬
     fun setSort(sortKey: String) {
         // 이미 같은 정렬 옵션이면 아무것도 하지 않음
@@ -167,6 +190,7 @@ class BoardDetailViewModel @Inject constructor(
             }
         }
     }
+
     // 섹션 이름 변경
     fun renameSection(sectionId: Int, newName: String) {
         val before = _ui.value
@@ -218,6 +242,141 @@ class BoardDetailViewModel @Inject constructor(
                 )
             } catch (t: Throwable) {
                 _ui.value = before
+            }
+        }
+    }
+
+    // --- 보드 트리 로딩 상태 ---
+    sealed class BoardsState {
+        data object Idle : BoardsState()
+        data object Loading : BoardsState()
+        data class Loaded(val boards: List<UiBoardNode>) : BoardsState()
+        data class Error(val message: String) : BoardsState()
+    }
+
+    private val _boards = MutableStateFlow<BoardsState>(BoardsState.Idle)
+    val boards: StateFlow<BoardsState> = _boards
+    // ------------------------------------
+
+    // --- 보드 목록 로딩 함수 ---
+    fun loadBoards() {
+        if (_boards.value is BoardsState.Loading || _boards.value is BoardsState.Loaded) return
+
+        viewModelScope.launch {
+            _boards.value = BoardsState.Loading
+            try {
+                val token = "Bearer ${authRepository.getAccessToken()}"
+                // videoService 대신 boardService를 사용하도록 수정
+                val res = boardService.getBoardsWithSections(token)
+
+                if (res.isSuccessful) {
+                    val body = res.body().orEmpty()
+                    _boards.value = BoardsState.Loaded(body.toUiNodes())
+                } else {
+                    _boards.value = BoardsState.Error("서버 오류: ${res.code()}")
+                }
+            } catch (e: Exception) {
+                _boards.value = BoardsState.Error("네트워크 오류: ${e.localizedMessage ?: "알 수 없음"}")
+            }
+        }
+    }
+
+    // 서버 DTO → UI 노드 변환 헬퍼 함수
+    private fun List<BoardWithSectionsResponse>.toUiNodes(): List<UiBoardNode> {
+        return map { board ->
+            UiBoardNode(
+                id = board.id,
+                title = board.name,
+                children = board.sections.map { sec ->
+                    UiBoardNode(id = sec.id, title = sec.name)
+                }
+            )
+        }
+    }
+    // -----------
+
+    // 복제 함수
+    fun copySelectedItems(
+        targetBoardId: Long,
+        selectedSectionIds: Set<Int>,
+        selectedCardIds: Set<Int>
+    ) {
+
+        Log.d("CopyAPI", "--- copySelectedItems 함수 시작 ---")
+        Log.d("CopyAPI", "Target: $targetBoardId, Sections: $selectedSectionIds, Cards: $selectedCardIds")
+        viewModelScope.launch {
+            _ui.value = _ui.value.copy(isLoading = true, error = null)
+            try {
+                val token = "Bearer ${authRepository.getAccessToken()}"
+                val sourceBoardId = currentBoardId.toLong()
+
+                val request = BulkCopyRequest(
+                    targetBoardId = targetBoardId,
+                    // 선택된 ID가 없으면 null, 있으면 Long 타입 리스트로 변환
+                    boardIds = selectedSectionIds.takeIf { it.isNotEmpty() }?.map { it.toLong() },
+                    cardIds = selectedCardIds.takeIf { it.isNotEmpty() }?.map { it.toLong() }
+                )
+
+                val response = boardService.bulkCopy(
+                    authHeader = token,
+                    sourceBoardId = sourceBoardId,
+                    body = request
+                )
+
+                if (response.isSuccessful) {
+                    // 성공 시, 현재 화면을 새로고침하여 변경사항을 반영
+                    Log.i("CopyAPI", "성공: ${response.body()}")
+                    _toastMessage.value = "복제가 완료되었습니다!"
+                    loadPage(reset = true)
+                } else {
+                    // API 에러 처리 (예: 공유 보드에 복사 시도 등)
+                    _ui.value = _ui.value.copy(isLoading = false, error = "복사에 실패했습니다: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                _ui.value = _ui.value.copy(isLoading = false, error = "네트워크 오류: ${e.message}")
+            }
+        }
+    }
+    // 이동 함수
+    fun moveSelectedItems(
+        targetBoardId: Long,
+        selectedSectionIds: Set<Int>,
+        selectedCardIds: Set<Int>
+    ) {
+        Log.d("MoveAPI", "--- moveSelectedItems 함수 시작 ---")
+        Log.d("MoveAPI", "Target: $targetBoardId, Sections: $selectedSectionIds, Cards: $selectedCardIds")
+
+        viewModelScope.launch {
+            _ui.value = _ui.value.copy(isLoading = true, error = null)
+            try {
+                val token = "Bearer ${authRepository.getAccessToken()}"
+                val sourceBoardId = currentBoardId.toLong()
+
+                val request = BulkMoveRequest(
+                    targetBoardId = targetBoardId,
+                    boardIds = selectedSectionIds.takeIf { it.isNotEmpty() }?.map { it.toLong() },
+                    cardIds = selectedCardIds.takeIf { it.isNotEmpty() }?.map { it.toLong() }
+                )
+
+                Log.d("MoveAPI", "Request Body 생성: $request")
+                val response = boardService.bulkMove(
+                    authHeader = token,
+                    sourceBoardId = sourceBoardId,
+                    body = request
+                )
+
+                if (response.isSuccessful) {
+                    Log.i("MoveAPI", "성공: ${response.body()}")
+                    _toastMessage.value = "이동이 완료되었습니다!"
+                    loadPage(reset = true) // 이동 후 현재 화면은 아이템이 사라졌으므로 새로고침
+                } else {
+                    val errorBody = response.errorBody()?.string()
+                    Log.e("MoveAPI", "실패: Code=${response.code()}, ErrorBody=${errorBody}")
+                    _ui.value = _ui.value.copy(isLoading = false, error = "이동에 실패했습니다: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                Log.e("MoveAPI", "네트워크 예외 발생", e)
+                _ui.value = _ui.value.copy(isLoading = false, error = "오류 발생: ${e.message}")
             }
         }
     }

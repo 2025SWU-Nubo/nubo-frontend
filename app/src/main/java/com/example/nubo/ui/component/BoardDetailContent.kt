@@ -34,7 +34,11 @@ fun BoardDetailContent(
     cardHeights: List<Dp>,
     onCardClick: (Int) -> Unit,
     onSectionClick: (BoardItem) -> Unit,
-    onFavoriteClick: (BoardItem) -> Unit
+    onFavoriteClick: (BoardItem) -> Unit,
+    // 선택 관련 상태 파라미터들
+    isSelectionMode: Boolean,
+    selectedSections: Set<Int>,
+    selectedCards: Set<Int>
 ) {
     // 카드 Masonry 좌/우 컬럼 분리
     val leftItems = cardItems.filterIndexed { i, _ -> i % 2 == 0 }
@@ -52,7 +56,11 @@ fun BoardDetailContent(
                     BoardCardWithText(
                         board = item,
                         onClick = { onSectionClick(item) },
-                        onFavoriteClick = onFavoriteClick
+                        onFavoriteClick = onFavoriteClick,
+                        // 선택 관련 파라미터 전달
+                        isSelectionMode = isSelectionMode,
+                        isSelected = selectedSections.contains(item.id)
+
                     )
                 }
                 if (rowItems.size < 2) {
@@ -76,7 +84,10 @@ fun BoardDetailContent(
                         MyMasonryCard(
                             height = cardHeights.getOrNull(index * 2) ?: 180.dp,
                             imageUrl = item.imageUrl,
-                            onClick = { onCardClick(item.id) }
+                            onClick = { onCardClick(item.id) },
+                            // 선택 관련 파라미터 전달
+                            isSelectionMode = isSelectionMode,
+                            isSelected = selectedCards.contains(item.id)
                         )
                     }
                 }
@@ -89,6 +100,9 @@ fun BoardDetailContent(
                         MyMasonryCard(
                             height = cardHeights.getOrNull(index * 2 + 1) ?: 180.dp,
                             imageUrl = item.imageUrl,
+                            // 선택 관련 파라미터 전달
+                            isSelectionMode = isSelectionMode,
+                            isSelected = selectedCards.contains(item.id),
                             onClick = { onCardClick(item.id) }
                         )
                     }

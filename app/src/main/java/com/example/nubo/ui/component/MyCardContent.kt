@@ -14,6 +14,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -21,16 +23,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.example.nubo.R
 import com.example.nubo.data.model.CardDetailResponse
 import com.example.nubo.model.card.CardDetailItem
 import com.example.nubo.model.myBoard.MyCardItem
 import com.example.nubo.ui.screen.myBoard.MyCardViewModel
 import com.example.nubo.ui.theme.Grey50
+import com.example.nubo.ui.theme.PurpleMain500
 import formatIsoDateToDisplayLegacy
 
 
@@ -40,7 +46,9 @@ fun MyCardContent(
     cards: List<MyCardItem>,
     cardHeights: List<Dp>,
     onCardClick: (Int) -> Unit,
-    myCardViewModel: MyCardViewModel = hiltViewModel()
+    // 선택 관련 파라미터
+    isSelectionMode: Boolean,
+    selectedCardIds: Set<Int>
 ) {
 
     // Masonry 구성 동일
@@ -58,10 +66,15 @@ fun MyCardContent(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             leftItems.forEachIndexed(){ index, item ->
+                // 여기서 각 카드가 선택되었는지 여부를 계산
+                val isSelected = selectedCardIds.contains(item.id)
                 MyMasonryCard(
                     height = cardHeights.getOrNull(index * 2) ?: 180.dp,
                     imageUrl = item.imageUrl,
-                    onClick = { onCardClick(item.id) }
+                    onClick = { onCardClick(item.id) },
+                    // 계산된 값을 파라미터로 전달
+                    isSelectionMode = isSelectionMode,
+                    isSelected = isSelected
                 )
             }
         }
@@ -71,10 +84,15 @@ fun MyCardContent(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             rightItems.forEachIndexed(){ index, item ->
+                // 여기서 각 카드가 선택되었는지 여부를 계산
+                val isSelected = selectedCardIds.contains(item.id)
                 MyMasonryCard(
-                    height = cardHeights.getOrNull(index * 2 + 1) ?: 180.dp,
+                    height = cardHeights.getOrNull(index * 2) ?: 180.dp,
                     imageUrl = item.imageUrl,
-                    onClick = { onCardClick(item.id) }
+                    onClick = { onCardClick(item.id) },
+                    // 계산된 값을 파라미터로 전달
+                    isSelectionMode = isSelectionMode,
+                    isSelected = isSelected
                 )
             }
         }
@@ -83,7 +101,14 @@ fun MyCardContent(
 
 
 @Composable
-fun MyMasonryCard(height: Dp, imageUrl: String, onClick: () -> Unit) {
+fun MyMasonryCard(
+    height: Dp,
+    imageUrl: String,
+    onClick: () -> Unit,
+    // [추가] 선택 관련 파라미터
+    isSelectionMode: Boolean,
+    isSelected: Boolean)
+{
     Box(
         modifier = Modifier
             .width(182.dp)
@@ -112,5 +137,23 @@ fun MyMasonryCard(height: Dp, imageUrl: String, onClick: () -> Unit) {
             modifier = imageModifier, // 위에서 만든 Modifier를 적용
             contentScale = ContentScale.Crop // Crop을 기본으로 두어 안정적인 크롭을 보장
         )
+        // --- [추가] 선택 모드 오버레이 ---
+        if (isSelectionMode && isSelected) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(Color.White.copy(alpha = 0.5f))
+            )
+            Icon(
+                painter = painterResource(id = R.drawable.ic_board_selected), // 체크 아이콘
+                contentDescription = "선택됨",
+                tint = Color.Unspecified,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(8.dp)
+                    .size(24.dp)
+            )
+        }
     }
 }
+
