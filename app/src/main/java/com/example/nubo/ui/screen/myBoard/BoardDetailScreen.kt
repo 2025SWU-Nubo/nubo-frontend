@@ -118,18 +118,21 @@ fun BoardDetailScreen(
             navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_name", latestName)
             navController.popBackStack()
         })
-        BoardTitleBar(title = ui.board?.name ?: boardTitle)
+        BoardTitleBar(
+            title = ui.board?.name ?: boardTitle,
+            onClick = {
+            dialogMode = InputDialogMode.Rename(
+                sectionId = boardId, // 현재 보드 id
+                currentName = ui.board?.name ?: boardTitle
+            )
+        })
         // 즐겨찾기 필터만 뷰모델과 연결 (정렬 버튼은 UI만 유지, 서버 쿼리는 LATEST 고정)
         BoardFilterButton(
             favoriteSelected = ui.favoriteOnly,
             onToggleFavorite = { enabled -> viewModel.setFavoriteFilter(enabled) },
             onAddClick = { dialogMode = InputDialogMode.CreateSection },
-            onSelectClick = {
-                dialogMode = InputDialogMode.Rename(
-                    sectionId = boardId, // 현재 보드 id
-                    currentName = ui.board?.name ?: boardTitle
-                )
-            }
+            onSelectClick = {/* 삭제 복제 이동 */},
+            onRequestSort = {sortKey -> viewModel.setSort(sortKey)}
         )
 
         if (boardState != null) {
@@ -243,13 +246,14 @@ fun DetailTopBar(onBack: () -> Unit) {
 
 
 @Composable
-fun BoardTitleBar(title: String) {
+fun BoardTitleBar(title: String,onClick: () -> Unit) {
     val decodedTitle = URLDecoder.decode(title, "utf-8")
 
     Column(modifier = Modifier.padding(top = 27.dp)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable { onClick() }
                 .padding(start = 18.dp, end = 16.dp, bottom = 15.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -268,12 +272,12 @@ fun BoardFilterButton(
     onToggleFavorite: (Boolean) -> Unit,
     onAddClick: () -> Unit,
     onSelectClick: () -> Unit,
+    onRequestSort: (String) -> Unit
 ) {
-    val filters = listOf("최근 저장순", "즐겨찾기")
+    // '즐겨찾기' 버튼의 선택 상태를 관리
     var selected by remember(favoriteSelected) {
         mutableStateOf(if (favoriteSelected) "즐겨찾기" else null)
     }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -283,60 +287,44 @@ fun BoardFilterButton(
     ) {
         // 왼쪽: 정렬/필터 버튼들
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            filters.forEach { label ->
-                val isSelected = selected == label
-                OutlinedButton(
-                    onClick = {
-                        when (label) {
-                            "즐겨찾기" -> {
-                                val nextOn = !isSelected
-                                selected = if (nextOn) "즐겨찾기" else null
-                                onToggleFavorite(nextOn) // 서버 필터 동기화
-                            }
-                            "최근 저장순" -> {
-                                // 정렬은 UI만 표시 (서버 쿼리 LATEST 고정이면 추가 로직 불필요)
-                            }
-                        }
-                    },
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = if (isSelected) Purple50 else Color.Transparent,
-                        contentColor = if (isSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
-                    ),
-                    shape = RoundedCornerShape(50),
-                    border = BorderStroke(1.dp, if (isSelected) PurpleMain500 else Grey200),
-                    modifier = Modifier.height(35.dp),
-                    contentPadding = PaddingValues(horizontal = 15.dp, vertical = 8.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Spacer(Modifier.width(2.dp))
-                        Text(
-                            text = label,
-                            style = label_medium_12,
-                            color = if (isSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
-                        )
-                        when (label) {
-                            "최근 저장순" -> {
-                                Spacer(Modifier.width(3.dp))
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_filter_arrow_down),
-                                    contentDescription = "정렬 옵션",
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                            "즐겨찾기" -> {
-                                Spacer(Modifier.width(5.dp))
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_filter_star),
-                                    contentDescription = "즐겨찾기",
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
-                    }
+            // 정렬 버튼
+            SortFilterButton(
+                onSortSelected = { sortKey -> onRequestSort(sortKey) }
+            )
+
+            // 즐겨찾기 버튼
+            val isFavoriteSelected = selected == "즐겨찾기"
+            OutlinedButton(
+                onClick = {
+                    val nextOn = !isFavoriteSelected
+                    selected = if (nextOn) "즐겨찾기" else null
+                    onToggleFavorite(nextOn) // 서버 필터 동기화
+                },
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = if (isFavoriteSelected) Purple50 else Color.Transparent,
+                    contentColor = if (isFavoriteSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
+                ),
+                shape = RoundedCornerShape(50),
+                border = BorderStroke(1.dp, if (isFavoriteSelected) PurpleMain500 else Grey200),
+                modifier = Modifier.height(35.dp),
+                contentPadding = PaddingValues(horizontal = 15.dp, vertical = 8.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(Modifier.width(2.dp))
+                    Text(
+                        text = "즐겨찾기", // "label" 변수 대신 텍스트를 직접 사용
+                        style = label_medium_12,
+                        color = if (isFavoriteSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_filter_star),
+                        contentDescription = "즐겨찾기",
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
             }
         }
-
         // 오른쪽 버튼들(기존 그대로)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(

@@ -20,7 +20,7 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 
-enum class CardSort { LATEST, POPULAR }
+enum class CardSort { LATEST, OLDEST,ALPHABET }
 
 interface CardService {
     @GET("api/card")

@@ -70,18 +70,21 @@ fun SectionDetailScreen(
             navController.popBackStack()
         })
         // BoardTitleBar는 BoardDetailScreen의 것을 재사용
-        BoardTitleBar(title = detailState?.name ?: sectionTitle)
+        BoardTitleBar(
+            title = detailState?.name ?: sectionTitle,
+            onClick = {
+                dialogMode = InputDialogMode.Rename(
+                    sectionId = sectionId,
+                    currentName = detailState?.name ?: sectionTitle
+                )
+            })
 
         // '+' 버튼이 없는 필터 버튼 UI
         SectionFilterButton(
             favoriteSelected = ui.favoriteOnly,
             onToggleFavorite = { enabled -> viewModel.setFavoriteFilter(enabled) },
-            onSelectClick = {
-                dialogMode = InputDialogMode.Rename(
-                    sectionId = sectionId,
-                    currentName = detailState?.name ?: sectionTitle
-                )
-            }
+            onSelectClick = {},
+            onRequestSort = {sortKey -> viewModel.setSort(sortKey)}
         )
 
         if (ui.isLoading && detailState == null) {
@@ -130,10 +133,11 @@ fun SectionFilterButton(
     favoriteSelected: Boolean,
     onToggleFavorite: (Boolean) -> Unit,
     onSelectClick: () -> Unit,
+    onRequestSort: (String) -> Unit
 ) {
-    val filters = listOf("최근 저장순", "즐겨찾기")
+    // '즐겨찾기' 버튼의 선택 상태를 관리
     var selected by remember(favoriteSelected) {
-        mutableStateOf (if (favoriteSelected) "즐겨찾기" else null)
+        mutableStateOf(if (favoriteSelected) "즐겨찾기" else null)
     }
 
     Row(
@@ -145,38 +149,39 @@ fun SectionFilterButton(
     ) {
         // 왼쪽: 정렬/필터 버튼들
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            filters.forEach { label ->
-                val isSelected = selected == label
-                OutlinedButton(
-                    onClick = {
-                        if (label == "즐겨찾기") {
-                            val nextOn = !isSelected
-                            selected = if (nextOn) "즐겨찾기" else null
-                            onToggleFavorite(nextOn)
-                        }
-                    },
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = if (isSelected) Purple50 else Color.Transparent,
-                        contentColor = if (isSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
-                    ),
-                    shape = RoundedCornerShape(50),
-                    border = BorderStroke(1.dp, if (isSelected) PurpleMain500 else Grey200),
-                    modifier = Modifier.height(35.dp),
-                    contentPadding = PaddingValues(horizontal = 15.dp, vertical = 8.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = label, style = AppTextStyles.label_medium_12)
-                        Spacer(Modifier.width(5.dp))
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_filter_star),
-                            contentDescription = "즐겨찾기",
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
+            // 정렬 버튼
+            SortFilterButton(
+                onSortSelected = { sortKey -> onRequestSort(sortKey) }
+            )
+
+            // 즐겨찾기 버튼
+            val isFavoriteSelected = selected == "즐겨찾기"
+            OutlinedButton(
+                onClick = {
+                    val nextOn = !isFavoriteSelected
+                    selected = if (nextOn) "즐겨찾기" else null
+                    onToggleFavorite(nextOn)
+                },
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = if (isFavoriteSelected) Purple50 else Color.Transparent,
+                    contentColor = if (isFavoriteSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
+                ),
+                shape = RoundedCornerShape(50),
+                border = BorderStroke(1.dp, if (isFavoriteSelected) PurpleMain500 else Grey200),
+                modifier = Modifier.height(35.dp),
+                contentPadding = PaddingValues(horizontal = 15.dp, vertical = 8.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "즐겨찾기", style = AppTextStyles.label_medium_12)
+                    Spacer(Modifier.width(5.dp))
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_filter_star),
+                        contentDescription = "즐겨찾기",
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
             }
         }
-
         // 오른쪽: '선택' 버튼만 있음
         Button(
             onClick = onSelectClick,

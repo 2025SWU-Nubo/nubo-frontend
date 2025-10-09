@@ -21,7 +21,8 @@ data class BoardDetailUiState(
     val board: BoardResponse? = null,
     val favoriteOnly: Boolean = false,
     val page: Int = 0,
-    val isLast: Boolean = false
+    val isLast: Boolean = false,
+    val sort: String = "LATEST"
 )
 
 @HiltViewModel
@@ -44,10 +45,19 @@ class BoardDetailViewModel @Inject constructor(
         _ui.value = BoardDetailUiState(isLoading = true, favoriteOnly = false)
         loadPage(reset = true)
     }
-
+    // 즐겨찾기 필터
     fun setFavoriteFilter(enabled: Boolean) {
         if (_ui.value.favoriteOnly == enabled) return
         _ui.value = _ui.value.copy(favoriteOnly = enabled)
+        loadPage(reset = true)
+    }
+    // 정렬
+    fun setSort(sortKey: String) {
+        // 이미 같은 정렬 옵션이면 아무것도 하지 않음
+        if (_ui.value.sort == sortKey) return
+
+        // 새로운 정렬 값으로 상태를 업데이트하고, 페이지를 처음부터 다시 로드
+        _ui.value = _ui.value.copy(sort = sortKey)
         loadPage(reset = true)
     }
 
@@ -57,6 +67,7 @@ class BoardDetailViewModel @Inject constructor(
         loadPage(reset = false)
     }
 
+    // 페이지 조회
     private fun loadPage(reset: Boolean) {
         val s = _ui.value
         val targetPage = if (reset) 0 else s.page + 1
@@ -68,6 +79,7 @@ class BoardDetailViewModel @Inject constructor(
                 token = token,
                 boardId = currentBoardId,
                 favoriteOnly = _ui.value.favoriteOnly,
+                sort = _ui.value.sort,
                 page = targetPage,
                 size = pageSize
             ).onSuccess { resp ->
@@ -123,7 +135,7 @@ class BoardDetailViewModel @Inject constructor(
         }
     }
 
-    // 섹션 생성 api
+    // 섹션 생성
     fun createSection(name: String) {
         val parentShared = _ui.value.board?.shared ?: false          // 부모 보드 공유 여부 따라감
 
@@ -182,7 +194,7 @@ class BoardDetailViewModel @Inject constructor(
         }
     }
 
-    // 현재 보드 이름 변경
+    // 현재 보드 또는 섹션 이름 변경
     fun renameCurrentBoard(newName: String) {
         val before = _ui.value
         val detail = before.board ?: return

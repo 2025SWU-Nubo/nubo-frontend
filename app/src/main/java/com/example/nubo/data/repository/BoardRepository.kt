@@ -101,13 +101,14 @@ class BoardRepository @Inject constructor(
         boardId: Int,
         favoriteOnly: Boolean,
         page: Int,
-        size: Int
+        size: Int,
+        sort : String
     ): Result<BoardResponse> = runCatching {
         boardService.getBoardDetail(
             authHeader = "Bearer $token",
             acceptHeader = "application/json",
             boardId = boardId,
-            sort = "LATEST",                           // 정렬은 최신순 고정
+            sort = sort,                           // 정렬은 최신순 고정
             filter = if (favoriteOnly) "FAVORITE" else "ALL",
             page = page,
             size = size
