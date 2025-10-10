@@ -1,9 +1,12 @@
 package com.example.nubo.data.network
 
+import com.example.nubo.data.model.BoardDeleteRequest
 import com.example.nubo.data.model.BoardItemResponse
 import com.example.nubo.data.model.BoardListItemResponse
 import com.example.nubo.data.model.BoardRenameRequest
 import com.example.nubo.data.model.BoardResponse
+import com.example.nubo.data.model.BoardRestoreRequest
+import com.example.nubo.data.model.BoardRestoreResponse
 import com.example.nubo.data.model.BoardSearchItemResponse
 import com.example.nubo.data.model.BoardWithSectionsResponse
 import com.example.nubo.data.model.BulkCopyRequest
@@ -20,6 +23,7 @@ import com.google.gson.JsonObject
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.HTTP
 import retrofit2.http.Header
 import retrofit2.http.PATCH
 import retrofit2.http.POST
@@ -129,4 +133,19 @@ interface BoardService {
         @Path("sourceBoardId") sourceBoardId: Long,
         @Body body: BulkMoveRequest
     ): Response<BulkMoveResponse>
+
+    // 섹션(보드) 삭제 API
+    @HTTP(method = "DELETE", path = "/api/board", hasBody = true)
+    suspend fun deleteBoards(
+        @Header("Authorization") authHeader: String,
+        @Body body: BoardDeleteRequest
+    ): Response<Unit> // 응답 본문이 없을 경우 Unit 사용
+
+    // 섹션(보드) 복구 API
+    @PATCH("/api/board/restore")
+    suspend fun restoreBoards(
+        @Header("Authorization") authHeader: String,
+        @Body body: BoardRestoreRequest
+    ): BoardRestoreResponse
+
 }

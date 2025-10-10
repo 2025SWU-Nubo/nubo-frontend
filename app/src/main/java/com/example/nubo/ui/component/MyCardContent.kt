@@ -74,7 +74,8 @@ fun MyCardContent(
                     onClick = { onCardClick(item.id) },
                     // 계산된 값을 파라미터로 전달
                     isSelectionMode = isSelectionMode,
-                    isSelected = isSelected
+                    isSelected = isSelected,
+                    isFavorite = item.isFavorite
                 )
             }
         }
@@ -92,7 +93,8 @@ fun MyCardContent(
                     onClick = { onCardClick(item.id) },
                     // 계산된 값을 파라미터로 전달
                     isSelectionMode = isSelectionMode,
-                    isSelected = isSelected
+                    isSelected = isSelected,
+                    isFavorite = item.isFavorite
                 )
             }
         }
@@ -107,7 +109,8 @@ fun MyMasonryCard(
     onClick: () -> Unit,
     // [추가] 선택 관련 파라미터
     isSelectionMode: Boolean,
-    isSelected: Boolean)
+    isSelected: Boolean,
+    isFavorite: Boolean)
 {
     Box(
         modifier = Modifier
@@ -137,7 +140,19 @@ fun MyMasonryCard(
             modifier = imageModifier, // 위에서 만든 Modifier를 적용
             contentScale = ContentScale.Crop // Crop을 기본으로 두어 안정적인 크롭을 보장
         )
-        // --- [추가] 선택 모드 오버레이 ---
+        //---- 즐겨찾기 추가 ---
+        if (isFavorite) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_board_fillstar),
+                contentDescription = "즐겨찾기",
+                tint = Color.Unspecified, // 아이콘 원본 색상 사용
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 12.dp, end = 12.dp)
+                    .size(24.dp) // 아이콘 크기 지정
+            )
+        }
+        // --- 선택 모드 오버레이 ---
         if (isSelectionMode && isSelected) {
             Box(
                 modifier = Modifier

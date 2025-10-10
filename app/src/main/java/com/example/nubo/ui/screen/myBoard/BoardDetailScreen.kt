@@ -26,6 +26,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -65,10 +70,12 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import com.example.components.toast.AppToastHost
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.ui.component.noRippleClickable
+import com.example.nubo.ui.theme.AppTextStyles.b3_regular_14
 import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.Purple50
@@ -78,11 +85,6 @@ import kotlinx.coroutines.launch
 sealed class InputDialogMode {
     data object CreateSection : InputDialogMode()
     data class Rename(val sectionId: Int, val currentName: String) : InputDialogMode()
-}
-// 어떤 시트를 띄울지 관리하는 상태
-sealed class SheetMode {
-    data object None : SheetMode()
-    data class SelectBoard(val action: BoardAction) : SheetMode()
 }
 
 @Composable
@@ -123,15 +125,43 @@ fun BoardDetailScreen(
     //  다이얼로그 모드 상태
     var dialogMode by remember { mutableStateOf<InputDialogMode?>(null) }
 
+    // 삭제 확인 다이얼로그 표시 상태
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
     // 진입 시 한 번 초기 로드
     LaunchedEffect(boardId) {
         viewModel.init(boardId)
     }
 
+    // 1. '실행 취소'용 Snackbar 상태
+    val snackbarHostState = remember { SnackbarHostState() }
     // 토스트 상태 및 코루틴 스코프 선언
     val toastHostState = rememberAppToastHostState()
     val scope = rememberCoroutineScope()
     val toastMessage by viewModel.toastMessage.collectAsState()
+
+    // '실행 취소' 스낵바를 띄우는 함수
+    fun showUndoSnackbar() {
+        scope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = "삭제가 완료되었습니다.",
+                actionLabel = "실행 취소",
+                duration = SnackbarDuration.Long
+            )
+            // "실행 취소" 버튼을 눌렀을 때
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.undoLastDeletion() // ViewModel의 복구 함수 호출
+            }
+        }
+    }
+
+    // ViewModel의 삭제 완료 이벤트를 구독하여 스낵바 띄우고 상태 초기화
+    LaunchedEffect(Unit) {
+        viewModel.deleteCompleteEvent.collect {
+            showUndoSnackbar()
+            resetSelectionState()
+        }
+    }
 
     // ViewModel의 toastMessage 변경을 감지하여 토스트 표시
     LaunchedEffect(toastMessage) {
@@ -165,88 +195,108 @@ fun BoardDetailScreen(
     val boardState = ui.board
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
 
-            DetailTopBar(onBack = {
-                // 현재 보드의 최신 이름 전달
-                val latestName = ui.board?.name ?: boardTitle
-                navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_id", boardId)
-                navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_name", latestName)
-                navController.popBackStack()
-            })
-            BoardTitleBar(
-                title = ui.board?.name ?: boardTitle,
-                onClick = {
-                    dialogMode = InputDialogMode.Rename(
-                        sectionId = boardId, // 현재 보드 id
-                        currentName = ui.board?.name ?: boardTitle
+        Scaffold(
+            snackbarHost = {
+                SnackbarHost(hostState = snackbarHostState) { snackbarData ->
+                    UndoSnackbar(
+                        message = snackbarData.visuals.message,
+                        onUndo = { snackbarData.performAction() }
                     )
-                })
-            // 즐겨찾기 필터만 뷰모델과 연결 (정렬 버튼은 UI만 유지, 서버 쿼리는 LATEST 고정)
-            BoardFilterButton(
-                favoriteSelected = ui.favoriteOnly,
-                onToggleFavorite = { enabled -> viewModel.setFavoriteFilter(enabled) },
-                onAddClick = { dialogMode = InputDialogMode.CreateSection },
-                onSelectClick = {// 선택/취소 버튼 클릭 시 로직
-                    if (isSelectionMode) {
-                        resetSelectionState() // '취소' 시 모든 선택 상태 초기화
-                    } else {
-                        isSelectionMode = true // '선택' 시 선택 모드 시작
-                    }
-                },
-                onRequestSort = { sortKey -> viewModel.setSort(sortKey) },
-                isSelectionMode = isSelectionMode, // 선택 상태 변수 전달
-            )
-
-            if (boardState != null) {
-                val boardItems = boardState.sections?.map { it.toBoardItem() } ?: emptyList()
-                // 페이징 래퍼에서 실제 리스트 꺼내기
-                val cardItems = boardState.cards.content.map { it.toCardItem() }
-                // 카드 배열 길이가 바뀌면 높이도 재생성
-                val cardHeights by remember(boardId, cardItems.size) {
-                    mutableStateOf(cardItems.map { randomCardHeight() })
                 }
+            },
+            containerColor = Color.White
+        ) { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                DetailTopBar(onBack = {
+                    // 현재 보드의 최신 이름 전달
+                    val latestName = ui.board?.name ?: boardTitle
+                    navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_id", boardId)
+                    navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_name", latestName)
+                    navController.popBackStack()
+                    // MyBoardScreen에 새로고침이 필요하다는 신호를 보냄
+                    navController.previousBackStackEntry?.savedStateHandle?.set("needs_refresh", true)
 
-                BoardDetailContent(
-                    boardItems = boardItems,
-                    cardItems = cardItems,
-                    cardHeights = cardHeights,
-                    onCardClick = { cardId ->
-                        // 카드 클릭 시 선택/해제 로직 추가
-                        if (isSelectionMode) {
-                            selectedCards = if (selectedCards.contains(cardId)) {
-                                selectedCards - cardId
-                            } else {
-                                selectedCards + cardId
-                            }
-                        } else {
-                            navController.navigate("card_detail/$cardId")
-                        }
-                    },
-                    onSectionClick = { section ->
-                        if (isSelectionMode) {
-                            selectedSections = if (selectedSections.contains(section.id)) {
-                                selectedSections - section.id
-                            } else {
-                                selectedSections + section.id
-                            }
-                        } else {
-                            val encodedTitle = java.net.URLEncoder.encode(section.title, "utf-8")
-                            navController.navigate("section_detail/${section.id}/$encodedTitle")
-                        }
-                    },
-                    onFavoriteClick = { section: BoardItem ->
-                        viewModel.toggleSectionFavorite(
-                            sectionId = section.id,
-                            currentFavorite = section.isBookmarked
-                        )
-                    },
+                })
+                BoardTitleBar(
+                    title = ui.board?.name ?: boardTitle,
                     isSelectionMode = isSelectionMode,
-                    selectedSections = selectedSections,
-                    selectedCards = selectedCards
+                    onClick = {
+                        dialogMode = InputDialogMode.Rename(
+                            sectionId = boardId, // 현재 보드 id
+                            currentName = ui.board?.name ?: boardTitle
+                        )
+                    })
+                // 즐겨찾기 필터만 뷰모델과 연결 (정렬 버튼은 UI만 유지, 서버 쿼리는 LATEST 고정)
+                BoardFilterButton(
+                    favoriteSelected = ui.favoriteOnly,
+                    onToggleFavorite = { enabled -> viewModel.setFavoriteFilter(enabled) },
+                    onAddClick = { dialogMode = InputDialogMode.CreateSection },
+                    onSelectClick = {// 선택/취소 버튼 클릭 시 로직
+                        if (isSelectionMode) {
+                            resetSelectionState() // '취소' 시 모든 선택 상태 초기화
+                        } else {
+                            isSelectionMode = true // '선택' 시 선택 모드 시작
+                        }
+                    },
+                    onRequestSort = { sortKey -> viewModel.setSort(sortKey) },
+                    isSelectionMode = isSelectionMode, // 선택 상태 변수 전달
                 )
-            } else {
-                Text("Loading...")
+
+                if (boardState != null) {
+                    val boardItems = boardState.sections?.map { it.toBoardItem() } ?: emptyList()
+                    // 페이징 래퍼에서 실제 리스트 꺼내기
+                    val cardItems = boardState.cards.content.map { it.toCardItem() }
+                    // 카드 배열 길이가 바뀌면 높이도 재생성
+                    val cardHeights by remember(boardId, cardItems.size) {
+                        mutableStateOf(cardItems.map { randomCardHeight() })
+                    }
+
+                    BoardDetailContent(
+                        boardItems = boardItems,
+                        cardItems = cardItems,
+                        cardHeights = cardHeights,
+                        onCardClick = { cardId ->
+                            // 카드 클릭 시 선택/해제 로직 추가
+                            if (isSelectionMode) {
+                                selectedCards = if (selectedCards.contains(cardId)) {
+                                    selectedCards - cardId
+                                } else {
+                                    selectedCards + cardId
+                                }
+                            } else {
+                                navController.navigate("card_detail/$cardId")
+                            }
+                        },
+                        onSectionClick = { section ->
+                            if (isSelectionMode) {
+                                selectedSections = if (selectedSections.contains(section.id)) {
+                                    selectedSections - section.id
+                                } else {
+                                    selectedSections + section.id
+                                }
+                            } else {
+                                val encodedTitle = java.net.URLEncoder.encode(section.title, "utf-8")
+                                navController.navigate("section_detail/${section.id}/$encodedTitle")
+                            }
+                        },
+                        onFavoriteClick = { section: BoardItem ->
+                            viewModel.toggleSectionFavorite(
+                                sectionId = section.id,
+                                currentFavorite = section.isBookmarked
+                            )
+                        },
+                        isSelectionMode = isSelectionMode,
+                        selectedSections = selectedSections,
+                        selectedCards = selectedCards
+                    )
+                } else {
+                    Text("Loading...")
+                }
             }
         }
         // 선택 모드일 때 화면 하단에 바텀 시트 표시
@@ -258,7 +308,7 @@ fun BoardDetailScreen(
                 ActionsContent(
                     selectedSectionCount = selectedSections.size,
                     selectedCardCount = selectedCards.size,
-                    onDeleteClick = { /* TODO */ },
+                    onDeleteClick = { showDeleteDialog = true },
                     onCopyClick = {
                         currentAction = BoardAction.COPY
                         showBoardSelector = true
@@ -287,6 +337,7 @@ fun BoardDetailScreen(
                                         selectedCardIds = selectedCards
                                     )
                                 }
+
                                 BoardAction.MOVE -> {
                                     viewModel.moveSelectedItems(
                                         targetBoardId = targetId.toLong(),
@@ -294,6 +345,7 @@ fun BoardDetailScreen(
                                         selectedCardIds = selectedCards
                                     )
                                 }
+
                                 null -> {}
                             }
                         }
@@ -311,7 +363,16 @@ fun BoardDetailScreen(
                 confirmText = "생성",
                 placeholder = "섹션 이름",
                 onConfirm = { name -> viewModel.createSection(name) },
-                onDismiss = { dialogMode = null }
+                onDismiss = { dialogMode = null },
+                // 섹션 생성 시에도 유효성 검사 메시지 추가
+                validationContent = {
+                    Text(
+                        text = "섹션 이름을 2자 이상 입력해주세요.",
+                        style = b3_regular_14,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 10.dp, start = 16.dp)
+                    )
+                }
             )
 
             is InputDialogMode.Rename -> NuboInputDialog(
@@ -321,21 +382,51 @@ fun BoardDetailScreen(
                 placeholder = "새 이름",
                 initialValue = m.currentName,
                 onConfirm = { newName ->
-                    // 보드 ID와 다이얼로그의 ID를 비교하여 올바른 함수를 호출합니다.
+                    // 보드 ID와 다이얼로그의 ID를 비교하여 올바른 함수를 호출
                     if (m.sectionId == boardId) {
-                        // ID가 현재 보드 ID와 같으면 보드 이름 변경 함수를 호출합니다.
+                        // ID가 현재 보드 ID와 같으면 보드 이름 변경 함수를 호출
                         viewModel.renameCurrentBoard(newName = newName)
                     } else {
-                        // 다르다면 섹션 이름 변경 함수를 호출합니다.
+                        // 다르다면 섹션 이름 변경 함수를 호출
                         viewModel.renameSection(sectionId = m.sectionId, newName = newName)
                     }
                 },
-                onDismiss = { dialogMode = null }
+                onDismiss = { dialogMode = null },
+                // 유효성 검사 실패 시 보여줄 메시지 UI
+                validationContent = {
+                    Text(
+                        text = "보드 이름을 2자 이상 입력해주세요.",
+                        style = b3_regular_14,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 10.dp, start = 16.dp)
+                    )
+                }
             )
 
             null -> Unit
         }
     }
+    // 삭제 다이얼로그
+    DeleteConfirmationDialog(
+        visible = showDeleteDialog,
+        selectedCardCount = selectedCards.size,
+        selectedSectionCount = selectedSections.size,
+        onDismiss = { showDeleteDialog = false },
+        onRemove = {
+            showDeleteDialog = false
+            // ViewModel 함수 호출
+            scope.launch {
+                viewModel.removeItemsFromBoard(selectedSections, selectedCards)
+            }
+        },
+        onDelete = {
+            showDeleteDialog = false
+            // ViewModel 함수 호출
+            scope.launch {
+                viewModel.deleteItems(selectedSections, selectedCards)
+            }
+        }
+    )
     // 토스트 UI를 화면에 배치
     AppToastHost(hostState = toastHostState)
 }
@@ -348,7 +439,7 @@ fun DetailTopBar(onBack: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 14.dp, end = 16.dp, top = 62.dp, bottom = 10.dp),
+            .padding(start = 14.dp, end = 16.dp, top = 13.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -369,13 +460,13 @@ fun DetailTopBar(onBack: () -> Unit) {
 
 
 @Composable
-fun BoardTitleBar(title: String, onClick: () -> Unit) {
+fun BoardTitleBar(title: String, isSelectionMode: Boolean, onClick: () -> Unit) {
     val decodedTitle = URLDecoder.decode(title, "utf-8")
 
     Column(modifier = Modifier.padding(top = 27.dp)) {
         Row(
             modifier = Modifier
-                .noRippleClickable {onClick() }
+                .noRippleClickable(enabled = !isSelectionMode) { onClick() } //선택 모드일 때 버튼 비활성화
                 .padding(start = 18.dp, end = 16.dp, bottom = 15.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -412,6 +503,7 @@ fun BoardFilterButton(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             // 정렬 버튼
             SortFilterButton(
+                enabled = !isSelectionMode, //선택 모드일 때 버튼 비활성화
                 onSortSelected = { sortKey -> onRequestSort(sortKey) }
             )
 
@@ -423,6 +515,7 @@ fun BoardFilterButton(
                     selected = if (nextOn) "즐겨찾기" else null
                     onToggleFavorite(nextOn) // 서버 필터 동기화
                 },
+                enabled = !isSelectionMode, //선택 모드일 때 버튼 비활성화
                 colors = ButtonDefaults.outlinedButtonColors(
                     containerColor = if (isFavoriteSelected) Purple50 else Color.Transparent,
                     contentColor = if (isFavoriteSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
@@ -452,10 +545,14 @@ fun BoardFilterButton(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(
                 onClick = onAddClick,
+                enabled = !isSelectionMode,
                 shape = RoundedCornerShape(5.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Purple100.copy(alpha = 0.3f),
-                    contentColor = PurpleMain500
+                    contentColor = PurpleMain500,
+                    // 비활성화 상태에서도 활성화 색상과 동일하게 유지
+                    disabledContainerColor = Purple100.copy(alpha = 0.3f),
+                    disabledContentColor = PurpleMain500
                 ),
                 border = BorderStroke(0.5.dp, PurpleMain500),
                 contentPadding = PaddingValues(horizontal = 10.dp),
@@ -505,7 +602,6 @@ fun SectionDto.toBoardItem(): BoardItem {
     )
 }
 
-
 fun CardItemDto.toCardItem(): CardItem {
     return CardItem(
         id = this.id,
@@ -513,7 +609,8 @@ fun CardItemDto.toCardItem(): CardItem {
         title = this.title ?: "No Title", // 서버 데이터 없을 경우 기본값
         category = this.category ?: "No Category", // 마찬가지
         description = this.description ?: "No Description",
-        imageUrl = this.imageUrl ?: ""
+        imageUrl = this.imageUrl ?: "",
+        isFavorite = this.favorite ?: false
     )
 }
 
@@ -534,6 +631,8 @@ fun NuboInputDialog(
     onConfirm: (String) -> Unit,
     // X 또는 백드롭 클릭 시 닫기
     onDismiss: () -> Unit,
+    // 유효성 검사 실패 시 보여줄 Composable
+    validationContent: @Composable (() -> Unit)? = null
 ) {
     if (!visible) return
 
@@ -549,7 +648,15 @@ fun NuboInputDialog(
         ) {
             // 내부 상태 보관
             var text by remember { mutableStateOf(initialValue) }
-            val confirmEnabled = text.isNotBlank()
+
+            // '생성'과 '이름 변경'의 활성화 조건을 분리
+            val confirmEnabled = if (initialValue.isBlank()) {
+                // 생성 모드: 2글자 이상이면 활성화
+                text.trim().length >= 2
+            } else {
+                // 이름 변경 모드: 2글자 이상이면서, 이전 이름과 다를 때 활성화
+                text.trim().length >= 2 && text.trim() != initialValue
+            }
 
             // 헤더 영역: X 버튼 + 타이틀 + 우측 확인 텍스트 버튼
             Row(
@@ -590,8 +697,7 @@ fun NuboInputDialog(
                 )
             }
 
-            // ▶ 입력 필드 바깥 여백 16dp
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)   // 컨테이너와의 가로 여백
@@ -633,9 +739,14 @@ fun NuboInputDialog(
                         }
                     }
                 )
+                // 유효성 검사 메시지
+                Box(modifier = Modifier.height(24.dp)) {
+                    if (text.isNotBlank() && text.trim().length < 2) {
+                        validationContent?.invoke()
+                    }
+                }
             }
-
-            Spacer(Modifier.height(40.dp))
+            Spacer(Modifier.height(20.dp)) // 하단 여백 약간 조정
         }
     }
 }

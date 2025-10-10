@@ -41,7 +41,8 @@ fun CardContent(cards: List<CardResponse>,
             title = "Card ${card.cardId}",
             category = "카테고리", // 서버 응답에 추가
             description = "서버에서 가져온 카드입니다.",
-            imageUrl = card.videoThumbnailUrl
+            imageUrl = card.videoThumbnailUrl,
+            isFavorite = card.favorite
         )
     }.shuffled()
 

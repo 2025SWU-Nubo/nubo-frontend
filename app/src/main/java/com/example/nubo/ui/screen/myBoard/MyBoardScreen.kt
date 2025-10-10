@@ -21,8 +21,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Alignment
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Icon
@@ -44,7 +42,7 @@ import com.example.nubo.ui.component.MyCardContent
 import com.example.nubo.ui.component.randomCardHeight
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.composed
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.SolidColor
@@ -82,7 +80,7 @@ fun MyBoardScreen(
     var hasSearched by remember { mutableStateOf(false) } // 검색 했는지 확인
 
     // 뷰모델에서 검색 결과 가져오기
-    // [변경] 보드 검색 결과와 카드 검색 결과를 명확히 분리
+    // 보드 검색 결과와 카드 검색 결과를 명확히 분리
     val boardSearchResults by boardViewModel.searchResults
     val cardSearchResults by cardViewModel.searchResults
 
@@ -110,21 +108,27 @@ fun MyBoardScreen(
         }
     }
 
+    // 뒤 화면에서 변경 사항 적용 시 바로 적용
+    val handle = navController.currentBackStackEntry?.savedStateHandle
+    val needsRefresh by handle?.getLiveData<Boolean>("needs_refresh")?.observeAsState() ?: mutableStateOf(false)
+    val renamedBoardId by handle?.getLiveData<Int>("renamed_board_id")?.observeAsState() ?: mutableStateOf(null)
+    val renamedBoardName by handle?.getLiveData<String>("renamed_board_name")?.observeAsState() ?: mutableStateOf(null)
+
+    LaunchedEffect(needsRefresh) {
+        if (needsRefresh == true) {
+            boardViewModel.refresh()
+            handle?.remove<Boolean>("needs_refresh")
+        }
+    }
+
     // BoardDetailScreen에서 이름 변경 결과를 수신하는 부분
-    LaunchedEffect(navController.currentBackStackEntry) {
-        val handle = navController.currentBackStackEntry?.savedStateHandle
-        val id = handle?.get<Int>("renamed_board_id")
-        val name = handle?.get<String>("renamed_board_name")
-
-        // ID와 이름이 모두 정상적으로 전달되었다면
+    LaunchedEffect(renamedBoardId, renamedBoardName) {
+        val id = renamedBoardId
+        val name = renamedBoardName
         if (id != null && name != null) {
-            // 1. ViewModel의 함수를 호출하여 보드 목록의 데이터를 업데이트
             boardViewModel.applyRename(id, name)
-
-            // 2. 한 번 사용한 데이터는 핸들에서 제거하여, 화면이 다시 그려질 때
-            //    중복으로 적용되는 것을 방지
-            handle.remove<Int>("renamed_board_id")
-            handle.remove<String>("renamed_board_name")
+            handle?.remove<Int>("renamed_board_id")
+            handle?.remove<String>("renamed_board_name")
         }
     }
 
@@ -210,7 +214,8 @@ fun MyBoardScreen(
                         ScrollableCardContent(
                             cards = cardViewModel.cards.value,
                             cardHeights = randomHeights,
-                            onCardClick = { //없음
+                            onCardClick = { id ->
+                                navController.navigate("card_detail/$id")
                             }
                         )
                     }
@@ -254,11 +259,16 @@ fun MyBoardScreen(
                         // --- 검색 모드가 아닐 때의 UI (기본 목록) ---
                         val defaultBoards = boardViewModel.boards.value.filter {
                             val parts = it.subtitle.split(" ")
+                            // 섹션 수와 카드 수를 파싱합니다.
+                            val sectionCount = parts.getOrNull(0)?.toIntOrNull() ?: 0
                             val cardCount = parts.getOrNull(2)?.toIntOrNull() ?: 0
+
+                            // 섹션이 있는지, 카드가 있는지 확인하는 조건을 만듭니다.
+                            val hasSections = parts.getOrNull(1)?.contains("섹션") == true && sectionCount > 0
                             val hasCards = parts.getOrNull(3)?.contains("카드") == true && cardCount > 0
 
-                            // 카드가 있거나, 사용자 보드면 표시
-                            hasCards || it.source.equals("USER", ignoreCase = true)
+                            // 섹션이 있거나, 카드가 있거나, 사용자 보드인 경우에만 표시합니다.
+                            hasSections || hasCards || it.source.equals("USER", ignoreCase = true)
                         }
                         // 기본 목록에 클릭 로직 다시 추가
                         BoardContent(
@@ -586,6 +596,7 @@ fun EmptyStateUI(modifier: Modifier = Modifier, iconRes: Int, message: String) {
 // 공통 정렬 UI
 @Composable
 fun SortFilterButton(
+    enabled: Boolean = true,
     onSortSelected: (String) -> Unit
 ) {
     // 버튼에 표시될 텍스트와 팝업 표시 여부를 관리하는 내부 상태
@@ -602,6 +613,7 @@ fun SortFilterButton(
     // Box를 사용해 버튼 위에 팝업 메뉴를 띄울 위치를 지정
     Box {
         OutlinedButton(
+            enabled = enabled, //선택 모드일 때 정렬 숩기기 위한 enabled
             onClick = { isPopupExpanded = true }, // 버튼 클릭 시 팝업 펼치기
             colors = ButtonDefaults.outlinedButtonColors(
                 containerColor = Color.White,
@@ -630,7 +642,7 @@ fun SortFilterButton(
 
         // DropdownMenu를 사용한 정렬 팝업 UI
         DropdownMenu(
-            expanded = isPopupExpanded,
+            expanded = isPopupExpanded && enabled, // enabled가 true일 때만 메뉴가 보이도록
             onDismissRequest = { isPopupExpanded = false },
             modifier = Modifier
                 // 그림자 적용
