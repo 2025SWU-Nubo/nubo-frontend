@@ -27,6 +27,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.nubo.R
+import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey20
 import com.example.nubo.ui.theme.Purple300
@@ -169,7 +170,7 @@ fun ProfileScreen(
                     modifier = Modifier
                         .size(38.dp)
                         .background(Color.Black.copy(alpha = 0.05f), CircleShape)
-                        .clickable(onClick = onBellClick),
+                        .noRippleClickable(onClick = onBellClick),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -313,7 +314,7 @@ private fun SettingsItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .noRippleClickable(onClick = onClick)
             .padding(start = 32.dp, end = 24.dp, top = 15.dp, bottom = 15.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

@@ -30,6 +30,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.nubo.R
+import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey20
 import com.example.nubo.ui.theme.Grey1000
@@ -140,7 +141,7 @@ private fun TopBar(onBack: () -> Unit) {
             modifier = Modifier
                 .size(38.dp)
                 .background(Color.White.copy(alpha = 0.05f), CircleShape)
-                .clickable(onClick = onBack)
+                .noRippleClickable(onClick = onBack)
                 .align(Alignment.CenterStart),
             contentAlignment = Alignment.Center
         ) {
@@ -190,7 +191,7 @@ private fun InfoCard(
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onEditName(name) } )
+                .noRippleClickable { onEditName(name) } )
 
             Divider(Modifier.padding(top = 8.dp, bottom = 36.dp), color = Grey30)
 
@@ -239,7 +240,7 @@ private fun InfoCard(
             Row(
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
-                    .clickable(onClick = onWithdraw),
+                    .noRippleClickable(onClick = onWithdraw),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("탈퇴하기", style = AppTextStyles.b2_regular_16, color = GreyMain300)
@@ -304,7 +305,7 @@ private fun ProfileAvatarMini(
             }
         }
 
-        // 편집 버튼
+        /*// 편집 버튼
         Box(
             modifier = Modifier
                 .offset(x = -3.dp, y = -3.dp)
@@ -320,7 +321,7 @@ private fun ProfileAvatarMini(
                 modifier = Modifier.size(24.dp),   // 아이콘 크기 고정
                 tint = Color.Unspecified
             )
-        }
+        }*/
     }
 }
 

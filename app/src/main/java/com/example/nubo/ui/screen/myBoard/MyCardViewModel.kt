@@ -20,9 +20,6 @@ import retrofit2.Callback
 import retrofit2.Response
 import javax.inject.Inject
 
-// 카드 정렬/필터 값
-enum class CardSort { LATEST, OLDEST, ALPHABET }
-enum class CardFilter { ALL, FAVORITE, SHARED }
 // 현재 정렬/필터 상태
 private var sort: CardSort = CardSort.LATEST   // 기본 최신순
 private var filter: CardFilter = CardFilter.ALL
@@ -78,13 +75,14 @@ class MyCardViewModel @Inject constructor(
     fun setSort(newSort: String) {
         val s = when (newSort) {
             "LATEST" -> CardSort.LATEST
-            //"OLDEST" -> CardSort.OLDEST
-            //"ALPHABET" -> CardSort.ALPHABET
+            "OLDEST" -> CardSort.OLDEST
+            "ALPHABET" -> CardSort.ALPHABET
+            // ----------------------------------------------------
             else -> sort
         }
         if (s != sort) {
             sort = s
-            refresh()   // 재조회
+            refresh()
         }
     }
 

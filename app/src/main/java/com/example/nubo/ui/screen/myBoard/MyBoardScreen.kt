@@ -9,6 +9,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -18,9 +20,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.painterResource
-import com.example.nubo.ui.theme.Purple200
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Icon
@@ -37,21 +39,20 @@ import com.example.nubo.ui.component.BoardContent
 import com.example.nubo.ui.theme.Grey200
 import androidx.navigation.NavController
 import com.example.nubo.ui.theme.AppTextStyles
-import com.example.nubo.model.myBoard.BoardItem
 import com.example.nubo.model.myBoard.MyCardItem
 import com.example.nubo.ui.component.MyCardContent
 import com.example.nubo.ui.component.randomCardHeight
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.style.TextAlign
+import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
 import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey50
-import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.ui.theme.PurpleMain500
 
@@ -109,7 +110,7 @@ fun MyBoardScreen(
         }
     }
 
-    // [추가] BoardDetailScreen에서 이름 변경 결과를 수신하는 부분
+    // BoardDetailScreen에서 이름 변경 결과를 수신하는 부분
     LaunchedEffect(navController.currentBackStackEntry) {
         val handle = navController.currentBackStackEntry?.savedStateHandle
         val id = handle?.get<Int>("renamed_board_id")
@@ -242,7 +243,9 @@ fun MyBoardScreen(
                                                 boardId = item.serverBoardId,
                                                 currentFavorite = item.isBookmarked
                                             )
-                                        }
+                                        },
+                                        isSelectionMode = false,
+                                        selectedBoardIds = emptySet()
                                     )
                                 }
                             }
@@ -251,12 +254,12 @@ fun MyBoardScreen(
                         // --- 검색 모드가 아닐 때의 UI (기본 목록) ---
                         val defaultBoards = boardViewModel.boards.value.filter {
                             val parts = it.subtitle.split(" ")
-                        val cardCount = parts.getOrNull(2)?.toIntOrNull() ?: 0
-                        val hasCards = parts.getOrNull(3)?.contains("카드") == true && cardCount > 0
+                            val cardCount = parts.getOrNull(2)?.toIntOrNull() ?: 0
+                            val hasCards = parts.getOrNull(3)?.contains("카드") == true && cardCount > 0
 
-                        // 카드가 있거나, 사용자 보드면 표시
-                        hasCards || it.source.equals("USER", ignoreCase = true)
-                    }
+                            // 카드가 있거나, 사용자 보드면 표시
+                            hasCards || it.source.equals("USER", ignoreCase = true)
+                        }
                         // 기본 목록에 클릭 로직 다시 추가
                         BoardContent(
                             boards = defaultBoards,
@@ -272,7 +275,9 @@ fun MyBoardScreen(
                                     boardId = item.serverBoardId,
                                     currentFavorite = item.isBookmarked
                                 )
-                            }
+                            },
+                            isSelectionMode = false,
+                            selectedBoardIds = emptySet()
                         )
                     }
                 }
@@ -309,7 +314,7 @@ fun TabHeader(
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
-                            .clickable { onTabSelected(index) } // 탭 클릭 처리
+                            .noRippleClickable {onTabSelected(index) } // 탭 클릭 처리
                     ) {
                         // 텍스트 설정
                         Text(
@@ -364,7 +369,7 @@ fun TitleBar(
                     contentDescription = "검색",
                     modifier = Modifier
                         .size(24.dp)
-                        .clickable { onSearchOpen() }
+                        .noRippleClickable { onSearchOpen() }
                 )
             } // 검색 모드
             else {
@@ -436,7 +441,7 @@ fun TitleBar(
                         contentDescription = "닫기",
                         modifier = Modifier
                             .size(24.dp)
-                            .clickable { onSearchClose() }
+                            .noRippleClickable { onSearchClose() }
                     )
                 }
             }
@@ -450,7 +455,7 @@ fun FilterButtons(
     onRequestFilter: (String) -> Unit,
     onRequestSort: (String) -> Unit
 ) {
-    val filters = listOf("최근 저장순", "즐겨찾기", "공유됨")
+    val filters = listOf( "즐겨찾기", "공유됨")
     var selected by remember { mutableStateOf<String?>(null) }
 
     Row(
@@ -459,12 +464,16 @@ fun FilterButtons(
             .fillMaxWidth()
             .padding(start = 16.dp, end = 16.dp, bottom = 18.dp)
     ) {
+        // 정렬 버튼
+        SortFilterButton(
+            onSortSelected = { sortKey -> onRequestSort(sortKey) }
+        )
+        // 즐겨찾기, 공유됨 필터 버튼
         filters.forEach { label ->
             val isSelected = selected == label
             OutlinedButton(
                 onClick = {
                     when (label) {
-                        "최근 저장순" -> onRequestSort("LATEST")
                         "즐겨찾기" -> {
                             val target = if (isSelected) "ALL" else "FAVORITE"
                             selected = if (isSelected) null else "즐겨찾기"
@@ -495,15 +504,6 @@ fun FilterButtons(
                         color = if (isSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
                     )
                     when (label) {
-                        "최근 저장순" -> {
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_filter_arrow_down),
-                                contentDescription = "정렬 옵션",
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-
                         "즐겨찾기" -> {
                             Spacer(modifier = Modifier.width(5.dp))
                             Icon(
@@ -530,19 +530,23 @@ fun ScrollableCardContent(
     cards: List<MyCardItem>,
     onCardClick: (Int) -> Unit,
     cardHeights: List<Dp>,
+    isSelectionMode: Boolean = false,
+    selectedCardIds: Set<Int> = emptySet()
 ) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(top = 4.dp),
-        contentPadding = PaddingValues(bottom = 15.dp),
+        contentPadding = PaddingValues(bottom = 90.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         item {
             MyCardContent(
                 cards = cards,
                 cardHeights = cardHeights,
-                onCardClick = onCardClick
+                onCardClick = onCardClick,
+                isSelectionMode = isSelectionMode,
+                selectedCardIds = selectedCardIds
             )
         }
     }
@@ -576,5 +580,90 @@ fun EmptyStateUI(modifier: Modifier = Modifier, iconRes: Int, message: String) {
             color = Grey1000,
             textAlign = TextAlign.Center
         )
+    }
+}
+
+// 공통 정렬 UI
+@Composable
+fun SortFilterButton(
+    onSortSelected: (String) -> Unit
+) {
+    // 버튼에 표시될 텍스트와 팝업 표시 여부를 관리하는 내부 상태
+    var currentSortText by remember { mutableStateOf("최근 저장순") }
+    var isPopupExpanded by remember { mutableStateOf(false) }
+
+    // 화면에 표시될 텍스트와 서버에 보낼 값을 매핑
+    val sortOptions = mapOf(
+        "최근 저장순" to "LATEST",
+        "오래된순" to "OLDEST",
+        "가나다순" to "ALPHABET"
+    )
+
+    // Box를 사용해 버튼 위에 팝업 메뉴를 띄울 위치를 지정
+    Box {
+        OutlinedButton(
+            onClick = { isPopupExpanded = true }, // 버튼 클릭 시 팝업 펼치기
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = Color.White,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ),
+            shape = RoundedCornerShape(50),
+            border = BorderStroke(1.dp, Grey200),
+            modifier = Modifier.height(35.dp),
+            contentPadding = PaddingValues(horizontal = 15.dp, vertical = 8.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(modifier = Modifier.width(2.dp))
+                Text(
+                    text = currentSortText, // 현재 선택된 정렬 텍스트를 표시
+                    style = AppTextStyles.label_medium_12,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_filter_arrow_down),
+                    contentDescription = "정렬 옵션",
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+
+        // DropdownMenu를 사용한 정렬 팝업 UI
+        DropdownMenu(
+            expanded = isPopupExpanded,
+            onDismissRequest = { isPopupExpanded = false },
+            modifier = Modifier
+                // 그림자 적용
+                .shadow(
+                    elevation = 4.5.dp,
+                    spotColor = Color(0x4D000000),
+                    ambientColor = Color(0x4D000000)
+                )
+                // 배경 및 모양 적용
+                .background(
+                    color = Color.White,
+                    shape = RoundedCornerShape(size = 8.dp)
+                )
+        ) {
+            sortOptions.keys.forEach { optionText ->
+                DropdownMenuItem(
+                    text = { Text(optionText, style = AppTextStyles.label_medium_12) },
+                    onClick = {
+                        currentSortText = optionText
+                        isPopupExpanded = false
+                        onSortSelected(sortOptions[optionText]!!)
+                    },
+                    //  현재 선택된 메뉴에 체크 아이콘 추가
+                    trailingIcon = {
+                        if (currentSortText == optionText) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_board_check_small), // 체크 아이콘 리소스
+                                contentDescription = "Selected"
+                            )
+                        }
+                    }
+                )
+            }
+        }
     }
 }

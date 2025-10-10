@@ -5,6 +5,11 @@ import com.example.nubo.data.model.BoardListItemResponse
 import com.example.nubo.data.model.BoardRenameRequest
 import com.example.nubo.data.model.BoardResponse
 import com.example.nubo.data.model.BoardSearchItemResponse
+import com.example.nubo.data.model.BoardWithSectionsResponse
+import com.example.nubo.data.model.BulkCopyRequest
+import com.example.nubo.data.model.BulkCopyResponse
+import com.example.nubo.data.model.BulkMoveRequest
+import com.example.nubo.data.model.BulkMoveResponse
 import com.example.nubo.data.model.CardSearchItemResponse
 import com.example.nubo.data.model.FavoriteRequest
 import com.example.nubo.data.model.FavoriteResponse
@@ -12,6 +17,7 @@ import com.example.nubo.data.model.PagedResponse
 import com.example.nubo.data.model.RecentBoardResponse
 import com.example.nubo.data.model.UpsertBoardRequest
 import com.google.gson.JsonObject
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
@@ -100,4 +106,27 @@ interface BoardService {
         @Header("Authorization") authHeader: String,
         @Header("Accept") acceptHeader: String = "application/json"
     ):List<RecentBoardResponse>
+
+    // 보드+섹션 트리 조회
+    @GET("api/board/with-sections")
+    suspend fun getBoardsWithSections(
+        @Header("Authorization") authorization: String,           // "Bearer {token}"
+        @Header("Accept") accept: String = "application/json"
+    ): Response<List<BoardWithSectionsResponse>>
+
+    // 섹션 및 카드 일괄 복제 API
+    @POST("/api/board/{sourceBoardId}/bulk-copy")
+    suspend fun bulkCopy(
+        @Header("Authorization") authHeader: String,
+        @Path("sourceBoardId") sourceBoardId: Long,
+        @Body body: BulkCopyRequest
+    ): Response<BulkCopyResponse> // Response는 Unit 또는 실제 응답 클래스로 변경 가능
+
+    // [추가] 섹션 및 카드 일괄 이동 API
+    @POST("/api/board/{sourceBoardId}/bulk-move")
+    suspend fun bulkMove(
+        @Header("Authorization") authHeader: String,
+        @Path("sourceBoardId") sourceBoardId: Long,
+        @Body body: BulkMoveRequest
+    ): Response<BulkMoveResponse>
 }
