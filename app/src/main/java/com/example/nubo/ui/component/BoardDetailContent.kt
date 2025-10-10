@@ -28,32 +28,39 @@ import kotlin.random.Random
 
 @Composable
 fun BoardDetailContent(
+    modifier: Modifier = Modifier,
     boardItems: List<BoardItem>,
     cardItems: List<CardItem>,
     cardHeights: List<Dp>,
-    selectedCardId: Int?,
-    cardDetail: CardDetailResponse?,
-    isDetailLoading: Boolean,
     onCardClick: (Int) -> Unit,
-    onDismiss: () -> Unit
+    onSectionClick: (BoardItem) -> Unit,
+    onFavoriteClick: (BoardItem) -> Unit,
+    // 선택 관련 상태 파라미터들
+    isSelectionMode: Boolean,
+    selectedSections: Set<Int>,
+    selectedCards: Set<Int>
 ) {
-    // 카드 Masonry
+    // 카드 Masonry 좌/우 컬럼 분리
     val leftItems = cardItems.filterIndexed { i, _ -> i % 2 == 0 }
     val rightItems = cardItems.filterIndexed { i, _ -> i % 2 != 0 }
-
 
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(20.dp),
-        contentPadding = PaddingValues(bottom = 20.dp)
+        contentPadding = PaddingValues(start = 16.dp, end=16.dp,  bottom = 11.dp)
     ) {
-        // [1] 보드: 2열 그리드
+        // [1] 보드(섹션) 2열 그리드
         items(boardItems.chunked(2)) { rowItems ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 rowItems.forEach { item ->
                     BoardCardWithText(
                         board = item,
-                        onClick = { /*Todo*/ }
+                        onClick = { onSectionClick(item) },
+                        onFavoriteClick = onFavoriteClick,
+                        // 선택 관련 파라미터 전달
+                        isSelectionMode = isSelectionMode,
+                        isSelected = selectedSections.contains(item.id)
+
                     )
                 }
                 if (rowItems.size < 2) {
@@ -62,12 +69,11 @@ fun BoardDetailContent(
             }
         }
 
-        // [2] 카드: Masonry
+        // [2] 카드 Masonry
         item {
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                    .fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Column(
@@ -78,7 +84,10 @@ fun BoardDetailContent(
                         MyMasonryCard(
                             height = cardHeights.getOrNull(index * 2) ?: 180.dp,
                             imageUrl = item.imageUrl,
-                            onClick = { onCardClick(item.id) }
+                            onClick = { onCardClick(item.id) },
+                            // 선택 관련 파라미터 전달
+                            isSelectionMode = isSelectionMode,
+                            isSelected = selectedCards.contains(item.id)
                         )
                     }
                 }
@@ -91,6 +100,9 @@ fun BoardDetailContent(
                         MyMasonryCard(
                             height = cardHeights.getOrNull(index * 2 + 1) ?: 180.dp,
                             imageUrl = item.imageUrl,
+                            // 선택 관련 파라미터 전달
+                            isSelectionMode = isSelectionMode,
+                            isSelected = selectedCards.contains(item.id),
                             onClick = { onCardClick(item.id) }
                         )
                     }
@@ -98,83 +110,9 @@ fun BoardDetailContent(
             }
         }
     }
-
-    // 상세 다이얼로그 (LazyColumn 밖에서 처리)
-    selectedCardId?.let {
-        if (isDetailLoading) {
-            // Optional: LoadingDialog()
-        }
-
-        cardDetail?.let { detail ->
-            val detailItem = CardDetailItem(
-                cardId = detail.cardId,
-                videoThumbnailUrl = detail.videoThumbnailUrl ?: "",
-                videoUrl = detail.videoUrl ?: "",
-                title = detail.title ?: "제목 없음",
-                boardName = detail.boardName ?: "카테고리 없음",
-                boardSource = detail.boardSource ?: "",
-                summary = detail.summary ?: "설명 없음",
-                createdAt = formatIsoDateToDisplayLegacy(detail.createdAt),
-                updatedAt =  formatIsoDateToDisplayLegacy(detail.updatedAt),
-                videoPlatform = detail.videoPlatform ?: "알 수 없음",
-                tags = detail.tags,
-                isFavorite = detail.isFavorite,
-            )
-            DetailCardDialog(
-                item = detailItem,
-                onDismiss = onDismiss
-            )
-        }
-    }
 }
 
-@Composable
-fun TwoColumnCardMasonry(
-    cardItems: List<CardItem>,
-    selectedItem: CardItem?,
-    onCardClick: (CardItem?) -> Unit
-) {
-    val left = cardItems.filterIndexed { i, _ -> i % 2 == 0 }
-    val right = cardItems.filterIndexed { i, _ -> i % 2 != 0 }
-
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            left.forEach { item ->
-                val height = randomCardHeight()
-                MyMasonryCard(
-                    height = height,
-                    imageUrl = item.imageUrl,
-                    onClick = { onCardClick(item) }
-                )
-            }
-        }
-
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            right.forEach { item ->
-                val height = randomCardHeight()
-                MyMasonryCard(
-                    height = height,
-                    imageUrl = item.imageUrl,
-                    onClick = { onCardClick(item) }
-                )
-            }
-
-        }
-    }
-}
-
+// 필요 시 다른 화면에서도 쓰는 보조 함수
 fun randomCardHeight(): Dp {
     val heights = listOf(130.dp, 180.dp, 300.dp)
     return heights[Random.nextInt(heights.size)]

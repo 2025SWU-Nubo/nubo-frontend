@@ -6,7 +6,7 @@ data class BoardItem(
     val title: String,
     val subtitle: String,
     val createdAt: String,
-    val isBookmarked: Boolean = false,
+    val isBookmarked: Boolean = false, //즐겨찾기 상태
     val imageUrl: String? = null,
     val source: String = ""
 )

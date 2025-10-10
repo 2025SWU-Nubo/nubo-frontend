@@ -56,6 +56,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.max
 import com.example.nubo.R
+import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.Grey50
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -262,7 +263,7 @@ private fun WeeklyCalendar(
                     modifier = Modifier
                         .size(circleSize)
                         .clip(CircleShape)
-                        .clickable { onClickDay(idx) },
+                        .noRippleClickable { onClickDay(idx) },
                     contentAlignment = Alignment.Center
                 ) {
                     // 오늘 날짜는 보라색

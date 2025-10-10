@@ -22,7 +22,7 @@ class CardRepository @Inject constructor(private val apiService: CardService) {
     suspend fun getCards(
         token: String,
         sort: CardSort? = CardSort.LATEST,
-        filter: CardFilter? = CardFilter.ALL,
+        filter: CardFilter?,
         page: Int = 0,
         size: Int = 20
     ): Result<PagedResponse<CardResponse>> = runCatching {

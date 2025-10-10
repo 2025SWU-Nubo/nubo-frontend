@@ -39,34 +39,36 @@ import com.example.nubo.ui.theme.DefaultText
 import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.GreyMain300
+import com.example.nubo.ui.theme.PurpleMain500
 import kotlin.collections.chunked
 
 @Composable
 fun BoardContent(
     boards: List<BoardItem>,
-    onCardClick: (BoardItem) -> Unit
+    onCardClick: (BoardItem) -> Unit,
+    onFavoriteClick: (BoardItem) -> Unit, // 즐겨찾기 클릭 콜백
+    //선택 관련 파라미터
+    isSelectionMode: Boolean,
+    selectedBoardIds: Set<Int>
 ) {
     LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-        contentPadding = PaddingValues(bottom = 20.dp)
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(bottom = 90.dp)
     ) {
         items(boards.chunked(2)) { rowItems ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 rowItems.forEach { item ->
-                    if (item.source == "AI") {
-                        BoardCardWithText(
-                            board = item,
-                            onClick = { onCardClick(item) }
-                        )
-                    } else {
-                        FullBoardCard(
-                            board = item,
-                            onClick = { onCardClick(item) }
-                        )
-                    }
+                    BoardCardWithText(
+                        board = item,
+                        onClick = { onCardClick(item) },
+                        onFavoriteClick = onFavoriteClick,
+                        // 파라미터 전달
+                        isSelectionMode = isSelectionMode,
+                        isSelected = selectedBoardIds.contains(item.serverBoardId) // ID 비교
+                    )
                 }
                 if (rowItems.size < 2) {
                     Spacer(modifier = Modifier.width(190.dp))
@@ -79,7 +81,11 @@ fun BoardContent(
     @Composable
 fun BoardCardWithText(
         board: BoardItem,
-        onClick: () -> Unit
+        onClick: () -> Unit,
+        onFavoriteClick: (BoardItem) -> Unit,
+        // 보드 상세 화면 및 섹션 상세 화면 선택 관련 파라미터
+        isSelectionMode: Boolean,
+        isSelected: Boolean
 ) {
     Box(
         modifier = Modifier
@@ -87,7 +93,7 @@ fun BoardCardWithText(
             .clip(RoundedCornerShape(12.dp))
             .background(Color.White)
             .clickable { onClick() }
-            .padding(top=4.dp, start = 4.dp, end = 4.dp, bottom = 11.dp)
+            .padding(top = 4.dp, bottom = 4.dp)
     ) {
         Column(
             modifier = Modifier
@@ -135,15 +141,19 @@ fun BoardCardWithText(
                         color = DefaultText,
                         maxLines = 1
                     )
+                    // 즐겨찾기 아이콘 (빈별/채운별 리소스 교체)
                     Icon(
                         painter = painterResource(
                             id = if (board.isBookmarked)
-                                R.drawable.ic_board_star
+                                R.drawable.ic_board_fillstar
                             else
                                 R.drawable.ic_board_star
                         ),
                         contentDescription = "즐겨찾기 아이콘",
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clickable { onFavoriteClick(board) }, // 클릭 시 콜백 호출
+                        tint = Color.Unspecified // 리소스 원본 색 유지
                     )
                 }
 
@@ -164,13 +174,31 @@ fun BoardCardWithText(
                 }
             }
         }
+        // --- 선택 모드 오버레이 ---
+        if (isSelectionMode && isSelected) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize() // 부모(기존 아이템)와 크기를 맞춤
+                    .background(Color.White.copy(alpha = 0.5f))
+                    .clip(RoundedCornerShape(12.dp))
+            )
+            Icon(
+                painter = painterResource(id = R.drawable.ic_board_selected), // 체크 아이콘
+                contentDescription = "선택됨",
+                tint = Color.Unspecified,
+                    modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = 10.dp, end = 8.dp) // 패딩값 조정
+            )
+        }
     }
 }
 
 @Composable
 fun FullBoardCard(
     board: BoardItem,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onFavoriteClick: (BoardItem) -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -227,15 +255,19 @@ fun FullBoardCard(
                         color = DefaultText,
                         maxLines = 1
                     )
+                    // 즐겨찾기 아이콘 (빈별/채운별 리소스 교체)
                     Icon(
                         painter = painterResource(
                             id = if (board.isBookmarked)
-                                R.drawable.ic_board_star
+                                R.drawable.ic_board_fillstar
                             else
                                 R.drawable.ic_board_star
                         ),
                         contentDescription = "즐겨찾기 아이콘",
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clickable { onFavoriteClick(board) }, // 클릭 시 콜백 호출
+                        tint = Color.Unspecified // 리소스 원본 색 유지
                     )
                 }
 

@@ -95,5 +95,23 @@ class BoardRepository @Inject constructor(
         )
     }
 
-
+    // 보드 상세 화면 조회
+    suspend fun getBoardDetail(
+        token: String,
+        boardId: Int,
+        favoriteOnly: Boolean,
+        page: Int,
+        size: Int,
+        sort : String
+    ): Result<BoardResponse> = runCatching {
+        boardService.getBoardDetail(
+            authHeader = "Bearer $token",
+            acceptHeader = "application/json",
+            boardId = boardId,
+            sort = sort,                           // 정렬은 최신순 고정
+            filter = if (favoriteOnly) "FAVORITE" else "ALL",
+            page = page,
+            size = size
+        )
+    }
 }

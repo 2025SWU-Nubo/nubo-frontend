@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.State
 import com.example.nubo.data.model.BoardListItemResponse
+import com.example.nubo.data.model.BoardSearchItemResponse
+import com.example.nubo.data.model.FavoriteRequest
 import com.example.nubo.data.model.PagedResponse
 import com.example.nubo.data.network.BoardService
 import com.example.nubo.data.repository.AuthRepository
@@ -30,6 +32,14 @@ class BoardViewModel @Inject constructor(
     private var isLast: Boolean = false
     private var sort: String = "LATEST"   // LATEST | OLDEST | ALPHABET
     private var filter: String = "ALL"    // ALL | FAVORITE | SHARED
+
+    // 검색 결과 상태
+    private val _searchResults = mutableStateOf<List<BoardItem>>(emptyList())
+    val searchResults: State<List<BoardItem>> = _searchResults
+
+    // 로딩 상태 (선택 사항)
+    private val _isSearching = mutableStateOf(false)
+    val isSearching: State<Boolean> = _isSearching
 
 
     init {
@@ -79,7 +89,8 @@ class BoardViewModel @Inject constructor(
                         subtitle = "${dto.sectionCount} 섹션 ${dto.cardCount} 카드",
                         createdAt = getDisplayDate(dto.updatedAt),
                         source = dto.source,
-                        imageUrl = dto.videoThumbnailUrl // renamed field
+                        imageUrl = dto.videoThumbnailUrl, // renamed field
+                        isBookmarked = dto.favorite // 즐겨찾기 여부 매핑
                     )
                 }
                 _boards.value = if (reset) mapped else _boards.value + mapped
@@ -112,4 +123,83 @@ class BoardViewModel @Inject constructor(
         }
     }
 
+    // 즐겨찾기 토글 (낙관적 업데이트 + 실패 시 롤백)
+    fun toggleFavorite(boardId: Int, currentFavorite: Boolean) {
+        viewModelScope.launch {
+            val before = _boards.value // 롤백 스냅샷
+
+            // 1) UI 먼저 반영 (빠른 피드백)
+            _boards.value = before.map { b ->
+                // 한글 주석: Int끼리 비교 (오류 없음)
+                if (b.serverBoardId == boardId) b.copy(isBookmarked = !currentFavorite) else b
+            }
+
+            try {
+                val token = authRepository.getAccessToken().orEmpty()
+                // 2) 서버 PATCH 호출 (여기서만 Long으로 변환)
+                boardService.setFavorite(
+                    authHeader = "Bearer $token",
+                    boardId = boardId.toLong(),                    // ← Int → Long
+                    body = FavoriteRequest(favorite = !currentFavorite)
+                )
+                // 성공 시 그대로 유지
+            } catch (e: Exception) {
+                // 실패 시 롤백
+                _boards.value = before
+                Log.e("BoardViewModel", "toggleFavorite failed", e)
+            }
+        }
+    }
+
+    // 상세 화면에서 보드명 수정 시 바로 적용
+    fun applyRename(boardId: Int, newName: String) {
+        _boards.value = _boards.value.map { b ->
+            if (b.serverBoardId == boardId) b.copy(title = newName) else b
+        }
+    }
+
+    // 보드 검색
+    fun searchBoards(query: String) {
+        if (query.isBlank()) {
+            _searchResults.value = emptyList()
+            return
+        }
+        viewModelScope.launch {
+            _isSearching.value = true
+            try {
+                val token = authRepository.getAccessToken() ?: return@launch
+
+                // 검색 API 호출
+                val res: List<BoardSearchItemResponse> = boardService.searchBoards(
+                    authHeader = "Bearer $token",
+                    keyword = query,
+                    sort = sort // ViewModel의 현재 정렬 상태를 재활용
+                )
+
+                // DTO -> UI 모델로 변환
+                _searchResults.value = res.map { dto ->
+                    BoardItem(
+                        id = dto.id,
+                        serverBoardId = dto.id,
+                        title = dto.name,
+                        subtitle = "${dto.sectionCount} 섹션 ${dto.cardCount} 카드",
+                        createdAt = getDisplayDate(dto.updatedAt),
+                        source = dto.source,
+                        imageUrl = dto.videoThumbnailUrl,
+                        isBookmarked = dto.favorite
+                    )
+                }
+            } catch (e: Exception) {
+                _searchResults.value = emptyList() // 에러 발생 시 결과 초기화
+                Log.e("BoardViewModel", "Error searching boards", e)
+            } finally {
+                _isSearching.value = false
+            }
+        }
+    }
+
+    // 검색 결과 초기화
+    fun clearSearch() {
+        _searchResults.value = emptyList()
+    }
 }

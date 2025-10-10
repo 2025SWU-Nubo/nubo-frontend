@@ -50,11 +50,13 @@ import com.example.nubo.ui.screen.learn.LearnScreen
 import com.example.nubo.ui.screen.myBoard.BoardDetailScreen
 import com.example.nubo.ui.screen.myBoard.MyBoardScreen
 import com.example.nubo.ui.screen.notification.NotiEvent
+import com.example.nubo.ui.screen.myBoard.SectionDetailScreen
 import com.example.nubo.ui.screen.notification.NotificationScreen
 import com.example.nubo.ui.screen.notification.NotificationViewModel
 import com.example.nubo.ui.screen.onBoardingLogin.OnBoardingLoginActivity
 import com.example.nubo.ui.screen.profile.EditNameScreen
 import com.example.nubo.ui.screen.profile.InformationScreen
+import com.example.nubo.ui.screen.profile.NotificationSetScreen
 import com.example.nubo.ui.screen.profile.ProfileRoute
 import com.example.nubo.ui.theme.NuboAppTheme
 import com.example.nubo.utils.cacheToStore
@@ -257,7 +259,7 @@ fun MainScreen(
                         onBack = { navController.popBackStack() },
                         onMyInfo = { navController.navigate("information") },
                         modifier = Modifier.padding(innerPadding),
-                        onNotification = { navController.navigate("notification") }
+                        onNotification = { navController.navigate("notificationSet") }
                     )
                 }
 
@@ -275,6 +277,22 @@ fun MainScreen(
                         boardTitle = boardTitle,
                         navController = navController,
                         modifier = Modifier.statusBarsPadding()
+                    )
+                }
+
+                composable(
+                    route = "section_detail/{sectionId}/{sectionTitle}",
+                    arguments = listOf(
+                        navArgument("sectionId") { type = NavType.IntType },
+                        navArgument("sectionTitle") { type = NavType.StringType }
+                    )
+                ) { backStackEntry ->
+                    val sectionId = backStackEntry.arguments?.getInt("sectionId") ?: return@composable
+                    val sectionTitle = backStackEntry.arguments?.getString("sectionTitle") ?: "로딩 중..."
+                    SectionDetailScreen(
+                        sectionId = sectionId,
+                        sectionTitle = sectionTitle,
+                        navController = navController,
                     )
                 }
 
@@ -298,6 +316,12 @@ fun MainScreen(
                             .padding(innerPadding)
                             .statusBarsPadding()
                     )
+                }
+                composable("notificationSet"){
+                    NotificationSetScreen(
+                        onBack = { navController.popBackStack() }
+                    )
+
                 }
 
                 // Notification page unified to use ViewModel version
