@@ -69,6 +69,7 @@ import com.example.components.toast.AppToastHost
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.ui.component.noRippleClickable
+import com.example.nubo.ui.theme.AppTextStyles.b3_regular_14
 import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.Purple50
@@ -78,11 +79,6 @@ import kotlinx.coroutines.launch
 sealed class InputDialogMode {
     data object CreateSection : InputDialogMode()
     data class Rename(val sectionId: Int, val currentName: String) : InputDialogMode()
-}
-// 어떤 시트를 띄울지 관리하는 상태
-sealed class SheetMode {
-    data object None : SheetMode()
-    data class SelectBoard(val action: BoardAction) : SheetMode()
 }
 
 @Composable
@@ -176,6 +172,7 @@ fun BoardDetailScreen(
             })
             BoardTitleBar(
                 title = ui.board?.name ?: boardTitle,
+                isSelectionMode = isSelectionMode,
                 onClick = {
                     dialogMode = InputDialogMode.Rename(
                         sectionId = boardId, // 현재 보드 id
@@ -287,6 +284,7 @@ fun BoardDetailScreen(
                                         selectedCardIds = selectedCards
                                     )
                                 }
+
                                 BoardAction.MOVE -> {
                                     viewModel.moveSelectedItems(
                                         targetBoardId = targetId.toLong(),
@@ -294,6 +292,7 @@ fun BoardDetailScreen(
                                         selectedCardIds = selectedCards
                                     )
                                 }
+
                                 null -> {}
                             }
                         }
@@ -311,7 +310,16 @@ fun BoardDetailScreen(
                 confirmText = "생성",
                 placeholder = "섹션 이름",
                 onConfirm = { name -> viewModel.createSection(name) },
-                onDismiss = { dialogMode = null }
+                onDismiss = { dialogMode = null },
+                // 섹션 생성 시에도 유효성 검사 메시지 추가
+                validationContent = {
+                    Text(
+                        text = "섹션 이름을 2자 이상 입력해주세요.",
+                        style = b3_regular_14,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 10.dp, start = 16.dp)
+                    )
+                }
             )
 
             is InputDialogMode.Rename -> NuboInputDialog(
@@ -321,16 +329,25 @@ fun BoardDetailScreen(
                 placeholder = "새 이름",
                 initialValue = m.currentName,
                 onConfirm = { newName ->
-                    // 보드 ID와 다이얼로그의 ID를 비교하여 올바른 함수를 호출합니다.
+                    // 보드 ID와 다이얼로그의 ID를 비교하여 올바른 함수를 호출
                     if (m.sectionId == boardId) {
-                        // ID가 현재 보드 ID와 같으면 보드 이름 변경 함수를 호출합니다.
+                        // ID가 현재 보드 ID와 같으면 보드 이름 변경 함수를 호출
                         viewModel.renameCurrentBoard(newName = newName)
                     } else {
-                        // 다르다면 섹션 이름 변경 함수를 호출합니다.
+                        // 다르다면 섹션 이름 변경 함수를 호출
                         viewModel.renameSection(sectionId = m.sectionId, newName = newName)
                     }
                 },
-                onDismiss = { dialogMode = null }
+                onDismiss = { dialogMode = null },
+                // 유효성 검사 실패 시 보여줄 메시지 UI
+                validationContent = {
+                    Text(
+                        text = "보드 이름을 2자 이상 입력해주세요.",
+                        style = b3_regular_14,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 10.dp, start = 16.dp)
+                    )
+                }
             )
 
             null -> Unit
@@ -369,13 +386,13 @@ fun DetailTopBar(onBack: () -> Unit) {
 
 
 @Composable
-fun BoardTitleBar(title: String, onClick: () -> Unit) {
+fun BoardTitleBar(title: String, isSelectionMode: Boolean, onClick: () -> Unit) {
     val decodedTitle = URLDecoder.decode(title, "utf-8")
 
     Column(modifier = Modifier.padding(top = 27.dp)) {
         Row(
             modifier = Modifier
-                .noRippleClickable {onClick() }
+                .noRippleClickable(enabled = !isSelectionMode) { onClick() } //선택 모드일 때 버튼 비활성화
                 .padding(start = 18.dp, end = 16.dp, bottom = 15.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -412,6 +429,7 @@ fun BoardFilterButton(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             // 정렬 버튼
             SortFilterButton(
+                enabled = !isSelectionMode, //선택 모드일 때 버튼 비활성화
                 onSortSelected = { sortKey -> onRequestSort(sortKey) }
             )
 
@@ -423,6 +441,7 @@ fun BoardFilterButton(
                     selected = if (nextOn) "즐겨찾기" else null
                     onToggleFavorite(nextOn) // 서버 필터 동기화
                 },
+                enabled = !isSelectionMode, //선택 모드일 때 버튼 비활성화
                 colors = ButtonDefaults.outlinedButtonColors(
                     containerColor = if (isFavoriteSelected) Purple50 else Color.Transparent,
                     contentColor = if (isFavoriteSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
@@ -452,10 +471,14 @@ fun BoardFilterButton(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(
                 onClick = onAddClick,
+                enabled = !isSelectionMode,
                 shape = RoundedCornerShape(5.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Purple100.copy(alpha = 0.3f),
-                    contentColor = PurpleMain500
+                    contentColor = PurpleMain500,
+                    // 비활성화 상태에서도 활성화 색상과 동일하게 유지
+                    disabledContainerColor = Purple100.copy(alpha = 0.3f),
+                    disabledContentColor = PurpleMain500
                 ),
                 border = BorderStroke(0.5.dp, PurpleMain500),
                 contentPadding = PaddingValues(horizontal = 10.dp),
@@ -534,6 +557,8 @@ fun NuboInputDialog(
     onConfirm: (String) -> Unit,
     // X 또는 백드롭 클릭 시 닫기
     onDismiss: () -> Unit,
+    // 유효성 검사 실패 시 보여줄 Composable
+    validationContent: @Composable (() -> Unit)? = null
 ) {
     if (!visible) return
 
@@ -549,7 +574,15 @@ fun NuboInputDialog(
         ) {
             // 내부 상태 보관
             var text by remember { mutableStateOf(initialValue) }
-            val confirmEnabled = text.isNotBlank()
+
+            // '생성'과 '이름 변경'의 활성화 조건을 분리
+            val confirmEnabled = if (initialValue.isBlank()) {
+                // 생성 모드: 2글자 이상이면 활성화
+                text.trim().length >= 2
+            } else {
+                // 이름 변경 모드: 2글자 이상이면서, 이전 이름과 다를 때 활성화
+                text.trim().length >= 2 && text.trim() != initialValue
+            }
 
             // 헤더 영역: X 버튼 + 타이틀 + 우측 확인 텍스트 버튼
             Row(
@@ -590,8 +623,7 @@ fun NuboInputDialog(
                 )
             }
 
-            // ▶ 입력 필드 바깥 여백 16dp
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)   // 컨테이너와의 가로 여백
@@ -633,9 +665,14 @@ fun NuboInputDialog(
                         }
                     }
                 )
+                // 유효성 검사 메시지
+                Box(modifier = Modifier.height(24.dp)) {
+                    if (text.isNotBlank() && text.trim().length < 2) {
+                        validationContent?.invoke()
+                    }
+                }
             }
-
-            Spacer(Modifier.height(40.dp))
+            Spacer(Modifier.height(20.dp)) // 하단 여백 약간 조정
         }
     }
 }

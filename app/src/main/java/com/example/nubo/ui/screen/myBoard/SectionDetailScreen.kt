@@ -127,6 +127,7 @@ fun SectionDetailScreen(
             // BoardTitleBar는 BoardDetailScreen의 것을 재사용
             BoardTitleBar(
                 title = detailState?.name ?: sectionTitle,
+                isSelectionMode = isSelectionMode,
                 onClick = {
                     dialogMode = InputDialogMode.Rename(
                         sectionId = sectionId,
@@ -141,7 +142,8 @@ fun SectionDetailScreen(
                 onSelectClick = {
                     if (isSelectionMode) resetSelectionState() else isSelectionMode = true
                 },
-                onRequestSort = { sortKey -> viewModel.setSort(sortKey) }
+                onRequestSort = { sortKey -> viewModel.setSort(sortKey) },
+                isSelectionMode = isSelectionMode
             )
 
             if (ui.isLoading && detailState == null) {
@@ -200,8 +202,8 @@ fun SectionDetailScreen(
                     action = currentAction ?: BoardAction.COPY,
                     boardsState = boardsState,
                     onBack = { showBoardSelector = false },
-                    onConfirm = { selectedId -> // [수정] selectedTargetIds -> selectedId (타입: String?)
-                        // [수정] selectedId가 null이 아닐 때만 로직 실행
+                    onConfirm = { selectedId -> // selectedTargetIds -> selectedId (타입: String?)
+                        // selectedId가 null이 아닐 때만 로직 실행
                         selectedId?.let { targetId ->
                             when (currentAction) {
                                 BoardAction.COPY -> {
@@ -211,6 +213,7 @@ fun SectionDetailScreen(
                                         selectedCardIds = selectedCards
                                     )
                                 }
+
                                 BoardAction.MOVE -> {
                                     viewModel.moveSelectedItems(
                                         targetBoardId = targetId.toLong(),
@@ -218,6 +221,7 @@ fun SectionDetailScreen(
                                         selectedCardIds = selectedCards
                                     )
                                 }
+
                                 null -> {}
                             }
                         }
@@ -237,9 +241,17 @@ fun SectionDetailScreen(
                 initialValue = m.currentName,
                 // 이름 변경 시 viewModel.renameCurrentBoard(newName)를 호출
                 onConfirm = { newName -> viewModel.renameCurrentBoard(newName = newName) },
-                onDismiss = { dialogMode = null }
+                onDismiss = { dialogMode = null },
+                // 유효성 검사 실패 시 보여줄 메시지 UI
+                validationContent = {
+                    Text(
+                        text = "섹션 이름을 2자 이상 입력해주세요.",
+                        style = AppTextStyles.b3_regular_14,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 4.dp, start = 16.dp)
+                    )
+                }
             )
-
             else -> Unit // 섹션 생성 다이얼로그는 없음
         }
     }
@@ -254,7 +266,8 @@ fun SectionFilterButton(
     favoriteSelected: Boolean,
     onToggleFavorite: (Boolean) -> Unit,
     onSelectClick: () -> Unit,
-    onRequestSort: (String) -> Unit
+    onRequestSort: (String) -> Unit,
+    isSelectionMode: Boolean
 ) {
     // '즐겨찾기' 버튼의 선택 상태를 관리
     var selected by remember(favoriteSelected) {
@@ -272,6 +285,7 @@ fun SectionFilterButton(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             // 정렬 버튼
             SortFilterButton(
+                enabled = !isSelectionMode,//선택 모드일 때 버튼 비활성화
                 onSortSelected = { sortKey -> onRequestSort(sortKey) }
             )
 
@@ -283,9 +297,13 @@ fun SectionFilterButton(
                     selected = if (nextOn) "즐겨찾기" else null
                     onToggleFavorite(nextOn)
                 },
+                enabled = !isSelectionMode, //선택 모드일 때 버튼 비활성화
                 colors = ButtonDefaults.outlinedButtonColors(
                     containerColor = if (isFavoriteSelected) Purple50 else Color.Transparent,
-                    contentColor = if (isFavoriteSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
+                    contentColor = if (isFavoriteSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface,
+                    // 비활성화 상태에서도 활성화 색상과 동일하게 유지
+                    disabledContainerColor = Purple100.copy(alpha = 0.3f),
+                    disabledContentColor = PurpleMain500
                 ),
                 shape = RoundedCornerShape(50),
                 border = BorderStroke(1.dp, if (isFavoriteSelected) PurpleMain500 else Grey200),
@@ -303,19 +321,23 @@ fun SectionFilterButton(
                 }
             }
         }
-        // 오른쪽: '선택' 버튼만 있음
+        // 오른쪽: '선택'/'취소' 버튼 UI
+        val buttonText = if (isSelectionMode) "취소" else "선택"
+        val containerColor = if (isSelectionMode) PurpleMain500 else Purple100.copy(alpha = 0.3f)
+        val contentColor = if (isSelectionMode) Color.White else PurpleMain500
+
         Button(
             onClick = onSelectClick,
             shape = RoundedCornerShape(5.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Purple100.copy(alpha = 0.3f),
-                contentColor = PurpleMain500
+                containerColor = containerColor,
+                contentColor = contentColor
             ),
-            border = BorderStroke(0.5.dp, PurpleMain500),
+            border = if (!isSelectionMode) BorderStroke(0.5.dp, PurpleMain500) else null,
             contentPadding = PaddingValues(horizontal = 10.dp),
             modifier = Modifier.height(32.dp)
         ) {
-            Text(text = "선택", style = AppTextStyles.label_medium_12, color = PurpleMain500)
+            Text(text = buttonText, style = AppTextStyles.label_medium_12)
         }
     }
 }

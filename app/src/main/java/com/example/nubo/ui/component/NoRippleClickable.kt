@@ -13,8 +13,11 @@ import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 
 // 클릭 시 시각적인 리플(ripple) 효과가 없는 clickable Modifier
 @Composable
-fun Modifier.noRippleClickable(onClick: () -> Unit): Modifier = composed {
+fun Modifier.noRippleClickable(
+    enabled : Boolean =true,
+    onClick: () -> Unit): Modifier = composed {
     clickable(
+        enabled=enabled,
         interactionSource = remember { MutableInteractionSource() },
         indication = null,
         onClick = onClick
