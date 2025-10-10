@@ -74,7 +74,7 @@ fun NotificationPermissionDialog(
                         shape = RoundedCornerShape(24.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = com.example.nubo.ui.theme.Grey10,
-                            contentColor = com.example.nubo.ui.theme.Grey50
+                            contentColor = com.example.nubo.ui.theme.GreyMain100
                         ),
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         modifier = Modifier.height(40.dp)

@@ -5,6 +5,7 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -234,7 +235,7 @@ fun EditCardScreen(
                     // 키보드(IME) 인셋을 반영해서 "항상 키보드 위"에 위치
                     .imePadding()
                     // 네비게이션 바 있는 기기에서 하단 소프트키 위로
-                    .windowInsetsPadding(WindowInsets.navigationBars)
+                    .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
                     .zIndex(100f)
                     // AI바/마크다운바 위로 조금 더 띄우는 추가 여백만 계산
                     .padding(
@@ -295,16 +296,23 @@ fun EditCardScreen(
             }
 
             // 3) AI 처리 오버레이
+            //  애니메이션 추가
+            val aiOverlayBottomPadding by animateDpAsState(
+                targetValue = when {
+                    showAiBar -> 200.dp  // aiBarHeight + 여유
+                    else -> 0.dp
+                },
+                animationSpec = tween(
+                    durationMillis = 150,
+                    easing = FastOutLinearInEasing
+                ),
+                label = "aiOverlayPadding"
+            )
+
             AiLoadingOverlay(
                 visible = aiLoading,
                 modifier = Modifier
-                    .padding(
-                        bottom = when {
-                            showAiBar -> 90.dp  // aiBarHeight + 여유
-//                            editorFocused && keyboardVisible && !showAiBar -> 60.dp // mdBarHeight + 여유
-                            else -> 0.dp
-                        }
-                    )
+                    .padding(bottom = aiOverlayBottomPadding)
                     .matchParentSize()            // Box 꽉 채움
                     .align(Alignment.Center)
                     .zIndex(12f),
