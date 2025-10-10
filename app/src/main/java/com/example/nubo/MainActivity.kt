@@ -49,6 +49,7 @@ import com.example.nubo.ui.screen.home.HomeScreen
 import com.example.nubo.ui.screen.learn.LearnScreen
 import com.example.nubo.ui.screen.myBoard.BoardDetailScreen
 import com.example.nubo.ui.screen.myBoard.MyBoardScreen
+import com.example.nubo.ui.screen.notification.NotiEvent
 import com.example.nubo.ui.screen.notification.NotificationScreen
 import com.example.nubo.ui.screen.notification.NotificationViewModel
 import com.example.nubo.ui.screen.onBoardingLogin.OnBoardingLoginActivity
@@ -62,6 +63,8 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
@@ -71,8 +74,16 @@ class MainActivity : AppCompatActivity() {
     // Pipe to deliver deep link intents into Compose world
     private val deepLinkEvents = MutableSharedFlow<Intent>(extraBufferCapacity = 1)
 
+    companion object{
+        private const val  TAG = "MainActivity"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        android.util.Log.d(TAG, "onCreate()")
+        android.util.Log.d(TAG, "onCreate() intent=${intent?.action} extras=${intent?.extras?.keySet()?.joinToString()}")
+
 
         // Make system bars transparent and set icon appearance
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -83,46 +94,42 @@ class MainActivity : AppCompatActivity() {
             isAppearanceLightNavigationBars = true
         }
 
-        // Cache initial intent + emit
-        intent?.let { cacheDeepLinkIfAny(it); deepLinkEvents.tryEmit(it) }
+        // 초기 인텐트 캐시 & emit
+        intent?.let {
+            android.util.Log.d(TAG, "onCreate() cacheDeepLinkIfAny() with initial intent")
+            cacheDeepLinkIfAny(it);
+            deepLinkEvents.tryEmit(it)
+        }
 
         setContent {
             NuboAppTheme {
+
                 RequestNotificationPermissionOnce() // Android 13+ POST_NOTIFICATIONS permission
                 MainScreen(deepLinkEvents = deepLinkEvents)
             }
         }
+
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        android.util.Log.d(TAG,"onNewIntent() action=${intent.action} extras=${intent.extras?.keySet()?.joinToString()}")
         cacheDeepLinkIfAny(intent)
         deepLinkEvents.tryEmit(intent)
     }
 }
 
-// Cache deep link payload if presents in the intent
+// 인텐트에 담긴 딥링크/FCM 정보를 DeepLinkStore에 저장
 private fun cacheDeepLinkIfAny(intent: Intent) {
-    when (intent.getStringExtra(DeepLinkContract.EXTRA_DEEPLINK_TARGET)) {
-        DeepLinkContract.TARGET_CARD_DETAIL -> {
-            intent.getLongExtra(DeepLinkContract.EXTRA_CARD_ID, -1L)
-                .takeIf { it > 0 }?.let { DeepLinkStore.pendingCardId = it }
-        }
-        DeepLinkContract.TARGET_CARD_UNREAD_LIST -> {
-            DeepLinkStore.pendingGoUnread = true
-        }
-        DeepLinkContract.TARGET_BOARD_DETAIL,
-        DeepLinkContract.TARGET_BOARD_INVITE -> {
-            DeepLinkStore.pendingBoardId =
-                intent.getLongExtra(DeepLinkContract.EXTRA_BOARD_ID, -1L).takeIf { it > 0 }
-            DeepLinkStore.pendingBoardTitle =
-                intent.getStringExtra(DeepLinkContract.EXTRA_BOARD_TITLE)
-            DeepLinkStore.pendingInviteToken =
-                intent.getStringExtra(DeepLinkContract.EXTRA_INVITE_TOKEN)
-        }
-    }
+
+    android.util.Log.d("MainActivity", "cacheDeepLinkIfAny(): EXTRA_DEEPLINK_TARGET=${intent.getStringExtra(com.example.nubo.deeplink.DeepLinkContract.EXTRA_DEEPLINK_TARGET)} type=${intent.getStringExtra("type")} cardId=${intent.getStringExtra("cardId")} boardId=${intent.getStringExtra("boardId")}")
+    // 기존 DeepLinkContract 포맷과 FCM 데이터 페이로드를 모두 처리하도록 유틸을 사용
+    cacheToStore(intent)
+    // 캐시 결과도 찍기
+    android.util.Log.d("MainActivity", "DeepLinkStore: cardId=${com.example.nubo.deeplink.DeepLinkStore.pendingCardId}, goUnread=${com.example.nubo.deeplink.DeepLinkStore.pendingGoUnread}, openNoti=${com.example.nubo.deeplink.DeepLinkStore.pendingOpenNotificationCenter}, boardId=${com.example.nubo.deeplink.DeepLinkStore.pendingBoardId}, boardTitle=${com.example.nubo.deeplink.DeepLinkStore.pendingBoardTitle}")
 }
+
 
 @Composable
 fun RequestNotificationPermissionOnce() {
@@ -147,6 +154,17 @@ fun MainScreen(
 ) {
     val isLoggedIn by vm.isLoggedIn.collectAsState()
     val navController = rememberNavController()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    LaunchedEffect(isLoggedIn) {
+        android.util.Log.d("MainActivity","isLoggendIn changed: $isLoggedIn")
+        if(!isLoggedIn){
+            android.util.Log.d("MainActivity","navigate -> OnBoarding(not loggin in)")
+            startOnboardingForLogin(context)
+            return@LaunchedEffect
+        }
+    }
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -155,12 +173,11 @@ fun MainScreen(
 
     // Hide BottomNav on detail-like screens
     val showBottomBar = currentRoute in listOf(
-        "home", "myboard", "add", "learn", "profile", "information", "notification"
+        "home", "myboard", "add", "learn", "profile", "information"
     )
 
     var sheetRoute by remember { mutableStateOf<SheetRoute?>(null) }
-    val context = androidx.compose.ui.platform.LocalContext.current
-
+//    val context = androidx.compose.ui.platform.LocalContext.current
     val contentInsets = WindowInsets.safeDrawing
 
     Scaffold(
@@ -217,7 +234,6 @@ fun MainScreen(
                                 popUpTo("home") { inclusive = false }
                             }
                         },
-//                        modifier = Modifier.statusBarsPadding()
                     )
                 }
 
@@ -299,6 +315,49 @@ fun MainScreen(
                         onRejectInvite = { item -> nvm.onClickSecondary(item) },
                         onShowMore = { _ -> nvm.onClickMore() }
                     )
+
+                    // 2) 단발 이벤트 수신 → 실제 네비게이션 수행
+                    LaunchedEffect(Unit) {
+                        nvm.events.collectLatest { e ->
+                            when (e) {
+                                is NotiEvent.GoCardDetail -> {
+                                    // route: card_detail/{cardId}
+                                    e.cardId.toIntOrNull()?.takeIf { it > 0 }?.let { id ->
+                                        navController.navigate("card_detail/$id") {
+                                            popUpTo("home") { inclusive = false }
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                }
+                                NotiEvent.GoLearn -> {
+                                    navController.navigate("learn") {
+                                        popUpTo("home") { inclusive = false }
+                                        launchSingleTop = true
+                                    }
+                                }
+                                NotiEvent.GoNotificationCenter -> {
+                                    // 이미 알림 화면에 있으므로 필요 시 no-op 또는 스낵바 등
+                                }
+                                is NotiEvent.GoBoard -> {
+                                    // 필요 시 보드 상세 라우팅 규격에 맞춰 이동
+                                    e.boardId.toIntOrNull()?.let { bId ->
+                                        // title이 필요하면 VM에서 같이 싣거나 별도 조회
+                                        navController.navigate("board_detail/$bId/${URLEncoder.encode("보드", "UTF-8")}") {
+                                            popUpTo("home") { inclusive = false }
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                }
+                                is NotiEvent.InviteAccepted -> {
+                                    // 수락 후 후속 동작(토스트, 새로고침 등) 필요 시 여기에
+                                }
+                                is NotiEvent.InviteRejected -> {
+                                    // 거절 후 후속 동작 필요 시 여기에
+                                }
+                            }
+                        }
+                    }
+
                 }
 
                 composable(
@@ -336,7 +395,7 @@ fun MainScreen(
                     val refreshFlow = remember(backStackEntry) {
                         backStackEntry.savedStateHandle.getStateFlow("refresh_detail", false)
                     }
-                    val refresh by refreshFlow.collectAsState(initial = false)
+//                    val refresh by refreshFlow.collectAsState(initial = false)
 
                     // Obtain VM scoped to this backStackEntry
                     val detailVm: CardDetailViewModel = hiltViewModel(backStackEntry)
@@ -345,17 +404,21 @@ fun MainScreen(
                     LaunchedEffect(cardId) { detailVm.refresh() }
 
                     // Reload after edit
-                    LaunchedEffect(refresh) {
-                        if (refresh) {
-                            detailVm.refresh()
-                            backStackEntry.savedStateHandle["refresh_detail"] = false
-                        }
+                    LaunchedEffect(Unit) {
+                        refreshFlow
+                            .drop(1)                 // ignore initial false
+                            .distinctUntilChanged()  // avoid duplicate same values
+                            .collect { shouldRefresh ->
+                                if (shouldRefresh) {
+                                    detailVm.refresh()
+                                    backStackEntry.savedStateHandle["refresh_detail"] = false
+                                }
+                            }
                     }
 
                     Box(Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
-//                        .statusBarsPadding()
                     ) {
                         CardDetailRoute(
                             onBack = { navController.popBackStack() },
@@ -388,23 +451,24 @@ fun MainScreen(
             }
     }
 
-    // Deep link handling — consume cached ones after login state resolved
+    // 로그인 상태가 결정된 직후, 캐시된 딥링크를 소진하여 이동
     LaunchedEffect(isLoggedIn) {
         if (!isLoggedIn) {
             startOnboardingForLogin(context)
             return@LaunchedEffect
         }
 
-        // Card detail
-        DeepLinkStore.pendingCardId?.let { id ->
+        DeepLinkStore.pendingCardId?.let { raw ->
             DeepLinkStore.pendingCardId = null
-            navController.navigate("card_detail/${id.toInt()}") {
-                popUpTo("home") { inclusive = false }
-                launchSingleTop = true
+            raw.toLongOrNull()?.takeIf { it > 0L }?.let { idLong ->
+                navController.navigate("card_detail/${idLong.toInt()}") {
+                    popUpTo("home") { inclusive = false }
+                    launchSingleTop = true
+                }
             }
         }
 
-        // Unread list → learn
+        // 미시청 목록(학습 탭) 진입 플래그가 있으면 이동함
         if (DeepLinkStore.pendingGoUnread) {
             DeepLinkStore.pendingGoUnread = false
             navController.navigate("learn") {
@@ -413,7 +477,7 @@ fun MainScreen(
             }
         }
 
-        // Board detail / invite
+        // 보드 상세/초대에 대한 캐시가 있으면 이동
         DeepLinkStore.pendingBoardId?.let { bId ->
             val title = DeepLinkStore.pendingBoardTitle ?: "로딩 중..."
             DeepLinkStore.pendingBoardId = null
@@ -424,11 +488,11 @@ fun MainScreen(
                 popUpTo("home") { inclusive = false }
                 launchSingleTop = true
             }
-            // pendingInviteToken is consumed in detail as needed
+            // pendingInviteToken은 상세 화면에서 필요 시 사용
         }
     }
 
-    // Runtime deep link events
+    // 앱 실행 중 수신되는 딥링크/FCM 인텐트를 실시간으로 처리함
     LaunchedEffect(Unit) {
         deepLinkEvents.collectLatest { intent ->
             val target = intent.getStringExtra(DeepLinkContract.EXTRA_DEEPLINK_TARGET)
@@ -439,6 +503,7 @@ fun MainScreen(
                 return@collectLatest
             }
 
+            // 1) 기존 DeepLinkContract 타깃이 있으면 먼저 처리함
             when (target) {
                 DeepLinkContract.TARGET_CARD_DETAIL -> {
                     val id = intent.getLongExtra(DeepLinkContract.EXTRA_CARD_ID, -1L)
@@ -448,25 +513,84 @@ fun MainScreen(
                             launchSingleTop = true
                         }
                     }
+                    return@collectLatest // 기존 포맷을 처리했으므로 조기 반환함
                 }
                 DeepLinkContract.TARGET_CARD_UNREAD_LIST -> {
+                    navController.navigate("notification") {
+                        popUpTo("home") { inclusive = false }
+                        launchSingleTop = true
+                    }
+                    return@collectLatest // 한 줄 주석: 기존 포맷 처리 완료
+                }
+                // 보드 상세는 보드로 이동
+                DeepLinkContract.TARGET_BOARD_DETAIL -> {
+                    val boardId = intent.getLongExtra(DeepLinkContract.EXTRA_BOARD_ID, -1L)
+                    val title = intent.getStringExtra(DeepLinkContract.EXTRA_BOARD_TITLE) ?: "로딩 중..."
+                    if (boardId > 0) {
+                        val encoded = java.net.URLEncoder.encode(title, java.nio.charset.StandardCharsets.UTF_8.toString())
+                        navController.navigate("board_detail/${boardId.toInt()}/$encoded") {
+                            popUpTo("home") { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    }
+                    return@collectLatest
+                }
+                // 초대 알림은 알림센터로 이동(수락/거절 UX)
+                DeepLinkContract.TARGET_BOARD_INVITE -> {
+                    navController.navigate("notification") {
+                        popUpTo("home") { inclusive = false }
+                        launchSingleTop = true
+                    }
+                    return@collectLatest
+                }
+            }
+
+            //  2) DeepLinkContract가 없다면 FCM 데이터 페이로드(type)를 해석함
+            when (intent.getStringExtra("type")) {
+                // 카드 생성/리마인드는 카드 상세로 이동함
+                // (교체) deepLinkEvents.collectLatest { intent -> ... } 블록의 CARD_ADDED 처리
+                "CARD_ADDED" -> {
+                    // 우선 인텐트에서 문자열을 받되, 없으면 캐시를 이용
+                    val raw = intent.getStringExtra("card_id")
+                        ?: intent.getStringExtra("cardId")
+                        ?: DeepLinkStore.pendingCardId
+                    DeepLinkStore.pendingCardId = null
+
+                    raw?.toLongOrNull()?.takeIf { it > 0L }?.let { idLong ->
+                        navController.navigate("card_detail/${idLong.toInt()}") {
+                            popUpTo("home") { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    }
+                }
+
+                "REMINDER" -> {
                     navController.navigate("learn") {
                         popUpTo("home") { inclusive = false }
                         launchSingleTop = true
                     }
                 }
-                DeepLinkContract.TARGET_BOARD_DETAIL,
-                DeepLinkContract.TARGET_BOARD_INVITE -> {
-                    val boardId = intent.getLongExtra(DeepLinkContract.EXTRA_BOARD_ID, -1L)
-                    val title = intent.getStringExtra(DeepLinkContract.EXTRA_BOARD_TITLE) ?: "로딩 중..."
-                    if (boardId > 0) {
-                        val encoded = URLEncoder.encode(title, StandardCharsets.UTF_8.toString())
-                        navController.navigate("board_detail/${boardId.toInt()}/$encoded") {
+                "BOARD" -> {
+                    navController.navigate("notification") {
+                        popUpTo("home") { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
+
+                // 레거시 문자열도 계속 지원
+                "CARD_CREATED", "UNREAD_RECOMMEND" -> {
+                    val id = intent.getStringExtra("cardId")?.toIntOrNull()
+                    if (id != null && id > 0) {
+                        navController.navigate("card_detail/$id") {
                             popUpTo("home") { inclusive = false }
                             launchSingleTop = true
                         }
-                        DeepLinkStore.pendingInviteToken =
-                            intent.getStringExtra(DeepLinkContract.EXTRA_INVITE_TOKEN)
+                    }
+                }
+                "BOARD_INVITE", "INVITE_RESULT" -> {
+                    navController.navigate("notification") {
+                        popUpTo("home") { inclusive = false }
+                        launchSingleTop = true
                     }
                 }
             }

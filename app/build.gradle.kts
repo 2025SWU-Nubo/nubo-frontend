@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.ksp)
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -34,7 +35,9 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
     }
+//    compileOptions { isCoreLibraryDesugaringEnabled = true }
 
     kotlinOptions {
         jvmTarget = "11"
@@ -112,7 +115,10 @@ dependencies {
     implementation ("com.google.firebase:firebase-analytics-ktx")
 
     // navhost 페이지 이동 애니메이션 커스텀
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
     implementation(libs.accompanist.navigation.animation)
+
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 
 }
 

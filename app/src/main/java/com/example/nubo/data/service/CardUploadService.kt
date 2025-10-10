@@ -37,10 +37,11 @@ class CardUploadService: Service() {
 
     companion object {
         private const val PROGRESS_NOTIFICATION_ID = 1001
-        private const val RESULT_NOTIFICATION_ID = 1002
+//        private const val RESULT_NOTIFICATION_ID = 1002
+
 
         private const val PROGRESS_CHANNEL_ID = "card_upload_progress_v2" // progress channel (DEFAULT)
-        private const val RESULT_CHANNEL_ID = "card_upload_result_v2"     // result channel (HIGH)
+//        private const val RESULT_CHANNEL_ID = "card_upload_result_v2"     // result channel (HIGH)
 
 
         const val EXTRA_ACCESS_TOKEN = "access_token" // Intent에서 토큰을 전달받기 위한 키
@@ -115,16 +116,16 @@ class CardUploadService: Service() {
                 description = "카드 업로드 진행 상황을 표시합니다."
             }
 
-            val result = NotificationChannel(
-                RESULT_CHANNEL_ID,
-                "카드 업로드 결과",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "업로드 완료/실패 결과를 표시합니다."
-            }
+//            val result = NotificationChannel(
+//                RESULT_CHANNEL_ID,
+//                "카드 업로드 결과",
+//                NotificationManager.IMPORTANCE_HIGH
+//            ).apply {
+//                description = "업로드 완료/실패 결과를 표시합니다."
+//            }
 
             notificationManager.createNotificationChannel(progress)
-            notificationManager.createNotificationChannel(result)
+//            notificationManager.createNotificationChannel(result)
         }
     }
 
@@ -149,17 +150,17 @@ class CardUploadService: Service() {
         return builder.build()
     }
 
-    private fun showResultNotification(success: Boolean, message: String) {
-        // Build result notification on separate channel/ID
-        val builder = NotificationCompat.Builder(this, RESULT_CHANNEL_ID)
-            .setContentTitle(if (success) "카드 생성 완료" else "카드 생성 실패")
-            .setContentText(message)
-            .setSmallIcon(R.drawable.basic_profile_image)
-            .setAutoCancel(true)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-
-        notificationManager.notify(RESULT_NOTIFICATION_ID, builder.build())
-    }
+//    private fun showResultNotification(success: Boolean, message: String) {
+//        // Build result notification on separate channel/ID
+//        val builder = NotificationCompat.Builder(this, RESULT_CHANNEL_ID)
+//            .setContentTitle(if (success) "카드 생성 완료" else "카드 생성 실패")
+//            .setContentText(message)
+//            .setSmallIcon(R.drawable.basic_profile_image)
+//            .setAutoCancel(true)
+//            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+//
+//        notificationManager.notify(RESULT_NOTIFICATION_ID, builder.build())
+//    }
 
     private fun uploadCard(accessToken: String,videoUrl: String,boardId: Long?) {
         //업로드 요청 객체 생성
@@ -182,11 +183,11 @@ class CardUploadService: Service() {
                 if (response.isSuccessful) {
                     Log.d("CardUploadService", "카드 업로드 성공: ${response.body()}")
                     stopForeground(true)
-                    showResultNotification(true, "영상이 누보에 저장되었어요. 확인하러 갈까요?👉🏻")
+//                    showResultNotification(true, "영상이 누보에 저장되었어요. 확인하러 갈까요?👉🏻")
                 } else {
                     Log.e("CardUploadService", "카드 업로드 실패: ${response.code()} ${response.message()}")
                     stopForeground(true)
-                    showResultNotification(false,  "다시 시도해주세요.")
+//                    showResultNotification(false,  "다시 시도해주세요.")
                 }
                 stopSelf()
             }
@@ -195,7 +196,7 @@ class CardUploadService: Service() {
                 Log.e("CardUploadService", "카드 업로드 네트워크 에러", t)
                 stopForeground(true)
                 // Show failure promptly
-                showResultNotification(false, "네트워크 오류로 업로드에 실패했습니다.")
+//                showResultNotification(false, "네트워크 오류로 업로드에 실패했습니다.")
                 stopSelf()
             }
         })

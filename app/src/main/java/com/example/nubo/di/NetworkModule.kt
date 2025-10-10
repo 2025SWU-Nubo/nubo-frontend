@@ -4,6 +4,7 @@ package com.example.nubo.di
 import com.example.nubo.data.network.AuthService
 import com.example.nubo.data.network.BoardService
 import com.example.nubo.data.network.CardService
+import com.example.nubo.data.network.NotificationService
 import com.example.nubo.data.network.ProfileService
 import com.example.nubo.data.network.TokenInterceptor
 import com.example.nubo.data.network.UserService
@@ -51,7 +52,7 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("https://8cd88602729f.ngrok-free.app")
+            .baseUrl("https://f2b9f5684c58.ngrok-free.app")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -82,4 +83,8 @@ object NetworkModule {
     fun provideProfileApiService(retrofit: Retrofit): ProfileService {
         return retrofit.create(ProfileService::class.java)
     }
+
+    @Provides @Singleton
+    fun provideNotificationService(retrofit: Retrofit): NotificationService =
+        retrofit.create(NotificationService::class.java)
 }

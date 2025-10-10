@@ -24,6 +24,12 @@ sealed interface CardDetailUiState {
     data class Error(val message: String) : CardDetailUiState
 }
 
+// 정보 아이콘 클릭시, 말풍선
+sealed interface InfoUiState {
+    data object Hidden : InfoUiState
+    data object Visible : InfoUiState
+}
+
 
 @HiltViewModel
 class CardDetailViewModel @Inject constructor(
@@ -41,9 +47,8 @@ class CardDetailViewModel @Inject constructor(
     private val _toast = MutableStateFlow<String?>(null)
     val toast = _toast.asStateFlow()
 
-    init {
-        load()
-    }
+    private val _infoState = MutableStateFlow<InfoUiState>(InfoUiState.Hidden)
+    val infoState = _infoState.asStateFlow()
 
     // Load card detail by id
      private fun load() {
@@ -109,6 +114,18 @@ class CardDetailViewModel @Inject constructor(
     }
 
     fun consumeToast() { _toast.value = null }
+
+    // 정보 말풍선
+    fun showInfoBubble() {
+        // Only show when we have data
+        if (_uiState.value is CardDetailUiState.Success) {
+            _infoState.value = InfoUiState.Visible
+        }
+    }
+
+    fun hideInfoBubble() {
+        _infoState.value = InfoUiState.Hidden
+    }
 
 }
 

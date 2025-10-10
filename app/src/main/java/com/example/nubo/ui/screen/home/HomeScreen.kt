@@ -117,6 +117,7 @@ fun HomeScreen(
         },
         contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
+
         val mergedPadding = PaddingValues(
             top = innerPadding.calculateTopPadding() + padding.calculateTopPadding(),
             bottom = innerPadding.calculateBottomPadding() + padding.calculateBottomPadding(),
@@ -124,13 +125,21 @@ fun HomeScreen(
             end = padding.calculateEndPadding(LayoutDirection.Ltr)
         )
 
+        val bottomBarHeight = 90.dp
+        val extraBottom = bottomBarHeight + 36.dp
+        val finalContentPadding = PaddingValues(
+            top = mergedPadding.calculateTopPadding(),
+            bottom = mergedPadding.calculateBottomPadding() + extraBottom,
+            start = mergedPadding.calculateStartPadding(LayoutDirection.Ltr),
+            end = mergedPadding.calculateEndPadding(LayoutDirection.Ltr)
+        )
 
         LazyColumn(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
                 .background(Color.White),
-            contentPadding = mergedPadding
+            contentPadding = finalContentPadding
         ) {
             item { Spacer(Modifier.height(12.dp)) }
             item {

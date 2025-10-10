@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
 import android.content.Intent
+import android.provider.Settings
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -16,11 +17,14 @@ import com.example.nubo.data.model.LoginResponse
 import com.example.nubo.data.model.TokenValidationResponse
 import com.example.nubo.data.model.UserInfo
 import com.example.nubo.data.repository.AuthRepository
+import com.example.nubo.data.repository.NotificationRepository
+import com.example.nubo.data.repository.NotificationRepository.RegisterOutcome
 import com.example.nubo.utils.NotificationPermissionHelper
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.tasks.Task
+import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,11 +48,14 @@ data class UiToast(
 @HiltViewModel
 class OnBoardingViewModel @Inject constructor(
     application: Application,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private var notificationRepository: NotificationRepository
 ) : AndroidViewModel(application) {
 
     @SuppressLint("StaticFieldLeak")
     private val context: Context = application.applicationContext
+
+    private val prefs = context.getSharedPreferences("push_prefs", Context.MODE_PRIVATE)
 
     private val _uiState = MutableStateFlow(OnBoardingUiState())
     val uiState: StateFlow<OnBoardingUiState> get() = _uiState
@@ -84,6 +91,18 @@ class OnBoardingViewModel @Inject constructor(
             viewModelScope.launch { _toastEvents.emit(UiToast(message, type = type, durationMillis = duration)) }
         }
     }
+
+    /** 공통: 레포로 토큰 등록 시도 (짧은 로그) */
+    private suspend fun registerTokenIfNeeded(token: String) {
+        when (val r = notificationRepository.registerDeviceTokenIfNeeded(token)) {
+            is RegisterOutcome.Success -> android.util.Log.d("FCM_REG", "VM: server register OK (${token.take(12)}...)")
+            is RegisterOutcome.SkippedAlready -> android.util.Log.d("FCM_REG", "VM: skip (already)")
+            is RegisterOutcome.SkippedBlank -> android.util.Log.w("FCM_REG", "VM: skip (blank)")
+            is RegisterOutcome.Failure -> android.util.Log.w("FCM_REG", "VM: server register FAIL ${r.error.message}")
+        }
+    }
+
+
 
     private fun initializeGoogleAuth() {
         val gso = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(
@@ -134,7 +153,10 @@ class OnBoardingViewModel @Inject constructor(
                         _uiState.value = _uiState.value.copy(isLoading = false)
                         if (response.isSuccessful) {
                             response.body()?.let { tokenResponse ->
+                                // 토큰이 유효할 경우
                                 if (tokenResponse.valid) {
+                                    clearRegisteredFlag()
+                                    registerPushAfterLogin()
                                     // 토큰이 유효하면 알림 권한 확인 후 메인으로 이동
                                     checkNotificationPermissionAndNavigate()
                                 } else {
@@ -251,6 +273,55 @@ class OnBoardingViewModel @Inject constructor(
         saveUserAndNavigate(newUser, accessToken, onLoginComplete)
     }
 
+    @SuppressLint("HardwareIds")
+    private fun registerPushAfterLogin() {
+        FirebaseMessaging.getInstance().isAutoInitEnabled = true
+
+        FirebaseMessaging.getInstance().token
+            .addOnSuccessListener { fcmToken ->
+                if (fcmToken.isNullOrBlank()) {
+                    android.util.Log.w("FCM_REG", "getToken OK but empty")
+                    return@addOnSuccessListener
+                }
+                android.util.Log.d("FCM_REG", "getToken OK (${fcmToken.take(12)}...)")
+                viewModelScope.launch { registerTokenIfNeeded(fcmToken) }
+            }
+            .addOnFailureListener { e ->
+                // ⬇ FCM이 바로 토큰 못 줄 때 캐시로 보완
+                val cached = prefs.getString("latest_fcm_token", null)
+                android.util.Log.w("FCM_REG", "getToken FAIL ${e.message}; cached=${cached?.take(12)}...")
+                if (!cached.isNullOrBlank()) {
+                    viewModelScope.launch { registerTokenIfNeeded(cached) }
+                }
+            }
+    }
+
+    fun ensurePushTokenRegistered() {
+        FirebaseMessaging.getInstance().isAutoInitEnabled = true
+        FirebaseMessaging.getInstance().token
+            .addOnSuccessListener { token ->
+                if (token.isNullOrBlank()) {
+                    android.util.Log.w("FCM_REG", "ensure: getToken empty")
+                } else {
+                    android.util.Log.d("FCM_REG", "ensure: getToken (${token.take(12)}...)")
+                    viewModelScope.launch { registerTokenIfNeeded(token) }
+                }
+            }
+            .addOnFailureListener { e ->
+                val cached = prefs.getString("latest_fcm_token", null)
+                android.util.Log.w("FCM_REG", "ensure: getToken FAIL ${e.message}; cached=${cached?.take(12)}...")
+                if (!cached.isNullOrBlank()) {
+                    viewModelScope.launch { registerTokenIfNeeded(cached) }
+                }
+            }
+    }
+
+    private fun clearRegisteredFlag() {
+        prefs.edit().remove("registered_fcm_token").apply()
+        android.util.Log.d("FCM_REG", "clear flag: registered_fcm_token removed")
+    }
+
+
     private fun saveUserAndNavigate(
         user: UserInfo,
         token: String,
@@ -260,18 +331,69 @@ class OnBoardingViewModel @Inject constructor(
         authRepository.saveUserId(user.id)
         authRepository.saveUserInfo(user)
 
-        // 로그인 성공 후 알림 권한 확인
+        // ✅ '이미 등록됨' 스킵 플래그 제거해서 다음 호출이 무조건 시도되게
+        getApplication<Application>()
+            .getSharedPreferences("push_prefs", Context.MODE_PRIVATE)
+            .edit()
+            .remove("registered_fcm_token")
+            .apply()
+
+        // 로그인 성공시 푸시 토큰 등록 시도 (이제 스킵 안 됨)
+        registerPushAfterLogin()
+
+        // 이하 기존 로직 그대로
         if (NotificationPermissionHelper.shouldRequestNotificationPermission(context)) {
             _shouldRequestNotificationPermission.value = true
-            // onLoginComplete는 알림 권한 처리 후 호출됨
             _pendingLoginComplete = onLoginComplete
         } else {
-            // 알림 권한이 이미 있거나 필요하지 않은 경우 바로 메인으로 이동
             onLoginComplete(Intent(context, MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             })
         }
     }
+
+
+
+//    @SuppressLint("HardwareIds")
+//    private fun registerPushAfterLogin() {
+//        FirebaseMessaging.getInstance().isAutoInitEnabled = true
+//
+//        FirebaseMessaging.getInstance().token
+//            .addOnSuccessListener { fcmToken ->
+//                if (fcmToken.isNullOrBlank()) {
+//                    Log.w("FCM", "getToken success but empty")
+//                    return@addOnSuccessListener
+//                }
+//                Log.d("FCM", "token = $fcmToken")
+//
+//                viewModelScope.launch {
+//                    runCatching {
+//                        notificationRepository.registerDeviceTokenIfNeeded(fcmToken)
+//                    }.onSuccess {
+//                        Log.d("FCM", "registerDeviceTokenIfNeeded success")
+//                    }.onFailure {
+//                        Log.e("FCM", "registerDeviceTokenIfNeeded failed", it)
+//                    }
+//                }
+//            }
+//            .addOnFailureListener { e ->
+//                Log.w("FCM", "getToken failed", e)
+//            }
+//    }
+
+//    fun ensurePushTokenRegistered() {
+//        FirebaseMessaging.getInstance().isAutoInitEnabled = true
+//        FirebaseMessaging.getInstance().token
+//            .addOnSuccessListener { token ->
+//                if (!token.isNullOrBlank()) {
+//                    viewModelScope.launch {
+//                        runCatching { notificationRepository.registerDeviceTokenIfNeeded(token) }
+//                    }
+//                }
+//            }
+//            .addOnFailureListener { e -> Log.w("FCM", "getToken failed", e) }
+//    }
+
 
     // 로그인 완료 콜백을 임시 저장
     private var _pendingLoginComplete: ((Intent) -> Unit)? = null

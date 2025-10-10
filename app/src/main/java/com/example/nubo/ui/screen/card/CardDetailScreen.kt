@@ -8,6 +8,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,11 +20,13 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalMinimumInteractiveComponentEnforcement
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -63,6 +66,7 @@ import com.example.components.toast.AppToastLayout
 import com.example.components.toast.AppToastType
 import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.model.card.CardDetailItem
+import com.example.nubo.ui.component.InfoBubble
 import com.example.nubo.ui.theme.Grey30
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Grey500
@@ -81,7 +85,8 @@ fun CardDetailScreen(
     onEdit: (() -> Unit)? = null,
     onToggleFavorite: () -> Unit,
     toastMessage: String?,
-    onConsumeToast: () -> Unit
+    onConsumeToast: () -> Unit,
+    viewModel: CardDetailViewModel = hiltViewModel()
 ) {
     // 뒤로가기 처리
     BackHandler { onBack() }
@@ -90,6 +95,8 @@ fun CardDetailScreen(
     val scrollState = rememberScrollState()
     val toastHost = rememberAppToastHostState()
     val bottomSafe = rememberImeOrNavBottomPadding(extra = 24.dp) // 토스트 + 여유
+
+    val infoState by viewModel.infoState.collectAsState()
 
     // 토스트 표시
     LaunchedEffect(toastMessage) {
@@ -145,19 +152,65 @@ fun CardDetailScreen(
             ) {
                 ImageWithButton(
                     item = item,
-                    onInfoClick = { onInfoClick?.invoke() },
+                    onInfoClick = {
+                        viewModel.showInfoBubble()
+                        onInfoClick?.let { it() }
+                    },
                     onPlayClick = {
                         item.videoUrl.takeIf { it.isNotBlank() }?.let { url ->
                             context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
                         }
-                    }
+                    },
+                    showInfoBubble = infoState is InfoUiState.Visible,
+                    onDismissInfo = { viewModel.hideInfoBubble() }
                 )
-                Spacer(Modifier.height(8.dp))
+//                Spacer(Modifier.height(8.dp))
                 DetailBodyMarkdown(description = item.summary)
                 CardKeyword(item.tags)
 
                 Spacer(Modifier.height(bottomSafe))
             }
+
+//            // ===== 말풍선 오버레이 =====
+//            if (infoState is InfoUiState.Visible) {
+//                // Tap outside to dismiss
+//                Box(
+//                    Modifier
+//                        .fillMaxSize()
+//                        .background(Color.Black.copy(alpha = 0.12f))
+//                        .clickable(
+//                            indication = null,
+//                            interactionSource = remember { MutableInteractionSource() }
+//                        ) { viewModel.hideInfoBubble() }
+//                ) {
+//                    // Bubble itself (click-through blocked)
+//                    Box(
+//                        Modifier
+//                            .align(Alignment.TopCenter)
+//                            .padding(top = 40.dp)   // 썸네일 위 여백 조절
+//                            .clickable(
+//                                indication = null,
+//                                interactionSource = remember { MutableInteractionSource() }
+//                            ) { /* consume */ }
+//                    ) {
+//                        InfoBubble(
+//                            title = "#${item.boardName}",           // 예: #요리 레시피
+//                            subtitleLeft = "AI 카테고리",
+//                            centerValue = item.createdAt,            // 예: 2024.03.03
+//                            subtitleCenter = "저장한 날짜",
+//                            subtitleRight = "저장 플랫폼",
+//                            savedPlatformResId = when (item.videoPlatform.uppercase()) {
+//                                "YOUTUBE" -> R.drawable.youtube_logo
+//                                "INSTAGRAM" -> R.drawable.btn_google_logo
+//                                else -> R.drawable.basic_profile_image
+//                            },
+//                        )
+//                    }
+//                }
+//            }
+//
+
+
 
             // 토스트  아래 중앙 오버레이
             AppToastHost(
@@ -227,11 +280,14 @@ private fun CustomTopBar(
 /**
  * 원본 영상 이미지(원본 영상으로 이동 버튼 + 상세 정보 버튼)
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ImageWithButton(
     item: CardDetailItem,
     onInfoClick: () -> Unit,
-    onPlayClick: () -> Unit
+    onPlayClick: () -> Unit,
+    showInfoBubble: Boolean = false,
+    onDismissInfo: () -> Unit = {}
 ){
 
     Box(
@@ -246,26 +302,93 @@ private fun ImageWithButton(
                 .fillMaxSize()
                 .clip(RoundedCornerShape(7.dp)),
             contentScale = ContentScale.Crop,
-
         )
 
-        IconButton(
-            onClick = onInfoClick,
-            modifier = Modifier
+//        Box(
+//            Modifier
+//                .align(Alignment.TopEnd)
+//                .padding(top = 17.dp, end = 17.dp)
+//        ) {
+//            CompositionLocalProvider(
+//                LocalMinimumInteractiveComponentEnforcement provides false // disable 48dp enforcement
+//            ) {
+//                IconButton(
+//                    onClick = onInfoClick,
+//                    modifier = Modifier
+//                        .align(Alignment.TopEnd)
+//                        .size(20.dp)
+//                        .clip(RoundedCornerShape(8.dp))
+//                        .background(Color.Black.copy(alpha = 0.5f))
+//                ) {
+//                    Icon(
+//                        painter = painterResource(R.drawable.info),
+//                        contentDescription = "Info",
+//                        tint = Color.White,
+//                        modifier = Modifier.size(22.dp)
+//
+//                    )
+//                }
+//
+//            }
+//
+//        }
+
+        Box(
+            Modifier
                 .align(Alignment.TopEnd)
-                .padding(18.dp)
-                .size(20.dp) // 전체 버튼 크기
+                .padding(top = 7.dp, end = 7.dp)
+                .size(36.dp) // background size
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color.Black.copy(alpha = 0.5f))
+                .background(Color.Black.copy(alpha = 0.55f))
+                .clickable{onInfoClick()}
         ) {
             Icon(
                 painter = painterResource(R.drawable.info),
                 contentDescription = "Info",
                 tint = Color.White,
-                modifier = Modifier.size(20.dp)
-
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(20.dp) // icon size
             )
         }
+
+
+        if (showInfoBubble) {
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { onDismissInfo() }
+            )
+
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 6.dp, end = 48.dp)
+            ) {
+                InfoBubble(
+                    title = "#${item.boardName}",
+                    subtitleLeft = "AI 카테고리",
+                    centerValue = item.createdAt,
+                    subtitleCenter = "저장한 날짜",
+                    subtitleRight = "저장 플랫폼",
+                    savedPlatformResId = when (item.videoPlatform.uppercase()) {
+                        "YOUTUBE" -> R.drawable.youtube_logo
+                        "INSTAGRAM" -> R.drawable.btn_google_logo
+                        else -> R.drawable.basic_profile_image
+                    },
+                    // Make it compact
+                    modifier = Modifier
+                        .widthIn(max = 300.dp)
+                        .wrapContentHeight(),
+                    tailOnRight = true
+                )
+            }
+        }
+
+
 
 
         IconButton(
@@ -276,7 +399,7 @@ private fun ImageWithButton(
             Icon(
                 painter = painterResource(R.drawable.play),
                 contentDescription = "Start",
-                tint = Color.White,
+                tint = Color.White.copy(alpha = 0.9f),
                 modifier = Modifier.size(56.dp)
             )
         }

@@ -1,5 +1,6 @@
 package com.example.nubo.ui.screen.onBoardingLogin
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -32,10 +33,15 @@ import androidx.compose.ui.unit.dp
 import com.example.components.toast.AppToastOverlay
 import com.example.components.toast.AppToastType
 import com.example.components.toast.rememberAppToastHostState
+import com.example.nubo.MainActivity
 import com.example.nubo.R
+import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.ui.component.dialog.NotificationPermissionDialog
+import com.example.nubo.ui.screen.notification.NotificationViewModel
+import com.example.nubo.ui.screen.profile.AuthViewModel
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.PurpleMain500
+import com.example.nubo.utils.cacheToStore
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
@@ -46,62 +52,75 @@ class OnBoardingLoginActivity : ComponentActivity() {
 
     private val viewModel: OnBoardingViewModel by viewModels()
 
+    // Google 로그인 런처
     private val googleSignInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         result.data?.let {
             val task = GoogleSignIn.getSignedInAccountFromIntent(it)
-            viewModel.handleSignInResult(task) { intent ->
-                startActivity(intent)
+            viewModel.handleSignInResult(task) { baseIntent ->
+                // 메인으로 이동할 Intent를 보강(백스택 정리 + 현재 온보딩이 가진 extras 복사)
+                val main = baseIntent.apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    this@OnBoardingLoginActivity.intent?.extras?.let { putExtras(it) }
+                    setClass(this@OnBoardingLoginActivity, MainActivity::class.java)
+                }
+                startActivity(main)
                 finish()
             }
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private val requestNotificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (granted) {
-                // 시스템 Toast 제거 → ViewModel 이벤트로
                 viewModel.toast("알림 권한이 허용되었어요.⏰", AppToastType.POSITIVE)
-                Log.d("NotificationPermission", "알림 권한이 허용되었습니다.")
             } else {
-                viewModel.toast("알림 권한이 거부되어, 업로드 완료를 토스트로 안내할게요.", AppToastType.NEGATIVE)
-                Log.d("NotificationPermission", "알림 권한이 거부되었습니다.")
+                viewModel.toast("알림 권한이 거부되었어요.", AppToastType.NEGATIVE)
             }
             viewModel.onLoginNotificationPermissionHandled()
         }
 
 
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+
+        // 온보딩이 최초로 받은 인텐트에 FCM/딥링크 데이터가 있으면 캐시
+        intent?.let { cacheToStore(it) }
 
         setContent {
             val uiState = viewModel.uiState.collectAsState().value
             val askPermission by viewModel.shouldRequestNotificationPermission.collectAsState()
 
-            // AppToast 호스트 준비
             val toastHost = rememberAppToastHostState()
 
-            // ViewModel의 SharedFlow 수신 → 커스텀 토스트 표시
+            // 진입 즉시 자동으로 토큰 검증 플로우 시작(기존 onStartButtonClicked 로직 재사용)
+//            LaunchedEffect(Unit) {
+//                viewModel.onStartButtonClicked()
+//            }
+
+            // 토스트 이벤트 수신
             LaunchedEffect(Unit) {
-                viewModel.toastEvents.collectLatest{ ev ->
+                viewModel.toastEvents.collectLatest { ev ->
                     toastHost.show(
                         title = AnnotatedString(ev.message),
                         layout = ev.layout,
                         type = ev.type,
                         durationMillis = ev.durationMillis
-                        // 아이콘 쓰려면 iconRes = ev.iconRes
                     )
                 }
             }
 
+            LaunchedEffect(Unit) {
+                viewModel.ensurePushTokenRegistered()
+            }
+
+
             Box(Modifier.fillMaxSize()) {
-                if (askPermission) {
+                // Android 13+ 에서만 권한 다이얼로그 노출
+                if (askPermission && Build.VERSION.SDK_INT >= 33) {
                     NotificationPermissionDialog(
-                        visible = askPermission,
+                        visible = true,
                         onAllow = {
                             requestNotificationPermissionLauncher.launch(
                                 android.Manifest.permission.POST_NOTIFICATIONS
@@ -111,6 +130,10 @@ class OnBoardingLoginActivity : ComponentActivity() {
                         onDismiss = { viewModel.onLoginNotificationPermissionHandled() }
                     )
                 }
+                // 33 미만이면 권한 요청 없이 즉시 핸들링
+                if (askPermission && Build.VERSION.SDK_INT < 33) {
+                    LaunchedEffect(Unit) { viewModel.onLoginNotificationPermissionHandled() }
+                }
 
                 OnBoardingScreen(
                     uiState = uiState,
@@ -119,18 +142,28 @@ class OnBoardingLoginActivity : ComponentActivity() {
                         googleSignInLauncher.launch(viewModel.getGoogleSignInIntent())
                     },
                     onAccountSwitchConfirmed = {
-                        viewModel.confirmAccountSwitch { intent ->
-                            startActivity(intent)
+                        viewModel.confirmAccountSwitch { baseIntent ->
+                            val main = baseIntent.apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                                this@OnBoardingLoginActivity.intent?.extras?.let { putExtras(it) }
+                                setClass(this@OnBoardingLoginActivity, MainActivity::class.java)
+                            }
+                            startActivity(main)
                             finish()
                         }
                     }
                 )
 
-                // 커스텀 토스트 오버레이 부착 (하단)
                 AppToastOverlay(hostState = toastHost)
-                // 또는 전체화면 배치: AppToastHost(hostState = toastHost)
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // 실행 중 새 인텐트로 들어와도 FCM/딥링크 캐시
+        cacheToStore(intent)
     }
 }
 
