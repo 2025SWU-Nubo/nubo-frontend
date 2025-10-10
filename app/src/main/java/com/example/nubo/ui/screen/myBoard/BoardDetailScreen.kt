@@ -218,6 +218,9 @@ fun BoardDetailScreen(
                     navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_id", boardId)
                     navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_name", latestName)
                     navController.popBackStack()
+                    // MyBoardScreen에 새로고침이 필요하다는 신호를 보냄
+                    navController.previousBackStackEntry?.savedStateHandle?.set("needs_refresh", true)
+
                 })
                 BoardTitleBar(
                     title = ui.board?.name ?: boardTitle,

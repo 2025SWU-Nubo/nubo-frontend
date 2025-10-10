@@ -190,7 +190,8 @@ fun SectionDetailScreen(
                         cardHeights = cardHeights,
                         onCardClick = { cardId ->
                             if (isSelectionMode) {
-                                selectedCards = if (selectedCards.contains(cardId)) selectedCards - cardId else selectedCards + cardId
+                                selectedCards =
+                                    if (selectedCards.contains(cardId)) selectedCards - cardId else selectedCards + cardId
                             } else {
                                 navController.navigate("card_detail/$cardId")
                             }
@@ -239,6 +240,7 @@ fun SectionDetailScreen(
                                         selectedCardIds = selectedCards
                                     )
                                 }
+
                                 BoardAction.MOVE -> {
                                     viewModel.moveSelectedItems(
                                         targetBoardId = targetId.toLong(),
@@ -246,6 +248,7 @@ fun SectionDetailScreen(
                                         selectedCardIds = selectedCards
                                     )
                                 }
+
                                 null -> {}
                             }
                         }
@@ -276,6 +279,7 @@ fun SectionDetailScreen(
                     )
                 }
             )
+
             else -> Unit // 섹션 생성 다이얼로그는 없음
         }
     }
@@ -340,9 +344,6 @@ fun SectionFilterButton(
                 colors = ButtonDefaults.outlinedButtonColors(
                     containerColor = if (isFavoriteSelected) Purple50 else Color.Transparent,
                     contentColor = if (isFavoriteSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface,
-                    // 비활성화 상태에서도 활성화 색상과 동일하게 유지
-                    disabledContainerColor = Purple100.copy(alpha = 0.3f),
-                    disabledContentColor = PurpleMain500
                 ),
                 shape = RoundedCornerShape(50),
                 border = BorderStroke(1.dp, if (isFavoriteSelected) PurpleMain500 else Grey200),
@@ -370,7 +371,10 @@ fun SectionFilterButton(
             shape = RoundedCornerShape(5.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = containerColor,
-                contentColor = contentColor
+                contentColor = contentColor,
+                // 비활성화 상태에서도 활성화 색상과 동일하게 유지
+                disabledContainerColor = Purple100.copy(alpha = 0.3f),
+                disabledContentColor = PurpleMain500
             ),
             border = if (!isSelectionMode) BorderStroke(0.5.dp, PurpleMain500) else null,
             contentPadding = PaddingValues(horizontal = 10.dp),
@@ -386,6 +390,6 @@ fun CardItemDto.toMyCardItem(): MyCardItem {
     return MyCardItem(
         id = this.id,
         imageUrl = this.imageUrl ?: "",
-        isFavorite = this.favorite?:false
+        isFavorite = this.favorite ?: false
     )
 }

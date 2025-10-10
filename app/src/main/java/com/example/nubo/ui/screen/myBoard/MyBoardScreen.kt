@@ -42,6 +42,7 @@ import com.example.nubo.ui.component.MyCardContent
 import com.example.nubo.ui.component.randomCardHeight
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.SolidColor
@@ -79,7 +80,7 @@ fun MyBoardScreen(
     var hasSearched by remember { mutableStateOf(false) } // 검색 했는지 확인
 
     // 뷰모델에서 검색 결과 가져오기
-    // [변경] 보드 검색 결과와 카드 검색 결과를 명확히 분리
+    // 보드 검색 결과와 카드 검색 결과를 명확히 분리
     val boardSearchResults by boardViewModel.searchResults
     val cardSearchResults by cardViewModel.searchResults
 
@@ -107,21 +108,27 @@ fun MyBoardScreen(
         }
     }
 
+    // 뒤 화면에서 변경 사항 적용 시 바로 적용
+    val handle = navController.currentBackStackEntry?.savedStateHandle
+    val needsRefresh by handle?.getLiveData<Boolean>("needs_refresh")?.observeAsState() ?: mutableStateOf(false)
+    val renamedBoardId by handle?.getLiveData<Int>("renamed_board_id")?.observeAsState() ?: mutableStateOf(null)
+    val renamedBoardName by handle?.getLiveData<String>("renamed_board_name")?.observeAsState() ?: mutableStateOf(null)
+
+    LaunchedEffect(needsRefresh) {
+        if (needsRefresh == true) {
+            boardViewModel.refresh()
+            handle?.remove<Boolean>("needs_refresh")
+        }
+    }
+
     // BoardDetailScreen에서 이름 변경 결과를 수신하는 부분
-    LaunchedEffect(navController.currentBackStackEntry) {
-        val handle = navController.currentBackStackEntry?.savedStateHandle
-        val id = handle?.get<Int>("renamed_board_id")
-        val name = handle?.get<String>("renamed_board_name")
-
-        // ID와 이름이 모두 정상적으로 전달되었다면
+    LaunchedEffect(renamedBoardId, renamedBoardName) {
+        val id = renamedBoardId
+        val name = renamedBoardName
         if (id != null && name != null) {
-            // 1. ViewModel의 함수를 호출하여 보드 목록의 데이터를 업데이트
             boardViewModel.applyRename(id, name)
-
-            // 2. 한 번 사용한 데이터는 핸들에서 제거하여, 화면이 다시 그려질 때
-            //    중복으로 적용되는 것을 방지
-            handle.remove<Int>("renamed_board_id")
-            handle.remove<String>("renamed_board_name")
+            handle?.remove<Int>("renamed_board_id")
+            handle?.remove<String>("renamed_board_name")
         }
     }
 
@@ -207,7 +214,8 @@ fun MyBoardScreen(
                         ScrollableCardContent(
                             cards = cardViewModel.cards.value,
                             cardHeights = randomHeights,
-                            onCardClick = { //없음
+                            onCardClick = { id ->
+                                navController.navigate("card_detail/$id")
                             }
                         )
                     }

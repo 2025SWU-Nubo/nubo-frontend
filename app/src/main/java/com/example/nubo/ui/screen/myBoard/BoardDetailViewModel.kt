@@ -347,11 +347,17 @@ class BoardDetailViewModel @Inject constructor(
                     _toastMessage.value = "복제가 완료되었습니다!"
                     loadPage(reset = true)
                 } else {
-                    // API 에러 처리 (예: 공유 보드에 복사 시도 등)
-                    _ui.value = _ui.value.copy(isLoading = false, error = "복사에 실패했습니다: ${response.code()}")
+                    // 실패 시 로그 및 토스트
+                    val errorBody = response.errorBody()?.string()
+                    Log.e("BoardDetailVM", "Copy failed: Code=${response.code()}, Body=$errorBody")
+                    _toastMessage.value = "복제에 실패했습니다."
+                    _ui.value = _ui.value.copy(isLoading = false, error = "복제에 실패했습니다: ${response.code()}")
                 }
             } catch (e: Exception) {
-                _ui.value = _ui.value.copy(isLoading = false, error = "네트워크 오류: ${e.message}")
+                // 네트워크 오류 시 로그 및 토스트
+                Log.e("BoardDetailVM", "Copy network error", e)
+                _toastMessage.value = "복제 중 오류가 발생했습니다."
+                _ui.value = _ui.value.copy(isLoading = false, error = "복제 네트워크 오류: ${e.message}")
             }
         }
     }
@@ -389,13 +395,17 @@ class BoardDetailViewModel @Inject constructor(
                     _toastMessage.value = "이동이 완료되었습니다!"
                     loadPage(reset = true) // 이동 후 현재 화면은 아이템이 사라졌으므로 새로고침
                 } else {
+                    // 실패 시 로그 및 토스트
                     val errorBody = response.errorBody()?.string()
-                    Log.e("MoveAPI", "실패: Code=${response.code()}, ErrorBody=${errorBody}")
+                    Log.e("BoardDetailVM", "Move failed: Code=${response.code()}, Body=$errorBody")
+                    _toastMessage.value = "이동에 실패했습니다."
                     _ui.value = _ui.value.copy(isLoading = false, error = "이동에 실패했습니다: ${response.code()}")
                 }
             } catch (e: Exception) {
-                Log.e("MoveAPI", "네트워크 예외 발생", e)
-                _ui.value = _ui.value.copy(isLoading = false, error = "오류 발생: ${e.message}")
+                // 네트워크 오류 시 로그 및 토스트
+                Log.e("BoardDetailVM", "Move network error", e)
+                _toastMessage.value = "이동 중 오류가 발생했습니다."
+                _ui.value = _ui.value.copy(isLoading = false, error = "이동 오류 발생: ${e.message}")
             }
         }
     }
@@ -474,8 +484,10 @@ class BoardDetailViewModel @Inject constructor(
                 throw Exception("일부 항목 삭제에 실패했습니다.")
             }
         } catch (e: Exception) {
+            // [수정] 실패 시 로그, 토스트 및 임시 ID 초기화
+            Log.e("BoardDetailVM", "Delete action failed", e)
+            _toastMessage.value = "삭제에 실패했습니다."
             _ui.value = _ui.value.copy(isLoading = false, error = e.message ?: "삭제 중 오류가 발생했습니다.")
-            // 실패 시 임시 ID 초기화
             lastDeletedSectionIds = emptySet()
             lastDeletedCardIds = emptySet()
         }
