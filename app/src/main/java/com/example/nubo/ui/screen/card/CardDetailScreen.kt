@@ -104,7 +104,7 @@ fun CardDetailScreen(
             toastHost.show(
                 title = AnnotatedString(msg),
                 layout = AppToastLayout.TitleOnly,
-                type = AppToastType.NORMAL,
+                type = AppToastType.FAVORITE,
                 durationMillis = 2000
             )
             onConsumeToast()

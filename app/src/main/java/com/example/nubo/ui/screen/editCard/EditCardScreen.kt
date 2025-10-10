@@ -141,7 +141,7 @@ fun EditCardScreen(
             toastHost.show(
                 title = AnnotatedString(msg),
                 layout = AppToastLayout.TitleOnly,
-                type = AppToastType.NORMAL,
+                type = AppToastType.AI_RESULT,
                 durationMillis = 2000
             )
             viewModel.consumeToast()
