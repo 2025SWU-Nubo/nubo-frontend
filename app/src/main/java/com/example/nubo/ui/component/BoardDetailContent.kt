@@ -87,7 +87,8 @@ fun BoardDetailContent(
                             onClick = { onCardClick(item.id) },
                             // 선택 관련 파라미터 전달
                             isSelectionMode = isSelectionMode,
-                            isSelected = selectedCards.contains(item.id)
+                            isSelected = selectedCards.contains(item.id),
+                            isFavorite = item.isFavorite
                         )
                     }
                 }
@@ -103,7 +104,8 @@ fun BoardDetailContent(
                             // 선택 관련 파라미터 전달
                             isSelectionMode = isSelectionMode,
                             isSelected = selectedCards.contains(item.id),
-                            onClick = { onCardClick(item.id) }
+                            onClick = { onCardClick(item.id) },
+                            isFavorite = item.isFavorite
                         )
                     }
                 }

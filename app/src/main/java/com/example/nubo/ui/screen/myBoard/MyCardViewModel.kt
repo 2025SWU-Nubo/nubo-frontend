@@ -164,11 +164,12 @@ class MyCardViewModel @Inject constructor(
                     size = size
                 ).getOrThrow()
 
-                // map DTO -> UI item
+                // DTO -> UI item 매핑
                 val mapped = pageRes.content.map {
                     MyCardItem(
                         id = it.cardId,
-                        imageUrl = it.videoThumbnailUrl
+                        imageUrl = it.videoThumbnailUrl,
+                        isFavorite = it.favorite // 즐겨찾기 상태 매핑
                     )
                 }
 

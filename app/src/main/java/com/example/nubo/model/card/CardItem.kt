@@ -3,6 +3,7 @@ package com.example.nubo.model.card
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.nubo.model.myBoard.MyCardItem
+import com.example.nubo.ui.screen.myBoard.toCardItem
 
 data class CardItem(
     val id: Int,
@@ -13,7 +14,6 @@ data class CardItem(
     val imageUrl: String,
     val isFavorite: Boolean
 )
-
 
 //fun CardItem.toDetailFallback(): CardDetailItem {
 //    return CardDetailItem(
@@ -30,7 +30,7 @@ data class CardItem(
 //    )
 //}
 
-fun MyCardItem.toCardItem(): CardItem {
+/*fun MyCardItem.toCardItem(): CardItem {
     return CardItem(
         id = this.id,
         height = 180.dp, // 기본값
@@ -38,6 +38,6 @@ fun MyCardItem.toCardItem(): CardItem {
         category = "카테고리 없음", // 기본값
         description = "설명 없음", // 기본값
         imageUrl = this.imageUrl,
-
+        isFavorite = this.favorite?:false
     )
-}
+}*/

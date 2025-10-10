@@ -65,6 +65,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import com.example.components.toast.AppToastHost
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.rememberAppToastHostState
@@ -528,7 +529,6 @@ fun SectionDto.toBoardItem(): BoardItem {
     )
 }
 
-
 fun CardItemDto.toCardItem(): CardItem {
     return CardItem(
         id = this.id,
@@ -537,7 +537,7 @@ fun CardItemDto.toCardItem(): CardItem {
         category = this.category ?: "No Category", // 마찬가지
         description = this.description ?: "No Description",
         imageUrl = this.imageUrl ?: "",
-        isFavorite = this.favorite?:fasle
+        isFavorite = this.favorite?:false
     )
 }
 
