@@ -8,6 +8,8 @@ import com.example.nubo.data.model.CardUploadResponse
 import com.example.nubo.data.model.CardDetailResponse
 import com.example.nubo.data.model.CardFavoriteRequest
 import com.example.nubo.data.model.CardFavoriteResponse
+import com.example.nubo.data.model.CardRestoreRequest
+import com.example.nubo.data.model.CardRestoreResponse
 import com.example.nubo.data.model.EditSummaryAiRequest
 import com.example.nubo.data.model.EditSummaryRequest
 import com.example.nubo.data.model.EditSummaryResponse
@@ -89,5 +91,12 @@ interface CardService {
         @Header("Authorization") authHeader: String,
         @Body body: CardDeleteRequest
     ): Response<CardDeleteResponse>
+
+    // 카드 복구 API
+    @PATCH("/api/card/restore")
+    suspend fun restoreCards(
+        @Header("Authorization") authHeader: String,
+        @Body body: CardRestoreRequest
+    ): CardRestoreResponse
 
 }

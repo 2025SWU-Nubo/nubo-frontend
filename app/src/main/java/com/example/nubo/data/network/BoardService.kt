@@ -5,6 +5,8 @@ import com.example.nubo.data.model.BoardItemResponse
 import com.example.nubo.data.model.BoardListItemResponse
 import com.example.nubo.data.model.BoardRenameRequest
 import com.example.nubo.data.model.BoardResponse
+import com.example.nubo.data.model.BoardRestoreRequest
+import com.example.nubo.data.model.BoardRestoreResponse
 import com.example.nubo.data.model.BoardSearchItemResponse
 import com.example.nubo.data.model.BoardWithSectionsResponse
 import com.example.nubo.data.model.BulkCopyRequest
@@ -132,11 +134,18 @@ interface BoardService {
         @Body body: BulkMoveRequest
     ): Response<BulkMoveResponse>
 
-    // [추가] 섹션(보드) 삭제 API
+    // 섹션(보드) 삭제 API
     @HTTP(method = "DELETE", path = "/api/board", hasBody = true)
     suspend fun deleteBoards(
         @Header("Authorization") authHeader: String,
         @Body body: BoardDeleteRequest
     ): Response<Unit> // 응답 본문이 없을 경우 Unit 사용
+
+    // 섹션(보드) 복구 API
+    @PATCH("/api/board/restore")
+    suspend fun restoreBoards(
+        @Header("Authorization") authHeader: String,
+        @Body body: BoardRestoreRequest
+    ): BoardRestoreResponse
 
 }

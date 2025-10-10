@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.nubo.data.model.BoardDeleteRequest
 import com.example.nubo.data.model.BoardRenameRequest
 import com.example.nubo.data.model.BoardResponse
+import com.example.nubo.data.model.BoardRestoreRequest
 import com.example.nubo.data.model.BoardWithSectionsResponse
 import com.example.nubo.data.model.FavoriteRequest
 import com.example.nubo.data.network.BoardService
@@ -20,6 +21,7 @@ import com.example.nubo.data.model.UpsertBoardRequest
 import com.example.nubo.data.model.BulkCopyRequest
 import com.example.nubo.data.model.BulkMoveRequest
 import com.example.nubo.data.model.CardDeleteRequest
+import com.example.nubo.data.model.CardRestoreRequest
 import com.example.nubo.data.network.CardService
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -62,6 +64,10 @@ class BoardDetailViewModel @Inject constructor(
     // 삭제 성공 시 UI에 신호를 보내기 위한 SharedFlow
     private val _deleteCompleteEvent = MutableSharedFlow<Unit>()
     val deleteCompleteEvent = _deleteCompleteEvent.asSharedFlow()
+
+    //  마지막으로 삭제된 항목들의 ID를 임시 저장하는 변수
+    private var lastDeletedSectionIds: Set<Int> = emptySet()
+    private var lastDeletedCardIds: Set<Int> = emptySet()
 
     //  토스트 메시지 상태 변수와 초기화 함수
     private val _toastMessage = MutableStateFlow<String?>(null)
@@ -417,6 +423,10 @@ class BoardDetailViewModel @Inject constructor(
         boardDeleteOption: String,
         cardDeleteOption: String
     ) {
+        // --- 삭제 실행 전에 ID 저장 ---
+        lastDeletedSectionIds = selectedSectionIds
+        lastDeletedCardIds = selectedCardIds
+        // --------------------------
         _ui.value = _ui.value.copy(isLoading = true, error = null)
         try {
             val token = "Bearer ${authRepository.getAccessToken()}"
@@ -465,9 +475,60 @@ class BoardDetailViewModel @Inject constructor(
             }
         } catch (e: Exception) {
             _ui.value = _ui.value.copy(isLoading = false, error = e.message ?: "삭제 중 오류가 발생했습니다.")
+            // 실패 시 임시 ID 초기화
+            lastDeletedSectionIds = emptySet()
+            lastDeletedCardIds = emptySet()
+        }
+    }
+
+    // 삭제 실행 취소(복구) 함수
+    fun undoLastDeletion() {
+        viewModelScope.launch {
+            _ui.value = _ui.value.copy(isLoading = true, error = null)
+            try {
+                val token = "Bearer ${authRepository.getAccessToken()}"
+                var restoredSections = 0
+                var restoredCards = 0
+
+                coroutineScope {
+                    // 섹션 복구 API 호출 (임시 저장된 ID가 있을 경우)
+                    val boardJob = if (lastDeletedSectionIds.isNotEmpty()) {
+                        async {
+                            val request = BoardRestoreRequest(boardIds = lastDeletedSectionIds.map { it.toLong() })
+                            boardService.restoreBoards(token, request).restoredCount
+                        }
+                    } else null
+
+                    // 카드 복구 API 호출 (임시 저장된 ID가 있을 경우)
+                    val cardJob = if (lastDeletedCardIds.isNotEmpty()) {
+                        async {
+                            val request = CardRestoreRequest(cardIds = lastDeletedCardIds.map { it.toLong() })
+                            cardService.restoreCards(token, request).restoredCount
+                        }
+                    } else null
+
+                    restoredSections = boardJob?.await() ?: 0
+                    restoredCards = cardJob?.await() ?: 0
+                }
+
+                // 복구 결과에 따라 토스트 메시지 생성
+                val message = when {
+                    restoredSections > 0 && restoredCards > 0 -> "${restoredSections}개의 섹션과 ${restoredCards}개의 카드 삭제가 취소되었습니다."
+                    restoredSections > 0 -> "${restoredSections}개의 섹션 삭제가 취소되었습니다."
+                    restoredCards > 0 -> "${restoredCards}개의 카드 삭제가 취소되었습니다."
+                    else -> null
+                }
+
+                message?.let { _toastMessage.value = it }
+                loadPage(reset = true) // 화면 새로고침
+
+            } catch (e: Exception) {
+                _ui.value = _ui.value.copy(isLoading = false, error = e.message ?: "복구 중 오류가 발생했습니다.")
+            } finally {
+                // 작업 완료 후 임시 ID 초기화
+                lastDeletedSectionIds = emptySet()
+                lastDeletedCardIds = emptySet()
+            }
         }
     }
 }
-
-
-

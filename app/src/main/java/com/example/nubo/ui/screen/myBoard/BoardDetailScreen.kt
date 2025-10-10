@@ -146,10 +146,11 @@ fun BoardDetailScreen(
             val result = snackbarHostState.showSnackbar(
                 message = "삭제가 완료되었습니다.",
                 actionLabel = "실행 취소",
-                duration = SnackbarDuration.Long // 길게 표시 (약 10초)
+                duration = SnackbarDuration.Long
             )
+            // "실행 취소" 버튼을 눌렀을 때
             if (result == SnackbarResult.ActionPerformed) {
-                // TODO: "실행 취소" 클릭 시 서버 연동 로직
+                viewModel.undoLastDeletion() // ViewModel의 복구 함수 호출
             }
         }
     }
