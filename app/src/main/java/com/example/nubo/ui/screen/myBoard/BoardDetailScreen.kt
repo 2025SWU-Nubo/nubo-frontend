@@ -536,7 +536,8 @@ fun CardItemDto.toCardItem(): CardItem {
         title = this.title ?: "No Title", // 서버 데이터 없을 경우 기본값
         category = this.category ?: "No Category", // 마찬가지
         description = this.description ?: "No Description",
-        imageUrl = this.imageUrl ?: ""
+        imageUrl = this.imageUrl ?: "",
+        isFavorite = this.favorite?:fasle
     )
 }
 

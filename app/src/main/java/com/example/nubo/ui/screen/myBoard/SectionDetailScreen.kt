@@ -346,6 +346,7 @@ fun SectionFilterButton(
 fun CardItemDto.toMyCardItem(): MyCardItem {
     return MyCardItem(
         id = this.id,
-        imageUrl = this.imageUrl ?: ""
+        imageUrl = this.imageUrl ?: "",
+        isFavorite = this.favorite?:false
     )
 }
