@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Icon
@@ -42,6 +44,7 @@ import com.example.nubo.ui.component.MyCardContent
 import com.example.nubo.ui.component.randomCardHeight
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.SolidColor
@@ -588,7 +591,6 @@ fun EmptyStateUI(modifier: Modifier = Modifier, iconRes: Int, message: String) {
 // 공통 정렬 UI
 @Composable
 fun SortFilterButton(
-    enabled: Boolean = true,
     onSortSelected: (String) -> Unit
 ) {
     // 버튼에 표시될 텍스트와 팝업 표시 여부를 관리하는 내부 상태
@@ -605,7 +607,6 @@ fun SortFilterButton(
     // Box를 사용해 버튼 위에 팝업 메뉴를 띄울 위치를 지정
     Box {
         OutlinedButton(
-            enabled = enabled, //선택 모드일 때 정렬 숩기기 위한 enabled
             onClick = { isPopupExpanded = true }, // 버튼 클릭 시 팝업 펼치기
             colors = ButtonDefaults.outlinedButtonColors(
                 containerColor = Color.White,
@@ -634,7 +635,7 @@ fun SortFilterButton(
 
         // DropdownMenu를 사용한 정렬 팝업 UI
         DropdownMenu(
-            expanded = isPopupExpanded && enabled, // enabled가 true일 때만 메뉴가 보이도록
+            expanded = isPopupExpanded,
             onDismissRequest = { isPopupExpanded = false },
             modifier = Modifier
                 // 그림자 적용

@@ -1,5 +1,7 @@
 package com.example.nubo.data.network
 
+import com.example.nubo.data.model.CardDeleteRequest
+import com.example.nubo.data.model.CardDeleteResponse
 import com.example.nubo.data.model.CardResponse
 import com.example.nubo.data.model.CardUploadRequest
 import com.example.nubo.data.model.CardUploadResponse
@@ -11,8 +13,10 @@ import com.example.nubo.data.model.EditSummaryRequest
 import com.example.nubo.data.model.EditSummaryResponse
 import com.example.nubo.data.model.PagedResponse
 import retrofit2.Call
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.HTTP
 import retrofit2.http.Header
 import retrofit2.http.Headers
 import retrofit2.http.PATCH
@@ -78,5 +82,12 @@ interface CardService {
         @Path("cardId") cardId: Int,
         @Body body: CardFavoriteRequest
     ): Call<CardFavoriteResponse>
+
+    // 카드 삭제/제거 API
+    @HTTP(method = "DELETE", path = "/api/card", hasBody = true)
+    suspend fun deleteCards(
+        @Header("Authorization") authHeader: String,
+        @Body body: CardDeleteRequest
+    ): Response<CardDeleteResponse>
 
 }

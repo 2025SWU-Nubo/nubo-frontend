@@ -4,8 +4,10 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,10 +29,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,27 +44,38 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.nubo.R
+import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles.b1_bold_18
 import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
 import com.example.nubo.ui.theme.AppTextStyles.b2_bold_16
+import com.example.nubo.ui.theme.AppTextStyles.b2_regular_16
 import com.example.nubo.ui.theme.AppTextStyles.b2_semibold_16
 import com.example.nubo.ui.theme.AppTextStyles.b3_medium_14
 import com.example.nubo.ui.theme.AppTextStyles.b3_regular_14
 import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey20
 import com.example.nubo.ui.theme.Grey200
+import com.example.nubo.ui.theme.Grey50
+import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.GreyMain100
 import com.example.nubo.ui.theme.GreyMain300
+import com.example.nubo.ui.theme.PinkError
 import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.PurpleMain500
+import com.example.nubo.ui.theme.RedError
 
 
 // [추가] BoardAction을 이 파일로 이동하여 공용으로 사용
@@ -73,7 +88,7 @@ fun SelectionBottomBar(
     isVisible: Boolean,
     showBoardSelector: Boolean,
     boardSelectorContent: @Composable () -> Unit,
-    actionsContent: @Composable () -> Unit
+    actionsContent: @Composable () -> Unit,
 ) {
     AnimatedVisibility(
         visible = isVisible,
@@ -177,6 +192,165 @@ private fun SelectionButton(
                 text = text,
                 style = b2_semibold_16
             )
+        }
+    }
+}
+
+// 삭제 다이얼로그
+@Composable
+fun DeleteConfirmationDialog(
+    visible: Boolean,
+    selectedCardCount: Int,
+    selectedSectionCount: Int,
+    onDismiss: () -> Unit,
+    onRemove: () -> Unit, // 보드에서 제거
+    onDelete: () -> Unit  // 영구 삭제
+) {
+    if (!visible) return
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss
+                ),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            // 두 개의 흰색 박스를 Column으로 감싸 수직으로 배치
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 20.dp) // 화면 하단과의 여백
+                    .navigationBarsPadding()
+            ) {
+                // 메인 다이얼로그 (제거, 삭제)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Color.White)
+                        .clickable( // 배경 클릭 전파 방지
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {}
+                        ),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    val title = when {
+                        selectedSectionCount > 0 && selectedCardCount > 0 -> "카드와 섹션을 삭제할까요, 아니면 이 보드에서 제거할까요?"
+                        selectedSectionCount > 0 -> "이 섹션을 삭제할까요, 아니면 이 보드에서 제거할까요?"
+                        else -> "이 카드를 삭제할까요, 아니면 이 보드에서 제거할까요?"
+                    }
+                    Text(
+                        text = title,
+                        style = b2_regular_16,
+                        color = GreyMain300,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(vertical = 16.dp)
+                    )
+                    Divider(color = Grey50)
+                    Text(
+                        text = "보드에서 제거",
+                        style = b1_semibold_18,
+                        color = PurpleMain500,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .noRippleClickable { onRemove() }
+                            .padding(vertical = 16.dp),
+                        textAlign = TextAlign.Center
+                    )
+                    Divider(color = Grey50)
+                    Text(
+                        text = "삭제",
+                        style = b1_semibold_18,
+                        color = RedError,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .noRippleClickable { onDelete() }
+                            .padding(vertical = 16.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                // 취소 버튼
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color.White),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "취소",
+                        style = b1_semibold_18,
+                        color = PurpleMain500,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .noRippleClickable { onDismiss() }
+                            .padding(vertical = 16.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+    }
+}
+
+// 실행 취소 Snackbar 모서리 변경
+@Composable
+fun UndoSnackbar(
+    message: String,
+    onUndo: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 16.dp)
+            .navigationBarsPadding()
+            .shadow(elevation = 8.dp, shape = RoundedCornerShape(50)) // 그림자 추가
+            .clip(RoundedCornerShape(50)), // 둥근 모서리로 클리핑
+        contentAlignment = Alignment.Center,// 내부 Row를 중앙에 배치
+
+    ) {
+        // 배경 이미지
+        Image(
+            painter = painterResource(id = R.drawable.toast_bg), // toast_bg.png 사용
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(59.dp), // 이미지의 적절한 높이 (내부 콘텐츠에 맞춰 조절)
+            contentScale = ContentScale.FillBounds // 이미지 크기를 Box에 맞게 조절
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 40.dp), // 좌우 내부 여백 추가
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = message,
+                style = b2_semibold_16,
+                color = Color.Black
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            TextButton(onClick = onUndo) {
+                Text(
+                    text = "실행 취소",
+                    style = b2_semibold_16,
+                    color = GreyMain300
+                )
+            }
         }
     }
 }

@@ -19,6 +19,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -77,8 +82,13 @@ fun SectionDetailScreen(
         currentAction = null
         selectedCards = emptySet()
     }
-    // -----------------------------------------
+    // -----------------------------------------\
 
+    // 삭제 다이얼로그
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    // --- 스낵바 및 토스트 상태 추가 ---
+    val snackbarHostState = remember { SnackbarHostState() }
     // 토스트 상태 및 코루틴 스코프 선언
     val toastHostState = rememberAppToastHostState()
     val scope = rememberCoroutineScope()
@@ -98,6 +108,20 @@ fun SectionDetailScreen(
         }
     }
 
+    // '실행 취소' 스낵바를 띄우는 함수 추가
+    fun showUndoSnackbar() {
+        scope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = "삭제가 완료되었습니다.",
+                actionLabel = "실행 취소",
+                duration = SnackbarDuration.Long
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                // TODO: "실행 취소" 클릭 시 서버 연동 로직
+            }
+        }
+    }
+
     // viewModel.init() 함수에 sectionId를 전달
     LaunchedEffect(sectionId) {
         viewModel.init(sectionId)
@@ -108,71 +132,73 @@ fun SectionDetailScreen(
     val detailState = ui.board
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // DetailTopBar는 BoardDetailScreen의 것을 재사용
-            DetailTopBar(onBack = {
-                // 현재 섹션의 최신 이름 전달
-                val latestName = ui.board?.name ?: sectionTitle
-                // 결과를 이전 화면(BoardDetailScreen)으로 전달
-                navController.previousBackStackEntry?.savedStateHandle?.set(
-                    "renamed_section_id",
-                    sectionId
-                )
-                navController.previousBackStackEntry?.savedStateHandle?.set(
-                    "renamed_section_name",
-                    latestName
-                )
-                navController.popBackStack()
-            })
-            // BoardTitleBar는 BoardDetailScreen의 것을 재사용
-            BoardTitleBar(
-                title = detailState?.name ?: sectionTitle,
-                isSelectionMode = isSelectionMode,
-                onClick = {
-                    dialogMode = InputDialogMode.Rename(
-                        sectionId = sectionId,
-                        currentName = detailState?.name ?: sectionTitle
+        Scaffold(
+            snackbarHost = {
+                SnackbarHost(hostState = snackbarHostState) { snackbarData ->
+                    UndoSnackbar(
+                        message = snackbarData.visuals.message,
+                        onUndo = { snackbarData.performAction() }
                     )
+                }
+            },
+            containerColor = Color.White
+        ) { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                // 패딩 조절된 TopBar 사용
+                DetailTopBar(onBack = {
+                    val latestName = ui.board?.name ?: sectionTitle
+                    navController.previousBackStackEntry?.savedStateHandle?.set("renamed_section_id", sectionId)
+                    navController.previousBackStackEntry?.savedStateHandle?.set("renamed_section_name", latestName)
+                    navController.popBackStack()
                 })
-
-            //  필터 버튼 UI
-            SectionFilterButton(
-                favoriteSelected = ui.favoriteOnly,
-                onToggleFavorite = { enabled -> viewModel.setFavoriteFilter(enabled) },
-                onSelectClick = {
-                    if (isSelectionMode) resetSelectionState() else isSelectionMode = true
-                },
-                onRequestSort = { sortKey -> viewModel.setSort(sortKey) },
-                isSelectionMode = isSelectionMode
-            )
-
-            if (ui.isLoading && detailState == null) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Loading...")
-                }
-            } else if (detailState != null) {
-                // API 응답에서 카드 목록만 추출하여 표시
-                val cardItems =
-                    detailState.cards.content.map { it.toMyCardItem() } // [변경] toMyCardItem() 호출
-                val cardHeights by remember(sectionId, cardItems.size) {
-                    mutableStateOf(cardItems.map { randomCardHeight() })
-                }
-
-                // MyBoardScreen의 ScrollableCardContent를 재사용
-                ScrollableCardContent(
-                    cards = cardItems,
-                    cardHeights = cardHeights,
-                    onCardClick = { cardId ->
-                        if (isSelectionMode) {
-                            selectedCards =
-                                if (selectedCards.contains(cardId)) selectedCards - cardId else selectedCards + cardId
-                        } else {
-                            navController.navigate("card_detail/$cardId")
-                        }
-                    },
+                // 패딩 조절된 TitleBar 사용
+                BoardTitleBar(
+                    title = detailState?.name ?: sectionTitle,
                     isSelectionMode = isSelectionMode,
-                    selectedCardIds = selectedCards
+                    onClick = {
+                        dialogMode = InputDialogMode.Rename(
+                            sectionId = sectionId,
+                            currentName = detailState?.name ?: sectionTitle
+                        )
+                    })
+
+                SectionFilterButton(
+                    favoriteSelected = ui.favoriteOnly,
+                    onToggleFavorite = { enabled -> viewModel.setFavoriteFilter(enabled) },
+                    onSelectClick = {
+                        if (isSelectionMode) resetSelectionState() else isSelectionMode = true
+                    },
+                    onRequestSort = { sortKey -> viewModel.setSort(sortKey) },
+                    isSelectionMode = isSelectionMode
                 )
+
+                if (ui.isLoading && detailState == null) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Loading...")
+                    }
+                } else if (detailState != null) {
+                    val cardItems = detailState.cards.content.map { it.toMyCardItem() }
+                    val cardHeights by remember(sectionId, cardItems.size) {
+                        mutableStateOf(cardItems.map { randomCardHeight() })
+                    }
+                    ScrollableCardContent(
+                        cards = cardItems,
+                        cardHeights = cardHeights,
+                        onCardClick = { cardId ->
+                            if (isSelectionMode) {
+                                selectedCards = if (selectedCards.contains(cardId)) selectedCards - cardId else selectedCards + cardId
+                            } else {
+                                navController.navigate("card_detail/$cardId")
+                            }
+                        },
+                        isSelectionMode = isSelectionMode,
+                        selectedCardIds = selectedCards
+                    )
+                }
             }
         }
         // 선택 모드 바텀 바
@@ -184,7 +210,7 @@ fun SectionDetailScreen(
                 ActionsContent(
                     selectedSectionCount = 0, // 섹션 상세에서는 카드만 선택
                     selectedCardCount = selectedCards.size,
-                    onDeleteClick = { /* TODO */ },
+                    onDeleteClick = { showDeleteDialog = true },
                     onCopyClick = {
                         currentAction = BoardAction.COPY
                         showBoardSelector = true
@@ -213,7 +239,6 @@ fun SectionDetailScreen(
                                         selectedCardIds = selectedCards
                                     )
                                 }
-
                                 BoardAction.MOVE -> {
                                     viewModel.moveSelectedItems(
                                         targetBoardId = targetId.toLong(),
@@ -221,7 +246,6 @@ fun SectionDetailScreen(
                                         selectedCardIds = selectedCards
                                     )
                                 }
-
                                 null -> {}
                             }
                         }
@@ -255,6 +279,21 @@ fun SectionDetailScreen(
             else -> Unit // 섹션 생성 다이얼로그는 없음
         }
     }
+    // 삭제 확인 다이얼로그
+    DeleteConfirmationDialog(
+        visible = showDeleteDialog,
+        selectedCardCount = selectedCards.size,
+        selectedSectionCount = 0,
+        onDismiss = { showDeleteDialog = false },
+        onRemove = {
+            showDeleteDialog = false
+            showUndoSnackbar()
+        },
+        onDelete = {
+            showDeleteDialog = false
+            showUndoSnackbar()
+        }
+    )
     // 토스트 UI를 화면에 배치
     AppToastHost(hostState = toastHostState)
 }

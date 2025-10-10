@@ -26,6 +26,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -120,15 +125,42 @@ fun BoardDetailScreen(
     //  다이얼로그 모드 상태
     var dialogMode by remember { mutableStateOf<InputDialogMode?>(null) }
 
+    // 삭제 확인 다이얼로그 표시 상태
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
     // 진입 시 한 번 초기 로드
     LaunchedEffect(boardId) {
         viewModel.init(boardId)
     }
 
+    // 1. '실행 취소'용 Snackbar 상태
+    val snackbarHostState = remember { SnackbarHostState() }
     // 토스트 상태 및 코루틴 스코프 선언
     val toastHostState = rememberAppToastHostState()
     val scope = rememberCoroutineScope()
     val toastMessage by viewModel.toastMessage.collectAsState()
+
+    // '실행 취소' 스낵바를 띄우는 함수
+    fun showUndoSnackbar() {
+        scope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = "삭제가 완료되었습니다.",
+                actionLabel = "실행 취소",
+                duration = SnackbarDuration.Long // 길게 표시 (약 10초)
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                // TODO: "실행 취소" 클릭 시 서버 연동 로직
+            }
+        }
+    }
+
+    // ViewModel의 삭제 완료 이벤트를 구독하여 스낵바 띄우고 상태 초기화
+    LaunchedEffect(Unit) {
+        viewModel.deleteCompleteEvent.collect {
+            showUndoSnackbar()
+            resetSelectionState()
+        }
+    }
 
     // ViewModel의 toastMessage 변경을 감지하여 토스트 표시
     LaunchedEffect(toastMessage) {
@@ -162,89 +194,105 @@ fun BoardDetailScreen(
     val boardState = ui.board
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
 
-            DetailTopBar(onBack = {
-                // 현재 보드의 최신 이름 전달
-                val latestName = ui.board?.name ?: boardTitle
-                navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_id", boardId)
-                navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_name", latestName)
-                navController.popBackStack()
-            })
-            BoardTitleBar(
-                title = ui.board?.name ?: boardTitle,
-                isSelectionMode = isSelectionMode,
-                onClick = {
-                    dialogMode = InputDialogMode.Rename(
-                        sectionId = boardId, // 현재 보드 id
-                        currentName = ui.board?.name ?: boardTitle
+        Scaffold(
+            snackbarHost = {
+                SnackbarHost(hostState = snackbarHostState) { snackbarData ->
+                    UndoSnackbar(
+                        message = snackbarData.visuals.message,
+                        onUndo = { snackbarData.performAction() }
                     )
-                })
-            // 즐겨찾기 필터만 뷰모델과 연결 (정렬 버튼은 UI만 유지, 서버 쿼리는 LATEST 고정)
-            BoardFilterButton(
-                favoriteSelected = ui.favoriteOnly,
-                onToggleFavorite = { enabled -> viewModel.setFavoriteFilter(enabled) },
-                onAddClick = { dialogMode = InputDialogMode.CreateSection },
-                onSelectClick = {// 선택/취소 버튼 클릭 시 로직
-                    if (isSelectionMode) {
-                        resetSelectionState() // '취소' 시 모든 선택 상태 초기화
-                    } else {
-                        isSelectionMode = true // '선택' 시 선택 모드 시작
-                    }
-                },
-                onRequestSort = { sortKey -> viewModel.setSort(sortKey) },
-                isSelectionMode = isSelectionMode, // 선택 상태 변수 전달
-            )
-
-            if (boardState != null) {
-                val boardItems = boardState.sections?.map { it.toBoardItem() } ?: emptyList()
-                // 페이징 래퍼에서 실제 리스트 꺼내기
-                val cardItems = boardState.cards.content.map { it.toCardItem() }
-                // 카드 배열 길이가 바뀌면 높이도 재생성
-                val cardHeights by remember(boardId, cardItems.size) {
-                    mutableStateOf(cardItems.map { randomCardHeight() })
                 }
-
-                BoardDetailContent(
-                    boardItems = boardItems,
-                    cardItems = cardItems,
-                    cardHeights = cardHeights,
-                    onCardClick = { cardId ->
-                        // 카드 클릭 시 선택/해제 로직 추가
-                        if (isSelectionMode) {
-                            selectedCards = if (selectedCards.contains(cardId)) {
-                                selectedCards - cardId
-                            } else {
-                                selectedCards + cardId
-                            }
-                        } else {
-                            navController.navigate("card_detail/$cardId")
-                        }
-                    },
-                    onSectionClick = { section ->
-                        if (isSelectionMode) {
-                            selectedSections = if (selectedSections.contains(section.id)) {
-                                selectedSections - section.id
-                            } else {
-                                selectedSections + section.id
-                            }
-                        } else {
-                            val encodedTitle = java.net.URLEncoder.encode(section.title, "utf-8")
-                            navController.navigate("section_detail/${section.id}/$encodedTitle")
-                        }
-                    },
-                    onFavoriteClick = { section: BoardItem ->
-                        viewModel.toggleSectionFavorite(
-                            sectionId = section.id,
-                            currentFavorite = section.isBookmarked
-                        )
-                    },
+            },
+            containerColor = Color.White
+        ) { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                DetailTopBar(onBack = {
+                    // 현재 보드의 최신 이름 전달
+                    val latestName = ui.board?.name ?: boardTitle
+                    navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_id", boardId)
+                    navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_name", latestName)
+                    navController.popBackStack()
+                })
+                BoardTitleBar(
+                    title = ui.board?.name ?: boardTitle,
                     isSelectionMode = isSelectionMode,
-                    selectedSections = selectedSections,
-                    selectedCards = selectedCards
+                    onClick = {
+                        dialogMode = InputDialogMode.Rename(
+                            sectionId = boardId, // 현재 보드 id
+                            currentName = ui.board?.name ?: boardTitle
+                        )
+                    })
+                // 즐겨찾기 필터만 뷰모델과 연결 (정렬 버튼은 UI만 유지, 서버 쿼리는 LATEST 고정)
+                BoardFilterButton(
+                    favoriteSelected = ui.favoriteOnly,
+                    onToggleFavorite = { enabled -> viewModel.setFavoriteFilter(enabled) },
+                    onAddClick = { dialogMode = InputDialogMode.CreateSection },
+                    onSelectClick = {// 선택/취소 버튼 클릭 시 로직
+                        if (isSelectionMode) {
+                            resetSelectionState() // '취소' 시 모든 선택 상태 초기화
+                        } else {
+                            isSelectionMode = true // '선택' 시 선택 모드 시작
+                        }
+                    },
+                    onRequestSort = { sortKey -> viewModel.setSort(sortKey) },
+                    isSelectionMode = isSelectionMode, // 선택 상태 변수 전달
                 )
-            } else {
-                Text("Loading...")
+
+                if (boardState != null) {
+                    val boardItems = boardState.sections?.map { it.toBoardItem() } ?: emptyList()
+                    // 페이징 래퍼에서 실제 리스트 꺼내기
+                    val cardItems = boardState.cards.content.map { it.toCardItem() }
+                    // 카드 배열 길이가 바뀌면 높이도 재생성
+                    val cardHeights by remember(boardId, cardItems.size) {
+                        mutableStateOf(cardItems.map { randomCardHeight() })
+                    }
+
+                    BoardDetailContent(
+                        boardItems = boardItems,
+                        cardItems = cardItems,
+                        cardHeights = cardHeights,
+                        onCardClick = { cardId ->
+                            // 카드 클릭 시 선택/해제 로직 추가
+                            if (isSelectionMode) {
+                                selectedCards = if (selectedCards.contains(cardId)) {
+                                    selectedCards - cardId
+                                } else {
+                                    selectedCards + cardId
+                                }
+                            } else {
+                                navController.navigate("card_detail/$cardId")
+                            }
+                        },
+                        onSectionClick = { section ->
+                            if (isSelectionMode) {
+                                selectedSections = if (selectedSections.contains(section.id)) {
+                                    selectedSections - section.id
+                                } else {
+                                    selectedSections + section.id
+                                }
+                            } else {
+                                val encodedTitle = java.net.URLEncoder.encode(section.title, "utf-8")
+                                navController.navigate("section_detail/${section.id}/$encodedTitle")
+                            }
+                        },
+                        onFavoriteClick = { section: BoardItem ->
+                            viewModel.toggleSectionFavorite(
+                                sectionId = section.id,
+                                currentFavorite = section.isBookmarked
+                            )
+                        },
+                        isSelectionMode = isSelectionMode,
+                        selectedSections = selectedSections,
+                        selectedCards = selectedCards
+                    )
+                } else {
+                    Text("Loading...")
+                }
             }
         }
         // 선택 모드일 때 화면 하단에 바텀 시트 표시
@@ -256,7 +304,7 @@ fun BoardDetailScreen(
                 ActionsContent(
                     selectedSectionCount = selectedSections.size,
                     selectedCardCount = selectedCards.size,
-                    onDeleteClick = { /* TODO */ },
+                    onDeleteClick = { showDeleteDialog = true },
                     onCopyClick = {
                         currentAction = BoardAction.COPY
                         showBoardSelector = true
@@ -354,6 +402,27 @@ fun BoardDetailScreen(
             null -> Unit
         }
     }
+    // 삭제 다이얼로그
+    DeleteConfirmationDialog(
+        visible = showDeleteDialog,
+        selectedCardCount = selectedCards.size,
+        selectedSectionCount = selectedSections.size,
+        onDismiss = { showDeleteDialog = false },
+        onRemove = {
+            showDeleteDialog = false
+            // ViewModel 함수 호출
+            scope.launch {
+                viewModel.removeItemsFromBoard(selectedSections, selectedCards)
+            }
+        },
+        onDelete = {
+            showDeleteDialog = false
+            // ViewModel 함수 호출
+            scope.launch {
+                viewModel.deleteItems(selectedSections, selectedCards)
+            }
+        }
+    )
     // 토스트 UI를 화면에 배치
     AppToastHost(hostState = toastHostState)
 }
@@ -366,7 +435,7 @@ fun DetailTopBar(onBack: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 14.dp, end = 16.dp, top = 62.dp, bottom = 10.dp),
+            .padding(start = 14.dp, end = 16.dp, top = 13.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -537,7 +606,7 @@ fun CardItemDto.toCardItem(): CardItem {
         category = this.category ?: "No Category", // 마찬가지
         description = this.description ?: "No Description",
         imageUrl = this.imageUrl ?: "",
-        isFavorite = this.favorite?:false
+        isFavorite = this.favorite ?: false
     )
 }
 
