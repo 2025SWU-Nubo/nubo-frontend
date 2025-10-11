@@ -92,6 +92,7 @@ fun BoardDetailScreen(
     boardId: Int,
     boardTitle: String,
     navController: NavController,
+    source: String,
     viewModel: BoardDetailViewModel = hiltViewModel(),
     myCardViewModel: MyCardViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
@@ -225,6 +226,7 @@ fun BoardDetailScreen(
                 BoardTitleBar(
                     title = ui.board?.name ?: boardTitle,
                     isSelectionMode = isSelectionMode,
+                    source = source, // 보드 소스("USER" 또는 "AI") 전달
                     onClick = {
                         dialogMode = InputDialogMode.Rename(
                             sectionId = boardId, // 현재 보드 id
@@ -460,13 +462,15 @@ fun DetailTopBar(onBack: () -> Unit) {
 
 
 @Composable
-fun BoardTitleBar(title: String, isSelectionMode: Boolean, onClick: () -> Unit) {
+fun BoardTitleBar(title: String, isSelectionMode: Boolean, onClick: () -> Unit,source: String?) {
     val decodedTitle = URLDecoder.decode(title, "utf-8")
+    val isUserBoard = source == "USER"
 
     Column(modifier = Modifier.padding(top = 27.dp)) {
         Row(
             modifier = Modifier
-                .noRippleClickable(enabled = !isSelectionMode) { onClick() } //선택 모드일 때 버튼 비활성화
+                // "USER" 보드이고, 선택 모드가 아닐 때만 클릭 가능하도록 수정
+                .noRippleClickable(enabled = isUserBoard && !isSelectionMode) { onClick() }
                 .padding(start = 18.dp, end = 16.dp, bottom = 15.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {

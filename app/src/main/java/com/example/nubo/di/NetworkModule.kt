@@ -4,6 +4,7 @@ package com.example.nubo.di
 import com.example.nubo.data.network.AuthService
 import com.example.nubo.data.network.BoardService
 import com.example.nubo.data.network.CardService
+import com.example.nubo.data.network.LearnService
 import com.example.nubo.data.network.NotificationService
 import com.example.nubo.data.network.ProfileService
 import com.example.nubo.data.network.TokenInterceptor
@@ -87,4 +88,9 @@ object NetworkModule {
     @Provides @Singleton
     fun provideNotificationService(retrofit: Retrofit): NotificationService =
         retrofit.create(NotificationService::class.java)
+
+    // LearnService 제공
+    @Provides @Singleton
+    fun provideLearnService(retrofit: Retrofit): LearnService =
+        retrofit.create(LearnService::class.java)
 }

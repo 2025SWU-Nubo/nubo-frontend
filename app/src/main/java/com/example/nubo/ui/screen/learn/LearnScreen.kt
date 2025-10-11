@@ -55,11 +55,13 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.max
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.nubo.R
 import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.Grey50
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.format.DateTimeFormatter
 
 // BottomProgressCard 애니메이션 시간 조절
 // 전역에서 쓸 상수 (밀리초)
@@ -71,42 +73,13 @@ private const val CHECK_BOUNCE_MS = 150 // 체크 살짝 튀는 시간
 
 @Composable
 fun LearnScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: LearnViewModel = hiltViewModel()
 ) {
 
-    //================= 캘린더 변수 =================
-    // 한 주 날짜/요일 계산
-    // 오늘 날짜
-    val today = remember { LocalDate.now() }
-    // 한국/일요일 시작 기준으로 주간 계산
-    val weekFields = remember { WeekFields.SUNDAY_START }
-    val firstDayOfWeek = today.with(weekFields.dayOfWeek(), 1) // 일요일
-    val daysOfWeek = remember { listOf("일", "월", "화", "수", "목", "금", "토") }
-
-    // 날짜 리스트(일~토)
-    val weekDates = remember(firstDayOfWeek) {
-        (0..6).map { firstDayOfWeek.plusDays(it.toLong()) }
-    }
-
-    // 오늘이 주간 리스트 안에서 몇 번째인지(요일 텍스트 보라색 표시용)
-    val todayIndex = remember(weekDates) {
-        weekDates.indexOfFirst { it.isEqual(today) }.coerceAtLeast(0)
-    }
-
-    // 날짜 선택 상태
+    // ViewModel의 UI 상태를 구독
+    val uiState by viewModel.uiState.collectAsState()
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
-
-    // 임의 데이터: 날짜별 말풍선 카운트(서버 연동 전)
-    val dummyBubbleCountPerDay = remember {
-        // 0이면 말풍선 안보이도록
-        listOf(2, 0, 0, 1, 0, 0, 0)
-    }
-
-    //================= 하단 성장률 표시 카드 변수 =================
-    // 하단 카드 임의 데이터
-    val progress = 0.25f            // 25%
-    val progressTitle = "누베리 성장률"
-    val topBadgeCount = 5           // 오른쪽 위 둥근 배지 “5개”
 
 
 //================= 화면 UI 시작 =================
@@ -116,43 +89,84 @@ fun LearnScreen(
             .background(Color(0xFF9EC5E1)) // 배경 느낌만 잡는 임시색
             .padding(horizontal = 16.dp)
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            // 1) 상단 타이틀 + 차트 버튼
-            TopBar(
-                title = "대시보드",
-                onClickChart = { /* TODO: 차트 화면 이동 콜백 연결 */ }
-            )
+        when (val state = uiState) {
+            is DashboardUiState.Loading -> {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
 
-            Spacer(Modifier.height(12.dp))
+            is DashboardUiState.Error -> {
+                Text(
+                    text = state.message,
+                    modifier = Modifier.align(Alignment.Center),
+                    color = Color.White
+                )
+            }
 
-            // 주간 캘린더
-            WeeklyCalendar(
-                daysLabel = daysOfWeek,
-                dates = weekDates,
-                todayIndex = todayIndex,
-                selectedIndex = selectedIndex,
-                hasSelection = selectedIndex != null,
-                onClickDay = { idx ->
-                    // 같은 날짜를 다시 클릭하면 해제, 다른 날짜 클릭 시 해당 날짜로 교체
-                    selectedIndex = if (selectedIndex == idx) null else idx
-                },
-                getBubbleCount = { idx -> dummyBubbleCountPerDay.getOrNull(idx) ?: 0 },
-                circleSize = 36.dp
-            )
+            is DashboardUiState.Success -> {
+                val dashboardData = state.data
 
-            Spacer(Modifier.weight(1f))
+                // --- 데이터 연결 ---
+                // 1. 캘린더 날짜/카운트
+                val weeklyCounts = dashboardData.weeklyVideoCounts
+                val weekDatesFromServer = weeklyCounts.map { it.date }
+                val weekDayNumbers = weeklyCounts.map { LocalDate.parse(it.date).dayOfMonth }
+                val bubbleCounts = weeklyCounts.map { it.count }
 
-            // 하단 성장률 카드 + 누베리 개수 원형 카드
-            BottomProgressCard(
-                percent = (progress * 100).toInt(),
-                title = progressTitle,
-                progress = progress,
-                topBadgeCount = topBadgeCount
-            )
+                // 2. 오늘 날짜 계산
+                val todayString = remember { LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE) }
+                val todayIndex = remember(weekDatesFromServer) {
+                    weekDatesFromServer.indexOf(todayString).coerceAtLeast(0)
+                }
 
-            Spacer(Modifier.height(140.dp))
+                // 3. 성장률 및 누베리
+                val growthRate = dashboardData.growthRate
+                val berryCount = dashboardData.berryCount
+                val currentStage = dashboardData.stage
+
+                // TODO: 추후 탐색 인자로부터 레벨업 여부 수신 (예: val showLevelUp = navArgs.showLevelUp)
+                val showLevelUp = false // 임시로 false
+
+                Column(modifier = Modifier.fillMaxSize()) {
+                    TopBar(
+                        title = "대시보드",
+                        onClickChart = { /* TODO */ }
+                    )
+                    Spacer(Modifier.height(12.dp))
+
+
+                    // 주간 캘린더
+                    WeeklyCalendar(
+                        daysLabel = remember { listOf("일", "월", "화", "수", "목", "금", "토") },
+                        // 서버에서 받은 날짜 숫자로 변경
+                        datesAsInt = weekDayNumbers,
+                        todayIndex = todayIndex,
+                        selectedIndex = selectedIndex,
+                        hasSelection = selectedIndex != null,
+                        onClickDay = { idx ->
+                            // 같은 날짜를 다시 클릭하면 해제, 다른 날짜 클릭 시 해당 날짜로 교체
+                            selectedIndex = if (selectedIndex == idx) null else idx
+                        },
+                        getBubbleCount = { idx -> bubbleCounts.getOrNull(idx) ?: 0 },
+                        circleSize = 36.dp
+                    )
+
+                    Spacer(Modifier.weight(1f))
+
+                    // 하단 성장률 카드 + 누베리 개수 원형 카드
+                    BottomProgressCard(
+                        // 서버 데이터 연결
+                        percent = growthRate,
+                        title = "누베리 성장률",
+                        progress = growthRate / 100f,
+                        topBadgeCount = berryCount,
+                        // 레벨업 UI에 서버 데이터 연결
+                        showLevelUp = showLevelUp,
+                        currentStep = currentStage,
+                        currentProgressFromServer = growthRate / 100f
+                    )
+                    Spacer(Modifier.height(140.dp))
+                }
+            }
         }
     }
 }
@@ -205,7 +219,7 @@ private fun TopBar(
 @Composable
 private fun WeeklyCalendar(
     daysLabel: List<String>,
-    dates: List<LocalDate>,
+    datesAsInt: List<Int>,
     todayIndex: Int,
     selectedIndex: Int?,
     onClickDay: (Int) -> Unit,
@@ -218,10 +232,10 @@ private fun WeeklyCalendar(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        daysLabel.forEachIndexed { idx, day ->
+        daysLabel.forEachIndexed { idx, dayLabel ->
             val isToday = idx == todayIndex
             Text(
-                text = day,
+                text = dayLabel,
                 style = AppTextStyles.subtitle_semibold_20,
                 color = if (isToday) PurpleMain500 else Grey0,
                 modifier = Modifier.weight(1f),
@@ -237,16 +251,14 @@ private fun WeeklyCalendar(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        dates.forEachIndexed { idx, date ->
+        datesAsInt.forEachIndexed { idx, dayNumber ->
             val isSelected = selectedIndex == idx
             val isToday = idx == todayIndex
 
             Box(
-                modifier = Modifier
-                    .weight(1f),
+                modifier = Modifier.weight(1f),
                 contentAlignment = Alignment.Center
             ) {
-
                 // 화면 진입 시 오늘 날짜에 동그라미 표시
                 // 선택하면 해당 날짜에 동그라미 표시
                 if (isSelected || (isToday && !hasSelection)) {
@@ -265,21 +277,17 @@ private fun WeeklyCalendar(
                         .clip(CircleShape)
                         .noRippleClickable { onClickDay(idx) },
                     contentAlignment = Alignment.Center
-                ) {
+                ){
                     // 오늘 날짜는 보라색
-                    if (isToday) {
-                        Text(
-                            text = date.dayOfMonth.toString(),
-                            style = AppTextStyles.subtitle_semibold_20,
-                            color = PurpleMain500
-                        )
-                    } else
-                        Text(
-                            text = date.dayOfMonth.toString(),
-                            style = AppTextStyles.subtitle_semibold_20,
-                            color = if (isSelected || isToday) Grey1000 else Grey0
-
-                        )
+                    Text(
+                        text = dayNumber.toString(),
+                        style = AppTextStyles.subtitle_semibold_20,
+                        color = when {
+                            isToday -> PurpleMain500
+                            isSelected -> Grey1000
+                            else -> Grey0
+                        }
+                    )
                 }
             }
         }
@@ -292,7 +300,7 @@ private fun WeeklyCalendar(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        dates.forEachIndexed { idx, _ ->
+        datesAsInt.forEachIndexed { idx, _ ->
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -301,9 +309,7 @@ private fun WeeklyCalendar(
             ) {
                 val visible = selectedIndex == idx && getBubbleCount(idx) > 0
                 if (visible) {
-                    SpeechBubble(
-                        count = getBubbleCount(idx)
-                    )
+                    SpeechBubble(count = getBubbleCount(idx))
                 }
             }
         }
@@ -316,13 +322,12 @@ private fun SpeechBubble(
     count: Int
 ) {
     Box(
-        modifier = Modifier.wrapContentSize(),
+        modifier = Modifier.wrapContentWidth(unbounded = true),
         contentAlignment = Alignment.TopCenter
     ) {
         // 몸체 (알약 모양 배지)
         Box(
             modifier = Modifier
-                .width(63.dp)
                 .height(30.dp)
                 .shadow(
                     elevation = 4.dp,
@@ -353,11 +358,11 @@ private fun SpeechBubble(
 
             // 내용 (물방울 + n개)
             Row(
+                modifier = Modifier.padding(end=6.dp, start = 3.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(text = "💧", fontSize = 14.sp)
-                Spacer(Modifier.width(2.dp))
                 Text(
                     text = "${count}개",
                     fontSize = 16.sp,
@@ -377,17 +382,14 @@ private fun BottomProgressCard(
     title: String,
     progress: Float,
     topBadgeCount: Int,
-    // 카드 내용이 바뀌어도 레이아웃이 흔들리지 않도록 고정/최소 높이 설정
+    showLevelUp: Boolean,
+    currentStep: Int,
+    currentProgressFromServer: Float,
     cardMinHeight: Dp = 145.dp
 ) {
-    // 레벨업 표시 조건 = 물방울 5개 (현재는 임시 값)
-    val showLevelUp = topBadgeCount == 5
 
-    // 상태는 저장 가능하게 두어 재구성에도 유지
+    // 현재 단계 값을 받아서 다음 단계로
     var state by rememberSaveable { mutableStateOf("normal") }
-
-    // 현재 단계 값을 가지고 있다고 가정 (예: 1→2로 레벨업)
-    val currentStep = 2              // 실제 값으로 교체
     val nextStep = (currentStep + 1).coerceAtMost(5)
 
     // 애니메이션 전환 (기존 UI → levelup → next)
@@ -447,7 +449,9 @@ private fun BottomProgressCard(
                                 onStepAnimDone = {
                                     // 바 이동 및 체크 애니메이션이 끝났을 때 추가 동작이 있으면 여기에
                                     // (상위 LaunchedEffect에서 LEVEL_HOLD_MS 후 state = "next"로 넘어감)
-                                }
+                                },
+                                // 현재 성장률을 시작점으로 사용
+                                prevPercentFromServer = currentProgressFromServer
                             )
                         }
 
@@ -647,7 +651,7 @@ private fun LevelUpSection(
 ) {
     // 1) 시작/목표 퍼센트 (목표는 체크 지점으로 스냅)
     val fromFrac = (prevPercentFromServer ?: stepToFraction(prevStep, totalSteps)).coerceIn(0f, 1f)
-    val toFrac   = stepToFraction(nextStep, totalSteps)
+    val toFrac = stepToFraction(nextStep, totalSteps)
 
     // 2) 진행도는 단순 Float 상태로 관리 (프레임마다 값 갱신)
     var barProgress by remember { mutableFloatStateOf(fromFrac) }
@@ -744,7 +748,7 @@ private fun StepBar(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = circleSize / 2)                 // 끝 원이 잘리지 않게
-            .height(max(circleSize, barHeight)+ 10.dp)       // 전체 높이 확보
+            .height(max(circleSize, barHeight) + 10.dp)       // 전체 높이 확보
     ) {
         val stepFrac = if (total > 1) 1f / (total - 1) else 1f
 
@@ -820,7 +824,7 @@ private fun StepBar(
                 .align(Alignment.CenterStart)
                 .offset(
                     x = berryX - berrySize / 2,
-                    y = -(circleSize / 2 + berryOffsetUp+8.dp)
+                    y = -(circleSize / 2 + berryOffsetUp + 8.dp)
                 )
                 .size(berrySize)
                 .clip(CircleShape)

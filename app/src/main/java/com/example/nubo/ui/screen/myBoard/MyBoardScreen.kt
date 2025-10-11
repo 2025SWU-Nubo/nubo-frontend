@@ -240,7 +240,7 @@ fun MyBoardScreen(
                                             navController.navigate(
                                                 "board_detail/${boardItem.serverBoardId}/${
                                                     java.net.URLEncoder.encode(boardItem.title, "utf-8")
-                                                }"
+                                                }/${boardItem.source}"
                                             )
                                         },
                                         onFavoriteClick = { item ->
@@ -277,7 +277,7 @@ fun MyBoardScreen(
                                 navController.navigate(
                                     "board_detail/${boardItem.serverBoardId}/${
                                         java.net.URLEncoder.encode(boardItem.title, "utf-8")
-                                    }"
+                                    }/${boardItem.source}"
                                 )
                             },
                             onFavoriteClick = { item ->

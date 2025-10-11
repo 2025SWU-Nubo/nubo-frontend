@@ -264,7 +264,7 @@ fun MainScreen(
                 }
 
                 composable(
-                    route = "board_detail/{boardId}/{boardTitle}",
+                    route = "board_detail/{boardId}/{boardTitle}/{source}",
                     arguments = listOf(
                         navArgument("boardId") { type = NavType.IntType },
                         navArgument("boardTitle") { type = NavType.StringType }
@@ -272,9 +272,12 @@ fun MainScreen(
                 ) { backStackEntry ->
                     val boardId = backStackEntry.arguments?.getInt("boardId") ?: return@composable
                     val boardTitle = backStackEntry.arguments?.getString("boardTitle") ?: "로딩 중..."
+                    // [수정] source 값을 backStackEntry에서 추출
+                    val source = backStackEntry.arguments?.getString("source") ?: "USER" // 기본값을 "USER"로 설정
                     BoardDetailScreen(
                         boardId = boardId,
                         boardTitle = boardTitle,
+                        source = source,
                         navController = navController,
                         modifier = Modifier.statusBarsPadding()
                     )

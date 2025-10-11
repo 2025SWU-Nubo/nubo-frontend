@@ -159,6 +159,7 @@ fun SectionDetailScreen(
                 BoardTitleBar(
                     title = detailState?.name ?: sectionTitle,
                     isSelectionMode = isSelectionMode,
+                    source = "USER",
                     onClick = {
                         dialogMode = InputDialogMode.Rename(
                             sectionId = sectionId,
