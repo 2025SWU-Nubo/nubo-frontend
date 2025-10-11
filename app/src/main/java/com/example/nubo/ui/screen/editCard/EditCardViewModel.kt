@@ -12,6 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
@@ -28,6 +29,10 @@ sealed interface EditCardUiState {
     data class Error(val message: String) : EditCardUiState
     data object Saving : EditCardUiState
     data object Saved : EditCardUiState
+}
+
+sealed interface EditCardUiEvent {
+    data class ApplyAiEdit(val markdown: String) : EditCardUiEvent
 }
 
 @HiltViewModel
@@ -67,6 +72,11 @@ class EditCardViewModel @Inject constructor(
     private val _canUndoAiEdit = MutableStateFlow(false)
     val canUndoAiEdit: StateFlow<Boolean> = _canUndoAiEdit
 
+    // In ViewModel class
+    private val _uiEvent = kotlinx.coroutines.flow.MutableSharedFlow<EditCardUiEvent>()
+    val uiEvent = _uiEvent.asSharedFlow()
+
+
     init { bootstrap() }
 
     /* 초기 데이터 로드  카드 상세에서 요약과 하이라이트 미리 채움 */
@@ -93,10 +103,6 @@ class EditCardViewModel @Inject constructor(
         if (s is EditCardUiState.Ready) {
             _uiState.value = s.copy(summary = newText)
         }
-    }
-
-    init {
-        bootstrap()
     }
 
     /* 하이라이트 토글  같은 구간이 있으면 제거 없으면 추가 */
@@ -140,6 +146,7 @@ class EditCardViewModel @Inject constructor(
             _uiState.value = EditCardUiState.Saved
             onSuccess()
             _toast.value = "저장되었습니다."
+
         }.onFailure {
             _uiState.value = EditCardUiState.Error(it.humanMessage())
             _toast.value = it.humanMessage()
@@ -176,7 +183,16 @@ class EditCardViewModel @Inject constructor(
     /* AI 편집 되돌리기  백업이 있으면 복원하고 비활성화 */
     fun undoAiEdit() {
         val backup = prevSummaryBackup ?: return
+
+        // 1) VM 상태도 이전 값으로 복원
         updateSummary(backup)
+
+        // 2) 에디터에 실제로 주입되도록 단발 이벤트 발행  ★ 중요
+        viewModelScope.launch {
+            _uiEvent.emit(EditCardUiEvent.ApplyAiEdit(backup))
+        }
+
+        // 3) 되돌리기 상태 정리
         prevSummaryBackup = null
         _canUndoAiEdit.value = false
         _toast.value = "되돌리기 완료"
@@ -214,7 +230,7 @@ class EditCardViewModel @Inject constructor(
             _toast.value = "AI가 요약노트를 정리했어요!👍🏻"
             /* AI 바를 자동으로 닫고 싶다면 아래 주석 해제
                키보드 유지가 필요하면 닫지 않고 그대로 둬도 됨 */
-            // _showAiBar.value = false
+            _uiEvent.emit(EditCardUiEvent.ApplyAiEdit(resp.summary))
         }.onFailure { e ->
             /* 4 실패  되돌리기 가능 상태 유지  에러 토스트 */
             _toast.value = e.humanMessage()

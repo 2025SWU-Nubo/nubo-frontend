@@ -1,5 +1,6 @@
 package com.example.nubo.ui.screen.editCard
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -19,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -51,6 +53,7 @@ import com.example.components.toast.AppToastHostState
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.AppToastType
 import com.example.components.toast.rememberAppToastHostState
+import com.example.nubo.ui.component.dialog.EditCardAlertDialog
 import com.example.nubo.ui.screen.editCard.widgets.AiPromptBar
 import com.example.nubo.ui.screen.editCard.widgets.MarkdownToolbar
 import com.example.nubo.ui.screen.editCard.widgets.NoSelectionToolbar
@@ -76,8 +79,29 @@ fun EditCardScreen(
     val toast by viewModel.toast.collectAsState()
     val toastHost = rememberAppToastHostState()
     val canUndo by viewModel.canUndoAiEdit.collectAsState()
+    val uiEventFlow = viewModel.uiEvent
 
     val focusManager = LocalFocusManager.current
+
+    // 상태 먼저
+    var initialMarkdown by rememberSaveable { mutableStateOf("") }
+    var currentMarkdown by rememberSaveable { mutableStateOf("") }
+    var suppressVmSync by remember { mutableStateOf(false) }
+
+// 2) 그 다음에 이벤트 수집
+    LaunchedEffect(Unit) {
+        uiEventFlow.collect { event ->
+            when (event) {
+                is EditCardUiEvent.ApplyAiEdit -> {
+                    suppressVmSync = true
+                    rtState.setMarkdown(event.markdown)
+                    currentMarkdown = sanitizeToAllowedMarkdown(rtState.toMarkdown())
+                    suppressVmSync = false
+                }
+            }
+        }
+    }
+
 
 
     // 포커스/경계
@@ -102,27 +126,47 @@ fun EditCardScreen(
         else -> 16.dp
     }
 
-
     // FAB 가시성 로컬 상태(조건 연동)
     var fabVisible by remember { mutableStateOf(true) }
     LaunchedEffect(showAiBar, editorFocused) {
         fabVisible = !showAiBar && !editorFocused
     }
 
-    // 뷰모델 Ready → 에디터 세팅
-    LaunchedEffect(uiState) {
-        val ready = uiState as? EditCardUiState.Ready ?: return@LaunchedEffect
-        val current = rtState.toMarkdown()
-        val target = sanitizeToAllowedMarkdown(ready.summary)
-        if (current != target) rtState.setMarkdown(target)
+    var didInit by rememberSaveable { mutableStateOf(false) }
+
+// 서버에서 받아온 "초기 요약 마크다운"을 저장해두어 변경 여부 판단
+    val hasUnsavedChangesState = remember {
+        derivedStateOf { currentMarkdown != initialMarkdown }
     }
+
+    // "뒤로가기 확인" 다이얼로그 노출 상태
+    var showLeaveConfirm by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(uiState, didInit) {
+        val ready = uiState as? EditCardUiState.Ready ?: return@LaunchedEffect
+        val target = sanitizeToAllowedMarkdown(ready.summary)
+
+        if (!didInit) {
+            if (rtState.toMarkdown() != target) rtState.setMarkdown(target)
+
+            val canonical = sanitizeToAllowedMarkdown(rtState.toMarkdown())
+            initialMarkdown = canonical
+            currentMarkdown = canonical
+
+            didInit = true
+        }
+    }
+
 
     // 에디터 → 뷰모델 동기화
     LaunchedEffect(rtState) {
-        snapshotFlow { rtState.toMarkdown() }
+        snapshotFlow { sanitizeToAllowedMarkdown(rtState.toMarkdown()) }
             .collectLatest { md ->
-                (uiState as? EditCardUiState.Ready)?.let {
-                    if (it.summary != md) viewModel.updateSummary(md)
+                currentMarkdown = md                 // 한글 주석: 변경 감지용 현재값 갱신 (필수)
+                if (!suppressVmSync) {
+                    (uiState as? EditCardUiState.Ready)?.let {
+                        if (it.summary != md) viewModel.updateSummary(md)   // 한글 주석: 필요 시 VM 동기화
+                    }
                 }
             }
     }
@@ -148,6 +192,30 @@ fun EditCardScreen(
         }
     }
 
+    // 하드웨어 뒤로가기도 다이얼로그
+    BackHandler(enabled = !aiLoading) {
+        focusManager.clearFocus(force = true)
+        if (hasUnsavedChangesState.value) showLeaveConfirm = true else onBack()
+    }
+
+    EditCardAlertDialog(
+        visible = showLeaveConfirm,
+        onKeepEditing = {
+            // 계속 편집 → 다이얼로그만 닫기
+            showLeaveConfirm = false
+        },
+        onDiscardAndExit = {
+            // 변경 폐기 후 나가기
+            // 필요시 VM 초기화가 있다면 호출: viewModel.discardChanges()
+            showLeaveConfirm = false
+            onBack()
+        },
+        onDismiss = {
+            // 바깥 클릭/백 등으로 닫힘
+            showLeaveConfirm = false
+        }
+    )
+
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         topBar = {
@@ -155,10 +223,13 @@ fun EditCardScreen(
                 windowInsets = WindowInsets.statusBars,
                 title = { Text("요약 노트") },
                 navigationIcon = {
-                    IconButton(onClick = {
-                        focusManager.clearFocus(force = true)
-                        onBack()
-                    }) {
+                    IconButton(
+                        onClick = {
+                            focusManager.clearFocus(force = true)
+                            if (hasUnsavedChangesState.value) showLeaveConfirm = true else onBack()
+                        },
+                        enabled = !aiLoading //  AI 응답 대기 중에는 뒤로가기 비활성화
+                    ) {
                         Icon(painterResource(R.drawable.arrow_back), contentDescription = "뒤로가기")
                     }
                 },
@@ -166,9 +237,14 @@ fun EditCardScreen(
                     TextButton(onClick = {
                         val markdown = sanitizeToAllowedMarkdown(rtState.toMarkdown())
                         viewModel.updateSummary(markdown)
+                        initialMarkdown = markdown
+                        currentMarkdown = markdown
+
                         focusManager.clearFocus(force = true)
                         onSave()
-                    }) {
+                    },
+                        enabled = !aiLoading
+                    ) {
                         Text(text = "완료", style = AppTextStyles.b1_bold_18, color = PurpleMain500)
                     }
                 }
@@ -188,7 +264,7 @@ fun EditCardScreen(
             ) {
                 FloatingActionButton(
                     onClick = {
-                        viewModel.toggleAiBar(true)
+                        if (!aiLoading) viewModel.toggleAiBar(true)
                     },
                     containerColor = Grey5,
                     contentColor = Color.Unspecified,
@@ -246,14 +322,6 @@ fun EditCardScreen(
                         }
                     )
             )
-//            AppToastOverlay(hostState = toastHost, modifier =
-//                Modifier.padding(
-//                bottom = when {
-//                    showAiBar -> 130.dp  // aiBarHeight + 여유
-//                    editorFocused && keyboardVisible && !showAiBar -> 64.dp + 12.dp   // mdBarHeight + 여유
-//                    else -> 12.dp
-//                }
-//                ))
 
             // 본문: 기본 패딩만 적용
             Column(
@@ -374,14 +442,14 @@ fun EditCardScreen(
                     value = aiQuery,
                     loading = aiLoading,
                     onValueChange = viewModel::onAiQueryChange,
-                    onClose = { viewModel.toggleAiBar(false) },
+                    onClose = { if (!aiLoading) viewModel.toggleAiBar(false) },
                     onSubmit = {
                         viewModel.updateSummary(rtState.toMarkdown())
                         viewModel.requestAiEdit()
                     },
                     showAiBar = showAiBar,
                     canUndo = canUndo,
-                    onUndo = {viewModel.undoAiEdit()},
+                    onUndo = { if (!aiLoading) viewModel.undoAiEdit() },
                     modifier = Modifier
                         .fillMaxWidth()
                 )

@@ -372,12 +372,6 @@ fun MainScreen(
                                         }
                                     }
                                 }
-                                is NotiEvent.InviteAccepted -> {
-                                    // 수락 후 후속 동작(토스트, 새로고침 등) 필요 시 여기에
-                                }
-                                is NotiEvent.InviteRejected -> {
-                                    // 거절 후 후속 동작 필요 시 여기에
-                                }
                             }
                         }
                     }

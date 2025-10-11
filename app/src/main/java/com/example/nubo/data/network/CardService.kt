@@ -33,6 +33,14 @@ interface CardService {
         @Query("size") size: Int? = null
     ): PagedResponse<CardResponse>
 
+    @GET("/api/home/boards/all/unviewed-cards")
+    fun getUnviewedAllCards(
+        @Header("Authorization") authorization: String,
+        @Header("Accept") accept: String = "application/json",
+        @Query("limit") limit: Int = 20
+    ): Call<List<CardResponse>>
+
+
     @POST("api/card")
     fun uploadCard(
         @Header("Authorization") authorization: String,
@@ -71,6 +79,7 @@ interface CardService {
         @Body body: EditSummaryAiRequest
     ): Call<EditSummaryResponse>
 
+    // 즐겨 찾기 업데이트
     @PATCH("/api/card/{cardId}/favorite")
     fun updateCardFavorite(
         @Header("Authorization") bearer: String,

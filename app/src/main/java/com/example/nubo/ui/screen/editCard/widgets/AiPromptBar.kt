@@ -106,6 +106,7 @@ fun AiPromptBar(
                             selectedPreset = index
                             focusRequester.requestFocus()
                         },
+                        enabled = !loading,
                         label = {
                             Text(
                                 text = preset.label,
@@ -131,7 +132,7 @@ fun AiPromptBar(
                 }
 
                 IconOnlyChip(
-                    enabled = canUndo,
+                    enabled = !loading && canUndo,
                     onClick = {
                         onUndo()
                         selectedPreset = null

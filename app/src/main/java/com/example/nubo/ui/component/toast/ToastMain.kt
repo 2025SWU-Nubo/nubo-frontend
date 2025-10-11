@@ -99,10 +99,11 @@ fun defaultToastStyleProvider(): (AppToastType) -> AppToastStyle = { t ->
     when (t) {
         AppToastType.AI_RESULT -> AppToastStyle(
             bg = Color.White,                 // 이미지 로딩 실패 시 폴백
-            titleColor = Color.White,
-            textColor = Color.White.copy(alpha = 0.92f),
+            titleColor = Color.Black,
+            textColor = Color.White.copy(alpha = 0.55f),
             backgroundRes = R.drawable.toast_bg,
-            scrim = Color.Black.copy(alpha = 0.25f)
+            scrim = Color.Transparent
+//            scrim = Color.Black.copy(alpha = 0.25f)
         )
         AppToastType.NORMAL,
         AppToastType.POSITIVE,
@@ -207,12 +208,12 @@ fun AppToastHost(
                 animationSpec = tween(durationMillis = 240, easing = FastOutLinearInEasing)
             ) + fadeIn(animationSpec = tween(180)),
             exit = slideOutVertically(
-                targetOffsetY = { it / 3 },
+                targetOffsetY = { it / 4 },
                 animationSpec = tween(
-                    durationMillis = 260,
+                    durationMillis = 220,
                     easing = LinearOutSlowInEasing
                 )
-            ) + fadeOut(animationSpec = tween(220))
+            ) + fadeOut(animationSpec = tween(200))
         ) {
             data?.let { t ->
                 val toastStyle = styleProvider(t.type)
@@ -245,8 +246,12 @@ fun AppToastHost(
 
                 Box(
                     modifier = Modifier
-                        .navigationBarsPadding()
+                        .windowInsetsPadding(
+                            WindowInsets.navigationBars.only(WindowInsetsSides.Bottom) // ✅ Bottom만
+                        )
                         .padding(horizontal = 20.dp, vertical = 16.dp)
+//                    modifier = Modifier.fillMaxWidth(),
+//                    contentAlignment = Alignment.Center
                 ) {
                     // 배경 이미지가 있는 경우(AI_RESULT)만 풀블리드 이미지 사용
                     val useImageBackground = toastStyle.backgroundRes != null
@@ -254,12 +259,18 @@ fun AppToastHost(
                     // 이미지 없으면 Surface color에 bg 적용 → 콘텐츠 크기만큼 wrap
                     val surfaceColor = if (useImageBackground) Color.Transparent else toastStyle.bg
 
+                    val fixedWidth = if (t.type == AppToastType.FAVORITE)
+                        Modifier.fillMaxWidth(0.90f).widthIn(max = 320.dp)   // FAVORITE만 컴팩트
+                    else
+                        Modifier.fillMaxWidth(0.92f).widthIn(max = 360.dp)   // 기본
+
+
                     Surface(
                         onClick = { hostState.dismiss() },
                         color = surfaceColor,
                         shape = toastStyle.shape,
                         tonalElevation = 0.dp,
-                        modifier = Modifier.shadow(elevation = 8.dp, shape = toastStyle.shape)
+                        modifier = fixedWidth.shadow(elevation = 8.dp, shape = toastStyle.shape)
                     ) {
                         if (useImageBackground) {
                             // 이미지 배경: 풀블리드 + 스크림 + 콘텐츠
@@ -279,7 +290,9 @@ fun AppToastHost(
                                 }
 
                                 Row(
-                                    modifier = widthMod.padding(contentPadding),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(contentPadding),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.Center
                                 ) {
@@ -341,7 +354,9 @@ fun AppToastHost(
                         } else {
                             // 이미지 없는 경우: 콘텐츠 크기 기준(wrap) → 단색 배경
                             Row(
-                                modifier = widthMod.padding(contentPadding),
+                                modifier = Modifier
+                                    .fillMaxWidth()                  // ⬅ 내부는 항상 fillMaxWidth
+                                    .padding(contentPadding),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center
                             ) {
@@ -516,8 +531,12 @@ fun AppToastOverlay(
             matchParentSize = false,
             contentAlignment = Alignment.BottomCenter,
             modifier = Modifier
-                .statusBarsPadding()
-                .padding(top = 12.dp)
+//                .statusBarsPadding()
+//                .padding(top = 12.dp)
+                .windowInsetsPadding(
+                    WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)
+                )
+                .padding(bottom = 12.dp)
                 .zIndex(1000f)
         )
     }

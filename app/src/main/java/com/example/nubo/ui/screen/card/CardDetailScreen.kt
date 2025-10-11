@@ -170,48 +170,6 @@ fun CardDetailScreen(
 
                 Spacer(Modifier.height(bottomSafe))
             }
-
-//            // ===== 말풍선 오버레이 =====
-//            if (infoState is InfoUiState.Visible) {
-//                // Tap outside to dismiss
-//                Box(
-//                    Modifier
-//                        .fillMaxSize()
-//                        .background(Color.Black.copy(alpha = 0.12f))
-//                        .clickable(
-//                            indication = null,
-//                            interactionSource = remember { MutableInteractionSource() }
-//                        ) { viewModel.hideInfoBubble() }
-//                ) {
-//                    // Bubble itself (click-through blocked)
-//                    Box(
-//                        Modifier
-//                            .align(Alignment.TopCenter)
-//                            .padding(top = 40.dp)   // 썸네일 위 여백 조절
-//                            .clickable(
-//                                indication = null,
-//                                interactionSource = remember { MutableInteractionSource() }
-//                            ) { /* consume */ }
-//                    ) {
-//                        InfoBubble(
-//                            title = "#${item.boardName}",           // 예: #요리 레시피
-//                            subtitleLeft = "AI 카테고리",
-//                            centerValue = item.createdAt,            // 예: 2024.03.03
-//                            subtitleCenter = "저장한 날짜",
-//                            subtitleRight = "저장 플랫폼",
-//                            savedPlatformResId = when (item.videoPlatform.uppercase()) {
-//                                "YOUTUBE" -> R.drawable.youtube_logo
-//                                "INSTAGRAM" -> R.drawable.btn_google_logo
-//                                else -> R.drawable.basic_profile_image
-//                            },
-//                        )
-//                    }
-//                }
-//            }
-//
-
-
-
             // 토스트  아래 중앙 오버레이
             AppToastHost(
                 hostState = toastHost,
@@ -303,35 +261,6 @@ private fun ImageWithButton(
                 .clip(RoundedCornerShape(7.dp)),
             contentScale = ContentScale.Crop,
         )
-
-//        Box(
-//            Modifier
-//                .align(Alignment.TopEnd)
-//                .padding(top = 17.dp, end = 17.dp)
-//        ) {
-//            CompositionLocalProvider(
-//                LocalMinimumInteractiveComponentEnforcement provides false // disable 48dp enforcement
-//            ) {
-//                IconButton(
-//                    onClick = onInfoClick,
-//                    modifier = Modifier
-//                        .align(Alignment.TopEnd)
-//                        .size(20.dp)
-//                        .clip(RoundedCornerShape(8.dp))
-//                        .background(Color.Black.copy(alpha = 0.5f))
-//                ) {
-//                    Icon(
-//                        painter = painterResource(R.drawable.info),
-//                        contentDescription = "Info",
-//                        tint = Color.White,
-//                        modifier = Modifier.size(22.dp)
-//
-//                    )
-//                }
-//
-//            }
-//
-//        }
 
         Box(
             Modifier

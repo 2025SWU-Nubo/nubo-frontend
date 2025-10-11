@@ -103,10 +103,34 @@ fun HomeScreen(
     val recentBoards by vm.recentBoards.observeAsState(emptyList())
 
     LaunchedEffect(Unit) {
-        vm.loadBoards()
-        vm.loadRecentBoards()
-        vm.refreshForCurrentSelection()
+        vm.refreshAll()
     }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var firstResumeConsumed by rememberSaveable { mutableStateOf(false) }
+
+    DisposableEffect(lifecycleOwner) {
+        // observe ON_RESUME to refresh whenever returning to Home
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                // avoid double call right after first composition
+                if (firstResumeConsumed) {
+                    vm.refreshForCurrentSelection()
+                    vm.loadRecentBoards()
+                } else {
+                    firstResumeConsumed = true
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+//    LaunchedEffect(Unit) {
+//        vm.loadBoards()
+//        vm.loadRecentBoards()
+//        vm.refreshForCurrentSelection()
+//    }
 
     Scaffold(
         topBar = {

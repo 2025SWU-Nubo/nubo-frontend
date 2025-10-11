@@ -7,6 +7,7 @@ import com.example.nubo.data.model.RegisterDeviceTokenRequest
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.HTTP
+import retrofit2.http.Header
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -37,5 +38,19 @@ interface NotificationService {
     @HTTP(method = "DELETE", path = "/api/push/device-token", hasBody = true)
     suspend fun deleteDeviceToken(
         @Body body: DeleteDeviceTokenRequest
+    ): Unit
+
+    @POST("/api/board/invitation/{invitationId}/accept")
+    suspend fun acceptInvitation(
+        @Header("Authorization") bearer: String,
+        @Header("Accept") accept: String = "application/json",
+        @Path("invitationId") invitationId: Int,
+    ): Unit
+
+    @POST("/api/board/invitation/{invitationId}/reject")
+    suspend fun rejectInvitation(
+        @Header("Authorization") bearer: String,
+        @Header("Accept") accept: String = "application/json",
+        @Path("invitationId") invitationId: Int,
     ): Unit
 }

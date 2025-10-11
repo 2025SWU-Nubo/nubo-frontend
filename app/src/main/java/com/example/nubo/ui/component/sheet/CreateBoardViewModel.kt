@@ -127,4 +127,6 @@ class CreateBoardViewModel @Inject constructor(
     fun consumeCreated() {
         _ui.update { it.copy(created = null, name = "", isShared = false) }
     }
+
+
 }

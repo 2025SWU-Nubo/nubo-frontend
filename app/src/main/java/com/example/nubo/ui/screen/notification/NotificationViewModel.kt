@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.nubo.data.model.AppNotification
 import com.example.nubo.data.model.AppNotificationType
 import com.example.nubo.data.model.NotificationDto
+import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.data.repository.NotificationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -26,22 +27,15 @@ sealed class NotiEvent {
     object GoLearn : NotiEvent()
     object GoNotificationCenter : NotiEvent()
     data class GoBoard(val boardId: String) : NotiEvent()
-    data class InviteAccepted(val invitationId: String, val boardId: String?) : NotiEvent()
-    data class InviteRejected(val invitationId: String, val boardId: String?) : NotiEvent()
+//    data class InviteAccepted(val invitationId: String, val boardId: String?) : NotiEvent()
+//    data class InviteRejected(val invitationId: String, val boardId: String?) : NotiEvent()
 }
 
 @HiltViewModel
 class NotificationViewModel @Inject constructor(
-    private val repository: NotificationRepository
+    private val repository: NotificationRepository,
+    private val authRepository: AuthRepository
 ): ViewModel(){
-
-    // 화면에 보여줄 섹션 상태를 담는 데이터 클래스임
-    data class UiState(
-        val recent: List<AppNotification> = emptyList(), // 0~2일 섹션
-        val past: List<AppNotification> = emptyList(),   // 3~7일 섹션
-        val loading: Boolean = false,                    // 로딩 상태
-        val error: String? = null
-    )
 
     // 화면 상태
     private val _uiState = MutableStateFlow(NotificationFeedState())
@@ -58,9 +52,17 @@ class NotificationViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             _uiState.update { it.copy(loading = true) }
-            runCatching { repository.loadFeed() }
-                .onSuccess { _uiState.value = it }
-                .onFailure { _uiState.update { s -> s.copy(loading = false) } }
+            runCatching {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    // API 26 이상에서만 안전하게 호출
+                    repository.loadFeed()
+                } else {
+                    // 하위 버전용 대체 처리 (예: 빈 리스트 반환 또는 다른 계산 방식)
+                    NotificationFeedState(emptyList(),emptyList(),loading = false)
+                }
+            }.onSuccess { feed ->
+                    _uiState.value = feed.copy(loading = false)
+            }.onFailure { _uiState.update { s -> s.copy(loading = false) } }
         }
     }
 
@@ -94,18 +96,84 @@ class NotificationViewModel @Inject constructor(
     }
 
     fun onClickPrimary(item: NotificationItem) {
-        // 초대 수락 버튼
-        if (item.invitationId != null) {
-            emit(NotiEvent.InviteAccepted(item.invitationId, item.boardId))
-            // 실제 API가 있다면 여기서 호출하고 결과에 따라 목록 새로고침
+
+        if (item.invitationId == null) return
+
+        viewModelScope.launch {
+            val token = authRepository.getAccessToken()?: return@launch
+
+            val invId: Int = when (val raw = item.invitationId) {
+                is Int -> raw
+                is String -> raw.toIntOrNull() ?: return@launch
+                else -> return@launch
+            }
+
+
+            runCatching { repository.acceptInvitation(token, invId) }
+            .onSuccess {
+                applyInviteResultLocally(
+                    notificationId = item.notificationId,
+                    accepted = true,
+                    invitationId = item.invitationId
+                )
+
+                // 성공 시 목록에서 해당 초대 알림 제거 또는 상태 갱신
+//                applyInviteResultLocally(notificationId = item.notificationId, accepted = true)
+            }.onFailure {
+
+            }
         }
     }
 
     fun onClickSecondary(item: NotificationItem) {
-        // 초대 거절 버튼
-        if (item.invitationId != null) {
-            emit(NotiEvent.InviteRejected(item.invitationId, item.boardId))
-            // 실제 API가 있다면 여기서 호출하고 결과에 따라 목록 새로고침
+        if (item.invitationId == null) return
+
+        viewModelScope.launch {
+            val token = authRepository.getAccessToken() ?: return@launch
+
+            val invId: Int = when (val raw = item.invitationId) {
+                is Int -> raw
+                is String -> raw.toIntOrNull() ?: return@launch
+                else -> return@launch
+            }
+
+            runCatching { repository.rejectInvitation(token, invId) }
+            .onSuccess {
+                applyInviteResultLocally(
+                    notificationId = item.notificationId,
+                    accepted = false,
+                    invitationId = item.invitationId
+                )
+            }.onFailure {
+            }
+        }
+    }
+
+    // 초대 수락/거절 성공 시 로컬 목록 반영
+    // 알림을 목록에서 제거
+    private fun applyInviteResultLocally(
+        notificationId: String?,
+        accepted: Boolean,
+        invitationId: Any? = null
+    ) {
+        _uiState.update { s ->
+        fun List<NotificationItem>.removeTarget(): List<NotificationItem> = filterNot { it ->
+            val hitByNotiId = notificationId != null && it.notificationId == notificationId
+            val hitByInviteId = invitationId?.let { inv ->
+                val target = it.invitationId?.toString()
+                val want = when (inv) {
+                    is Int -> inv.toString()
+                    is String -> inv
+                    else -> null
+                }
+                target != null && want != null && target == want
+            } ?: false
+            hitByNotiId || hitByInviteId
+        }
+            s.copy(
+            recent = s.recent.removeTarget(),
+            past   = s.past.removeTarget()
+            )
         }
     }
 

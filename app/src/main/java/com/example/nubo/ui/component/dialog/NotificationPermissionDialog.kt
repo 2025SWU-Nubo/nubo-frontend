@@ -9,93 +9,123 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import com.example.nubo.ui.theme.AppTextStyles
+import com.example.nubo.ui.theme.Grey10
+import com.example.nubo.ui.theme.Grey30
+import com.example.nubo.ui.theme.GreyMain100
+import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.PurpleMain500
 
-
+/**
+ * 재사용 가능한 2버튼 기본 다이얼로그
+ *
+ * - 용도: 제목 + 본문 1~3줄 + 버튼 2개(주/부) 패턴을 통일하기 위한 컴포넌트
+ * - visible 이 false면 렌더링하지 않음
+ * - body1~3은 필요한 줄만 채워서 전달
+ * - 색상/라운드 등은 파라미터로 조절 가능
+ */
 @Composable
-fun NotificationPermissionDialog(
+fun TwoButtonBasicDialog(
+    // 표시 여부
     visible: Boolean,
-    onAllow: () -> Unit,
-    onLater: () -> Unit,
-    onDismiss: () -> Unit
+
+    // 텍스트 영역
+    title: String,
+    body1: String? = null,
+    body2: String? = null,
+    body3: String? = null,
+
+    // 버튼 라벨 (항상 2개)
+    primaryButtonText: String,
+    secondaryButtonText: String,
+
+    // 콜백
+    onPrimaryClick: () -> Unit,
+    onSecondaryClick: () -> Unit,
+    onDismiss: () -> Unit,
+
+    // 스타일 옵션(필요 시 오버라이드)
+    containerColor: Color = Color.White,
+    primaryContainerColor: Color = PurpleMain500,
+    primaryContentColor: Color = Color.White,
+    secondaryContainerColor: Color = Grey30,
+    secondaryContentColor: Color = GreyMain300,
+    titleColor: Color = Color.Black,
+    bodyColor: Color = Color.Black,
+    captionColor: Color = GreyMain300,
+    shapeRadiusDp: Int = 18,
 ) {
+    // false면 아무것도 그리지 않음 (성능/의도 명확화)
     if (!visible) return
 
+    // 바깥 영역 터치 시 onDismiss 호출
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(shapeRadiusDp.dp),
             tonalElevation = 6.dp,
             shadowElevation = 12.dp,
-            color = Color.White
+            color = containerColor
         ) {
             Column(
                 modifier = Modifier
-                    .widthIn(min = 300.dp, max = 400.dp)
+                    .widthIn(min = 300.dp, max = 400.dp)   // 모바일 기준 적정 폭 한정
                     .padding(horizontal = 24.dp, vertical = 22.dp)
             ) {
                 // 제목
-                Text(
-                    text = "알림 권한 설정",
-                    style = AppTextStyles.b1_bold_18,
-                    color = Color.Black
-                )
+                Text(text = title, style = AppTextStyles.b1_bold_18, color = titleColor)
 
+                // 본문 (최대 3줄, 전달된 줄만 노출)
                 Spacer(Modifier.height(12.dp))
 
-                // 질문 문장
-                Text(
-                    text = "카드 업로드 완료 알림을 켤까요?",
-                    style = AppTextStyles.b2_medium_16,
-                    color = Color.Black
-                )
+                body1?.let {
+                    Text(text = it, style = AppTextStyles.b2_medium_16, color = bodyColor)
+                    Spacer(Modifier.height(6.dp))
+                }
+                body2?.let {
+                    Text(text = it, style = AppTextStyles.b3_medium_14, color = captionColor)
+                    Spacer(Modifier.height(6.dp))
+                }
+                body3?.let {
+                    Text(text = it, style = AppTextStyles.b3_medium_14, color = captionColor)
+                    Spacer(Modifier.height(6.dp))
+                }
 
-                Spacer(Modifier.height(6.dp))
-
-                // 보조 설명
-                Text(
-                    text = "알림을 켜면 업로드가 끝났을 때 바로 알려드려요.",
-                    style = AppTextStyles.b3_medium_14,
-                    color = com.example.nubo.ui.theme.GreyMain300
-                )
-
+                // 버튼 영역 (우측 정렬)
                 Spacer(Modifier.height(18.dp))
-
-                // 버튼들 (우측 정렬)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    // 나중에 (회색 필드형)
+                    // 보조 버튼 (회색)
                     Button(
-                        onClick = onLater,
+                        onClick = onSecondaryClick,
                         shape = RoundedCornerShape(24.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = com.example.nubo.ui.theme.Grey10,
-                            contentColor = com.example.nubo.ui.theme.GreyMain100
+                            containerColor = secondaryContainerColor,
+                            contentColor = secondaryContentColor
                         ),
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         modifier = Modifier.height(40.dp)
                     ) {
-                        Text("나중에", style = AppTextStyles.b3_medium_14)
+                        Text(secondaryButtonText, style = AppTextStyles.b3_medium_14)
                     }
 
                     Spacer(Modifier.width(8.dp))
 
-                    // 알림 켜기 (보라 메인)
+                    // 기본 버튼 (보라)
                     Button(
-                        onClick = onAllow,
+                        onClick = onPrimaryClick,
                         shape = RoundedCornerShape(24.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = PurpleMain500,
-                            contentColor = Color.White
+                            containerColor = primaryContainerColor,
+                            contentColor = primaryContentColor
                         ),
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         modifier = Modifier.height(40.dp)
                     ) {
-                        Text("알림 켜기", style = AppTextStyles.b3_medium_14)
+                        Text(primaryButtonText, style = AppTextStyles.b3_medium_14)
                     }
                 }
             }
@@ -103,4 +133,51 @@ fun NotificationPermissionDialog(
     }
 }
 
+/**
+ * 기존 NotificationPermissionDialog 호환용 래퍼
+ *
+ * - 내부적으로 TwoButtonBasicDialog를 사용
+ * - 기존 호출부를 변경하지 않아도 동일 동작
+ */
+@Composable
+fun NotificationPermissionDialog(
+    visible: Boolean,
+    onAllow: () -> Unit,
+    onLater: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    TwoButtonBasicDialog(
+        visible = visible,
+        title = "알림 권한 설정",
+        body1 = "카드 업로드 완료 알림을 켤까요?",
+        body2 = "알림을 켜면 업로드가 끝났을 때 바로 알려드려요.",
 
+        primaryButtonText = "알림 켜기",
+        secondaryButtonText = "나중에",
+
+        onPrimaryClick = onAllow,
+        onSecondaryClick = onLater,
+        onDismiss = onDismiss
+    )
+}
+
+@Composable
+fun EditCardAlertDialog(
+    visible: Boolean,
+    onKeepEditing: () -> Unit,
+    onDiscardAndExit: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    TwoButtonBasicDialog(
+        visible = visible,
+        title = "변경 내용 취소",
+        body1 = "저장하지 않으면 요약 노트 수정 사항이 모두 사라져요.",
+
+        primaryButtonText = "계속 편집",
+        secondaryButtonText = "취소",
+
+        onPrimaryClick = onKeepEditing, // 편집 유지
+        onSecondaryClick = onDiscardAndExit,       // 변경 폐기 후 나가기
+        onDismiss = onDismiss
+    )
+}

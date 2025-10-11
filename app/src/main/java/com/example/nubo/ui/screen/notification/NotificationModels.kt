@@ -24,12 +24,14 @@ data class NotificationItem(
     val action: NotiAction? = null,
     val boardId: String? = null,
     val cardId: String? = null,
-    val invitationId: String? = null
+    val invitationId: Int? = null
 )
 
 // 화면 전체 상태(Recent/Past 섹션 + 로딩)
 data class NotificationFeedState(
     val recent: List<NotificationItem> = emptyList(),
     val past: List<NotificationItem> = emptyList(),
-    val loading: Boolean = false
+    val loading: Boolean = false,
+    val actionLoadingIds: Set<String> = emptySet()
 )
+

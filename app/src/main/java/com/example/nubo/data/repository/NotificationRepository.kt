@@ -75,6 +75,14 @@ class NotificationRepository @Inject constructor(
         }
     }
 
+    suspend fun acceptInvitation(token: String, invitationId: Int) {
+        return api.acceptInvitation("Bearer $token", "application/json", invitationId)
+    }
+
+    suspend fun rejectInvitation(token: String,invitationId: Int) {
+         return api.rejectInvitation("Bearer $token", "application/json", invitationId)
+    }
+
     // 최근 7일 알림을 서버에서 가져와 화면에서 바로 쓰는 FeedState까지 만들어 반환함
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun loadFeed(
