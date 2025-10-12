@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -150,6 +151,7 @@ fun CardDetailScreen(
                     .verticalScroll(scrollState),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                Spacer(Modifier.height(8.dp))
                 ImageWithButton(
                     item = item,
                     onInfoClick = {
@@ -230,8 +232,15 @@ private fun CustomTopBar(
                 )
             }
         },
-
-
+        modifier = Modifier.drawBehind {
+            val y = size.height
+            drawLine(
+                color = Grey50,
+                start = androidx.compose.ui.geometry.Offset(0f, y),
+                end   = androidx.compose.ui.geometry.Offset(size.width, y),
+                strokeWidth = 1.dp.toPx()
+            )
+        }
     )
 }
 

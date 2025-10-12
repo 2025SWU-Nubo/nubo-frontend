@@ -42,6 +42,12 @@ import kotlinx.coroutines.delay
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Dp
+import com.example.nubo.ui.theme.Grey200
+import com.example.nubo.ui.theme.Grey50
+import com.example.nubo.ui.theme.GreyMain100
 
 
 // ===== Models =====
@@ -111,11 +117,22 @@ fun NotificationScreen(
                     }) {
                         Text(text = "설정", style = AppTextStyles.b2_semibold_16, color = Color.Black)
                     }
+                },
+                modifier = Modifier.drawBehind {
+                    val y = size.height
+                    drawLine(
+                        color = Grey50,
+                        start = androidx.compose.ui.geometry.Offset(0f, y),
+                        end   = androidx.compose.ui.geometry.Offset(size.width, y),
+                        strokeWidth = 1.dp.toPx()
+                    )
                 }
             )
         },
+
     ) { inner ->
         val navPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
 
         LazyColumn(
             state = listState,
@@ -220,7 +237,7 @@ fun NotificationScreen(
 
             // ===== 지난 알림 섹션 =====
             item { Spacer(Modifier.height(12.dp)) }
-            item { SectionSub("지난 알림") }
+//            item {  }
 
             // ===== 지난 알림 리스트 =====
             val visiblePastItems = state.past.take(expandedPastCount)
@@ -228,6 +245,8 @@ fun NotificationScreen(
                 visiblePastItems,
                 key = { _, it -> notiStableKey("past", it) }
             ) { _, item ->
+                SectionSub("지난 알림")
+
                 val loading = item.notificationId in state.actionLoadingIds
                 NotiCard(
                     item = item,
@@ -312,6 +331,11 @@ fun NotificationScreen(
                     Spacer(Modifier.height(navPadding + 16.dp))
                 }
             }
+
+            item { CenterLabelDivider(label = "7일 전 알림까지 확인할 수 있어요",
+                lineColor = Grey50,
+                labelColor = Grey200) }
+
         }
     }
 }
@@ -455,8 +479,6 @@ private fun NotiCard(
 }
 
 // ===== Custom Buttons =====
-
-// English comments only.
 @Composable
 fun NuboPrimaryButton(
     label: String,
@@ -488,16 +510,47 @@ fun NuboPrimaryButton(
 }
 
 @Composable
-fun NuboGhostButton(
+fun CenterLabelDivider(
     label: String,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    contentColor: Color = MaterialTheme.colorScheme.primary,
+    lineColor: Color = GreyMain100, // = Grey10 정도
+    lineThickness: Dp = 1.dp,
+    labelPadding: Dp = 12.dp,
+    labelColor: Color = GreyMain300, // = GreyMain300 정도
+    textStyle: TextStyle = AppTextStyles.label_semibold_14 // 프로젝트 스타일에 맞게
 ) {
-    TextButton(onClick = onClick, modifier = modifier) {
-        Text(text = label, style = AppTextStyles.b2_bold_16, color = contentColor)
+    Row(
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Left line
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(lineThickness)
+                .background(lineColor)
+        )
+
+        // Center label
+        Text(
+            text = label,
+            style = textStyle,
+            color = labelColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = labelPadding)
+        )
+
+        // Right line
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(lineThickness)
+                .background(lineColor)
+        )
     }
 }
+
 
 // LazyColumn 아이템 고유키 생성 (섹션별 네임스페이스 + 복합키)
 //  - notificationId가 비거나 중복일 수 있으므로 invitationId, type까지 섞음

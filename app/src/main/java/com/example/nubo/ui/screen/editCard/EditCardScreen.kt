@@ -44,6 +44,7 @@ import com.mohamedrejeb.richeditor.model.rememberRichTextState
 import com.mohamedrejeb.richeditor.ui.material3.RichTextEditor
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
@@ -57,6 +58,7 @@ import com.example.nubo.ui.component.dialog.EditCardAlertDialog
 import com.example.nubo.ui.screen.editCard.widgets.AiPromptBar
 import com.example.nubo.ui.screen.editCard.widgets.MarkdownToolbar
 import com.example.nubo.ui.screen.editCard.widgets.NoSelectionToolbar
+import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Grey700
 import com.mohamedrejeb.richeditor.ui.material3.RichTextEditorDefaults
 
@@ -247,6 +249,15 @@ fun EditCardScreen(
                     ) {
                         Text(text = "완료", style = AppTextStyles.b1_bold_18, color = PurpleMain500)
                     }
+                },
+                modifier = Modifier.drawBehind {
+                    val y = size.height
+                    drawLine(
+                        color = Grey50,
+                        start = androidx.compose.ui.geometry.Offset(0f, y),
+                        end   = androidx.compose.ui.geometry.Offset(size.width, y),
+                        strokeWidth = 1.dp.toPx()
+                    )
                 }
             )
         },
