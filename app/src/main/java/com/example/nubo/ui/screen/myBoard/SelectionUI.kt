@@ -790,7 +790,7 @@ fun BoardEditSheet(
             .height(500.dp)
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = 18.dp),
+            .padding(start = 18.dp,end=18.dp,top=13.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // --- 헤더: 뒤로가기 + 타이틀 ---

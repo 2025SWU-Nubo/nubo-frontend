@@ -94,7 +94,7 @@ fun BoardDetailScreen(
     boardId: Int,
     boardTitle: String,
     navController: NavController,
-    source: String,
+    source: String?,
     viewModel: BoardDetailViewModel = hiltViewModel(),
     myCardViewModel: MyCardViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
@@ -394,7 +394,7 @@ fun BoardDetailScreen(
                     // 현재 보드 정보가 있을 때만 설정 화면을 보여줌
                     ui.board?.let { currentBoard ->
                         BoardEditSheet(
-                            source = currentBoard.source,
+                            source = source,
                             currentName = currentBoard.name,
                             isCurrentlyShared = currentBoard.shared,
                             onBack = {
