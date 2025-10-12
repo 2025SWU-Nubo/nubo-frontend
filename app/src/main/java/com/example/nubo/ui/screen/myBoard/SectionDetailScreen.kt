@@ -1,5 +1,8 @@
 package com.example.nubo.ui.screen.myBoard
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,6 +56,7 @@ import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.ui.theme.PurpleMain500
+import com.example.nubo.ui.theme.RedError
 import kotlinx.coroutines.launch
 
 @Composable
@@ -71,6 +75,9 @@ fun SectionDetailScreen(
     // 섹션 상세 화면에서는 카드만 선택 가능
     var selectedCards by remember { mutableStateOf(emptySet<Int>()) }
 
+    // 바텀 시트 타입을 관리할 상태 추가
+    var bottomSheetType by remember { mutableStateOf(BottomSheetType.NONE) }
+
     // --- 선택 모드 바텀바 관련 변수 ---
     var showBoardSelector by remember { mutableStateOf(false) }
     var currentAction by remember { mutableStateOf<BoardAction?>(null) }
@@ -81,6 +88,7 @@ fun SectionDetailScreen(
         showBoardSelector = false
         currentAction = null
         selectedCards = emptySet()
+        bottomSheetType = BottomSheetType.NONE
     }
     // -----------------------------------------\
 
@@ -154,24 +162,20 @@ fun SectionDetailScreen(
                     navController.previousBackStackEntry?.savedStateHandle?.set("renamed_section_id", sectionId)
                     navController.previousBackStackEntry?.savedStateHandle?.set("renamed_section_name", latestName)
                     navController.popBackStack()
-                })
+                },// 메뉴 버튼 클릭 시 보드 설정 바텀 시트 표시
+                    onMenuClick = { bottomSheetType = BottomSheetType.SECTION_SETTINGS },
+                    isSelectionMode = isSelectionMode)
                 // 패딩 조절된 TitleBar 사용
                 BoardTitleBar(
-                    title = detailState?.name ?: sectionTitle,
-                    isSelectionMode = isSelectionMode,
-                    source = "USER",
-                    onClick = {
-                        dialogMode = InputDialogMode.Rename(
-                            sectionId = sectionId,
-                            currentName = detailState?.name ?: sectionTitle
-                        )
-                    })
+                    title = detailState?.name ?: sectionTitle,)
 
                 SectionFilterButton(
                     favoriteSelected = ui.favoriteOnly,
                     onToggleFavorite = { enabled -> viewModel.setFavoriteFilter(enabled) },
                     onSelectClick = {
-                        if (isSelectionMode) resetSelectionState() else isSelectionMode = true
+                        if (isSelectionMode) resetSelectionState()
+                        else {isSelectionMode = true
+                              bottomSheetType = BottomSheetType.SELECTION}
                     },
                     onRequestSort = { sortKey -> viewModel.setSort(sortKey) },
                     isSelectionMode = isSelectionMode
@@ -203,62 +207,86 @@ fun SectionDetailScreen(
                 }
             }
         }
-        // 선택 모드 바텀 바
-        SelectionBottomBar(
-            modifier = Modifier.align(Alignment.BottomCenter),
-            isVisible = isSelectionMode,
-            showBoardSelector = showBoardSelector,
-            actionsContent = {
-                ActionsContent(
-                    selectedSectionCount = 0, // 섹션 상세에서는 카드만 선택
-                    selectedCardCount = selectedCards.size,
-                    onDeleteClick = { showDeleteDialog = true },
-                    onCopyClick = {
-                        currentAction = BoardAction.COPY
-                        showBoardSelector = true
-                        viewModel.loadBoards()
-                    },
-                    onMoveClick = {
-                        currentAction = BoardAction.MOVE
-                        showBoardSelector = true
-                        viewModel.loadBoards()
-                    }
-                )
-            },
-            boardSelectorContent = {
-                BoardSelectionSheetContent(
-                    action = currentAction ?: BoardAction.COPY,
-                    boardsState = boardsState,
-                    onBack = { showBoardSelector = false },
-                    onConfirm = { selectedId -> // selectedTargetIds -> selectedId (타입: String?)
-                        // selectedId가 null이 아닐 때만 로직 실행
-                        selectedId?.let { targetId ->
-                            when (currentAction) {
-                                BoardAction.COPY -> {
-                                    viewModel.copySelectedItems(
-                                        targetBoardId = targetId.toLong(),
-                                        selectedSectionIds = emptySet(),
-                                        selectedCardIds = selectedCards
-                                    )
+        // 바텀 시트 로직을 bottomSheetType에 따라 분기하여 표시
+        AnimatedVisibility(
+            visible = bottomSheetType != BottomSheetType.NONE,
+            enter = slideInVertically(initialOffsetY = { it }),
+            exit = slideOutVertically(targetOffsetY = { it }),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            when (bottomSheetType) {
+                BottomSheetType.SELECTION -> {
+                    // 기존 선택 모드 바텀 시트
+                    SelectionBottomBar(
+                        isVisible = true,
+                        showBoardSelector = showBoardSelector,
+                        actionsContent = {
+                            ActionsContent(
+                                selectedSectionCount = 0, // 섹션 상세에서는 카드만 선택
+                                selectedCardCount = selectedCards.size,
+                                onDeleteClick = { showDeleteDialog = true },
+                                onCopyClick = {
+                                    currentAction = BoardAction.COPY
+                                    showBoardSelector = true
+                                    viewModel.loadBoards()
+                                },
+                                onMoveClick = {
+                                    currentAction = BoardAction.MOVE
+                                    showBoardSelector = true
+                                    viewModel.loadBoards()
                                 }
-
-                                BoardAction.MOVE -> {
-                                    viewModel.moveSelectedItems(
-                                        targetBoardId = targetId.toLong(),
-                                        selectedSectionIds = emptySet(),
-                                        selectedCardIds = selectedCards
-                                    )
+                            )
+                        },
+                        boardSelectorContent = {
+                            BoardSelectionSheetContent(
+                                action = currentAction ?: BoardAction.COPY,
+                                boardsState = boardsState,
+                                onBack = { showBoardSelector = false },
+                                onConfirm = { selectedId ->
+                                    selectedId?.let { targetId ->
+                                        when (currentAction) {
+                                            BoardAction.COPY -> {
+                                                viewModel.copySelectedItems(
+                                                    targetBoardId = targetId.toLong(),
+                                                    selectedSectionIds = emptySet(),
+                                                    selectedCardIds = selectedCards
+                                                )
+                                            }
+                                            BoardAction.MOVE -> {
+                                                viewModel.moveSelectedItems(
+                                                    targetBoardId = targetId.toLong(),
+                                                    selectedSectionIds = emptySet(),
+                                                    selectedCardIds = selectedCards
+                                                )
+                                            }
+                                            null -> {}
+                                        }
+                                    }
+                                    resetSelectionState()
                                 }
-
-                                null -> {}
-                            }
+                            )
                         }
-                        // 작업 완료 후 선택 모드 초기화
-                        resetSelectionState()
-                    }
-                )
+                    )
+                }
+
+                BottomSheetType.SECTION_SETTINGS -> {
+                    // 새로 추가된 섹션 설정 바텀 시트
+                    SectionSettingsContent(
+                        onRenameClick = {
+                            // 이름 변경 버튼 클릭 시 다이얼로그 띄우기
+                            dialogMode = InputDialogMode.Rename(
+                                sectionId = sectionId,
+                                currentName = ui.board?.name ?: sectionTitle
+                            )
+                            // 바텀 시트 닫기
+                            bottomSheetType = BottomSheetType.NONE
+                        },
+                        onDismiss = { bottomSheetType = BottomSheetType.NONE }
+                    )
+                }
+                else -> {}
             }
-        )
+        }
         // 이름 변경 다이얼로그
         when (val m = dialogMode) {
             is InputDialogMode.Rename -> NuboInputDialog(
@@ -275,7 +303,7 @@ fun SectionDetailScreen(
                     Text(
                         text = "섹션 이름을 2자 이상 입력해주세요.",
                         style = AppTextStyles.b3_regular_14,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = RedError,
                         modifier = Modifier.padding(top = 4.dp, start = 16.dp)
                     )
                 }
