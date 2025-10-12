@@ -24,6 +24,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -47,10 +48,17 @@ import com.example.nubo.ui.screen.card.CardDetailViewModel
 import com.example.nubo.ui.screen.editCard.EditCardRoute
 import com.example.nubo.ui.screen.home.HomeScreen
 import com.example.nubo.ui.screen.learn.LearnScreen
+import com.example.nubo.ui.screen.myBoard.ActionsContent
+import com.example.nubo.ui.screen.myBoard.BoardAction
 import com.example.nubo.ui.screen.myBoard.BoardDetailScreen
+import com.example.nubo.ui.screen.myBoard.BoardDetailViewModel
+import com.example.nubo.ui.screen.myBoard.BoardSelectionSheetContent
+import com.example.nubo.ui.screen.myBoard.DeleteConfirmationDialog
+import com.example.nubo.ui.screen.myBoard.MyBoardRoute
 import com.example.nubo.ui.screen.myBoard.MyBoardScreen
 import com.example.nubo.ui.screen.notification.NotiEvent
 import com.example.nubo.ui.screen.myBoard.SectionDetailScreen
+import com.example.nubo.ui.screen.myBoard.SelectionBottomBar
 import com.example.nubo.ui.screen.notification.NotificationScreen
 import com.example.nubo.ui.screen.notification.NotificationViewModel
 import com.example.nubo.ui.screen.onBoardingLogin.OnBoardingLoginActivity
@@ -67,6 +75,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
@@ -173,6 +182,9 @@ fun MainScreen(
     val isEditScreen = currentRoute?.startsWith("card_edit") == true
     val isCardDetail = currentRoute?.startsWith("card_detail") == true
 
+    // MyBoardScreen이 선택 모드일 때, Main의 하단 바를 숨기기 위한 상태
+    var isMyBoardSelectionMode by remember { mutableStateOf(false) }
+
     // Hide BottomNav on detail-like screens
     val showBottomBar = currentRoute in listOf(
         "home", "myboard", "add", "learn", "profile", "information"
@@ -192,22 +204,23 @@ fun MainScreen(
             ScaffoldDefaults.contentWindowInsets
         },
         bottomBar = {
-            if (showBottomBar) {
-                BottomNavBar(
-                    selectedIndex = getSelectedIndex(currentRoute),
-                    onItemSelected = { index ->
-                        when (index) {
-                            0 -> navController.navigate("home") { popUpTo("home"); launchSingleTop = true }
-                            1 -> navController.navigate("myboard") { popUpTo("home"); launchSingleTop = true }
-                            2 -> sheetRoute = SheetRoute.AddMenu
-                            3 -> navController.navigate("learn") { popUpTo("home"); launchSingleTop = true }
-                            4 -> navController.navigate("profile") { popUpTo("home"); launchSingleTop = true }
-                        }
-                    },
-                    isLearnScreen = (currentRoute == "learn"),
-                    modifier = Modifier.navigationBarsPadding()
-                )
-            }
+            // showBottomBar가 true이고, MyBoard가 선택모드가 아닐 때만 BottomNavBar를 보여줌
+            if (showBottomBar && !isMyBoardSelectionMode) {
+                    BottomNavBar(
+                        selectedIndex = getSelectedIndex(currentRoute),
+                        onItemSelected = { index ->
+                            when (index) {
+                                0 -> navController.navigate("home") { popUpTo("home"); launchSingleTop = true }
+                                1 -> navController.navigate("myboard") { popUpTo("home"); launchSingleTop = true }
+                                2 -> sheetRoute = SheetRoute.AddMenu
+                                3 -> navController.navigate("learn") { popUpTo("home"); launchSingleTop = true }
+                                4 -> navController.navigate("profile") { popUpTo("home"); launchSingleTop = true }
+                            }
+                        },
+                        isLearnScreen = (currentRoute == "learn"),
+                        modifier = Modifier.navigationBarsPadding()
+                    )
+                }
         }
     ) { innerPadding ->
             NavHost(
@@ -240,11 +253,15 @@ fun MainScreen(
                 }
 
                 composable("myboard") {
-                    MyBoardScreen(
+                    // MyBoardRoute를 호출
+                    MyBoardRoute(
                         navController = navController,
                         modifier = Modifier
                             .padding(innerPadding)
-                            .statusBarsPadding()
+                            .statusBarsPadding(),
+                        onSelectionModeChange = { inSelectionMode ->
+                            isMyBoardSelectionMode = inSelectionMode
+                        }
                     )
                 }
 
@@ -272,7 +289,7 @@ fun MainScreen(
                 ) { backStackEntry ->
                     val boardId = backStackEntry.arguments?.getInt("boardId") ?: return@composable
                     val boardTitle = backStackEntry.arguments?.getString("boardTitle") ?: "로딩 중..."
-                    // [수정] source 값을 backStackEntry에서 추출
+                    // source 값을 backStackEntry에서 추출
                     val source = backStackEntry.arguments?.getString("source") ?: "USER" // 기본값을 "USER"로 설정
                     BoardDetailScreen(
                         boardId = boardId,

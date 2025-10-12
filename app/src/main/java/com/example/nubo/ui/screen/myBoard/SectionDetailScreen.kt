@@ -1,5 +1,6 @@
 package com.example.nubo.ui.screen.myBoard
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -91,6 +92,11 @@ fun SectionDetailScreen(
         bottomSheetType = BottomSheetType.NONE
     }
     // -----------------------------------------\
+
+    // 뒤로가기 버튼으로 선택 모드를 종료할 수 있도록 핸들러 추가
+    BackHandler(enabled = isSelectionMode) {
+        resetSelectionState()
+    }
 
     // 삭제 다이얼로그
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -201,8 +207,10 @@ fun SectionDetailScreen(
                                 navController.navigate("card_detail/$cardId")
                             }
                         },
+                        onCardLongClick = {},
                         isSelectionMode = isSelectionMode,
-                        selectedCardIds = selectedCards
+                        selectedCardIds = selectedCards,
+
                     )
                 }
             }
@@ -234,7 +242,8 @@ fun SectionDetailScreen(
                                     currentAction = BoardAction.MOVE
                                     showBoardSelector = true
                                     viewModel.loadBoards()
-                                }
+                                },
+                                onCancelClick = { resetSelectionState() }
                             )
                         },
                         boardSelectorContent = {

@@ -141,11 +141,13 @@ fun ActionsContent(
     selectedCardCount: Int,
     onDeleteClick: () -> Unit,
     onCopyClick: () -> Unit,
-    onMoveClick: () -> Unit
+    onMoveClick: () -> Unit,
+    onCancelClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .navigationBarsPadding()
             .padding(top = 24.dp, bottom = 40.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -155,8 +157,35 @@ fun ActionsContent(
             selectedCardCount > 0 -> "${selectedCardCount}개의 카드 선택됨"
             else -> "항목 선택"
         }
-        Text(text = title, style = b1_semibold_18)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            // 닫기(X) 아이콘 버튼
+            IconButton(
+                onClick = onCancelClick,
+                modifier = Modifier.size(48.dp) // 충분한 터치 영역 확보
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_close), // ic_close.xml 아이콘 사용
+                    contentDescription = "선택 취소"
+                )
+            }
+
+            Text(
+                text = title,
+                style = b1_semibold_18,
+                modifier = Modifier.weight(1f), // 남은 공간을 모두 차지
+                textAlign = TextAlign.Center
+            )
+            // Spacer를 왼쪽에 두어 제목을 중앙으로
+            Spacer(modifier = Modifier.width(48.dp))
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -551,6 +580,7 @@ fun BoardSelectionSheetContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .navigationBarsPadding()
             .navigationBarsPadding()
             .imePadding(),
         horizontalAlignment = Alignment.CenterHorizontally

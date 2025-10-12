@@ -1,6 +1,7 @@
 package com.example.nubo.ui.screen.myBoard
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -128,6 +129,11 @@ fun BoardDetailScreen(
         bottomSheetType = BottomSheetType.NONE
     }
     // -----------------------------------------
+
+    // 뒤로가기 버튼으로 선택 모드를 종료할 수 있도록 핸들러 추가
+    BackHandler(enabled = isSelectionMode) {
+        resetSelectionState()
+    }
 
     //  다이얼로그 모드 상태
     var dialogMode by remember { mutableStateOf<InputDialogMode?>(null) }
@@ -329,7 +335,8 @@ fun BoardDetailScreen(
                                     currentAction = BoardAction.MOVE
                                     showBoardSelector = true
                                     viewModel.loadBoards()
-                                }
+                                },
+                                onCancelClick = { resetSelectionState() }
                             )
                         },
                         boardSelectorContent = {
