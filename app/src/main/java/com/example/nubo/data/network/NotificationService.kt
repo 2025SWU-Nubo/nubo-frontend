@@ -43,14 +43,14 @@ interface NotificationService {
     @POST("/api/board/invitation/{invitationId}/accept")
     suspend fun acceptInvitation(
         @Header("Authorization") bearer: String,
-        @Header("Accept") accept: String = "application/json",
         @Path("invitationId") invitationId: Int,
-    ): Unit
+        @Header("Accept") accept: String = "application/json",
+    ): retrofit2.Response<Unit>
 
     @POST("/api/board/invitation/{invitationId}/reject")
     suspend fun rejectInvitation(
         @Header("Authorization") bearer: String,
-        @Header("Accept") accept: String = "application/json",
         @Path("invitationId") invitationId: Int,
-    ): Unit
+        @Header("Accept") accept: String = "application/json",
+    ): retrofit2.Response<Unit>
 }

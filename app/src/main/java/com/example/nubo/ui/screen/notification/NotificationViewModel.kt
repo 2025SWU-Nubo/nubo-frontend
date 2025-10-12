@@ -1,6 +1,8 @@
 package com.example.nubo.ui.screen.notification
 
 import android.os.Build
+import android.util.Log
+import android.util.Log.e
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -9,6 +11,7 @@ import com.example.nubo.data.model.AppNotificationType
 import com.example.nubo.data.model.NotificationDto
 import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.data.repository.NotificationRepository
+import com.google.android.material.datepicker.DateValidatorPointBackward.before
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -20,6 +23,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.Instant
+import java.time.temporal.TemporalAdjusters.next
 import javax.inject.Inject
 
 sealed class NotiEvent {
@@ -96,8 +100,10 @@ class NotificationViewModel @Inject constructor(
     }
 
     fun onClickPrimary(item: NotificationItem) {
-
+        Log.d("NOTI", "accept click: nid=${item.notificationId}, iid=${item.invitationId}")
         if (item.invitationId == null) return
+
+        setActionLoading(item.notificationId, true)
 
         viewModelScope.launch {
             val token = authRepository.getAccessToken()?: return@launch
@@ -111,15 +117,19 @@ class NotificationViewModel @Inject constructor(
 
             runCatching { repository.acceptInvitation(token, invId) }
             .onSuccess {
+                Log.d("NOTI", "accept onSuccess")
                 applyInviteResultLocally(
                     notificationId = item.notificationId,
                     accepted = true,
                     invitationId = item.invitationId
                 )
 
+                setActionLoading(item.notificationId, false)
                 // 성공 시 목록에서 해당 초대 알림 제거 또는 상태 갱신
 //                applyInviteResultLocally(notificationId = item.notificationId, accepted = true)
-            }.onFailure {
+            }.onFailure { e ->
+                Log.e("NOTI", "accept onFailure: ${e.javaClass.simpleName}: ${e.message}", e)
+                    setActionLoading(item.notificationId, false)
 
             }
         }
@@ -127,6 +137,8 @@ class NotificationViewModel @Inject constructor(
 
     fun onClickSecondary(item: NotificationItem) {
         if (item.invitationId == null) return
+
+        setActionLoading(item.notificationId, true)
 
         viewModelScope.launch {
             val token = authRepository.getAccessToken() ?: return@launch
@@ -144,7 +156,9 @@ class NotificationViewModel @Inject constructor(
                     accepted = false,
                     invitationId = item.invitationId
                 )
+                setActionLoading(item.notificationId, false)
             }.onFailure {
+                    setActionLoading(item.notificationId, false)
             }
         }
     }
@@ -156,24 +170,30 @@ class NotificationViewModel @Inject constructor(
         accepted: Boolean,
         invitationId: Any? = null
     ) {
+        Log.d("NOTI", "applyInviteResultLocally accepted=$accepted nid=$notificationId iid=$invitationId")
+
         _uiState.update { s ->
-        fun List<NotificationItem>.removeTarget(): List<NotificationItem> = filterNot { it ->
-            val hitByNotiId = notificationId != null && it.notificationId == notificationId
-            val hitByInviteId = invitationId?.let { inv ->
-                val target = it.invitationId?.toString()
-                val want = when (inv) {
-                    is Int -> inv.toString()
-                    is String -> inv
-                    else -> null
-                }
-                target != null && want != null && target == want
-            } ?: false
-            hitByNotiId || hitByInviteId
-        }
+            val wantInv = when (invitationId) {
+                is Int -> invitationId.toString()
+                is String -> invitationId
+                else -> null
+            }?.trim()
+
+            fun List<NotificationItem>.removeTarget(): List<NotificationItem> = filterNot { it ->
+                val byInvitation = !wantInv.isNullOrEmpty() &&
+                    it.invitationId?.toString()?.trim() == wantInv
+
+                val byNotificationId = !notificationId.isNullOrEmpty() &&
+                    it.notificationId == notificationId
+
+                byInvitation || byNotificationId
+            }
+
             s.copy(
-            recent = s.recent.removeTarget(),
-            past   = s.past.removeTarget()
+                recent = s.recent.removeTarget(),
+                past   = s.past.removeTarget()
             )
+
         }
     }
 
@@ -192,5 +212,14 @@ class NotificationViewModel @Inject constructor(
 
     private fun emit(e: NotiEvent) {
         viewModelScope.launch { _events.send(e) }
+    }
+
+    private fun setActionLoading(notificationId: String, loading: Boolean) {
+        _uiState.update { s ->
+            s.copy(
+                actionLoadingIds = if (loading) s.actionLoadingIds + notificationId
+                else s.actionLoadingIds - notificationId
+            )
+        }
     }
 }

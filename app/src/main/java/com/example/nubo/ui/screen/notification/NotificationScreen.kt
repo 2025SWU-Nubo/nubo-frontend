@@ -150,10 +150,15 @@ fun NotificationScreen(
 
             // ===== 최근 알림 리스트 =====
             val visibleRecentItems = state.recent.take(expandedRecentCount)
-            itemsIndexed(visibleRecentItems, key = { _, it -> it.notificationId }) { _, item ->
+            itemsIndexed(
+                visibleRecentItems,
+                key = { _, it -> notiStableKey("recent", it) }
+            ) { _, item ->
+                val loading = item.notificationId in state.actionLoadingIds
                 NotiCard(
                     item = item,
                     tinted = true,
+                    loading = loading,
                     onClick = { onClickItem(item) },
                     onAcceptInvite = { onAcceptInvite(item) },
                     onRejectInvite = { onRejectInvite(item) }
@@ -219,10 +224,15 @@ fun NotificationScreen(
 
             // ===== 지난 알림 리스트 =====
             val visiblePastItems = state.past.take(expandedPastCount)
-            itemsIndexed(visiblePastItems, key = { _, it -> it.notificationId }) { _, item ->
+            itemsIndexed(
+                visiblePastItems,
+                key = { _, it -> notiStableKey("past", it) }
+            ) { _, item ->
+                val loading = item.notificationId in state.actionLoadingIds
                 NotiCard(
                     item = item,
                     tinted = false,
+                    loading = loading,
                     onClick = { onClickItem(item) },
                     onAcceptInvite = { onAcceptInvite(item) },
                     onRejectInvite = { onRejectInvite(item) }
@@ -364,6 +374,7 @@ private fun SectionSub(title: String) {
 private fun NotiCard(
     item: NotificationItem,
     tinted: Boolean,
+    loading: Boolean,
     onClick: () -> Unit,
     onAcceptInvite: () -> Unit,
     onRejectInvite: () -> Unit,
@@ -423,14 +434,16 @@ private fun NotiCard(
                     NuboPrimaryButton(
                         label = action.acceptLabel,
                         onClick = onAcceptInvite,
-                        modifier = Modifier.height(40.dp)
+                        modifier = Modifier.height(40.dp),
+                        enabled = !loading
                     )
                     NuboPrimaryButton(
                         label = action.rejectLabel,
                         onClick = onRejectInvite,
                         modifier = Modifier.height(40.dp),
                         bgColor = Grey30,
-                        contentColor = Grey500
+                        contentColor = Grey500,
+                        enabled = !loading
                     )
                 }
             }
@@ -454,6 +467,7 @@ fun NuboPrimaryButton(
     disabledBgColor: Color = bgColor.copy(alpha = 0.5f),
     contentColor: Color = Color.White,
     disabledContentColor: Color = Color.White.copy(alpha = 0.7f),
+    enabled: Boolean = true,
     shape: androidx.compose.foundation.shape.CornerBasedShape = MaterialTheme.shapes.small,
 ) {
     var pressed by remember { mutableStateOf(false) }
@@ -461,6 +475,7 @@ fun NuboPrimaryButton(
         onClick = onClick,
         shape = shape,
         modifier = modifier,
+        enabled = enabled,
         colors = ButtonDefaults.buttonColors(
             containerColor = if (pressed) pressedBgColor else bgColor,
             contentColor = contentColor,
@@ -484,6 +499,13 @@ fun NuboGhostButton(
     }
 }
 
+// LazyColumn 아이템 고유키 생성 (섹션별 네임스페이스 + 복합키)
+//  - notificationId가 비거나 중복일 수 있으므로 invitationId, type까지 섞음
+private fun notiStableKey(section: String, item: NotificationItem): String {
+    val nid = item.notificationId.ifEmpty { "noNid" }
+    val iid = item.invitationId?.toString() ?: "noIid"
+    return "$section-$nid-$iid-${item.type.name}"
+}
 
 @Preview(showBackground = true, name = "NotificationFeed – Interactive")
 @Composable
