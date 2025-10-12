@@ -15,7 +15,11 @@ data class CardDetailItem(
     val videoPlatform: String,
     val createdAt: String,
     val updatedAt: String,
-    val isFavorite: Boolean
+    val isFavorite: Boolean,
+    // 레벨업 및 열매 관련 정보
+    val stage: Int,
+    val stageUp: Boolean,
+    val berryGained: Boolean
 )
 
 

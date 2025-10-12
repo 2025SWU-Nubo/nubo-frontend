@@ -1,6 +1,10 @@
 package com.example.nubo.ui.screen.myBoard
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -70,11 +74,9 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import com.example.components.toast.AppToastHost
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.rememberAppToastHostState
-import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles.b3_regular_14
 import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey500
@@ -92,6 +94,7 @@ fun BoardDetailScreen(
     boardId: Int,
     boardTitle: String,
     navController: NavController,
+    source: String?,
     viewModel: BoardDetailViewModel = hiltViewModel(),
     myCardViewModel: MyCardViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
@@ -108,6 +111,9 @@ fun BoardDetailScreen(
     var selectedCards by remember { mutableStateOf(emptySet<Int>()) }
     // -----------------------------------------
 
+    // --- 바텀 시트 상태 관리 ---
+    var bottomSheetType by remember { mutableStateOf(BottomSheetType.NONE) }
+
     // --- 선택 모드 바텀바 관련 변수 ---
     var showBoardSelector by remember { mutableStateOf(false) }
     var currentAction by remember { mutableStateOf<BoardAction?>(null) }
@@ -119,13 +125,19 @@ fun BoardDetailScreen(
         currentAction = null
         selectedSections = emptySet()
         selectedCards = emptySet()
+        //바텀 시트 상태도 초기화
+        bottomSheetType = BottomSheetType.NONE
     }
     // -----------------------------------------
 
+    // 뒤로가기 버튼으로 선택 모드를 종료할 수 있도록 핸들러 추가
+    BackHandler(enabled = isSelectionMode) {
+        resetSelectionState()
+    }
+
     //  다이얼로그 모드 상태
     var dialogMode by remember { mutableStateOf<InputDialogMode?>(null) }
-
-    // 삭제 확인 다이얼로그 표시 상태
+    // 삭제 확인 다이얼로그 표시 상태 변수
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     // 진입 시 한 번 초기 로드
@@ -221,16 +233,11 @@ fun BoardDetailScreen(
                     // MyBoardScreen에 새로고침이 필요하다는 신호를 보냄
                     navController.previousBackStackEntry?.savedStateHandle?.set("needs_refresh", true)
 
-                })
+                }, // 메뉴 버튼 클릭 시 보드 설정 바텀 시트 표시
+                    onMenuClick = { bottomSheetType = BottomSheetType.BOARD_SETTINGS },
+                    isSelectionMode = isSelectionMode)
                 BoardTitleBar(
-                    title = ui.board?.name ?: boardTitle,
-                    isSelectionMode = isSelectionMode,
-                    onClick = {
-                        dialogMode = InputDialogMode.Rename(
-                            sectionId = boardId, // 현재 보드 id
-                            currentName = ui.board?.name ?: boardTitle
-                        )
-                    })
+                    title = ui.board?.name ?: boardTitle,)
                 // 즐겨찾기 필터만 뷰모델과 연결 (정렬 버튼은 UI만 유지, 서버 쿼리는 LATEST 고정)
                 BoardFilterButton(
                     favoriteSelected = ui.favoriteOnly,
@@ -240,7 +247,9 @@ fun BoardDetailScreen(
                         if (isSelectionMode) {
                             resetSelectionState() // '취소' 시 모든 선택 상태 초기화
                         } else {
-                            isSelectionMode = true // '선택' 시 선택 모드 시작
+                            isSelectionMode = true
+                            // 선택 모드 진입 시 바텀 시트 타입 설정
+                            bottomSheetType = BottomSheetType.SELECTION
                         }
                     },
                     onRequestSort = { sortKey -> viewModel.setSort(sortKey) },
@@ -299,62 +308,119 @@ fun BoardDetailScreen(
                 }
             }
         }
-        // 선택 모드일 때 화면 하단에 바텀 시트 표시
-        SelectionBottomBar(
-            modifier = Modifier.align(Alignment.BottomCenter),
-            isVisible = isSelectionMode,
-            showBoardSelector = showBoardSelector,
-            actionsContent = {
-                ActionsContent(
-                    selectedSectionCount = selectedSections.size,
-                    selectedCardCount = selectedCards.size,
-                    onDeleteClick = { showDeleteDialog = true },
-                    onCopyClick = {
-                        currentAction = BoardAction.COPY
-                        showBoardSelector = true
-                        viewModel.loadBoards()
-                    },
-                    onMoveClick = {
-                        currentAction = BoardAction.MOVE
-                        showBoardSelector = true
-                        viewModel.loadBoards()
-                    }
-                )
-            },
-            boardSelectorContent = {
-                BoardSelectionSheetContent(
-                    action = currentAction ?: BoardAction.COPY,
-                    boardsState = boardsState,
-                    onBack = { showBoardSelector = false },
-                    onConfirm = { selectedId -> //selectedTargetIds -> selectedId (타입: String?)
-                        // selectedId가 null이 아닐 때만 로직 실행
-                        selectedId?.let { targetId ->
-                            when (currentAction) {
-                                BoardAction.COPY -> {
-                                    viewModel.copySelectedItems(
-                                        targetBoardId = targetId.toLong(),
-                                        selectedSectionIds = selectedSections,
-                                        selectedCardIds = selectedCards
-                                    )
-                                }
+        // 바텀 시트 로직을 bottomSheetType에 따라 분기하여 표시
+        AnimatedVisibility(
+            visible = bottomSheetType != BottomSheetType.NONE,
+            enter = slideInVertically(initialOffsetY = { it }),
+            exit = slideOutVertically(targetOffsetY = { it }),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            when (bottomSheetType) {
+                BottomSheetType.SELECTION -> {
+                    // 기존 선택 모드 바텀 시트
+                    SelectionBottomBar(
+                        isVisible = true, // AnimatedVisibility가 제어하므로 항상 true
+                        showBoardSelector = showBoardSelector,
+                        actionsContent = {
+                            ActionsContent(
+                                selectedSectionCount = selectedSections.size,
+                                selectedCardCount = selectedCards.size,
+                                onDeleteClick = { showDeleteDialog = true },
+                                onCopyClick = {
+                                    currentAction = BoardAction.COPY
+                                    showBoardSelector = true
+                                    viewModel.loadBoards()
+                                },
+                                onMoveClick = {
+                                    currentAction = BoardAction.MOVE
+                                    showBoardSelector = true
+                                    viewModel.loadBoards()
+                                },
+                                onCancelClick = { resetSelectionState() }
+                            )
+                        },
+                        boardSelectorContent = {
+                            BoardSelectionSheetContent(
+                                action = currentAction ?: BoardAction.COPY,
+                                boardsState = boardsState,
+                                onBack = { showBoardSelector = false },
+                                onConfirm = { selectedId -> //selectedTargetIds -> selectedId (타입: String?)
+                                    // selectedId가 null이 아닐 때만 로직 실행
+                                    selectedId?.let { targetId ->
+                                        when (currentAction) {
+                                            BoardAction.COPY -> {
+                                                viewModel.copySelectedItems(
+                                                    targetBoardId = targetId.toLong(),
+                                                    selectedSectionIds = selectedSections,
+                                                    selectedCardIds = selectedCards
+                                                )
+                                            }
 
-                                BoardAction.MOVE -> {
-                                    viewModel.moveSelectedItems(
-                                        targetBoardId = targetId.toLong(),
-                                        selectedSectionIds = selectedSections,
-                                        selectedCardIds = selectedCards
-                                    )
-                                }
+                                            BoardAction.MOVE -> {
+                                                viewModel.moveSelectedItems(
+                                                    targetBoardId = targetId.toLong(),
+                                                    selectedSectionIds = selectedSections,
+                                                    selectedCardIds = selectedCards
+                                                )
+                                            }
 
-                                null -> {}
-                            }
+                                            null -> {}
+                                        }
+                                    }
+                                    // 작업 완료 후 선택 모드 초기화
+                                    resetSelectionState()
+                                }
+                            )
                         }
-                        // 작업 완료 후 선택 모드 초기화
-                        resetSelectionState()
+                    )
+                }
+
+                BottomSheetType.BOARD_SETTINGS -> {
+                    // 새로 추가된 보드 설정 바텀 시트
+                    BoardSettingsContent(
+                        onDeleteClick = {
+                            // TODO: 삭제 로직을 여기에 연결하세요.
+                            bottomSheetType = BottomSheetType.NONE // 바텀 시트 닫기
+                        },
+                        onSettingsClick = {
+                            // 설정 버튼 클릭 시 BOARD_EDIT 상태로 변경
+                            bottomSheetType = BottomSheetType.BOARD_EDIT
+                        },
+                        onDismiss = { bottomSheetType = BottomSheetType.NONE }
+                    )
+                }
+                // BOARD_EDIT 상태일 때 BoardEditSheet를 보여주는 case
+                BottomSheetType.BOARD_EDIT -> {
+                    // 현재 보드 정보가 있을 때만 설정 화면을 보여줌
+                    ui.board?.let { currentBoard ->
+                        BoardEditSheet(
+                            source = source,
+                            currentName = currentBoard.name,
+                            isCurrentlyShared = currentBoard.shared,
+                            onBack = {
+                                // 뒤로가기 시 이전 바텀바(BOARD_SETTINGS)로 돌아감
+                                bottomSheetType = BottomSheetType.BOARD_SETTINGS
+                            },
+                            onInviteClick = {
+                                // TODO: 참여자 초대 화면으로 이동하는 로직
+                            },
+                            onConfirm = { newName, isShared ->
+                                // 이름이 변경되었을 때만 API 호출
+                                if (newName != currentBoard.name) {
+                                    viewModel.renameCurrentBoard(newName)
+                                }
+                                // TODO: isShared 상태가 변경되었을 때 API 호출하는 로직 추가
+
+                                // 완료 후 바텀시트 전체 닫기
+                                bottomSheetType = BottomSheetType.NONE
+                            }
+                        )
                     }
-                )
+                }
+
+                else -> {}
             }
-        )
+        }
         // ==== 다이얼로그 표시 ====
         when (val m = dialogMode) {
             InputDialogMode.CreateSection -> NuboInputDialog(
@@ -374,66 +440,22 @@ fun BoardDetailScreen(
                     )
                 }
             )
-
-            is InputDialogMode.Rename -> NuboInputDialog(
-                visible = true,
-                title = "보드 이름 변경",
-                confirmText = "완료",
-                placeholder = "새 이름",
-                initialValue = m.currentName,
-                onConfirm = { newName ->
-                    // 보드 ID와 다이얼로그의 ID를 비교하여 올바른 함수를 호출
-                    if (m.sectionId == boardId) {
-                        // ID가 현재 보드 ID와 같으면 보드 이름 변경 함수를 호출
-                        viewModel.renameCurrentBoard(newName = newName)
-                    } else {
-                        // 다르다면 섹션 이름 변경 함수를 호출
-                        viewModel.renameSection(sectionId = m.sectionId, newName = newName)
-                    }
-                },
-                onDismiss = { dialogMode = null },
-                // 유효성 검사 실패 시 보여줄 메시지 UI
-                validationContent = {
-                    Text(
-                        text = "보드 이름을 2자 이상 입력해주세요.",
-                        style = b3_regular_14,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(top = 10.dp, start = 16.dp)
-                    )
-                }
-            )
-
             null -> Unit
+            // Rename 등 나머지 케이스를 처리하기 위한 else 분기
+            else -> { /* Do nothing for other cases */ }
         }
     }
-    // 삭제 다이얼로그
-    DeleteConfirmationDialog(
-        visible = showDeleteDialog,
-        selectedCardCount = selectedCards.size,
-        selectedSectionCount = selectedSections.size,
-        onDismiss = { showDeleteDialog = false },
-        onRemove = {
-            showDeleteDialog = false
-            // ViewModel 함수 호출
-            scope.launch {
-                viewModel.removeItemsFromBoard(selectedSections, selectedCards)
-            }
-        },
-        onDelete = {
-            showDeleteDialog = false
-            // ViewModel 함수 호출
-            scope.launch {
-                viewModel.deleteItems(selectedSections, selectedCards)
-            }
-        }
-    )
+
     // 토스트 UI를 화면에 배치
     AppToastHost(hostState = toastHostState)
 }
 
 
 @Composable
-fun DetailTopBar(onBack: () -> Unit) {
+fun DetailTopBar(
+    onBack: () -> Unit,
+    onMenuClick: () -> Unit,
+    isSelectionMode: Boolean) {
     val titleText = "나의 보드"
 
     Row(
@@ -442,38 +464,53 @@ fun DetailTopBar(onBack: () -> Unit) {
             .padding(start = 14.dp, end = 16.dp, top = 13.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // 왼쪽 (뒤로가기 버튼 + 타이틀)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_arrow_back),
+                contentDescription = "뒤로가기",
+                tint = GreyMain300,
+                modifier = Modifier.clickable { onBack() }
+            )
+            Spacer(modifier = Modifier.width(5.dp))
+            Text(
+                text = titleText,
+                style = subtitle_medium_16,
+                color = GreyMain300
+            )
+        }
+
+        // 중간을 채우는 빈 공간
+        Spacer(modifier = Modifier.weight(1f))
+
+        // 오른쪽 (메뉴 버튼)
         Icon(
-            painter = painterResource(id = R.drawable.ic_arrow_back), // ← ← 아이콘 파일 필요
-            contentDescription = "뒤로가기",
+            painter = painterResource(id = R.drawable.ic_board_menu),
+            contentDescription = "보드 메뉴",
             tint = GreyMain300,
+            // 선택 모드일 때 비활성화하고, 투명도를 조절합니다.
             modifier = Modifier
-                .clickable { onBack() }
-        )
-        Spacer(modifier = Modifier.width(5.dp))
-        Text(
-            text = titleText,
-            style = subtitle_medium_16,
-            color = GreyMain300
+                .clickable(enabled = !isSelectionMode) { onMenuClick() }
         )
     }
 }
 
 
 @Composable
-fun BoardTitleBar(title: String, isSelectionMode: Boolean, onClick: () -> Unit) {
+fun BoardTitleBar(title: String) {
     val decodedTitle = URLDecoder.decode(title, "utf-8")
 
     Column(modifier = Modifier.padding(top = 27.dp)) {
         Row(
             modifier = Modifier
-                .noRippleClickable(enabled = !isSelectionMode) { onClick() } //선택 모드일 때 버튼 비활성화
+                .fillMaxWidth()
                 .padding(start = 18.dp, end = 16.dp, bottom = 15.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = decodedTitle,
                 style = headline_regular_26,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
         }
     }
