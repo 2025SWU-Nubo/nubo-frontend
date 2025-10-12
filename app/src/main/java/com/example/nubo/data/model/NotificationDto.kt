@@ -17,7 +17,7 @@ data class NotificationDto(
     val read: Boolean,               // 읽음 여부
     val createdAt: String,           // 예: 2025-10-01T09:30:00 (타임존 표기 없음)
     val boardId: String?  = null  ,              // 보드 ID(옵션)
-    val invitationId: Long?,         // 초대 ID(옵션)
+    val invitationId: Int?,         // 초대 ID(옵션)
     val cardId: String? = null         // 카드 ID(옵션, 서버가 주면 상세로 이동 가능)
 )
 

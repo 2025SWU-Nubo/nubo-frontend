@@ -1,13 +1,17 @@
 package com.example.nubo.ui.screen.notification
 
 import android.os.Build
+import android.util.Log
+import android.util.Log.e
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.nubo.data.model.AppNotification
 import com.example.nubo.data.model.AppNotificationType
 import com.example.nubo.data.model.NotificationDto
+import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.data.repository.NotificationRepository
+import com.google.android.material.datepicker.DateValidatorPointBackward.before
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -19,6 +23,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.Instant
+import java.time.temporal.TemporalAdjusters.next
 import javax.inject.Inject
 
 sealed class NotiEvent {
@@ -26,22 +31,15 @@ sealed class NotiEvent {
     object GoLearn : NotiEvent()
     object GoNotificationCenter : NotiEvent()
     data class GoBoard(val boardId: String) : NotiEvent()
-    data class InviteAccepted(val invitationId: String, val boardId: String?) : NotiEvent()
-    data class InviteRejected(val invitationId: String, val boardId: String?) : NotiEvent()
+//    data class InviteAccepted(val invitationId: String, val boardId: String?) : NotiEvent()
+//    data class InviteRejected(val invitationId: String, val boardId: String?) : NotiEvent()
 }
 
 @HiltViewModel
 class NotificationViewModel @Inject constructor(
-    private val repository: NotificationRepository
+    private val repository: NotificationRepository,
+    private val authRepository: AuthRepository
 ): ViewModel(){
-
-    // 화면에 보여줄 섹션 상태를 담는 데이터 클래스임
-    data class UiState(
-        val recent: List<AppNotification> = emptyList(), // 0~2일 섹션
-        val past: List<AppNotification> = emptyList(),   // 3~7일 섹션
-        val loading: Boolean = false,                    // 로딩 상태
-        val error: String? = null
-    )
 
     // 화면 상태
     private val _uiState = MutableStateFlow(NotificationFeedState())
@@ -58,9 +56,17 @@ class NotificationViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             _uiState.update { it.copy(loading = true) }
-            runCatching { repository.loadFeed() }
-                .onSuccess { _uiState.value = it }
-                .onFailure { _uiState.update { s -> s.copy(loading = false) } }
+            runCatching {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    // API 26 이상에서만 안전하게 호출
+                    repository.loadFeed()
+                } else {
+                    // 하위 버전용 대체 처리 (예: 빈 리스트 반환 또는 다른 계산 방식)
+                    NotificationFeedState(emptyList(),emptyList(),loading = false)
+                }
+            }.onSuccess { feed ->
+                    _uiState.value = feed.copy(loading = false)
+            }.onFailure { _uiState.update { s -> s.copy(loading = false) } }
         }
     }
 
@@ -94,18 +100,100 @@ class NotificationViewModel @Inject constructor(
     }
 
     fun onClickPrimary(item: NotificationItem) {
-        // 초대 수락 버튼
-        if (item.invitationId != null) {
-            emit(NotiEvent.InviteAccepted(item.invitationId, item.boardId))
-            // 실제 API가 있다면 여기서 호출하고 결과에 따라 목록 새로고침
+        Log.d("NOTI", "accept click: nid=${item.notificationId}, iid=${item.invitationId}")
+        if (item.invitationId == null) return
+
+        setActionLoading(item.notificationId, true)
+
+        viewModelScope.launch {
+            val token = authRepository.getAccessToken()?: return@launch
+
+            val invId: Int = when (val raw = item.invitationId) {
+                is Int -> raw
+                is String -> raw.toIntOrNull() ?: return@launch
+                else -> return@launch
+            }
+
+
+            runCatching { repository.acceptInvitation(token, invId) }
+            .onSuccess {
+                Log.d("NOTI", "accept onSuccess")
+                applyInviteResultLocally(
+                    notificationId = item.notificationId,
+                    accepted = true,
+                    invitationId = item.invitationId
+                )
+
+                setActionLoading(item.notificationId, false)
+                // 성공 시 목록에서 해당 초대 알림 제거 또는 상태 갱신
+//                applyInviteResultLocally(notificationId = item.notificationId, accepted = true)
+            }.onFailure { e ->
+                Log.e("NOTI", "accept onFailure: ${e.javaClass.simpleName}: ${e.message}", e)
+                    setActionLoading(item.notificationId, false)
+
+            }
         }
     }
 
     fun onClickSecondary(item: NotificationItem) {
-        // 초대 거절 버튼
-        if (item.invitationId != null) {
-            emit(NotiEvent.InviteRejected(item.invitationId, item.boardId))
-            // 실제 API가 있다면 여기서 호출하고 결과에 따라 목록 새로고침
+        if (item.invitationId == null) return
+
+        setActionLoading(item.notificationId, true)
+
+        viewModelScope.launch {
+            val token = authRepository.getAccessToken() ?: return@launch
+
+            val invId: Int = when (val raw = item.invitationId) {
+                is Int -> raw
+                is String -> raw.toIntOrNull() ?: return@launch
+                else -> return@launch
+            }
+
+            runCatching { repository.rejectInvitation(token, invId) }
+            .onSuccess {
+                applyInviteResultLocally(
+                    notificationId = item.notificationId,
+                    accepted = false,
+                    invitationId = item.invitationId
+                )
+                setActionLoading(item.notificationId, false)
+            }.onFailure {
+                    setActionLoading(item.notificationId, false)
+            }
+        }
+    }
+
+    // 초대 수락/거절 성공 시 로컬 목록 반영
+    // 알림을 목록에서 제거
+    private fun applyInviteResultLocally(
+        notificationId: String?,
+        accepted: Boolean,
+        invitationId: Any? = null
+    ) {
+        Log.d("NOTI", "applyInviteResultLocally accepted=$accepted nid=$notificationId iid=$invitationId")
+
+        _uiState.update { s ->
+            val wantInv = when (invitationId) {
+                is Int -> invitationId.toString()
+                is String -> invitationId
+                else -> null
+            }?.trim()
+
+            fun List<NotificationItem>.removeTarget(): List<NotificationItem> = filterNot { it ->
+                val byInvitation = !wantInv.isNullOrEmpty() &&
+                    it.invitationId?.toString()?.trim() == wantInv
+
+                val byNotificationId = !notificationId.isNullOrEmpty() &&
+                    it.notificationId == notificationId
+
+                byInvitation || byNotificationId
+            }
+
+            s.copy(
+                recent = s.recent.removeTarget(),
+                past   = s.past.removeTarget()
+            )
+
         }
     }
 
@@ -124,5 +212,14 @@ class NotificationViewModel @Inject constructor(
 
     private fun emit(e: NotiEvent) {
         viewModelScope.launch { _events.send(e) }
+    }
+
+    private fun setActionLoading(notificationId: String, loading: Boolean) {
+        _uiState.update { s ->
+            s.copy(
+                actionLoadingIds = if (loading) s.actionLoadingIds + notificationId
+                else s.actionLoadingIds - notificationId
+            )
+        }
     }
 }

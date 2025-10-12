@@ -95,6 +95,7 @@ class CardDetailViewModel @Inject constructor(
             _uiState.value = CardDetailUiState.Success(old.copy(isFavorite = next))
 
             runCatching {
+                // 즐겨찾기 업데이트
                 val res = repository.updateFavorite(
                     token = token,
                     cardId = old.cardId,

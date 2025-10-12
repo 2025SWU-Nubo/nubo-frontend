@@ -82,7 +82,7 @@ fun NotificationDto.toAppModel(defaultZone: ZoneId = KST): AppNotification {
         body           = this.body,
         cardId         = this.cardId?.toString(),
         boardId        = this.boardId?.toString(),
-        invitationId   = this.invitationId?.toString()
+        invitationId   = this.invitationId
     )
 }
 

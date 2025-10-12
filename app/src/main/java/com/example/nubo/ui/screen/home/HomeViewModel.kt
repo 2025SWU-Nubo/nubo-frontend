@@ -128,8 +128,31 @@ class HomeViewModel @Inject constructor(
         if(sel == "all"){
             cardPage = 0
             cardPageSize = 20
-            cardIsLast = false
-            loadCards(reset = true)
+            cardIsLast = true
+
+            cardRepository.getUnviewedAllCards(token, limit = 20)
+                .enqueue(object : Callback<List<CardResponse>> {
+                    override fun onResponse(
+                        call: Call<List<CardResponse>>,
+                        response: Response<List<CardResponse>>
+                    ) {
+                        _isLoading.value = false
+                        if (response.isSuccessful) {
+                            val list = response.body().orEmpty()
+                            _cards.value = list
+                            Log.d("HomeViewModel", "✅ ALL chip: unviewed-all loaded size=${list.size}")
+                        } else {
+                            _cards.value = emptyList()
+                            Log.e("HomeViewModel", "❌ ALL chip: failed code=${response.code()}")
+                        }
+                    }
+
+                    override fun onFailure(call: Call<List<CardResponse>>, t: Throwable) {
+                        _isLoading.value = false
+                        _cards.value = emptyList()
+                        Log.e("HomeViewModel", "❌ ALL chip: request failed: ${t.localizedMessage}", t)
+                    }
+                })
             return
         }else{
             val boardId = sel.toLongOrNull() ?: return
@@ -190,15 +213,9 @@ class HomeViewModel @Inject constructor(
 
                 val page: PagedResponse<CardResponse> = result.getOrThrow()
 
-                // merge or replace list
-                val newList = if (reset) {
-                    page.content
-                } else {
-                    _cards.value.orEmpty() + page.content
-                }
+                val newList = if (reset) page.content else _cards.value.orEmpty() + page.content
                 _cards.value = newList
 
-                // update paging flags
                 cardPage = page.number
                 cardPageSize = page.size
                 cardIsLast = page.last

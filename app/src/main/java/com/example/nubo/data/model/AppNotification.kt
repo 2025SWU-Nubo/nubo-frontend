@@ -37,5 +37,5 @@ data class AppNotification(
     // 라우팅에 필요한 보드 식별자임
     val boardId: String?,
     // 초대 수락/거절에 필요한 초대 식별자임
-    val invitationId: String?
+    val invitationId: Int?
 )
