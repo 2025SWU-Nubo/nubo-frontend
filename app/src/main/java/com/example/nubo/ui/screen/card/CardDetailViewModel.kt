@@ -1,13 +1,16 @@
 package com.example.nubo.ui.screen.card
 
+import androidx.compose.ui.text.AnnotatedString
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.components.toast.buildHighlightedTitle
 import com.example.nubo.data.model.CardDetailResponse
 import com.example.nubo.data.model.CardFavoriteRequest
 import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.data.repository.CardRepository
 import com.example.nubo.model.card.CardDetailItem
+import com.example.nubo.ui.theme.PurpleMain500
 import dagger.hilt.android.lifecycle.HiltViewModel
 import formatIsoDateToDisplayLegacy
 import javax.inject.Inject
@@ -47,6 +50,10 @@ class CardDetailViewModel @Inject constructor(
     private val _toast = MutableStateFlow<String?>(null)
     val toast = _toast.asStateFlow()
 
+    // 레벨얼 / 누베리 수확 토스트
+    private val _toast2 = MutableStateFlow<Pair<AnnotatedString, String>?>(null)
+    val toast2 = _toast2.asStateFlow()
+
     private val _infoState = MutableStateFlow<InfoUiState>(InfoUiState.Hidden)
     val infoState = _infoState.asStateFlow()
 
@@ -66,6 +73,25 @@ class CardDetailViewModel @Inject constructor(
                 res.toUi()
             }.onSuccess { ui ->
                 _uiState.value = CardDetailUiState.Success(ui)
+
+                // 레벨업 또는 열매 획득 시 토스트 메시지 생성
+                if (ui.stageUp) {
+                    val title = buildHighlightedTitle(
+                        full = "Level Up!",
+                        highlight = "Level Up!",
+                        highlightColor = PurpleMain500
+                    )
+                    val summary = "대시보드에서 나의 성장을 확인해보세요"
+                    _toast2.value = Pair(title, summary)
+                } else if (ui.berryGained) {
+                    val title = buildHighlightedTitle(
+                        full = "누베리 성장 완료!",
+                        highlight = "누베리 성장 완료!",
+                        highlightColor = PurpleMain500
+                    )
+                    val summary = "대시보드에서 직접 수확해보세요"
+                    _toast2.value = Pair(title, summary)
+                }
             }.onFailure { e ->
                 val msg = when (e) {
                 is HttpException -> when (e.code()) {
@@ -115,6 +141,9 @@ class CardDetailViewModel @Inject constructor(
 
     fun consumeToast() { _toast.value = null }
 
+    // 레벨업, 누베리 획득 토스트를 초기화하는 함수
+    fun consumeToast2() { _toast2.value = null }
+
     // 정보 말풍선
     fun showInfoBubble() {
         // Only show when we have data
@@ -151,6 +180,10 @@ private fun CardDetailResponse.toUi(): CardDetailItem {
         createdAt = formatIsoDateToDisplayLegacy(createdAt), // 기존 유틸 재사용
         updatedAt = formatIsoDateToDisplayLegacy(updatedAt),
         tags = tags,
-        isFavorite = isFavorite ?: false
+        isFavorite = isFavorite ?: false,
+        // 레벨업 필드 매칭
+        stage = stage,
+        stageUp = stageUp,
+        berryGained = berryGained
     )
 }

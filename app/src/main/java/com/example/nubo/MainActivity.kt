@@ -250,7 +250,7 @@ fun MainScreen(
 
                 composable("learn") {
                     // Learn keeps its own insets strategy
-                    LearnScreen()
+                    LearnScreen(navController = navController) // navController를 전달합니다.
                 }
 
                 composable("profile") {
@@ -448,6 +448,7 @@ fun MainScreen(
                         .padding(innerPadding)
                     ) {
                         CardDetailRoute(
+                            navController = navController,
                             onBack = { navController.popBackStack() },
                             onEdit = { navController.navigate("card_edit/$cardId") }
                         )
