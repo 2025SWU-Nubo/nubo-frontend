@@ -1,9 +1,5 @@
 package com.example.nubo.ui.screen.myBoard
 
-import android.util.Log
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -46,17 +42,17 @@ import com.example.nubo.ui.component.MyCardContent
 import com.example.nubo.ui.component.randomCardHeight
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import com.example.components.toast.AppToastHost
+import com.example.components.toast.AppToastLayout
+import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
 import com.example.nubo.ui.theme.Grey1000
@@ -81,25 +77,46 @@ fun MyBoardScreen(
 ) {
     var selectedTab by remember { mutableStateOf(1) }
 
-    val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    // --- 토스트 메시지를 boardViewModel에서 구독 ---
+    val toastHostState = rememberAppToastHostState()
+    val toastMessage by boardViewModel.toastMessage.collectAsState()
 
-    // --- 삭제 완료 시 스낵바를 표시하기 위해 이벤트를 수신 ---
-    LaunchedEffect(Unit) {
-        boardDetailViewModel.deleteCompleteEvent.collect {
+    // --- ViewModel의 toastMessage 변경을 감지하여 토스트 표시 및 새로고침 ---
+    LaunchedEffect(toastMessage) {
+        toastMessage?.let { message ->
             scope.launch {
-                val result = snackbarHostState.showSnackbar(
-                    message = "삭제가 완료되었습니다.",
-                    actionLabel = "실행 취소",
-                    duration = SnackbarDuration.Long
+                toastHostState.show(
+                    title = buildAnnotatedString { append(message) },
+                    layout = AppToastLayout.TitleOnly
                 )
-                if (result == SnackbarResult.ActionPerformed) {
-                    boardDetailViewModel.undoLastDeletion()
-                }
             }
+            // --- 실제 메시지("...되었습니다")와 일치하도록 조건문 수정 ---
+            if (message.contains("이동되었습니다") || message.contains("복제되었습니다")) {
+                cardViewModel.refresh()
+            }
+            boardViewModel.clearToastMessage()
         }
     }
+
+    // --- BoardDetailViewModel의 토스트 메시지(삭제 취소) 처리 ---
+    val detailToastMessage by boardDetailViewModel.toastMessage.collectAsState()
+    LaunchedEffect(detailToastMessage) {
+        detailToastMessage?.let { message ->
+            scope.launch {
+                toastHostState.show(
+                    title = buildAnnotatedString { append(message) },
+                    layout = AppToastLayout.TitleOnly
+                )
+            }
+            if (message.contains("취소되었습니다")) {
+                cardViewModel.refresh()
+            }
+            boardDetailViewModel.clearToastMessage()
+        }
+    }
+
 
     // 검색 결과가 바뀔 때도 높이를 다시 계산하도록 키 추가
     val randomHeights = remember(selectedTab, cardViewModel.cards.value, cardViewModel.searchResults.value) {
@@ -277,7 +294,7 @@ fun MyBoardScreen(
                                     if (boardSearchResults.isEmpty()) {
                                         EmptyStateUI(iconRes = noResultsIcon, message = "검색결과가 없습니다.")
                                     } else {
-                                        // [수정] 검색 결과 목록에 클릭 로직 다시 추가
+                                        // 검색 결과 목록에 클릭 로직 다시 추가
                                         BoardContent(
                                             boards = boardSearchResults,
                                             onCardClick = { boardItem ->
@@ -300,23 +317,9 @@ fun MyBoardScreen(
                                 }
                             }
                         } else {
-                            // --- 검색 모드가 아닐 때의 UI (기본 목록) ---
-                            val defaultBoards = boardViewModel.boards.value.filter {
-                                val parts = it.subtitle.split(" ")
-                                // 섹션 수와 카드 수를 파싱합니다.
-                                val sectionCount = parts.getOrNull(0)?.toIntOrNull() ?: 0
-                                val cardCount = parts.getOrNull(2)?.toIntOrNull() ?: 0
-
-                                // 섹션이 있는지, 카드가 있는지 확인하는 조건을 만듭니다.
-                                val hasSections = parts.getOrNull(1)?.contains("섹션") == true && sectionCount > 0
-                                val hasCards = parts.getOrNull(3)?.contains("카드") == true && cardCount > 0
-
-                                // 섹션이 있거나, 카드가 있거나, 사용자 보드인 경우에만 표시합니다.
-                                hasSections || hasCards || it.source.equals("USER", ignoreCase = true)
-                            }
-                            // 기본 목록에 클릭 로직 다시 추가
+                            // 기존 필터 로직을 제거하고, 서버에서 받은 모든 보드를 보여줌.
                             BoardContent(
-                                boards = defaultBoards,
+                                boards = boardViewModel.boards.value, // <-- 필터 제거
                                 onCardClick = { boardItem ->
                                     navController.navigate(
                                         "board_detail/${boardItem.serverBoardId}/${
@@ -338,15 +341,11 @@ fun MyBoardScreen(
                 }
             }
         }
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter)
-        ) { snackbarData ->
-            UndoSnackbar(
-                message = snackbarData.visuals.message,
-                onUndo = { snackbarData.performAction() }
-            )
-        }
+        // -토스트 UI를 화면에 배치 ---
+        AppToastHost(
+            hostState = toastHostState,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 80.dp) // 스낵바와 겹치지 않도록 패딩 추가
+        )
     }
 }
 

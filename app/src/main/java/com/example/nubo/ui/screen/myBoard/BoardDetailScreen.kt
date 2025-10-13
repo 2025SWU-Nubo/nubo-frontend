@@ -152,11 +152,11 @@ fun BoardDetailScreen(
     val scope = rememberCoroutineScope()
     val toastMessage by viewModel.toastMessage.collectAsState()
 
-    // '실행 취소' 스낵바를 띄우는 함수
-    fun showUndoSnackbar() {
+    // ---  스낵바를 띄우는 함수가 '개수'를 받도록 변경 ---
+    fun showUndoSnackbar(count: Int) {
         scope.launch {
             val result = snackbarHostState.showSnackbar(
-                message = "삭제가 완료되었습니다.",
+                message = "${count}개의 항목 삭제가 완료되었습니다.", // 메시지에 개수 포함
                 actionLabel = "실행 취소",
                 duration = SnackbarDuration.Long
             )
@@ -167,10 +167,10 @@ fun BoardDetailScreen(
         }
     }
 
-    // ViewModel의 삭제 완료 이벤트를 구독하여 스낵바 띄우고 상태 초기화
-    LaunchedEffect(Unit) {
-        viewModel.deleteCompleteEvent.collect {
-            showUndoSnackbar()
+    // --- ViewModel의 삭제 완료 이벤트를 구독하여 '개수'를 받아 스낵바 호출 ---
+    LaunchedEffect(viewModel) {
+        viewModel.deleteCompleteEvent.collect { count ->
+            showUndoSnackbar(count)
             resetSelectionState()
         }
     }
@@ -445,11 +445,30 @@ fun BoardDetailScreen(
             else -> { /* Do nothing for other cases */ }
         }
     }
-
+    // --- 삭제 확인 다이얼로그 호출 코드 추가 ---
+    if (showDeleteDialog) {
+        DeleteConfirmationDialog(
+            visible = true,
+            selectedCardCount = selectedCards.size,
+            selectedSectionCount = selectedSections.size,
+            onDismiss = { showDeleteDialog = false },
+            onRemove = {
+                scope.launch {
+                    viewModel.removeItemsFromBoard(selectedSections, selectedCards)
+                    showDeleteDialog = false
+                }
+            },
+            onDelete = {
+                scope.launch {
+                    viewModel.deleteItems(selectedSections, selectedCards)
+                    showDeleteDialog = false
+                }
+            }
+        )
+    }
     // 토스트 UI를 화면에 배치
     AppToastHost(hostState = toastHostState)
 }
-
 
 @Composable
 fun DetailTopBar(

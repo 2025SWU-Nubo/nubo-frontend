@@ -1,8 +1,15 @@
 package com.example.nubo.ui.screen.myBoard
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -14,10 +21,12 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.unit.dp
 
 /**
  * MyBoardScreen과 관련된 모든 상태와 로직을 관리하는 컨테이너 컴포저블.
- * MainScreen은 이제 이 컴포저블만 호출하면 됩니다.
+ * MainScreen에서 호출
  */
 @Composable
 fun MyBoardRoute(
@@ -55,9 +64,51 @@ fun MyBoardRoute(
         resetCardSelectionState()
     }
 
+    // --- 실행 취소 스낵바 상태를 Route에서 관리 ---
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // --- 삭제 이벤트 처리 로직을 하나로 통합 및 개선 ---
+    LaunchedEffect(boardDetailViewModel, cardViewModel) {
+        boardDetailViewModel.deleteCompleteEvent.collect { count ->
+            resetCardSelectionState()
+            cardViewModel.refresh()
+
+            val result = snackbarHostState.showSnackbar(
+                message = "${count}개의 카드가 삭제되었습니다.",
+                actionLabel = "실행 취소",
+                duration = SnackbarDuration.Short
+            )
+
+            if (result == SnackbarResult.ActionPerformed) {
+                // undoLastDeletion이 suspend 함수이므로, 이 작업이 끝날 때까지 대기
+                boardDetailViewModel.undoLastDeletion()
+                // 복구가 완료된 후, 목록을 새로고침
+                cardViewModel.refresh()
+            }
+        }
+    }
+
     // MyBoardRoute
     // BottomBar 충돌 문제 해결
+    // --- Scaffold에는 modifier를 적용하지 않고, SnackbarHost에만 적용 ---
     Scaffold(
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .windowInsetsPadding(WindowInsets.systemBars)
+                    .padding(bottom = 60.dp)
+
+            ) { snackbarData ->
+                UndoSnackbar(
+                    message = snackbarData.visuals.message,
+                    onUndo = {
+                        snackbarData.performAction()
+                        snackbarData.dismiss()
+                    }
+                )
+            }
+        },
         bottomBar = {
             if (isCardSelectionMode) {
                 SelectionBottomBar(
@@ -67,7 +118,11 @@ fun MyBoardRoute(
                         ActionsContent(
                             selectedSectionCount = 0,
                             selectedCardCount = selectedCardIds.size,
-                            onDeleteClick = { showDeleteDialog = true },
+                            onDeleteClick = {
+                                scope.launch {
+                                    boardDetailViewModel.deleteItems(emptySet(), selectedCardIds)
+                                }
+                            },
                             onCopyClick = {
                                 currentAction = BoardAction.COPY
                                 showBoardSelector = true
@@ -89,14 +144,13 @@ fun MyBoardRoute(
                             onConfirm = { selectedId ->
                                 selectedId?.let { targetId ->
                                     when (currentAction) {
-                                        BoardAction.COPY -> boardDetailViewModel.copySelectedItems(
+                                        // --- boardViewModel의 함수를 호출 ---
+                                        BoardAction.COPY -> boardViewModel.copyCardsFromGlobal(
                                             targetBoardId = targetId.toLong(),
-                                            selectedSectionIds = emptySet(),
                                             selectedCardIds = selectedCardIds
                                         )
-                                        BoardAction.MOVE -> boardDetailViewModel.moveSelectedItems(
+                                        BoardAction.MOVE -> boardViewModel.moveCardsFromGlobal(
                                             targetBoardId = targetId.toLong(),
-                                            selectedSectionIds = emptySet(),
                                             selectedCardIds = selectedCardIds
                                         )
                                         null -> {}
@@ -111,7 +165,8 @@ fun MyBoardRoute(
         }
     ) { innerPadding ->
         MyBoardScreen(
-            modifier = modifier.padding(innerPadding), // 부모의 패딩과 자신의 패딩을 모두 적용
+            // --- MyBoardScreen에는 내부 Scaffold의 innerPadding만 전달 ---
+            modifier = Modifier.padding(innerPadding),
             navController = navController,
             cardViewModel = cardViewModel,
             boardViewModel = boardViewModel,

@@ -121,18 +121,22 @@ fun SectionDetailScreen(
             viewModel.clearToastMessage()
         }
     }
-
-    // '실행 취소' 스낵바를 띄우는 함수 추가
-    fun showUndoSnackbar() {
-        scope.launch {
-            val result = snackbarHostState.showSnackbar(
-                message = "삭제가 완료되었습니다.",
-                actionLabel = "실행 취소",
-                duration = SnackbarDuration.Long
-            )
-            if (result == SnackbarResult.ActionPerformed) {
-                // TODO: "실행 취소" 클릭 시 서버 연동 로직
+    // --- ViewModel의 삭제 완료 이벤트를 구독하여 스낵바 호출 및 상태 초기화 ---
+    LaunchedEffect(viewModel) {
+        viewModel.deleteCompleteEvent.collect { count ->
+            scope.launch {
+                val result = snackbarHostState.showSnackbar(
+                    message = "${count}개의 항목이 삭제되었습니다.",
+                    actionLabel = "실행 취소",
+                    duration = SnackbarDuration.Long
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    // undoLastDeletion이 suspend이므로, 완료될 때까지 기다림
+                    viewModel.undoLastDeletion()
+                }
             }
+            // 스낵바가 닫힌 후 선택 모드를 해제
+            resetSelectionState()
         }
     }
 
@@ -321,21 +325,27 @@ fun SectionDetailScreen(
             else -> Unit // 섹션 생성 다이얼로그는 없음
         }
     }
-    // 삭제 확인 다이얼로그
-    DeleteConfirmationDialog(
-        visible = showDeleteDialog,
-        selectedCardCount = selectedCards.size,
-        selectedSectionCount = 0,
-        onDismiss = { showDeleteDialog = false },
-        onRemove = {
-            showDeleteDialog = false
-            showUndoSnackbar()
-        },
-        onDelete = {
-            showDeleteDialog = false
-            showUndoSnackbar()
-        }
-    )
+    // --- 다이얼로그의 삭제/제거 버튼에 올바른 ViewModel 함수 연결 ---
+    if (showDeleteDialog) {
+        DeleteConfirmationDialog(
+            visible = showDeleteDialog,
+            selectedCardCount = selectedCards.size,
+            selectedSectionCount = 0,
+            onDismiss = { showDeleteDialog = false },
+            onRemove = {
+                scope.launch {
+                    viewModel.removeItemsFromBoard(emptySet(), selectedCards)
+                    showDeleteDialog = false
+                }
+            },
+            onDelete = {
+                scope.launch {
+                    viewModel.deleteItems(emptySet(), selectedCards)
+                    showDeleteDialog = false
+                }
+            }
+        )
+    }
     // 토스트 UI를 화면에 배치
     AppToastHost(hostState = toastHostState)
 }

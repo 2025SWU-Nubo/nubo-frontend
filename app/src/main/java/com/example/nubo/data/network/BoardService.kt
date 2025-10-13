@@ -126,7 +126,19 @@ interface BoardService {
         @Body body: BulkCopyRequest
     ): Response<BulkCopyResponse> // Response는 Unit 또는 실제 응답 클래스로 변경 가능
 
-    // [추가] 섹션 및 카드 일괄 이동 API
+    // '나의 카드' 탭(루트)에서 호출하는 API
+    @POST("api/board/bulk-copy")
+    suspend fun bulkCopyFromRoot(
+        @Header("Authorization") authHeader: String,
+        @Body body: BulkCopyRequest
+    ): Response<Void>
+    @POST("api/board/bulk-move")
+    suspend fun bulkMoveFromRoot(
+        @Header("Authorization") authHeader: String,
+        @Body body: BulkMoveRequest
+    ): Response<Void>
+
+    // 섹션 및 카드 일괄 이동 API
     @POST("/api/board/{sourceBoardId}/bulk-move")
     suspend fun bulkMove(
         @Header("Authorization") authHeader: String,

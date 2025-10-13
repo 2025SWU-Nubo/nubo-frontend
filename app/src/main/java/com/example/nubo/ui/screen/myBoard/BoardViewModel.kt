@@ -8,6 +8,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.runtime.State
 import com.example.nubo.data.model.BoardListItemResponse
 import com.example.nubo.data.model.BoardSearchItemResponse
+import com.example.nubo.data.model.BulkCopyRequest
+import com.example.nubo.data.model.BulkMoveRequest
 import com.example.nubo.data.model.FavoriteRequest
 import com.example.nubo.data.model.PagedResponse
 import com.example.nubo.data.network.BoardService
@@ -15,6 +17,8 @@ import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.model.myBoard.BoardItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import getDisplayDate
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 
 
@@ -40,6 +44,15 @@ class BoardViewModel @Inject constructor(
     // 로딩 상태 (선택 사항)
     private val _isSearching = mutableStateOf(false)
     val isSearching: State<Boolean> = _isSearching
+
+    // --- 토스트 메시지 상태 변수 ---
+    private val _toastMessage = MutableStateFlow<String?>(null)
+    val toastMessage: StateFlow<String?> = _toastMessage
+
+    fun clearToastMessage() {
+        _toastMessage.value = null
+    }
+    // ------------------------------------
 
 
     init {
@@ -201,5 +214,59 @@ class BoardViewModel @Inject constructor(
     // 검색 결과 초기화
     fun clearSearch() {
         _searchResults.value = emptyList()
+    }
+
+    // --- '나의 카드' 탭 전용 복제 함수 ---
+    fun copyCardsFromGlobal(targetBoardId: Long, selectedCardIds: Set<Int>) {
+        viewModelScope.launch {
+            try {
+                val token = "Bearer ${authRepository.getAccessToken()}"
+                val request = BulkCopyRequest(
+                    targetBoardId = targetBoardId,
+                    boardIds = null,
+                    cardIds = selectedCardIds.map { it.toLong() }
+                )
+                val response = boardService.bulkCopyFromRoot(
+                    authHeader = token,
+                    body = request
+                )
+                if (response.isSuccessful) {
+                    _toastMessage.value = "${selectedCardIds.size}개의 카드가 복제되었습니다."
+                } else {
+                    Log.e("BoardViewModel", "Global Card Copy failed: ${response.code()}")
+                    _toastMessage.value = "카드 복제에 실패했습니다."
+                }
+            } catch (e: Exception) {
+                Log.e("BoardViewModel", "Global Card Copy network error", e)
+                _toastMessage.value = "카드 복제 중 오류가 발생했습니다."
+            }
+        }
+    }
+
+    // --- '나의 카드' 탭 전용 이동 함수 ---
+    fun moveCardsFromGlobal(targetBoardId: Long, selectedCardIds: Set<Int>) {
+        viewModelScope.launch {
+            try {
+                val token = "Bearer ${authRepository.getAccessToken()}"
+                val request = BulkMoveRequest(
+                    targetBoardId = targetBoardId,
+                    boardIds = null,
+                    cardIds = selectedCardIds.map { it.toLong() }
+                )
+                val response = boardService.bulkMoveFromRoot(
+                    authHeader = token,
+                    body = request
+                )
+                if (response.isSuccessful) {
+                    _toastMessage.value = "${selectedCardIds.size}개의 카드가 이동되었습니다."
+                } else {
+                    Log.e("BoardViewModel", "Global Card Move failed: ${response.code()}")
+                    _toastMessage.value = "카드 이동에 실패했습니다."
+                }
+            } catch (e: Exception) {
+                Log.e("BoardViewModel", "Global Card Move network error", e)
+                _toastMessage.value = "카드 이동 중 오류가 발생했습니다."
+            }
+        }
     }
 }
