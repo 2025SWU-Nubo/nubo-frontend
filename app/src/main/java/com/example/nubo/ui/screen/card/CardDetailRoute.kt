@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -22,10 +23,30 @@ fun CardDetailRoute(
     onBack: () -> Unit,
     onEdit: () -> Unit,
     onInfoClick: (() -> Unit)? = null,
-    viewModel: CardDetailViewModel = hiltViewModel()
+    viewModel: CardDetailViewModel = hiltViewModel(),
+    navController: NavController
 ) {
     // 카드 상세 화면의 고유 토스트(즐겨찾기 토스트)
     val toast = viewModel.toast.collectAsStateWithLifecycle().value
+    //레벨업, 누베리 획득 토스트
+    val toast2 by viewModel.toast2.collectAsStateWithLifecycle()
+
+
+    // 뒤로가기 시 LearnScreen에 데이터를 전달하는 로직
+    val handleOnBack = {
+        if (state is CardDetailUiState.Success) {
+            val item = state.item
+            val handle = navController.previousBackStackEntry?.savedStateHandle
+
+            if (item.stageUp) {
+                handle?.set("show_levelup_stage", item.stage)
+            }
+            if (item.berryGained) {
+                handle?.set("show_berry_gained", true)
+            }
+        }
+        onBack() // 원래의 뒤로가기 동작 실행
+    }
 
     //  편집 화면에서 넘어온 토스트 메시지를 SavedStateHandle로 구독
     val handle = navController.currentBackStackEntry?.savedStateHandle
@@ -80,8 +101,8 @@ fun CardDetailRoute(
             // Render actual detail screen
             CardDetailScreen(
                 item = state.item,
-                onBack = onBack,
                 onEdit = onEdit,
+                onBack = handleOnBack,
                 onInfoClick = onInfoClick,
                 onToggleFavorite = { viewModel.toggleFavorite() },
                 toastMessage = mergedToast,               // 합쳐진 토스트와 소비 콜백 전달
@@ -95,7 +116,9 @@ fun CardDetailRoute(
                     }
                 },
                 toastDelayMillis = toastDelayMs
-
+                // 레벨업 토스트와 consume 함수 전달
+                toastMessage2 = toast2,
+                onConsumeToast2 = { viewModel.consumeToast2() }
             )
         }
     }

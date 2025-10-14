@@ -1,5 +1,9 @@
 package com.example.nubo.ui.screen.myBoard
 
+import android.util.Log
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -42,7 +46,13 @@ import com.example.nubo.ui.component.MyCardContent
 import com.example.nubo.ui.component.randomCardHeight
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.SolidColor
@@ -53,15 +63,43 @@ import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.ui.theme.PurpleMain500
+import kotlinx.coroutines.launch
 
 @Composable
 fun MyBoardScreen(
     navController: NavController,
     boardViewModel: BoardViewModel = hiltViewModel(),
     cardViewModel: MyCardViewModel = hiltViewModel(),
-    modifier: Modifier = Modifier
+    boardDetailViewModel: BoardDetailViewModel = hiltViewModel(),
+    modifier: Modifier = Modifier,
+    // 부모(MyBoardRoute)로부터 상태를 직접 전달받음
+    isCardSelectionMode: Boolean,
+    selectedCardIds: Set<Int>,
+    // 클릭/롱클릭 이벤트를 부모에게 전달
+    onCardClick: (Int) -> Unit,
+    onCardLongClick: (Int) -> Unit,
 ) {
     var selectedTab by remember { mutableStateOf(1) }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+
+    // --- 삭제 완료 시 스낵바를 표시하기 위해 이벤트를 수신 ---
+    LaunchedEffect(Unit) {
+        boardDetailViewModel.deleteCompleteEvent.collect {
+            scope.launch {
+                val result = snackbarHostState.showSnackbar(
+                    message = "삭제가 완료되었습니다.",
+                    actionLabel = "실행 취소",
+                    duration = SnackbarDuration.Long
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    boardDetailViewModel.undoLastDeletion()
+                }
+            }
+        }
+    }
 
     // 검색 결과가 바뀔 때도 높이를 다시 계산하도록 키 추가
     val randomHeights = remember(selectedTab, cardViewModel.cards.value, cardViewModel.searchResults.value) {
@@ -132,175 +170,193 @@ fun MyBoardScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(vertical = 20.dp)
-    ) {
-        TabHeader(
-            selectedTabIndex = selectedTab,
-            onTabSelected = { newTab ->
-                // 탭 변경 시 검색모드라면 닫기
-                if (isSearchMode) {
-                    closeSearchMode()
-                }
-                selectedTab = newTab
-            }
-        )
-        TitleBar(
-            selectedTab = selectedTab,
-            isSearchMode = isSearchMode,
-            searchText = searchText,
-            onSearchTextChange = { searchText = it },
-            onSearchOpen = { isSearchMode = true },
-            onSearchClose = { closeSearchMode() }, // 검색 닫는 공통 로직 추가
-            onSearchSubmit = {
-                focusManager.clearFocus()
-                keyboard?.hide()
-                val q = searchText.trim()
-                if (q.isNotBlank()) {
-                    hasSearched = true
-                    // 선택된 탭에 따라 다른 ViewModel의 함수 호출
-                    when (selectedTab) {
-                        0 -> cardViewModel.searchCards(q) // 카드 탭
-                        1 -> boardViewModel.searchBoards(q) // 보드 탭
-                    }
-                }
-            },
-            focusRequester = focusRequester
-        )
-        FilterButtons(
-            onRequestFilter = { f ->
-                if (selectedTab == 1) boardViewModel.setFilter(f)   // 보드 탭
-                else cardViewModel.setFilter(f)       // 카드 탭
-            },
-            onRequestSort = { s ->
-                if (selectedTab == 1) boardViewModel.setSort(s)
-                else cardViewModel.setSort(s)
-            }
-        )
-        Box(modifier = Modifier.weight(1f)) {
-            when (selectedTab) {
-                0 -> { // 카드 탭 UI 로직
-                    val isSearching by cardViewModel.isSearching
-
+    Box(Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(vertical = 20.dp)
+        ) {
+            TabHeader(
+                selectedTabIndex = selectedTab,
+                onTabSelected = { newTab ->
+                    // 탭 변경 시 검색모드라면 닫기
                     if (isSearchMode) {
-                        // --- 검색 모드일 때의 UI ---
-                        if (isSearching) {
-                            // 1. API 통신 중일 때 (로딩)
-                            EmptyStateUI(iconRes = searchingIcon, message = "검색중..")
+                        closeSearchMode()
+                    }
+                    selectedTab = newTab
+                },
+                isSelectionMode = isCardSelectionMode
+            )
+            TitleBar(
+                selectedTab = selectedTab,
+                isSearchMode = isSearchMode,
+                searchText = searchText,
+                onSearchTextChange = { searchText = it },
+                onSearchOpen = { isSearchMode = true },
+                onSearchClose = { closeSearchMode() }, // 검색 닫는 공통 로직 추가
+                onSearchSubmit = {
+                    focusManager.clearFocus()
+                    keyboard?.hide()
+                    val q = searchText.trim()
+                    if (q.isNotBlank()) {
+                        hasSearched = true
+                        // 선택된 탭에 따라 다른 ViewModel의 함수 호출
+                        when (selectedTab) {
+                            0 -> cardViewModel.searchCards(q) // 카드 탭
+                            1 -> boardViewModel.searchBoards(q) // 보드 탭
+                        }
+                    }
+                },
+                focusRequester = focusRequester,
+                isSelectionMode = isCardSelectionMode
+            )
+            FilterButtons(
+                onRequestFilter = { f ->
+                    if (selectedTab == 1) boardViewModel.setFilter(f)   // 보드 탭
+                    else cardViewModel.setFilter(f)       // 카드 탭
+                },
+                onRequestSort = { s ->
+                    if (selectedTab == 1) boardViewModel.setSort(s)
+                    else cardViewModel.setSort(s)
+                },
+                enabled = !isCardSelectionMode
+            )
+            Box(modifier = Modifier.weight(1f)) {
+                when (selectedTab) {
+                    0 -> { // 카드 탭 UI 로직
+                        val isSearching by cardViewModel.isSearching
+
+                        if (isSearchMode) {
+                            // --- 검색 모드일 때의 UI ---
+                            if (isSearching) {
+                                // 1. API 통신 중일 때 (로딩)
+                                EmptyStateUI(iconRes = searchingIcon, message = "검색중..")
+                            } else {
+                                // 2. API 통신이 끝났을 때
+                                if (hasSearched) {
+                                    // 검색을 한 번이라도 실행했다면, 결과를 바탕으로 UI 표시
+                                    if (cardSearchResults.isEmpty()) {
+                                        // 결과가 없을 때
+                                        EmptyStateUI(iconRes = noResultsIcon, message = "검색결과가 없습니다.")
+                                    } else {
+                                        // 결과가 있을 때
+                                        ScrollableCardContent(
+                                            cards = cardSearchResults,
+                                            cardHeights = randomHeights,
+                                            onCardClick = onCardClick, // 부모가 넘겨준 함수를 그대로 전달
+                                            onCardLongClick = onCardLongClick, // 부모가 넘겨준 함수를 그대로 전달
+                                            isSelectionMode = isCardSelectionMode,
+                                            selectedCardIds = selectedCardIds
+                                        )
+                                    }
+                                }
+                                // 'else'가 없음: 검색을 아직 실행 안 했다면 아무것도 표시하지 않음 (빈 화면)
+                            }
                         } else {
-                            // 2. API 통신이 끝났을 때
-                            if (hasSearched) {
-                                // 검색을 한 번이라도 실행했다면, 결과를 바탕으로 UI 표시
-                                if (cardSearchResults.isEmpty()) {
-                                    // 결과가 없을 때
-                                    EmptyStateUI(iconRes = noResultsIcon, message = "검색결과가 없습니다.")
-                                } else {
-                                    // 결과가 있을 때
-                                    ScrollableCardContent(
-                                        cards = cardSearchResults,
-                                        cardHeights = randomHeights,
-                                        onCardClick = { id ->
-                                            navController.navigate("card_detail/$id")
-                                        }
-                                    )
+                            // --- 검색 모드가 아닐 때의 UI (기본 목록) ---
+                            ScrollableCardContent(
+                                cards = cardViewModel.cards.value,
+                                cardHeights = randomHeights,
+                                onCardClick = onCardClick, // 부모가 넘겨준 함수를 그대로 전달
+                                onCardLongClick = onCardLongClick, // 부모가 넘겨준 함수를 그대로 전달
+                                isSelectionMode = isCardSelectionMode,
+                                selectedCardIds = selectedCardIds
+                            )
+                        }
+                    }
+
+                    1 -> { // 보드 탭 UI 로직
+                        val isSearching by boardViewModel.isSearching
+
+                        if (isSearchMode) {
+                            // --- 검색 모드일 때의 UI ---
+                            if (isSearching) {
+                                EmptyStateUI(iconRes = searchingIcon, message = "검색중..")
+                            } else {
+                                if (hasSearched) {
+                                    if (boardSearchResults.isEmpty()) {
+                                        EmptyStateUI(iconRes = noResultsIcon, message = "검색결과가 없습니다.")
+                                    } else {
+                                        // [수정] 검색 결과 목록에 클릭 로직 다시 추가
+                                        BoardContent(
+                                            boards = boardSearchResults,
+                                            onCardClick = { boardItem ->
+                                                navController.navigate(
+                                                    "board_detail/${boardItem.serverBoardId}/${
+                                                        java.net.URLEncoder.encode(boardItem.title, "utf-8")
+                                                    }/${boardItem.source}"
+                                                )
+                                            },
+                                            onFavoriteClick = { item ->
+                                                boardViewModel.toggleFavorite(
+                                                    boardId = item.serverBoardId,
+                                                    currentFavorite = item.isBookmarked
+                                                )
+                                            },
+                                            isSelectionMode = false,
+                                            selectedBoardIds = emptySet()
+                                        )
+                                    }
                                 }
                             }
-                            // 'else'가 없음: 검색을 아직 실행 안 했다면 아무것도 표시하지 않음 (빈 화면)
-                        }
-                    } else {
-                        // --- 검색 모드가 아닐 때의 UI (기본 목록) ---
-                        ScrollableCardContent(
-                            cards = cardViewModel.cards.value,
-                            cardHeights = randomHeights,
-                            onCardClick = { id ->
-                                navController.navigate("card_detail/$id")
-                            }
-                        )
-                    }
-                }
-
-                1 -> { // 보드 탭 UI 로직
-                    val isSearching by boardViewModel.isSearching
-
-                    if (isSearchMode) {
-                        // --- 검색 모드일 때의 UI ---
-                        if (isSearching) {
-                            EmptyStateUI(iconRes = searchingIcon, message = "검색중..")
                         } else {
-                            if (hasSearched) {
-                                if (boardSearchResults.isEmpty()) {
-                                    EmptyStateUI(iconRes = noResultsIcon, message = "검색결과가 없습니다.")
-                                } else {
-                                    // [수정] 검색 결과 목록에 클릭 로직 다시 추가
-                                    BoardContent(
-                                        boards = boardSearchResults,
-                                        onCardClick = { boardItem ->
-                                            navController.navigate(
-                                                "board_detail/${boardItem.serverBoardId}/${
-                                                    java.net.URLEncoder.encode(boardItem.title, "utf-8")
-                                                }"
-                                            )
-                                        },
-                                        onFavoriteClick = { item ->
-                                            boardViewModel.toggleFavorite(
-                                                boardId = item.serverBoardId,
-                                                currentFavorite = item.isBookmarked
-                                            )
-                                        },
-                                        isSelectionMode = false,
-                                        selectedBoardIds = emptySet()
-                                    )
-                                }
+                            // --- 검색 모드가 아닐 때의 UI (기본 목록) ---
+                            val defaultBoards = boardViewModel.boards.value.filter {
+                                val parts = it.subtitle.split(" ")
+                                // 섹션 수와 카드 수를 파싱합니다.
+                                val sectionCount = parts.getOrNull(0)?.toIntOrNull() ?: 0
+                                val cardCount = parts.getOrNull(2)?.toIntOrNull() ?: 0
+
+                                // 섹션이 있는지, 카드가 있는지 확인하는 조건을 만듭니다.
+                                val hasSections = parts.getOrNull(1)?.contains("섹션") == true && sectionCount > 0
+                                val hasCards = parts.getOrNull(3)?.contains("카드") == true && cardCount > 0
+
+                                // 섹션이 있거나, 카드가 있거나, 사용자 보드인 경우에만 표시합니다.
+                                hasSections || hasCards || it.source.equals("USER", ignoreCase = true)
                             }
+                            // 기본 목록에 클릭 로직 다시 추가
+                            BoardContent(
+                                boards = defaultBoards,
+                                onCardClick = { boardItem ->
+                                    navController.navigate(
+                                        "board_detail/${boardItem.serverBoardId}/${
+                                            java.net.URLEncoder.encode(boardItem.title, "utf-8")
+                                        }/${boardItem.source}"
+                                    )
+                                },
+                                onFavoriteClick = { item ->
+                                    boardViewModel.toggleFavorite(
+                                        boardId = item.serverBoardId,
+                                        currentFavorite = item.isBookmarked
+                                    )
+                                },
+                                isSelectionMode = false,
+                                selectedBoardIds = emptySet()
+                            )
                         }
-                    } else {
-                        // --- 검색 모드가 아닐 때의 UI (기본 목록) ---
-                        val defaultBoards = boardViewModel.boards.value.filter {
-                            val parts = it.subtitle.split(" ")
-                            // 섹션 수와 카드 수를 파싱합니다.
-                            val sectionCount = parts.getOrNull(0)?.toIntOrNull() ?: 0
-                            val cardCount = parts.getOrNull(2)?.toIntOrNull() ?: 0
-
-                            // 섹션이 있는지, 카드가 있는지 확인하는 조건을 만듭니다.
-                            val hasSections = parts.getOrNull(1)?.contains("섹션") == true && sectionCount > 0
-                            val hasCards = parts.getOrNull(3)?.contains("카드") == true && cardCount > 0
-
-                            // 섹션이 있거나, 카드가 있거나, 사용자 보드인 경우에만 표시합니다.
-                            hasSections || hasCards || it.source.equals("USER", ignoreCase = true)
-                        }
-                        // 기본 목록에 클릭 로직 다시 추가
-                        BoardContent(
-                            boards = defaultBoards,
-                            onCardClick = { boardItem ->
-                                navController.navigate(
-                                    "board_detail/${boardItem.serverBoardId}/${
-                                        java.net.URLEncoder.encode(boardItem.title, "utf-8")
-                                    }"
-                                )
-                            },
-                            onFavoriteClick = { item ->
-                                boardViewModel.toggleFavorite(
-                                    boardId = item.serverBoardId,
-                                    currentFavorite = item.isBookmarked
-                                )
-                            },
-                            isSelectionMode = false,
-                            selectedBoardIds = emptySet()
-                        )
                     }
                 }
             }
         }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) { snackbarData ->
+            UndoSnackbar(
+                message = snackbarData.visuals.message,
+                onUndo = { snackbarData.performAction() }
+            )
+        }
     }
 }
+
 
 // 상단 카드 / 보드 탭바
 @Composable
 fun TabHeader(
     selectedTabIndex: Int,
-    onTabSelected: (Int) -> Unit
+    onTabSelected: (Int) -> Unit,
+    isSelectionMode: Boolean
 ) {
     val tabs = listOf("카드", "보드")
 
@@ -324,7 +380,7 @@ fun TabHeader(
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
-                            .noRippleClickable {onTabSelected(index) } // 탭 클릭 처리
+                            .noRippleClickable { if (!isSelectionMode) onTabSelected(index) }
                     ) {
                         // 텍스트 설정
                         Text(
@@ -360,7 +416,8 @@ fun TitleBar(
     onSearchOpen: () -> Unit,
     onSearchClose: () -> Unit,
     onSearchSubmit: () -> Unit,
-    focusRequester: FocusRequester
+    focusRequester: FocusRequester,
+    isSelectionMode: Boolean
 ) {
     val titleText = if (selectedTab == 0) "나의 카드" else "나의 보드"
 
@@ -379,7 +436,7 @@ fun TitleBar(
                     contentDescription = "검색",
                     modifier = Modifier
                         .size(24.dp)
-                        .noRippleClickable { onSearchOpen() }
+                        .noRippleClickable { if (!isSelectionMode) onSearchOpen() }
                 )
             } // 검색 모드
             else {
@@ -463,9 +520,10 @@ fun TitleBar(
 @Composable
 fun FilterButtons(
     onRequestFilter: (String) -> Unit,
-    onRequestSort: (String) -> Unit
+    onRequestSort: (String) -> Unit,
+    enabled: Boolean
 ) {
-    val filters = listOf( "즐겨찾기", "공유됨")
+    val filters = listOf("즐겨찾기", "공유됨")
     var selected by remember { mutableStateOf<String?>(null) }
 
     Row(
@@ -497,6 +555,7 @@ fun FilterButtons(
                         }
                     }
                 },
+                enabled = enabled,
                 colors = ButtonDefaults.outlinedButtonColors(
                     containerColor = if (isSelected) Purple50 else Color.Transparent,
                     contentColor = if (isSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
@@ -540,6 +599,7 @@ fun ScrollableCardContent(
     cards: List<MyCardItem>,
     onCardClick: (Int) -> Unit,
     cardHeights: List<Dp>,
+    onCardLongClick: (Int) -> Unit,
     isSelectionMode: Boolean = false,
     selectedCardIds: Set<Int> = emptySet()
 ) {
@@ -555,6 +615,7 @@ fun ScrollableCardContent(
                 cards = cards,
                 cardHeights = cardHeights,
                 onCardClick = onCardClick,
+                onCardLongClick = onCardLongClick,
                 isSelectionMode = isSelectionMode,
                 selectedCardIds = selectedCardIds
             )
@@ -613,7 +674,7 @@ fun SortFilterButton(
     // Box를 사용해 버튼 위에 팝업 메뉴를 띄울 위치를 지정
     Box {
         OutlinedButton(
-            enabled = enabled, //선택 모드일 때 정렬 숩기기 위한 enabled
+            enabled = enabled, //선택 모드일 때 정렬 숨기기 위한 enabled
             onClick = { isPopupExpanded = true }, // 버튼 클릭 시 팝업 펼치기
             colors = ButtonDefaults.outlinedButtonColors(
                 containerColor = Color.White,

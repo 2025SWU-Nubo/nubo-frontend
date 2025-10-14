@@ -89,6 +89,9 @@ fun CardDetailScreen(
     toastMessage: String?,
     onConsumeToast: () -> Unit,
     toastDelayMillis : Int = 0,
+    // 레벨업 토스트 파라미터
+    toastMessage2: Pair<AnnotatedString, String>?,
+    onConsumeToast2: () -> Unit,
     viewModel: CardDetailViewModel = hiltViewModel()
 ) {
     // 뒤로가기 처리
@@ -117,6 +120,20 @@ fun CardDetailScreen(
             )
             // 한 번만 보이도록 즉시 소거
             onConsumeToast()
+        }
+    }
+
+    // 레벨업/열매 토스트 표시
+    LaunchedEffect(toastMessage2) {
+        toastMessage2?.let { msgPair ->
+            toastHost.show(
+                title = msgPair.first,      // 제목 전달
+                summary = msgPair.second,   // 요약 전달
+                layout = AppToastLayout.TitleWithSummary, // 2줄 레이아웃 사용
+                type = AppToastType.POSITIVE,
+                durationMillis = 3000
+            )
+            onConsumeToast2()
         }
     }
 

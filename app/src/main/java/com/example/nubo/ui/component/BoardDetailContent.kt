@@ -85,6 +85,7 @@ fun BoardDetailContent(
                             height = cardHeights.getOrNull(index * 2) ?: 180.dp,
                             imageUrl = item.imageUrl,
                             onClick = { onCardClick(item.id) },
+                            onLongClick = {  },
                             // 선택 관련 파라미터 전달
                             isSelectionMode = isSelectionMode,
                             isSelected = selectedCards.contains(item.id),
@@ -105,6 +106,7 @@ fun BoardDetailContent(
                             isSelectionMode = isSelectionMode,
                             isSelected = selectedCards.contains(item.id),
                             onClick = { onCardClick(item.id) },
+                            onLongClick = {  },
                             isFavorite = item.isFavorite
                         )
                     }
