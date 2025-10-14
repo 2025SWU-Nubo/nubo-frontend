@@ -353,7 +353,7 @@ fun TabHeader(
 ) {
     val tabs = listOf("카드", "보드")
 
-    Column(modifier = Modifier.padding(top = 35.dp)) {
+    Column(modifier = Modifier.padding(top = 45.dp)) {
         // 탭 전체 중앙 정렬
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -559,6 +559,7 @@ fun FilterButtons(
                 modifier = Modifier.height(35.dp),
                 contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp)
             ) {
+
                 // --- '즐겨찾기'일 때는 아이콘만, 아닐 때는 기존 UI를 보여주도록 분기 ---
                 if (label == "즐겨찾기") {
                     Icon(
@@ -576,6 +577,7 @@ fun FilterButtons(
                             color = if (isSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.width(2.dp))
+             
                     }
                 }
             }

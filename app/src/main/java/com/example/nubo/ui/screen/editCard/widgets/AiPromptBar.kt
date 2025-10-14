@@ -79,7 +79,10 @@ fun AiPromptBar(
             PresetAction("핵심만 하이라이트", R.drawable.format_ink_highlighter)
         )
     }
+
     val canSend by remember(loading, value) { mutableStateOf(!loading && value.isNotBlank()) }
+    val chipEnabled = !loading                           // 프리셋 칩 enable 기준
+    val undoEnabled = !loading && canUndo               // 되돌리기 칩 enable 기준
 
     Surface(
         tonalElevation = 8.dp,
@@ -98,6 +101,12 @@ fun AiPromptBar(
             ) {
                 presets.forEachIndexed { index, preset ->
                     val selected = selectedPreset == index
+
+                    val presetBorder = when{
+                        !chipEnabled -> BorderStroke(1.dp, Grey30)
+                        selected -> BorderStroke(1.dp, PurpleMain500)
+                        else -> null
+                    }
                     AssistChip(
                         onClick = {
                             val next = "${preset.label} "
@@ -106,7 +115,7 @@ fun AiPromptBar(
                             selectedPreset = index
                             focusRequester.requestFocus()
                         },
-                        enabled = !loading,
+                        enabled = chipEnabled,
                         label = {
                             Text(
                                 text = preset.label,
@@ -117,7 +126,7 @@ fun AiPromptBar(
                             Icon(
                                 painter = painterResource(preset.iconRes),
                                 contentDescription = "${preset.label} 프리셋",
-                                tint = Color.Unspecified,
+//                                tint = Color.Unspecified,
                                 modifier = Modifier.size(18.dp)
                             )
                         },
@@ -125,22 +134,29 @@ fun AiPromptBar(
                             containerColor = if (selected) Purple100 else Grey20,
                             labelColor = if (selected) PurpleMain500 else Color.Black,
                             leadingIconContentColor = if (selected) PurpleMain500 else Color.Unspecified,
+                            disabledContainerColor = Grey20,
+                            disabledLabelColor = GreyMain300,
+                            disabledLeadingIconContentColor = GreyMain300
                         ),
-                        border = if (selected) BorderStroke(1.dp, PurpleMain500) else null,
+                        border = presetBorder,
                         shape = RoundedCornerShape(45.dp)
                     )
                 }
 
+                // ── 되돌리기 칩 ──
+                val undoBorderColor =
+                    if (!undoEnabled) Grey30 else if (canUndo) PurpleMain500 else null
+
                 IconOnlyChip(
-                    enabled = !loading && canUndo,
+                    enabled = undoEnabled,
                     onClick = {
                         onUndo()
                         selectedPreset = null
                         focusRequester.requestFocus()
                     },
                     containerColor = if (canUndo) Purple100 else Grey20,
-                    contentColor = if (canUndo) PurpleMain500 else GreyMain300,
-                    borderColor = if (canUndo) PurpleMain500 else null
+                    contentColor = if (canUndo) PurpleMain500 else Grey200,
+                    borderColor = undoBorderColor
                 ) {
                     Icon(painter = painterResource(R.drawable.replay), contentDescription = "되돌리기", modifier = Modifier.size(18.dp))
                 }

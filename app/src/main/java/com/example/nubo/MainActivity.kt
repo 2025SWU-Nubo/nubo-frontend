@@ -26,18 +26,25 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.components.toast.AppToastLayout
+import com.example.components.toast.AppToastOverlay
+import com.example.components.toast.AppToastType
+import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.deeplink.DeepLinkContract
 import com.example.nubo.deeplink.DeepLinkStore
 import com.example.nubo.ui.component.BottomNavBar
@@ -45,6 +52,7 @@ import com.example.nubo.ui.component.sheet.BottomSheetHost
 import com.example.nubo.ui.component.sheet.SheetRoute
 import com.example.nubo.ui.screen.card.CardDetailRoute
 import com.example.nubo.ui.screen.card.CardDetailViewModel
+import com.example.nubo.ui.screen.cardupload.CardUploadViewModel
 import com.example.nubo.ui.screen.editCard.EditCardRoute
 import com.example.nubo.ui.screen.home.HomeScreen
 import com.example.nubo.ui.screen.learn.LearnScreen
@@ -70,11 +78,13 @@ import com.example.nubo.ui.theme.NuboAppTheme
 import com.example.nubo.utils.cacheToStore
 import com.example.nubo.utils.startOnboardingForLogin
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -166,6 +176,36 @@ fun MainScreen(
     val isLoggedIn by vm.isLoggedIn.collectAsState()
     val navController = rememberNavController()
     val context = androidx.compose.ui.platform.LocalContext.current
+
+    val toastHost = rememberAppToastHostState()
+    val toastScope = rememberCoroutineScope()
+    AppToastOverlay(hostState = toastHost)
+
+    val cardUploadVm: CardUploadViewModel = hiltViewModel()
+
+    LaunchedEffect(Unit) {
+        cardUploadVm.uploadEvents.collect { ev ->
+
+            delay(180)
+
+            val (msg, type, dur) = when (ev) {
+                CardUploadViewModel.UploadEvent.Created ->
+                    Triple("카드 생성을 시작했어요", AppToastType.NORMAL, 1500)
+                CardUploadViewModel.UploadEvent.AlreadyExists ->
+                    Triple("이미 생성된 카드예요", AppToastType.NEGATIVE, 2000)
+                is CardUploadViewModel.UploadEvent.Failed ->
+                    Triple(ev.message, AppToastType.NEGATIVE, 2200)
+            }
+            toastScope.launch {
+                toastHost.show(
+                    title = AnnotatedString(msg),
+                    type = type,
+                    layout = AppToastLayout.TitleOnly,
+                    durationMillis = dur
+                )
+            }
+        }
+    }
 
     LaunchedEffect(isLoggedIn) {
         android.util.Log.d("MainActivity","isLoggendIn changed: $isLoggedIn")
@@ -281,10 +321,11 @@ fun MainScreen(
                 }
 
                 composable(
-                    route = "board_detail/{boardId}/{boardTitle}/{source}",
+                    route = "board_detail/{boardId}/{boardTitle}?source={source}",
                     arguments = listOf(
                         navArgument("boardId") { type = NavType.IntType },
-                        navArgument("boardTitle") { type = NavType.StringType }
+                        navArgument("boardTitle") { type = NavType.StringType },
+                        navArgument("source") { defaultValue = "USER"; nullable = true }
                     )
                 ) { backStackEntry ->
                     val boardId = backStackEntry.arguments?.getInt("boardId") ?: return@composable
@@ -477,6 +518,7 @@ fun MainScreen(
 //                        .statusBarsPadding()
                     ) {
                         EditCardRoute(
+                            navController = navController,
                             onBack = { navController.popBackStack() },
                             onSaved = {
                                 navController.previousBackStackEntry
@@ -597,7 +639,7 @@ fun MainScreen(
 
                     raw?.toLongOrNull()?.takeIf { it > 0L }?.let { idLong ->
                         navController.navigate("card_detail/${idLong.toInt()}") {
-                            popUpTo("home") { inclusive = false }
+                            popUpTo("notification") { inclusive = false }
                             launchSingleTop = true
                         }
                     }
@@ -605,13 +647,13 @@ fun MainScreen(
 
                 "REMINDER" -> {
                     navController.navigate("learn") {
-                        popUpTo("home") { inclusive = false }
+                        popUpTo("notification") { inclusive = false }
                         launchSingleTop = true
                     }
                 }
                 "BOARD" -> {
                     navController.navigate("notification") {
-                        popUpTo("home") { inclusive = false }
+                        popUpTo("notification") { inclusive = false }
                         launchSingleTop = true
                     }
                 }
@@ -621,14 +663,14 @@ fun MainScreen(
                     val id = intent.getStringExtra("cardId")?.toIntOrNull()
                     if (id != null && id > 0) {
                         navController.navigate("card_detail/$id") {
-                            popUpTo("home") { inclusive = false }
+                            popUpTo("notification") { inclusive = false }
                             launchSingleTop = true
                         }
                     }
                 }
                 "BOARD_INVITE", "INVITE_RESULT" -> {
                     navController.navigate("notification") {
-                        popUpTo("home") { inclusive = false }
+                        popUpTo("notification") { inclusive = false }
                         launchSingleTop = true
                     }
                 }

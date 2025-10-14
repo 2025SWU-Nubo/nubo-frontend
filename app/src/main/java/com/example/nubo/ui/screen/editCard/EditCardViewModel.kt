@@ -195,7 +195,7 @@ class EditCardViewModel @Inject constructor(
         // 3) 되돌리기 상태 정리
         prevSummaryBackup = null
         _canUndoAiEdit.value = false
-        _toast.value = "되돌리기 완료"
+        _toast.value = "되돌리기 완료!"
     }
 
     /* 사용자가 추가 수정한 경우 등  되돌리기 의미가 없어지면 호출 */
@@ -233,7 +233,12 @@ class EditCardViewModel @Inject constructor(
             _uiEvent.emit(EditCardUiEvent.ApplyAiEdit(resp.summary))
         }.onFailure { e ->
             /* 4 실패  되돌리기 가능 상태 유지  에러 토스트 */
-            _toast.value = e.humanMessage()
+            val msg = if(e is HttpException && e.code() == 400){
+                "요구 사항을 정확하게 입력해주세요."
+            }else{
+                e.humanMessage()
+            }
+            _toast.value = msg
         }
         _aiLoading.value = false
     }

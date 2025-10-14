@@ -134,12 +134,15 @@ class CardUploadService: Service() {
         val builder = NotificationCompat.Builder(this,PROGRESS_CHANNEL_ID)
             .setContentTitle("카드 생성 중")
             .setContentText("영상을 업로드하고 있습니다..")
-            .setSmallIcon(R.drawable.basic_profile_image)
+            .setSmallIcon(R.drawable.noti_nubo)
             .setProgress(0, 0, true) // 무한 진행바 표시
             .setOngoing(true) // 사용자가 스와이프로 제거할 수 없도록 설정
-            .setProgress(0, 0, true)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+
 
         // Show immediately on Android 12L+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

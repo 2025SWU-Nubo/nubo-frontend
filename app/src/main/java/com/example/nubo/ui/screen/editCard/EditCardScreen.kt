@@ -68,6 +68,7 @@ import com.mohamedrejeb.richeditor.ui.material3.RichTextEditorDefaults
 fun EditCardScreen(
     onBack: () -> Unit,
     onSave: () -> Unit,
+    onSaveWithToast: (String) -> Unit,  // 저장 성공 시 상세 화면에서 토스트를 띄우도록 메시지 전달
     viewModel: EditCardViewModel = hiltViewModel()
 ) {
     // 에디터 상태
@@ -227,6 +228,7 @@ fun EditCardScreen(
                 navigationIcon = {
                     IconButton(
                         onClick = {
+                            // 뒤로가기 눌렀을 떄 변경사항 있을 경우 경고 다이얼로그 노출
                             focusManager.clearFocus(force = true)
                             if (hasUnsavedChangesState.value) showLeaveConfirm = true else onBack()
                         },
@@ -237,12 +239,19 @@ fun EditCardScreen(
                 },
                 actions = {
                     TextButton(onClick = {
+                        // 현재 수정 내용 뷰모델에 동기화
                         val markdown = sanitizeToAllowedMarkdown(rtState.toMarkdown())
                         viewModel.updateSummary(markdown)
                         initialMarkdown = markdown
                         currentMarkdown = markdown
 
+                        // 저장 요청. 성공 시 카드 상세에서 토스트를 띄우도록 콜백 메세지 넘김
                         focusManager.clearFocus(force = true)
+                        viewModel.save(
+                            onSuccess = {
+                                onSaveWithToast("요약 노트 수정 완료되었어요.")
+                            }
+                        )
                         onSave()
                     },
                         enabled = !aiLoading
@@ -251,6 +260,7 @@ fun EditCardScreen(
                     }
                 },
                 modifier = Modifier.drawBehind {
+                    // 상단바 하단 구분선
                     val y = size.height
                     drawLine(
                         color = Grey50,
@@ -378,11 +388,11 @@ fun EditCardScreen(
             //  애니메이션 추가
             val aiOverlayBottomPadding by animateDpAsState(
                 targetValue = when {
-                    showAiBar -> 200.dp  // aiBarHeight + 여유
+                    showAiBar -> 300.dp  // aiBarHeight + 여유
                     else -> 0.dp
                 },
                 animationSpec = tween(
-                    durationMillis = 150,
+                    durationMillis = 120,
                     easing = FastOutLinearInEasing
                 ),
                 label = "aiOverlayPadding"
@@ -486,31 +496,3 @@ fun rememberKeyboardVisible(): State<Boolean> {
     }
     return isVisible
 }
-
-@Composable
-fun AppToastOverlay(hostState: AppToastHostState,modifier: Modifier) {
-    Popup(
-        alignment = Alignment.BottomCenter,
-        properties = PopupProperties(
-            focusable = false,
-            dismissOnBackPress = false,
-            dismissOnClickOutside = false,
-            excludeFromSystemGesture = false
-        )
-    ) {
-        AppToastHost(
-            hostState = hostState,
-            matchParentSize = false,
-            contentAlignment = Alignment.BottomCenter,
-            modifier = Modifier
-                .imePadding()                         // ← 키보드 위
-                .windowInsetsPadding(WindowInsets.navigationBars) // ← 소프트키 위
-//                .padding(bottom = 12.dp)              // 약간의 여유
-        )
-    }
-}
-
-
-
-
-
