@@ -233,7 +233,12 @@ class EditCardViewModel @Inject constructor(
             _uiEvent.emit(EditCardUiEvent.ApplyAiEdit(resp.summary))
         }.onFailure { e ->
             /* 4 실패  되돌리기 가능 상태 유지  에러 토스트 */
-            _toast.value = e.humanMessage()
+            val msg = if(e is HttpException && e.code() == 400){
+                "요구 사항을 정확하게 입력해주세요."
+            }else{
+                e.humanMessage()
+            }
+            _toast.value = msg
         }
         _aiLoading.value = false
     }

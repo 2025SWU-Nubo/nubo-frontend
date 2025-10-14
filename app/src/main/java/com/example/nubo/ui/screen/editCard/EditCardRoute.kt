@@ -13,14 +13,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 
 @Composable
 fun EditCardRoute(
+    navController: NavController,
     onBack: () -> Unit,
     onSaved: ()-> Unit,
     viewModel: EditCardViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+//    val navController = rememberNavController()
 //    val state = viewModel.uiState.collectAsStateWithLifecycle().value
 //    val snackbarHostState = remember { SnackbarHostState() }
 
@@ -32,8 +36,7 @@ fun EditCardRoute(
         }
         is EditCardUiState.Saving -> LoadingBox()
         is EditCardUiState.Saved -> {
-            // Option A: 바로 뒤로가기
-            LaunchedEffect(Unit) { onSaved() }
+//            LaunchedEffect(Unit) { onSaved() }
         }
         is EditCardUiState.Ready -> {
             // Scaffold 제거하고 EditCardScreen이 직접 Scaffold를 처리하도록
@@ -41,6 +44,14 @@ fun EditCardRoute(
                 EditCardScreen(
                     onBack = onBack,
                     onSave = { viewModel.save() },
+                    onSaveWithToast = { message ->
+                        //이전 백스택 엔트리의 SavedStateHandle에 토스트 메시지 저장
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.set("toast_after_edit",message)
+                        //뒤로가기 실행
+                        navController.popBackStack()
+                    },
                     viewModel = viewModel
                 )
             }

@@ -74,6 +74,7 @@ import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.GreyMain100
 import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.PurpleMain500
+import kotlinx.coroutines.delay
 import kotlin.math.max
 
 
@@ -87,6 +88,7 @@ fun CardDetailScreen(
     onToggleFavorite: () -> Unit,
     toastMessage: String?,
     onConsumeToast: () -> Unit,
+    toastDelayMillis : Int = 0,
     viewModel: CardDetailViewModel = hiltViewModel()
 ) {
     // 뒤로가기 처리
@@ -99,15 +101,21 @@ fun CardDetailScreen(
 
     val infoState by viewModel.infoState.collectAsState()
 
-    // 토스트 표시
-    LaunchedEffect(toastMessage) {
-        toastMessage?.let { msg ->
+    //  토스트 메시지가 들어오면 지연 후 노출
+    LaunchedEffect(toastMessage, toastDelayMillis) {
+        val msg = toastMessage
+        if (!msg.isNullOrEmpty()) {
+            // 지연 시간이 설정된 경우 지정 ms 만큼 대기
+            if (toastDelayMillis > 0) {
+                delay(toastDelayMillis.toLong())
+            }
             toastHost.show(
                 title = AnnotatedString(msg),
                 layout = AppToastLayout.TitleOnly,
                 type = AppToastType.FAVORITE,
                 durationMillis = 2000
             )
+            // 한 번만 보이도록 즉시 소거
             onConsumeToast()
         }
     }

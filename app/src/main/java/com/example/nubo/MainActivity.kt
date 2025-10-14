@@ -34,6 +34,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -480,6 +481,7 @@ fun MainScreen(
                         .padding(innerPadding)
                     ) {
                         CardDetailRoute(
+                            navController = navController,
                             onBack = { navController.popBackStack() },
                             onEdit = { navController.navigate("card_edit/$cardId") }
                         )
@@ -497,6 +499,7 @@ fun MainScreen(
 //                        .statusBarsPadding()
                     ) {
                         EditCardRoute(
+                            navController = navController,
                             onBack = { navController.popBackStack() },
                             onSaved = {
                                 navController.previousBackStackEntry
