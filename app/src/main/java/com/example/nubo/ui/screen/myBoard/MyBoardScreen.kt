@@ -1,9 +1,5 @@
 package com.example.nubo.ui.screen.myBoard
 
-import android.util.Log
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -46,17 +42,17 @@ import com.example.nubo.ui.component.MyCardContent
 import com.example.nubo.ui.component.randomCardHeight
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import com.example.components.toast.AppToastHost
+import com.example.components.toast.AppToastLayout
+import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
 import com.example.nubo.ui.theme.Grey1000
@@ -72,34 +68,59 @@ fun MyBoardScreen(
     cardViewModel: MyCardViewModel = hiltViewModel(),
     boardDetailViewModel: BoardDetailViewModel = hiltViewModel(),
     modifier: Modifier = Modifier,
-    // 부모(MyBoardRoute)로부터 상태를 직접 전달받음
+    // 카드 선택
     isCardSelectionMode: Boolean,
     selectedCardIds: Set<Int>,
-    // 클릭/롱클릭 이벤트를 부모에게 전달
     onCardClick: (Int) -> Unit,
     onCardLongClick: (Int) -> Unit,
+    // 보드 선택
+    isBoardSelectionMode: Boolean,
+    selectedBoardIds: Set<Int>,
+    onBoardClick: (com.example.nubo.model.myBoard.BoardItem) -> Unit,
+    onBoardLongClick: (com.example.nubo.model.myBoard.BoardItem) -> Unit,
 ) {
     var selectedTab by remember { mutableStateOf(1) }
 
-    val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    // --- 토스트 메시지를 boardViewModel에서 구독 ---
+    val toastHostState = rememberAppToastHostState()
+    val toastMessage by boardViewModel.toastMessage.collectAsState()
 
-    // --- 삭제 완료 시 스낵바를 표시하기 위해 이벤트를 수신 ---
-    LaunchedEffect(Unit) {
-        boardDetailViewModel.deleteCompleteEvent.collect {
+    // --- ViewModel의 toastMessage 변경을 감지하여 토스트 표시 및 새로고침 ---
+    LaunchedEffect(toastMessage) {
+        toastMessage?.let { message ->
             scope.launch {
-                val result = snackbarHostState.showSnackbar(
-                    message = "삭제가 완료되었습니다.",
-                    actionLabel = "실행 취소",
-                    duration = SnackbarDuration.Long
+                toastHostState.show(
+                    title = buildAnnotatedString { append(message) },
+                    layout = AppToastLayout.TitleOnly
                 )
-                if (result == SnackbarResult.ActionPerformed) {
-                    boardDetailViewModel.undoLastDeletion()
-                }
             }
+            // --- 실제 메시지("...되었습니다")와 일치하도록 조건문 수정 ---
+            if (message.contains("이동되었습니다") || message.contains("복제되었습니다")) {
+                cardViewModel.refresh()
+            }
+            boardViewModel.clearToastMessage()
         }
     }
+
+    // --- BoardDetailViewModel의 토스트 메시지(삭제 취소) 처리 ---
+    val detailToastMessage by boardDetailViewModel.toastMessage.collectAsState()
+    LaunchedEffect(detailToastMessage) {
+        detailToastMessage?.let { message ->
+            scope.launch {
+                toastHostState.show(
+                    title = buildAnnotatedString { append(message) },
+                    layout = AppToastLayout.TitleOnly
+                )
+            }
+            if (message.contains("취소되었습니다")) {
+                cardViewModel.refresh()
+            }
+            boardDetailViewModel.clearToastMessage()
+        }
+    }
+
 
     // 검색 결과가 바뀔 때도 높이를 다시 계산하도록 키 추가
     val randomHeights = remember(selectedTab, cardViewModel.cards.value, cardViewModel.searchResults.value) {
@@ -185,7 +206,7 @@ fun MyBoardScreen(
                     }
                     selectedTab = newTab
                 },
-                isSelectionMode = isCardSelectionMode
+                isSelectionMode = isCardSelectionMode || isBoardSelectionMode
             )
             TitleBar(
                 selectedTab = selectedTab,
@@ -277,53 +298,29 @@ fun MyBoardScreen(
                                     if (boardSearchResults.isEmpty()) {
                                         EmptyStateUI(iconRes = noResultsIcon, message = "검색결과가 없습니다.")
                                     } else {
-                                        // [수정] 검색 결과 목록에 클릭 로직 다시 추가
+                                        // --- BoardContent에 선택모드 관련 파라미터 전달 ---
                                         BoardContent(
-                                            boards = boardSearchResults,
-                                            onCardClick = { boardItem ->
-                                                navController.navigate(
-                                                    "board_detail/${boardItem.serverBoardId}/${
-                                                        java.net.URLEncoder.encode(boardItem.title, "utf-8")
-                                                    }/${boardItem.source}"
-                                                )
-                                            },
+                                            boards = boardViewModel.boards.value,
+                                            onBoardClick = onBoardClick, // 클릭 이벤트 전달
+                                            onBoardLongClick = onBoardLongClick, // 롱클릭 이벤트 전달
                                             onFavoriteClick = { item ->
                                                 boardViewModel.toggleFavorite(
                                                     boardId = item.serverBoardId,
                                                     currentFavorite = item.isBookmarked
                                                 )
                                             },
-                                            isSelectionMode = false,
-                                            selectedBoardIds = emptySet()
+                                            isSelectionMode = isBoardSelectionMode, // 선택모드 상태 전달
+                                            selectedBoardIds = selectedBoardIds // 선택된 ID 전달
                                         )
                                     }
                                 }
                             }
                         } else {
-                            // --- 검색 모드가 아닐 때의 UI (기본 목록) ---
-                            val defaultBoards = boardViewModel.boards.value.filter {
-                                val parts = it.subtitle.split(" ")
-                                // 섹션 수와 카드 수를 파싱합니다.
-                                val sectionCount = parts.getOrNull(0)?.toIntOrNull() ?: 0
-                                val cardCount = parts.getOrNull(2)?.toIntOrNull() ?: 0
-
-                                // 섹션이 있는지, 카드가 있는지 확인하는 조건을 만듭니다.
-                                val hasSections = parts.getOrNull(1)?.contains("섹션") == true && sectionCount > 0
-                                val hasCards = parts.getOrNull(3)?.contains("카드") == true && cardCount > 0
-
-                                // 섹션이 있거나, 카드가 있거나, 사용자 보드인 경우에만 표시합니다.
-                                hasSections || hasCards || it.source.equals("USER", ignoreCase = true)
-                            }
-                            // 기본 목록에 클릭 로직 다시 추가
+                            // 기존 필터 로직을 제거하고, 서버에서 받은 모든 보드를 보여줌.
                             BoardContent(
-                                boards = defaultBoards,
-                                onCardClick = { boardItem ->
-                                    navController.navigate(
-                                        "board_detail/${boardItem.serverBoardId}/${
-                                            java.net.URLEncoder.encode(boardItem.title, "utf-8")
-                                        }/${boardItem.source}"
-                                    )
-                                },
+                                boards = boardViewModel.boards.value, // <-- 필터 제거
+                                onBoardClick = onBoardClick, // Route가 정의한 클릭 동작을 전달
+                                onBoardLongClick = onBoardLongClick, // Route가 정의한 롱클릭 동작을 전달
                                 onFavoriteClick = { item ->
                                     boardViewModel.toggleFavorite(
                                         boardId = item.serverBoardId,
@@ -338,15 +335,11 @@ fun MyBoardScreen(
                 }
             }
         }
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter)
-        ) { snackbarData ->
-            UndoSnackbar(
-                message = snackbarData.visuals.message,
-                onUndo = { snackbarData.performAction() }
-            )
-        }
+        // -토스트 UI를 화면에 배치 ---
+        AppToastHost(
+            hostState = toastHostState,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 80.dp) // 스낵바와 겹치지 않도록 패딩 추가
+        )
     }
 }
 
@@ -562,32 +555,29 @@ fun FilterButtons(
                 ),
                 shape = RoundedCornerShape(50),
                 border = BorderStroke(1.dp, if (isSelected) PurpleMain500 else Grey200),
+                // --- '즐겨찾기' 버튼일 때 크기와 패딩을 다르게 적용 ---
                 modifier = Modifier.height(35.dp),
-                contentPadding = PaddingValues(horizontal = 15.dp, vertical = 8.dp)
+                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    when (label) {
-                        // ─────────────────────────────────────────────
-                        // 즐겨찾기: 텍스트 없이 "아이콘만" 표시
-                        // ─────────────────────────────────────────────
-                        "즐겨찾기" -> {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_filter_star),
-                                contentDescription = "즐겨찾기 필터",
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
 
-                        // ─────────────────────────────────────────────
-                        // 공유됨: 기존처럼 텍스트만 표시
-                        // ─────────────────────────────────────────────
-                        "공유됨" -> {
-                            Text(
-                                text = "공유됨",
-                                style = AppTextStyles.label_medium_12,
-                                color = if (isSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
-                            )
-                        }
+                // --- '즐겨찾기'일 때는 아이콘만, 아닐 때는 기존 UI를 보여주도록 분기 ---
+                if (label == "즐겨찾기") {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_filter_star),
+                        contentDescription = "즐겨찾기",
+                        modifier = Modifier.size(16.dp)
+                    )
+                } else {
+                    // '공유됨' 버튼은 기존 UI 유지
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(
+                            text = label,
+                            style = AppTextStyles.label_medium_12,
+                            color = if (isSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+             
                     }
                 }
             }

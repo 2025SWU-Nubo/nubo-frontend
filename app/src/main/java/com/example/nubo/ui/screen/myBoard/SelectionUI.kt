@@ -273,45 +273,51 @@ fun BoardSettingsContent(
     onSettingsClick: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    Column(
+    Surface(
         modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        shadowElevation = 8.dp, // 입체 효과
+        color = Color.White
     ) {
-        IconButton(
-            onClick = onDismiss,
-            modifier = Modifier.padding(start = 4.dp, top = 16.dp)
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_close),
-                contentDescription = "닫기"
-            )
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 40.dp, start = 20.dp, end = 20.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .navigationBarsPadding()
         ) {
-            Text(
-                text = "보드 옵션",
-                style = b1_semibold_18
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            // 새로 만든 OptionButton 사용
-            OptionButton(
-                text = "삭제",
-                iconRes = R.drawable.ic_board_delete,
-                onClick = onDeleteClick
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            // 새로 만든 OptionButton 사용
-            OptionButton(
-                text = "설정",
-                iconRes = R.drawable.ic_board_settings,
-                onClick = onSettingsClick
-            )
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier.padding(start = 4.dp, top = 10.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_close),
+                    contentDescription = "닫기"
+                )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 40.dp, start = 20.dp, end = 20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "보드 옵션",
+                    style = b1_semibold_18
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                OptionButton(
+                    text = "삭제",
+                    iconRes = R.drawable.ic_board_delete,
+                    onClick = onDeleteClick
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                OptionButton(
+                    text = "설정",
+                    iconRes = R.drawable.ic_board_settings,
+                    onClick = onSettingsClick
+                )
+            }
         }
     }
 }
@@ -321,38 +327,46 @@ fun SectionSettingsContent(
     onRenameClick: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    Column(
+    Surface(
         modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        shadowElevation = 8.dp, // 입체 효과
+        color = Color.White
     ) {
-        IconButton(
-            onClick = onDismiss,
-            modifier = Modifier.padding(start = 4.dp, top = 16.dp)
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_close),
-                contentDescription = "닫기"
-            )
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 40.dp, start = 20.dp, end = 20.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .navigationBarsPadding()
         ) {
-            Text(
-                text = "섹션 옵션",
-                style = b1_semibold_18
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            // 새로 만든 OptionButton 사용
-            OptionButton(
-                text = "이름 변경",
-                iconRes = R.drawable.ic_board_nameedit,
-                onClick = onRenameClick
-            )
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier.padding(start = 4.dp, top = 10.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_close),
+                    contentDescription = "닫기"
+                )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 40.dp, start = 20.dp, end = 20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "섹션 옵션",
+                    style = b1_semibold_18
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                // 새로 만든 OptionButton 사용
+                OptionButton(
+                    text = "이름 변경",
+                    iconRes = R.drawable.ic_board_nameedit,
+                    onClick = onRenameClick
+                )
+            }
         }
     }
 }
@@ -392,7 +406,7 @@ private fun OptionButton(
 }
 
 
-// 삭제 다이얼로그
+// 섹션 및 카드 삭제 다이얼로그
 @Composable
 fun DeleteConfirmationDialog(
     visible: Boolean,
@@ -490,6 +504,96 @@ fun DeleteConfirmationDialog(
                         text = "취소",
                         style = b1_semibold_18,
                         color = PurpleMain500,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .noRippleClickable { onDismiss() }
+                            .padding(vertical = 16.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+    }
+}
+
+// --- 보드 전체 삭제할 때 사용하는 확인 다이얼로그 ---
+@Composable
+fun BoardDeleteConfirmationDialog(
+    visible: Boolean,
+    onDismiss: () -> Unit,
+    onDelete: () -> Unit
+) {
+    if (!visible) return
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss
+                ),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 20.dp)
+                    .navigationBarsPadding()
+            ) {
+                // 메인 다이얼로그 (삭제)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                        .clip(RoundedCornerShape(14.dp)) // 모서리를 14.dp로 변경
+                        .background(Color.White)
+                        .clickable( // 배경 클릭 전파 방지
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {}
+                        ),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // 요청하신 텍스트로 변경
+                    Text(
+                        text = "삭제를 클릭하면 보드 내 모든 콘텐츠가 삭제됩니다.",
+                        style = b3_regular_14, // 폰트 스타일 변경
+                        color = Grey500, // 텍스트 색상 변경
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(vertical = 22.dp) // 패딩 조정
+                    )
+                    Divider(color = Grey50)
+                    Text(
+                        text = "삭제",
+                        style = b1_semibold_18,
+                        color = RedError, // 빨간색 텍스트
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .noRippleClickable { onDelete() }
+                            .padding(vertical = 16.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                // 취소 버튼
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color.White),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "취소",
+                        style = b1_semibold_18.copy(color = PurpleMain500), // 파란색 텍스트
                         modifier = Modifier
                             .fillMaxWidth()
                             .noRippleClickable { onDismiss() }
@@ -669,9 +773,11 @@ private fun BoardNodeItem(
     var expanded by remember { mutableStateOf(true) }
     val hasChildren = node.children.isNotEmpty()
 
-    Column(modifier = Modifier
-        .fillMaxWidth()
-        .animateContentSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize()
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -784,165 +890,173 @@ fun BoardEditSheet(
     val showError = isNameTouched && !isNameValid
     // ---
 
-    Column(
+    Surface(
         modifier = Modifier
-            .background(color = Color.White)
-            .height(500.dp)
-            .navigationBarsPadding()
-            .imePadding()
-            .padding(start = 18.dp,end=18.dp,top=13.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        shadowElevation = 8.dp, // 입체 효과
+        color = Color.White
     ) {
-        // --- 헤더: 뒤로가기 + 타이틀 ---
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
+        Column(
+            modifier = Modifier
+                .background(color = Color.White)
+                .height(500.dp)
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(start = 18.dp, end = 18.dp, top = 13.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            IconButton(
-                onClick = onBack, // 뒤로가기 클릭 시 이전 바텀바로 돌아감
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .offset(x = (-18).dp)
-                    .size(48.dp)
+            // --- 헤더: 뒤로가기 + 타이틀 ---
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_arrow_back),
-                    contentDescription = "뒤로가기"
-                )
+                IconButton(
+                    onClick = onBack, // 뒤로가기 클릭 시 이전 바텀바로 돌아감
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .offset(x = (-18).dp)
+                        .size(48.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_arrow_back),
+                        contentDescription = "뒤로가기"
+                    )
+                }
+                Text(text = "보드 설정", style = b1_semibold_18) // 타이틀 변경
             }
-            Text(text = "보드 설정", style = b1_semibold_18) // 타이틀 변경
-        }
-        Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(28.dp))
 
-        // --- 보드 이름 입력 ---
-        Column(horizontalAlignment = Alignment.Start) {
-            Text("보드 이름", style = b2_semibold_16)
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField1(
-                value = name,
-                onValueChange = {
-                    name = it
-                    if (!isNameTouched) isNameTouched = true
-                },
-                enabled = isEditable,
-                singleLine = true,
+            // --- 보드 이름 입력 ---
+            Column(horizontalAlignment = Alignment.Start) {
+                Text("보드 이름", style = b2_semibold_16)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField1(
+                    value = name,
+                    onValueChange = {
+                        name = it
+                        if (!isNameTouched) isNameTouched = true
+                    },
+                    enabled = isEditable,
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(40.dp),
+                    isError = showError,
+                    // CreateBoardSheet와 동일한 스타일 적용
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PurpleMain500,
+                        unfocusedBorderColor = Grey50,
+                        errorBorderColor = RedError,
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Grey10,
+                        disabledBorderColor = Grey50, // 비활성화 시 테두리 색
+                        disabledTextColor = GreyMain300,   // 비활성화 시 텍스트 색
+                        disabledContainerColor = Grey10
+                    ),
+                    placeholder = { Text("보드 이름", style = b3_regular_14, color = Grey200) },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        if (isNameValid) onConfirm(trimmedName, isShared)
+                    })
+                )
+
+                // --- 유효성 및 안내 메시지 ---
+                Box(modifier = Modifier.height(24.dp)) {
+                    if (!isEditable) { // AI 보드일 때 안내 문구
+                        Text(
+                            text = "AI 보드는 이름 변경이 불가합니다.",
+                            style = b3_regular_14,
+                            color = Grey500, // 안내 문구 색상
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    } else if (showError) { // USER 보드이고, 유효성 검사 실패 시
+                        Text(
+                            text = "보드 이름을 2자 이상 입력해주세요.",
+                            style = b3_regular_14,
+                            color = RedError,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(22.dp))
+
+            // --- 보드 유형 선택 ---
+            Column(
+                horizontalAlignment = Alignment.Start,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("보드 유형", style = b2_semibold_16)
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // 개인 보드 버튼
+                    SegButton(
+                        text = "개인",
+                        selected = !isShared,
+                        onClick = { isShared = false },
+                        iconRes = R.drawable.unselected_private
+                    )
+                    // 공유 보드 버튼
+                    SegButton(
+                        text = "공유",
+                        selected = isShared,
+                        onClick = { isShared = true },
+                        iconRes = R.drawable.unselected_share
+                    )
+                }
+            }
+
+            // --- 참여자 초대 (공유 보드일 때만 보임) ---
+            AnimatedVisibility(visible = isShared) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 24.dp),
+                    horizontalAlignment = Alignment.Start
+                ) {
+                    Row(
+                        modifier = Modifier.clickable { onInviteClick() }, // TODO: 초대 화면 연결
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("참여자 초대하기", style = b2_semibold_16)
+                        Icon(painter = painterResource(R.drawable.arrow_right), contentDescription = "더보기")
+                    }
+                    Spacer(Modifier.height(5.dp))
+                    Text("이후 보드 설정에서 참여자를 추가할 수 있습니다.", style = b3_regular_14, color = Grey500)
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(1f)) // 버튼을 하단에 고정
+
+            // --- 설정하기 버튼 ---
+            Button(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
-                shape = RoundedCornerShape(40.dp),
-                isError = showError,
-                // CreateBoardSheet와 동일한 스타일 적용
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = PurpleMain500,
-                    unfocusedBorderColor = Grey50,
-                    errorBorderColor = RedError,
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Grey10,
-                    disabledBorderColor = Grey50, // 비활성화 시 테두리 색
-                    disabledTextColor = GreyMain300,   // 비활성화 시 텍스트 색
-                    disabledContainerColor = Grey10
-                ),
-                placeholder = { Text("보드 이름", style = b3_regular_14, color = Grey200) },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = {
-                    if (isNameValid) onConfirm(trimmedName, isShared)
-                })
-            )
-
-            // --- 유효성 및 안내 메시지 ---
-            Box(modifier = Modifier.height(24.dp)) {
-                if (!isEditable) { // AI 보드일 때 안내 문구
-                    Text(
-                        text = "AI 보드는 이름 변경이 불가합니다.",
-                        style = b3_regular_14,
-                        color = Grey500, // 안내 문구 색상
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                } else if (showError) { // USER 보드이고, 유효성 검사 실패 시
-                    Text(
-                        text = "보드 이름을 2자 이상 입력해주세요.",
-                        style = b3_regular_14,
-                        color = RedError,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-            }
-        }
-        Spacer(Modifier.height(22.dp))
-
-        // --- 보드 유형 선택 ---
-        Column(
-            horizontalAlignment = Alignment.Start,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("보드 유형", style = b2_semibold_16)
-            Spacer(Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // 개인 보드 버튼
-                SegButton(
-                    text = "개인",
-                    selected = !isShared,
-                    onClick = { isShared = false },
-                    iconRes = R.drawable.unselected_private
+                onClick = {
+                    isNameTouched = true
+                    if (isNameValid) {
+                        onConfirm(trimmedName, isShared)
+                    }
+                },
+                shape = RoundedCornerShape(8.dp),
+                enabled = isNameValid, // 유효성 검사 결과에 따라 활성화
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PurpleMain500,
+                    disabledContainerColor = Grey200, // 비활성화 색상
+                    contentColor = Color.White, // 활성화 시 텍스트 색상
+                    disabledContentColor = Color.White // 비활성화 시 텍스트 색상
                 )
-                // 공유 보드 버튼
-                SegButton(
-                    text = "공유",
-                    selected = isShared,
-                    onClick = { isShared = true },
-                    iconRes = R.drawable.unselected_share
-                )
-            }
-        }
-
-        // --- 참여자 초대 (공유 보드일 때만 보임) ---
-        AnimatedVisibility(visible = isShared) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 24.dp),
-                horizontalAlignment = Alignment.Start
             ) {
-                Row(
-                    modifier = Modifier.clickable { onInviteClick() }, // TODO: 초대 화면 연결
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("참여자 초대하기", style = b2_semibold_16)
-                    Icon(painter = painterResource(R.drawable.arrow_right), contentDescription = "더보기")
-                }
-                Spacer(Modifier.height(5.dp))
-                Text("이후 보드 설정에서 참여자를 추가할 수 있습니다.", style = b3_regular_14, color = Grey500)
+                Text(text = "설정하기", style = b1_bold_18) // 버튼 텍스트 변경
             }
+            Spacer(Modifier.height(25.dp))
         }
-
-        Spacer(modifier = Modifier.weight(1f)) // 버튼을 하단에 고정
-
-        // --- 설정하기 버튼 ---
-        Button(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            onClick = {
-                isNameTouched = true
-                if (isNameValid) {
-                    onConfirm(trimmedName, isShared)
-                }
-            },
-            shape = RoundedCornerShape(8.dp),
-            enabled = isNameValid, // 유효성 검사 결과에 따라 활성화
-            colors = ButtonDefaults.buttonColors(
-                containerColor = PurpleMain500,
-                disabledContainerColor = Grey200, // 비활성화 색상
-                contentColor = Color.White, // 활성화 시 텍스트 색상
-                disabledContentColor = Color.White // 비활성화 시 텍스트 색상
-            )
-        ) {
-            Text(text = "설정하기", style = b1_bold_18) // 버튼 텍스트 변경
-        }
-        Spacer(Modifier.height(25.dp))
     }
 }
 

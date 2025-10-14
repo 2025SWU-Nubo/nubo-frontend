@@ -61,13 +61,15 @@ class BoardDetailViewModel @Inject constructor(
     private var bootstrapped = false
     private val pageSize = 20
 
-    // 삭제 성공 시 UI에 신호를 보내기 위한 SharedFlow
-    private val _deleteCompleteEvent = MutableSharedFlow<Unit>()
+    // --- 삭제 성공 시 '삭제된 개수(Int)'를 UI에 보내기 위한 SharedFlow ---
+    private val _deleteCompleteEvent = MutableSharedFlow<Int>()
     val deleteCompleteEvent = _deleteCompleteEvent.asSharedFlow()
 
     //  마지막으로 삭제된 항목들의 ID를 임시 저장하는 변수
     private var lastDeletedSectionIds: Set<Int> = emptySet()
     private var lastDeletedCardIds: Set<Int> = emptySet()
+    // --- 마지막 카드 삭제 유형을 저장하는 변수 ---
+    private var lastCardDeleteMode: String = ""
 
     //  토스트 메시지 상태 변수와 초기화 함수
     private val _toastMessage = MutableStateFlow<String?>(null)
@@ -342,10 +344,13 @@ class BoardDetailViewModel @Inject constructor(
                 )
 
                 if (response.isSuccessful) {
-                    // 성공 시, 현재 화면을 새로고침하여 변경사항을 반영
-                    Log.i("CopyAPI", "성공: ${response.body()}")
-                    _toastMessage.value = "복제가 완료되었습니다!"
-                    loadPage(reset = true)
+                    // --- 성공 시, 개수를 포함한 토스트 메시지를 설정 ---
+                    val count = selectedSectionIds.size + selectedCardIds.size
+                    _toastMessage.value = "${count}개의 항목 복제가 완료되었습니다."
+                    // --- BoardDetailScreen일 때만 새로고침 ---
+                    if (currentBoardId > -1) {
+                        loadPage(reset = true)
+                    }
                 } else {
                     // 실패 시 로그 및 토스트
                     val errorBody = response.errorBody()?.string()
@@ -391,9 +396,13 @@ class BoardDetailViewModel @Inject constructor(
                 )
 
                 if (response.isSuccessful) {
-                    Log.i("MoveAPI", "성공: ${response.body()}")
-                    _toastMessage.value = "이동이 완료되었습니다!"
-                    loadPage(reset = true) // 이동 후 현재 화면은 아이템이 사라졌으므로 새로고침
+                    // --- 성공 시, 개수를 포함한 토스트 메시지를 설정 ---
+                    val count = selectedSectionIds.size + selectedCardIds.size
+                    _toastMessage.value = "${count}개의 항목 이동이 완료되었습니다."
+                    // --- BoardDetailScreen일 때만 새로고침 ---
+                    if (currentBoardId > -1) {
+                        loadPage(reset = true)
+                    }
                 } else {
                     // 실패 시 로그 및 토스트
                     val errorBody = response.errorBody()?.string()
@@ -436,6 +445,7 @@ class BoardDetailViewModel @Inject constructor(
         // --- 삭제 실행 전에 ID 저장 ---
         lastDeletedSectionIds = selectedSectionIds
         lastDeletedCardIds = selectedCardIds
+        lastCardDeleteMode = cardDeleteOption
         // --------------------------
         _ui.value = _ui.value.copy(isLoading = true, error = null)
         try {
@@ -478,69 +488,103 @@ class BoardDetailViewModel @Inject constructor(
             }
 
             if (allSuccess) {
-                _deleteCompleteEvent.emit(Unit) // UI에 성공 신호 전송
-                loadPage(reset = true) // 화면 새로고침
+                // --- 성공 시 삭제된 총 개수를 이벤트로 전송 ---
+                val deletedCount = selectedSectionIds.size + selectedCardIds.size
+                _deleteCompleteEvent.emit(deletedCount)
+
+                // currentBoardId가 유효한 경우(상세화면)에만 화면을 새로고침합니다.
+                if (currentBoardId > -1) {
+                    loadPage(reset = true)
+                }
             } else {
                 throw Exception("일부 항목 삭제에 실패했습니다.")
             }
         } catch (e: Exception) {
-            // [수정] 실패 시 로그, 토스트 및 임시 ID 초기화
+            // 실패 시 로그, 토스트 및 임시 ID 초기화
             Log.e("BoardDetailVM", "Delete action failed", e)
             _toastMessage.value = "삭제에 실패했습니다."
             _ui.value = _ui.value.copy(isLoading = false, error = e.message ?: "삭제 중 오류가 발생했습니다.")
             lastDeletedSectionIds = emptySet()
             lastDeletedCardIds = emptySet()
+            lastCardDeleteMode = ""
         }
     }
 
     // 삭제 실행 취소(복구) 함수
-    fun undoLastDeletion() {
-        viewModelScope.launch {
-            _ui.value = _ui.value.copy(isLoading = true, error = null)
-            try {
-                val token = "Bearer ${authRepository.getAccessToken()}"
-                var restoredSections = 0
-                var restoredCards = 0
+    // --- 삭제 실행 취소(복구) 함수를 suspend 함수로 변경 ---
+    suspend fun undoLastDeletion() {
+        // viewModelScope.launch를 제거하여 호출자가 작업 완료를 기다리게 함
+        _ui.value = _ui.value.copy(isLoading = true, error = null)
+        try {
+            val token = "Bearer ${authRepository.getAccessToken()}"
+            var restoredSections = 0
+            var restoredCards = 0
 
-                coroutineScope {
-                    // 섹션 복구 API 호출 (임시 저장된 ID가 있을 경우)
-                    val boardJob = if (lastDeletedSectionIds.isNotEmpty()) {
-                        async {
-                            val request = BoardRestoreRequest(boardIds = lastDeletedSectionIds.map { it.toLong() })
-                            boardService.restoreBoards(token, request).restoredCount
-                        }
-                    } else null
+            coroutineScope {
+                val boardJob = if (lastDeletedSectionIds.isNotEmpty()) {
+                    async {
+                        val request = BoardRestoreRequest(boardIds = lastDeletedSectionIds.map { it.toLong() })
+                        boardService.restoreBoards(token, request).restoredCount
+                    }
+                } else null
 
-                    // 카드 복구 API 호출 (임시 저장된 ID가 있을 경우)
-                    val cardJob = if (lastDeletedCardIds.isNotEmpty()) {
-                        async {
-                            val request = CardRestoreRequest(cardIds = lastDeletedCardIds.map { it.toLong() })
-                            cardService.restoreCards(token, request).restoredCount
-                        }
-                    } else null
+                // --- 카드 복구 요청 시 boardId와 deleteMode 추가 ---
+                val cardJob = if (lastDeletedCardIds.isNotEmpty()) {
+                    async {
+                        // --- currentBoardId가 0보다 클 때만 값을 넣고, 아닐 경우 null 전송 ---
+                        val boardIdForRequest = if (currentBoardId > 0) currentBoardId.toLong() else null
 
-                    restoredSections = boardJob?.await() ?: 0
-                    restoredCards = cardJob?.await() ?: 0
-                }
+                        val request = CardRestoreRequest(
+                            cardIds = lastDeletedCardIds.map { it.toLong() },
+                            boardId = boardIdForRequest,
+                            deleteMode = lastCardDeleteMode
+                        )
+                        cardService.restoreCards(token, request).restoredCount
+                    }
+                } else null
 
-                // 복구 결과에 따라 토스트 메시지 생성
-                val message = when {
-                    restoredSections > 0 && restoredCards > 0 -> "${restoredSections}개의 섹션과 ${restoredCards}개의 카드 삭제가 취소되었습니다."
-                    restoredSections > 0 -> "${restoredSections}개의 섹션 삭제가 취소되었습니다."
-                    restoredCards > 0 -> "${restoredCards}개의 카드 삭제가 취소되었습니다."
-                    else -> null
-                }
-
-                message?.let { _toastMessage.value = it }
-                loadPage(reset = true) // 화면 새로고침
-
-            } catch (e: Exception) {
-                _ui.value = _ui.value.copy(isLoading = false, error = e.message ?: "복구 중 오류가 발생했습니다.")
-            } finally {
-                // 작업 완료 후 임시 ID 초기화
-                lastDeletedSectionIds = emptySet()
-                lastDeletedCardIds = emptySet()
+                restoredSections = boardJob?.await() ?: 0
+                restoredCards = cardJob?.await() ?: 0
             }
+
+            val message = when {
+                restoredSections > 0 && restoredCards > 0 -> "${restoredSections}개의 섹션과 ${restoredCards}개의 카드 삭제가 취소되었습니다."
+                restoredSections > 0 -> "${restoredSections}개의 섹션 삭제가 취소되었습니다."
+                restoredCards > 0 -> "${restoredCards}개의 카드 삭제가 취소되었습니다."
+                else -> null
+            }
+
+            message?.let { _toastMessage.value = it }
+
+            if (currentBoardId > -1) {
+                loadPage(reset = true)
+            }
+
+        } catch (e: Exception) {
+            _ui.value = _ui.value.copy(isLoading = false, error = e.message ?: "복구 중 오류가 발생했습니다.")
+        } finally {
+            lastDeletedSectionIds = emptySet()
+            lastDeletedCardIds = emptySet()
+            // 로딩 상태를 false로 변경
+            _ui.value = _ui.value.copy(isLoading = false)
         }
     }
+
+    // --- 현재 보드 자체를 삭제하는 함수 ---
+    suspend fun deleteCurrentBoard() {
+        // currentBoardId가 유효하지 않으면 아무것도 하지 않음
+        if (currentBoardId <= -1) {
+            _toastMessage.value = "삭제할 보드 정보를 찾을 수 없습니다."
+            return
+        }
+        // executeDeleteActions를 재사용하여 삭제 로직 실행
+        // 보드 자신을 '선택된 섹션'으로 간주하여 전달
+        executeDeleteActions(
+            selectedSectionIds = setOf(currentBoardId),
+            selectedCardIds = emptySet(),
+            boardDeleteOption = "DELETE_ORPHANS", // 요청된 옵션
+            cardDeleteOption = "" // 카드 목록이 비어있으므로 이 옵션은 무시됨
+        )
+    }
+
 }

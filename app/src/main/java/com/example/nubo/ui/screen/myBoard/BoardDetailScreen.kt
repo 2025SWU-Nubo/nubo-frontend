@@ -96,7 +96,9 @@ fun BoardDetailScreen(
     navController: NavController,
     source: String?,
     viewModel: BoardDetailViewModel = hiltViewModel(),
-    myCardViewModel: MyCardViewModel = hiltViewModel(),
+    // MyBoardScreen과 공유할 BoardViewModel 주입
+    // Hilt Navigation Compose 라이브러리를 통해 이전 백스택의 ViewModel 인스턴스를 가져옴
+    boardViewModel: BoardViewModel = hiltViewModel(remember { navController.previousBackStackEntry!! }),
     modifier: Modifier = Modifier
 ) {
 
@@ -137,13 +139,31 @@ fun BoardDetailScreen(
 
     //  다이얼로그 모드 상태
     var dialogMode by remember { mutableStateOf<InputDialogMode?>(null) }
-    // 삭제 확인 다이얼로그 표시 상태 변수
+    // 섹션 및 카드 삭제 다이얼로그
     var showDeleteDialog by remember { mutableStateOf(false) }
+    // 보드 전체 삭제 다이얼로그
+    var showBoardDeleteDialog by remember { mutableStateOf(false) }
+
 
     // 진입 시 한 번 초기 로드
     LaunchedEffect(boardId) {
         viewModel.init(boardId)
     }
+
+    // --- SectionDetailScreen에서 돌아왔을 때 새로고침을 처리하는 로직 ---
+    LaunchedEffect(Unit) {
+        val handle = navController.currentBackStackEntry?.savedStateHandle
+        handle?.getLiveData<Boolean>("needs_refresh")?.observeForever { needsRefresh ->
+            if (needsRefresh) {
+                // init() 함수를 다시 호출하여 보드 상세 데이터를 새로고침
+                viewModel.init(boardId)
+
+                // [중요] 신호를 처리한 후에는 반드시 제거하여 중복 새로고침 방지
+                handle.remove<Boolean>("needs_refresh")
+            }
+        }
+    }
+
 
     // 1. '실행 취소'용 Snackbar 상태
     val snackbarHostState = remember { SnackbarHostState() }
@@ -152,11 +172,11 @@ fun BoardDetailScreen(
     val scope = rememberCoroutineScope()
     val toastMessage by viewModel.toastMessage.collectAsState()
 
-    // '실행 취소' 스낵바를 띄우는 함수
-    fun showUndoSnackbar() {
+    // ---  스낵바를 띄우는 함수가 '개수'를 받도록 변경 ---
+    fun showUndoSnackbar(count: Int) {
         scope.launch {
             val result = snackbarHostState.showSnackbar(
-                message = "삭제가 완료되었습니다.",
+                message = "${count}개의 항목 삭제가 완료되었습니다.", // 메시지에 개수 포함
                 actionLabel = "실행 취소",
                 duration = SnackbarDuration.Long
             )
@@ -167,10 +187,10 @@ fun BoardDetailScreen(
         }
     }
 
-    // ViewModel의 삭제 완료 이벤트를 구독하여 스낵바 띄우고 상태 초기화
-    LaunchedEffect(Unit) {
-        viewModel.deleteCompleteEvent.collect {
-            showUndoSnackbar()
+    // --- ViewModel의 삭제 완료 이벤트를 구독하여 '개수'를 받아 스낵바 호출 ---
+    LaunchedEffect(viewModel) {
+        viewModel.deleteCompleteEvent.collect { count ->
+            showUndoSnackbar(count)
             resetSelectionState()
         }
     }
@@ -229,9 +249,9 @@ fun BoardDetailScreen(
                     val latestName = ui.board?.name ?: boardTitle
                     navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_id", boardId)
                     navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_name", latestName)
-                    navController.popBackStack()
                     // MyBoardScreen에 새로고침이 필요하다는 신호를 보냄
                     navController.previousBackStackEntry?.savedStateHandle?.set("needs_refresh", true)
+                    navController.popBackStack()
 
                 }, // 메뉴 버튼 클릭 시 보드 설정 바텀 시트 표시
                     onMenuClick = { bottomSheetType = BottomSheetType.BOARD_SETTINGS },
@@ -379,7 +399,8 @@ fun BoardDetailScreen(
                     // 새로 추가된 보드 설정 바텀 시트
                     BoardSettingsContent(
                         onDeleteClick = {
-                            // TODO: 삭제 로직을 여기에 연결하세요.
+                            // --- 새 다이얼로그를 띄우도록 상태 변경 ---
+                            showBoardDeleteDialog = true
                             bottomSheetType = BottomSheetType.NONE // 바텀 시트 닫기
                         },
                         onSettingsClick = {
@@ -445,11 +466,53 @@ fun BoardDetailScreen(
             else -> { /* Do nothing for other cases */ }
         }
     }
+    // --- 섹션 및 카드 삭제 다이얼로그 호출 코드 추가 ---
+    if (showDeleteDialog) {
+        DeleteConfirmationDialog(
+            visible = true,
+            selectedCardCount = selectedCards.size,
+            selectedSectionCount = selectedSections.size,
+            onDismiss = { showDeleteDialog = false },
+            onRemove = {
+                scope.launch {
+                    viewModel.removeItemsFromBoard(selectedSections, selectedCards)
+                    showDeleteDialog = false
+                }
+            },
+            onDelete = {
+                scope.launch {
+                    viewModel.deleteItems(selectedSections, selectedCards)
+                    showDeleteDialog = false
+                }
+            }
+        )
+    }
+    // --- 보드 전체 삭제 다이얼로그 ---
+    if (showBoardDeleteDialog) {
+        BoardDeleteConfirmationDialog(
+            visible = true,
+            onDismiss = { showBoardDeleteDialog = false },
+            onDelete = {
+                scope.launch {
+                    // 1. BoardViewModel의 삭제 함수 호출하고 결과(삭제된 개수)를 받음
+                    val deletedCount = boardViewModel.deleteBoards(setOf(boardId))
 
+                    // 2. 삭제에 성공했다면
+                    if (deletedCount != null && deletedCount > 0) {
+                        // 3. 이전 화면의 SavedStateHandle에 결과를 저장
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.set("deleted_board_count", deletedCount)
+                    }
+                    // 4. 화면을 닫음
+                    navController.popBackStack()
+                }
+            }
+        )
+    }
     // 토스트 UI를 화면에 배치
     AppToastHost(hostState = toastHostState)
 }
-
 
 @Composable
 fun DetailTopBar(
@@ -560,16 +623,9 @@ fun BoardFilterButton(
                 shape = RoundedCornerShape(50),
                 border = BorderStroke(1.dp, if (isFavoriteSelected) PurpleMain500 else Grey200),
                 modifier = Modifier.height(35.dp),
-                contentPadding = PaddingValues(horizontal = 15.dp, vertical = 8.dp)
+                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-//                    Spacer(Modifier.width(2.dp))
-//                    Text(
-//                        text = "즐겨찾기", // "label" 변수 대신 텍스트를 직접 사용
-//                        style = label_medium_12,
-//                        color = if (isFavoriteSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
-//                    )
-//                    Spacer(Modifier.width(5.dp))
                     Icon(
                         painter = painterResource(if(isFavoriteSelected) R.drawable.selected_star else R.drawable.ic_filter_star),
                         contentDescription = "즐겨찾기",
