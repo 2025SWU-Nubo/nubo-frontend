@@ -1,7 +1,9 @@
 package com.example.nubo.ui.component
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,7 +49,8 @@ import kotlin.collections.chunked
 @Composable
 fun BoardContent(
     boards: List<BoardItem>,
-    onCardClick: (BoardItem) -> Unit,
+    onBoardClick: (BoardItem) -> Unit,
+    onBoardLongClick: (BoardItem) -> Unit,
     onFavoriteClick: (BoardItem) -> Unit, // 즐겨찾기 클릭 콜백
     //선택 관련 파라미터
     isSelectionMode: Boolean,
@@ -65,7 +68,8 @@ fun BoardContent(
                 rowItems.forEach { item ->
                     BoardCardWithText(
                         board = item,
-                        onClick = { onCardClick(item) },
+                        onClick = { onBoardClick(item) }, // 클릭 이벤트
+                        onLongClick = { onBoardLongClick(item) }, // 롱클릭 이벤트 연결
                         onFavoriteClick = onFavoriteClick,
                         // 파라미터 전달
                         isSelectionMode = isSelectionMode,
@@ -80,27 +84,31 @@ fun BoardContent(
     }
 }
 
-    @Composable
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
 fun BoardCardWithText(
         board: BoardItem,
         onClick: () -> Unit,
         onFavoriteClick: (BoardItem) -> Unit,
         // 보드 상세 화면 및 섹션 상세 화면 선택 관련 파라미터
         isSelectionMode: Boolean,
-        isSelected: Boolean
+        isSelected: Boolean,
+        onLongClick: () -> Unit // 길게 클릭
 ) {
     Box(
         modifier = Modifier
             .width(190.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(Color.White)
-            .clickable { onClick() }
+            .combinedClickable( // 일반 클릭과 롱클릭을 함께 처리
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(top = 4.dp, bottom = 4.dp)
     ) {
         Column(
             modifier = Modifier
                 .width(182.dp)
-                .clickable { onClick() }
         ) {
             Box(
                 modifier = Modifier

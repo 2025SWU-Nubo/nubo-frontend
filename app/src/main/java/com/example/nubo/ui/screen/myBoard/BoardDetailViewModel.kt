@@ -68,6 +68,8 @@ class BoardDetailViewModel @Inject constructor(
     //  마지막으로 삭제된 항목들의 ID를 임시 저장하는 변수
     private var lastDeletedSectionIds: Set<Int> = emptySet()
     private var lastDeletedCardIds: Set<Int> = emptySet()
+    // --- 마지막 카드 삭제 유형을 저장하는 변수 ---
+    private var lastCardDeleteMode: String = ""
 
     //  토스트 메시지 상태 변수와 초기화 함수
     private val _toastMessage = MutableStateFlow<String?>(null)
@@ -443,6 +445,7 @@ class BoardDetailViewModel @Inject constructor(
         // --- 삭제 실행 전에 ID 저장 ---
         lastDeletedSectionIds = selectedSectionIds
         lastDeletedCardIds = selectedCardIds
+        lastCardDeleteMode = cardDeleteOption
         // --------------------------
         _ui.value = _ui.value.copy(isLoading = true, error = null)
         try {
@@ -503,6 +506,7 @@ class BoardDetailViewModel @Inject constructor(
             _ui.value = _ui.value.copy(isLoading = false, error = e.message ?: "삭제 중 오류가 발생했습니다.")
             lastDeletedSectionIds = emptySet()
             lastDeletedCardIds = emptySet()
+            lastCardDeleteMode = ""
         }
     }
 
@@ -524,9 +528,17 @@ class BoardDetailViewModel @Inject constructor(
                     }
                 } else null
 
+                // --- 카드 복구 요청 시 boardId와 deleteMode 추가 ---
                 val cardJob = if (lastDeletedCardIds.isNotEmpty()) {
                     async {
-                        val request = CardRestoreRequest(cardIds = lastDeletedCardIds.map { it.toLong() })
+                        // --- currentBoardId가 0보다 클 때만 값을 넣고, 아닐 경우 null 전송 ---
+                        val boardIdForRequest = if (currentBoardId > 0) currentBoardId.toLong() else null
+
+                        val request = CardRestoreRequest(
+                            cardIds = lastDeletedCardIds.map { it.toLong() },
+                            boardId = boardIdForRequest,
+                            deleteMode = lastCardDeleteMode
+                        )
                         cardService.restoreCards(token, request).restoredCount
                     }
                 } else null
@@ -557,4 +569,22 @@ class BoardDetailViewModel @Inject constructor(
             _ui.value = _ui.value.copy(isLoading = false)
         }
     }
+
+    // --- 현재 보드 자체를 삭제하는 함수 ---
+    suspend fun deleteCurrentBoard() {
+        // currentBoardId가 유효하지 않으면 아무것도 하지 않음
+        if (currentBoardId <= -1) {
+            _toastMessage.value = "삭제할 보드 정보를 찾을 수 없습니다."
+            return
+        }
+        // executeDeleteActions를 재사용하여 삭제 로직 실행
+        // 보드 자신을 '선택된 섹션'으로 간주하여 전달
+        executeDeleteActions(
+            selectedSectionIds = setOf(currentBoardId),
+            selectedCardIds = emptySet(),
+            boardDeleteOption = "DELETE_ORPHANS", // 요청된 옵션
+            cardDeleteOption = "" // 카드 목록이 비어있으므로 이 옵션은 무시됨
+        )
+    }
+
 }

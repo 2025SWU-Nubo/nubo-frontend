@@ -68,12 +68,16 @@ fun MyBoardScreen(
     cardViewModel: MyCardViewModel = hiltViewModel(),
     boardDetailViewModel: BoardDetailViewModel = hiltViewModel(),
     modifier: Modifier = Modifier,
-    // 부모(MyBoardRoute)로부터 상태를 직접 전달받음
+    // 카드 선택
     isCardSelectionMode: Boolean,
     selectedCardIds: Set<Int>,
-    // 클릭/롱클릭 이벤트를 부모에게 전달
     onCardClick: (Int) -> Unit,
     onCardLongClick: (Int) -> Unit,
+    // 보드 선택
+    isBoardSelectionMode: Boolean,
+    selectedBoardIds: Set<Int>,
+    onBoardClick: (com.example.nubo.model.myBoard.BoardItem) -> Unit,
+    onBoardLongClick: (com.example.nubo.model.myBoard.BoardItem) -> Unit,
 ) {
     var selectedTab by remember { mutableStateOf(1) }
 
@@ -202,7 +206,7 @@ fun MyBoardScreen(
                     }
                     selectedTab = newTab
                 },
-                isSelectionMode = isCardSelectionMode
+                isSelectionMode = isCardSelectionMode || isBoardSelectionMode
             )
             TitleBar(
                 selectedTab = selectedTab,
@@ -294,24 +298,19 @@ fun MyBoardScreen(
                                     if (boardSearchResults.isEmpty()) {
                                         EmptyStateUI(iconRes = noResultsIcon, message = "검색결과가 없습니다.")
                                     } else {
-                                        // 검색 결과 목록에 클릭 로직 다시 추가
+                                        // --- BoardContent에 선택모드 관련 파라미터 전달 ---
                                         BoardContent(
-                                            boards = boardSearchResults,
-                                            onCardClick = { boardItem ->
-                                                navController.navigate(
-                                                    "board_detail/${boardItem.serverBoardId}/${
-                                                        java.net.URLEncoder.encode(boardItem.title, "utf-8")
-                                                    }/${boardItem.source}"
-                                                )
-                                            },
+                                            boards = boardViewModel.boards.value,
+                                            onBoardClick = onBoardClick, // 클릭 이벤트 전달
+                                            onBoardLongClick = onBoardLongClick, // 롱클릭 이벤트 전달
                                             onFavoriteClick = { item ->
                                                 boardViewModel.toggleFavorite(
                                                     boardId = item.serverBoardId,
                                                     currentFavorite = item.isBookmarked
                                                 )
                                             },
-                                            isSelectionMode = false,
-                                            selectedBoardIds = emptySet()
+                                            isSelectionMode = isBoardSelectionMode, // 선택모드 상태 전달
+                                            selectedBoardIds = selectedBoardIds // 선택된 ID 전달
                                         )
                                     }
                                 }
@@ -320,13 +319,8 @@ fun MyBoardScreen(
                             // 기존 필터 로직을 제거하고, 서버에서 받은 모든 보드를 보여줌.
                             BoardContent(
                                 boards = boardViewModel.boards.value, // <-- 필터 제거
-                                onCardClick = { boardItem ->
-                                    navController.navigate(
-                                        "board_detail/${boardItem.serverBoardId}/${
-                                            java.net.URLEncoder.encode(boardItem.title, "utf-8")
-                                        }/${boardItem.source}"
-                                    )
-                                },
+                                onBoardClick = onBoardClick, // Route가 정의한 클릭 동작을 전달
+                                onBoardLongClick = onBoardLongClick, // Route가 정의한 롱클릭 동작을 전달
                                 onFavoriteClick = { item ->
                                     boardViewModel.toggleFavorite(
                                         boardId = item.serverBoardId,
@@ -561,29 +555,27 @@ fun FilterButtons(
                 ),
                 shape = RoundedCornerShape(50),
                 border = BorderStroke(1.dp, if (isSelected) PurpleMain500 else Grey200),
+                // --- '즐겨찾기' 버튼일 때 크기와 패딩을 다르게 적용 ---
                 modifier = Modifier.height(35.dp),
-                contentPadding = PaddingValues(horizontal = 15.dp, vertical = 8.dp)
+                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text(
-                        text = label,
-                        style = AppTextStyles.label_medium_12,
-                        color = if (isSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
+                // --- '즐겨찾기'일 때는 아이콘만, 아닐 때는 기존 UI를 보여주도록 분기 ---
+                if (label == "즐겨찾기") {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_filter_star),
+                        contentDescription = "즐겨찾기",
+                        modifier = Modifier.size(16.dp)
                     )
-                    when (label) {
-                        "즐겨찾기" -> {
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_filter_star),
-                                contentDescription = "즐겨찾기",
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-
-                        "공유됨" -> {
-                            Spacer(modifier = Modifier.width(2.dp))
-                        }
+                } else {
+                    // '공유됨' 버튼은 기존 UI 유지
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(
+                            text = label,
+                            style = AppTextStyles.label_medium_12,
+                            color = if (isSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
                     }
                 }
             }

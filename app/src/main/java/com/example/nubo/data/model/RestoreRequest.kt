@@ -16,8 +16,9 @@ data class BoardRestoreResponse(
 
 // 카드 복구 요청
 data class CardRestoreRequest(
-    @SerializedName("cardIds")
-    val cardIds: List<Long>
+    val cardIds: List<Long>,
+    val boardId: Long?,
+    val deleteMode: String
 )
 
 // 카드 복구 응답

@@ -56,6 +56,7 @@ fun BoardDetailContent(
                     BoardCardWithText(
                         board = item,
                         onClick = { onSectionClick(item) },
+                        onLongClick = { onSectionClick(item) },
                         onFavoriteClick = onFavoriteClick,
                         // 선택 관련 파라미터 전달
                         isSelectionMode = isSelectionMode,
