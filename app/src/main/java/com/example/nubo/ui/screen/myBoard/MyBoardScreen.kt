@@ -360,7 +360,7 @@ fun TabHeader(
 ) {
     val tabs = listOf("카드", "보드")
 
-    Column(modifier = Modifier.padding(top = 35.dp)) {
+    Column(modifier = Modifier.padding(top = 45.dp)) {
         // 탭 전체 중앙 정렬
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -566,24 +566,27 @@ fun FilterButtons(
                 contentPadding = PaddingValues(horizontal = 15.dp, vertical = 8.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text(
-                        text = label,
-                        style = AppTextStyles.label_medium_12,
-                        color = if (isSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
-                    )
                     when (label) {
+                        // ─────────────────────────────────────────────
+                        // 즐겨찾기: 텍스트 없이 "아이콘만" 표시
+                        // ─────────────────────────────────────────────
                         "즐겨찾기" -> {
-                            Spacer(modifier = Modifier.width(5.dp))
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_filter_star),
-                                contentDescription = "즐겨찾기",
-                                modifier = Modifier.size(16.dp)
+                                contentDescription = "즐겨찾기 필터",
+                                modifier = Modifier.size(16.dp),
                             )
                         }
 
+                        // ─────────────────────────────────────────────
+                        // 공유됨: 기존처럼 텍스트만 표시
+                        // ─────────────────────────────────────────────
                         "공유됨" -> {
-                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                text = "공유됨",
+                                style = AppTextStyles.label_medium_12,
+                                color = if (isSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
+                            )
                         }
                     }
                 }

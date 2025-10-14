@@ -389,8 +389,8 @@ fun SectionFilterButton(
                 contentPadding = PaddingValues(horizontal = 15.dp, vertical = 8.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "즐겨찾기", style = AppTextStyles.label_medium_12)
-                    Spacer(Modifier.width(5.dp))
+//                    Text(text = "즐겨찾기", style = AppTextStyles.label_medium_12)
+//                    Spacer(Modifier.width(5.dp))
                     Icon(
                         painter = painterResource(id = R.drawable.ic_filter_star),
                         contentDescription = "즐겨찾기",

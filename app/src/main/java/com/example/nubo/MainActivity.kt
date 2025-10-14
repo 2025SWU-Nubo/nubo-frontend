@@ -321,10 +321,11 @@ fun MainScreen(
                 }
 
                 composable(
-                    route = "board_detail/{boardId}/{boardTitle}/{source}",
+                    route = "board_detail/{boardId}/{boardTitle}?source={source}",
                     arguments = listOf(
                         navArgument("boardId") { type = NavType.IntType },
-                        navArgument("boardTitle") { type = NavType.StringType }
+                        navArgument("boardTitle") { type = NavType.StringType },
+                        navArgument("source") { defaultValue = "USER"; nullable = true }
                     )
                 ) { backStackEntry ->
                     val boardId = backStackEntry.arguments?.getInt("boardId") ?: return@composable

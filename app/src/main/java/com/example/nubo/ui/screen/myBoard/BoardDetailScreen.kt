@@ -563,13 +563,13 @@ fun BoardFilterButton(
                 contentPadding = PaddingValues(horizontal = 15.dp, vertical = 8.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Spacer(Modifier.width(2.dp))
-                    Text(
-                        text = "즐겨찾기", // "label" 변수 대신 텍스트를 직접 사용
-                        style = label_medium_12,
-                        color = if (isFavoriteSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(Modifier.width(5.dp))
+//                    Spacer(Modifier.width(2.dp))
+//                    Text(
+//                        text = "즐겨찾기", // "label" 변수 대신 텍스트를 직접 사용
+//                        style = label_medium_12,
+//                        color = if (isFavoriteSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
+//                    )
+//                    Spacer(Modifier.width(5.dp))
                     Icon(
                         painter = painterResource(if(isFavoriteSelected) R.drawable.selected_star else R.drawable.ic_filter_star),
                         contentDescription = "즐겨찾기",
