@@ -15,7 +15,13 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.components.toast.AppToastLayout
+import com.example.components.toast.AppToastOverlay
+import com.example.components.toast.AppToastType
+import com.example.components.toast.rememberAppToastHostState
+import kotlinx.coroutines.launch
 
 
 @OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
@@ -36,6 +42,24 @@ fun BottomSheetHost(
     if (route == null) return
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    val toastHost = rememberAppToastHostState()
+    val toastScope = rememberCoroutineScope()
+
+    // 오버레이도 바깥에 한 번만
+    AppToastOverlay(hostState = toastHost)
+
+    // 공통 람다
+    val showToast: (String, AppToastType, Int) -> Unit = { msg, type, duration ->
+        toastScope.launch {
+            toastHost.show(
+                title = AnnotatedString(msg),
+                type = type,
+                layout = AppToastLayout.TitleOnly,
+                durationMillis = duration
+            )
+        }
+    }
 
     // 참여자 초대 상대 관리
     var invitedEmails by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
@@ -101,6 +125,10 @@ fun BottomSheetHost(
             },
             label = "BottomSheetSwitch"
         ) { target ->
+            val toastHost = rememberAppToastHostState()
+// 전역 오버레이는 화면 맨 위에
+            AppToastOverlay(hostState = toastHost)
+
             when (target) {
                 SheetRoute.AddMenu -> AddMenuSheet(
                     onClose = onDismiss,
@@ -151,7 +179,7 @@ fun BottomSheetHost(
                     }
                     )
                 SheetRoute.AddVideo -> AddVideoSheet(
-                    onClose = onDismiss
+                    onClose = onDismiss,
                 )
             }
         }
