@@ -486,31 +486,3 @@ fun rememberKeyboardVisible(): State<Boolean> {
     }
     return isVisible
 }
-
-@Composable
-fun AppToastOverlay(hostState: AppToastHostState,modifier: Modifier) {
-    Popup(
-        alignment = Alignment.BottomCenter,
-        properties = PopupProperties(
-            focusable = false,
-            dismissOnBackPress = false,
-            dismissOnClickOutside = false,
-            excludeFromSystemGesture = false
-        )
-    ) {
-        AppToastHost(
-            hostState = hostState,
-            matchParentSize = false,
-            contentAlignment = Alignment.BottomCenter,
-            modifier = Modifier
-                .imePadding()                         // ← 키보드 위
-                .windowInsetsPadding(WindowInsets.navigationBars) // ← 소프트키 위
-//                .padding(bottom = 12.dp)              // 약간의 여유
-        )
-    }
-}
-
-
-
-
-

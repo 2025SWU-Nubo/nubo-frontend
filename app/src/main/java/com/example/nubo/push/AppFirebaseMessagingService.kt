@@ -64,7 +64,7 @@ class AppFirebaseMessagingService : FirebaseMessagingService() {
 
         // 시스템 알림을 생성하고 표시함
         val n = NotificationCompat.Builder(this, channel)
-            .setSmallIcon(R.drawable.info) // 상태바용 단색 아이콘 필요
+            .setSmallIcon(R.drawable.noti_nubo) // 상태바용 단색 아이콘 필요
             .setContentTitle(title)                // 알림 제목을 지정함
             .setContentText(body)                  // 알림 본문을 지정함
             .setAutoCancel(true)                   // 탭 후 자동으로 알림을 제거함

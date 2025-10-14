@@ -195,7 +195,7 @@ class EditCardViewModel @Inject constructor(
         // 3) 되돌리기 상태 정리
         prevSummaryBackup = null
         _canUndoAiEdit.value = false
-        _toast.value = "되돌리기 완료"
+        _toast.value = "되돌리기 완료!"
     }
 
     /* 사용자가 추가 수정한 경우 등  되돌리기 의미가 없어지면 호출 */

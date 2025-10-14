@@ -47,6 +47,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.components.toast.AppToastType
 import com.example.nubo.ui.screen.cardupload.CardUploadViewModel
 import com.example.nubo.ui.theme.AppTextStyles.b2_bold_16
 import com.example.nubo.ui.theme.GreyMain100
@@ -57,6 +58,7 @@ fun AddVideoSheet(
     onClose: () -> Unit,
     viewModel: AddVideoViewModel = hiltViewModel(), // ilt로 VideoService 주입된 VM 획득
     cardUploadViewModel: CardUploadViewModel = hiltViewModel(), // 업로드 재사용 (이미 존재) :contentReference[oaicite:5]{index=5}
+    showToast: (String, AppToastType, Int) -> Unit = { _, _, _ -> }
 ) {
     // 페이지/입력/선택 상태 (네 코드 그대로)
     var page by remember { mutableStateOf(SheetPage.SAVE_VIDEO) }
@@ -78,6 +80,22 @@ fun AddVideoSheet(
     var boardToastVisible by rememberSaveable { mutableStateOf(false) }
     // 한 번만 자동 노출되게 플래그
     var boardToastShown by rememberSaveable { mutableStateOf(false) }
+
+//    LaunchedEffect(Unit) {
+//        cardUploadViewModel.uploadEvents.collect { ev ->
+//            when (ev) {
+//                is CardUploadViewModel.UploadEvent.Created -> {
+//                    showToast("카드 생성 중이에요", AppToastType.NORMAL, 1500)
+//                }
+//                is CardUploadViewModel.UploadEvent.AlreadyExists -> {
+//                    showToast("이미 생성된 카드예요", AppToastType.NEGATIVE, 2000)
+//                }
+//                is CardUploadViewModel.UploadEvent.Failed -> {
+//                    showToast(ev.message, AppToastType.NEGATIVE, 2200)
+//                }
+//            }
+//        }
+//    }
 
 
     // 보드 페이지 진입 시, 무조건 보드 트리 로드 호출
@@ -361,18 +379,26 @@ fun AddVideoSheet(
                                     .mapNotNull { it.toLongOrNull() }
                                     .distinct()
 
-                                // 액세스 토큰 확보 (없으면 업로드 불가하므로 안내 후 반환)
-                                val token = viewModel.getAccessTokenOrNull()
-                                if (token.isNullOrEmpty()) {
-                                    // 토큰 없으면 시트는 닫지 않고 안내만 (필요시 정책 변경)
-                                    boardToastVisible = false
-                                    networkErrorToastVisible = true
+                                val rawToken = viewModel.getAccessTokenOrNull()
+                                if (rawToken.isNullOrEmpty()) {
+                                    showToast("로그인이 필요해요", AppToastType.NEGATIVE, 2000)
                                     return@Button
                                 }
 
+//                                showToast("카드 생성 중이에요", AppToastType.NORMAL, 1200)
+
+                                // 액세스 토큰 확보 (없으면 업로드 불가하므로 안내 후 반환)
+//                                val token = viewModel.getAccessTokenOrNull()
+//                                if (token.isNullOrEmpty()) {
+//                                    // 토큰 없으면 시트는 닫지 않고 안내만 (필요시 정책 변경)
+//                                    boardToastVisible = false
+//                                    networkErrorToastVisible = true
+//                                    return@Button
+//                                }
+
                                 // 업로드 트리거: 네트워크 호출은 비동기로 진행 → UI와 독립
                                 cardUploadViewModel.uploadCard(
-                                    token = token,                      // 저장형태(이미 "Bearer ..."면 그대로)
+                                    token = rawToken,                      // 저장형태(이미 "Bearer ..."면 그대로)
                                     videoUrl = urlToUpload,
                                     boardIds = selectedIds.ifEmpty { null }   // 비었으면 null → AI 자동 분류
                                 )
