@@ -394,7 +394,7 @@ fun MainScreen(
                         state = uiState,
                         onRefresh = { nvm.refresh() },
                         onBack = { navController.popBackStack() },
-                        onAlarmSetting = { /* navigate to settings if added */ },
+                        onAlarmSetting = { navController.navigate("notificationSet") },
                         onClickItem = { item -> nvm.onClickItem(item) },
                         onAcceptInvite = { item -> nvm.onClickPrimary(item) },
                         onRejectInvite = { item -> nvm.onClickSecondary(item) },

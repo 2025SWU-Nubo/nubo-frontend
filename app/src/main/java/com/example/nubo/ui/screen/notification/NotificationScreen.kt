@@ -237,15 +237,17 @@ fun NotificationScreen(
 
             // ===== 지난 알림 섹션 =====
             item { Spacer(Modifier.height(12.dp)) }
-//            item {  }
 
+            if (state.past.isNotEmpty()) {
+                item { SectionSub("지난 알림") }
+            }
             // ===== 지난 알림 리스트 =====
             val visiblePastItems = state.past.take(expandedPastCount)
             itemsIndexed(
                 visiblePastItems,
                 key = { _, it -> notiStableKey("past", it) }
             ) { _, item ->
-                SectionSub("지난 알림")
+
 
                 val loading = item.notificationId in state.actionLoadingIds
                 NotiCard(
