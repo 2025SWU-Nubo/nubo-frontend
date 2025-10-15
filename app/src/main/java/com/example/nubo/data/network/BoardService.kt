@@ -1,6 +1,7 @@
 package com.example.nubo.data.network
 
 import com.example.nubo.data.model.BoardDeleteRequest
+import com.example.nubo.data.model.BoardDeleteResponse
 import com.example.nubo.data.model.BoardItemResponse
 import com.example.nubo.data.model.BoardListItemResponse
 import com.example.nubo.data.model.BoardRenameRequest
@@ -151,7 +152,7 @@ interface BoardService {
     suspend fun deleteBoards(
         @Header("Authorization") authHeader: String,
         @Body body: BoardDeleteRequest
-    ): Response<Unit> // 응답 본문이 없을 경우 Unit 사용
+    ): Response<List<BoardDeleteResponse>>
 
     // 섹션(보드) 복구 API
     @PATCH("/api/board/restore")

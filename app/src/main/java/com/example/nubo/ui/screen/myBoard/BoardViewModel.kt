@@ -368,7 +368,7 @@ class BoardViewModel @Inject constructor(
                 restoredCards = cardJob?.await() ?: 0
             }
 
-            // --- [수정] 복구 결과에 따른 토스트 메시지 생성 로직 ---
+            // --- 복구 결과에 따른 토스트 메시지 생성 로직 ---
             val message = when {
                 // 보드가 1개 이상 복구되었다면, 카드 복구 여부와 관계없이 보드 기준으로만 메시지 표시
                 restoredBoards > 0 -> "${restoredBoards}개의 보드 삭제가 취소되었습니다."

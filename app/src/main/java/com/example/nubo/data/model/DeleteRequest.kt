@@ -10,6 +10,17 @@ data class BoardDeleteRequest(
     val deleteLinkedCards: String // "DELETE_ORPHANS" 또는 "DETACH_ONLY"
 )
 
+// 보드 삭제 응답
+data class BoardDeleteResponse(
+    val boardId: Int,
+    val status: String,
+    val option: String,
+    val linksDetached: Int,
+    val cardsSoftDeleted: Int,
+    val sectionsDeleted: Int,
+    val error: String?
+)
+
 // 카드 삭제/제거 요청
 data class CardDeleteRequest(
     @SerializedName("cardIds")
