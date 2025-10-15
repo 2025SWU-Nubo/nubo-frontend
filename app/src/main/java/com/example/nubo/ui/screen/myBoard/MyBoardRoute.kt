@@ -302,7 +302,7 @@ fun MyBoardRoute(
                     onSelectionModeChange(true) // 선택모드 시작을 부모에게 알림
                 }
             },
-            // --- [추가] 보드 선택 모드 관련 파라미터 전달 ---
+            // --- 보드 선택 모드 관련 파라미터 전달 ---
             isBoardSelectionMode = isBoardSelectionMode,
             selectedBoardIds = selectedBoardIds,
             onBoardClick = { board ->
@@ -311,12 +311,10 @@ fun MyBoardRoute(
                     val id = board.serverBoardId
                     selectedBoardIds = if (selectedBoardIds.contains(id)) selectedBoardIds - id else selectedBoardIds + id
                 } else {
-                    // 일반 모드에서는 상세 화면으로 이동
-                    navController.navigate(
-                        "board_detail/${board.serverBoardId}/${
-                            java.net.URLEncoder.encode(board.title, "utf-8")
-                        }/${board.source}"
-                    )
+                    // 일반 모드에서 상세 화면으로 이동 시, source를 쿼리 파라미터로 전달
+                    val encodedTitle = java.net.URLEncoder.encode(board.title, "utf-8")
+                    val route = "board_detail/${board.serverBoardId}/$encodedTitle?source=${board.source}"
+                    navController.navigate(route)
                 }
             },
             onBoardLongClick = { board ->

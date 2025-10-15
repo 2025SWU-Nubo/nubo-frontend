@@ -300,7 +300,7 @@ fun MyBoardScreen(
                                     } else {
                                         // --- BoardContent에 선택모드 관련 파라미터 전달 ---
                                         BoardContent(
-                                            boards = boardViewModel.boards.value,
+                                            boards = boardSearchResults,
                                             onBoardClick = onBoardClick, // 클릭 이벤트 전달
                                             onBoardLongClick = onBoardLongClick, // 롱클릭 이벤트 전달
                                             onFavoriteClick = { item ->
@@ -327,8 +327,8 @@ fun MyBoardScreen(
                                         currentFavorite = item.isBookmarked
                                     )
                                 },
-                                isSelectionMode = false,
-                                selectedBoardIds = emptySet()
+                                isSelectionMode = isBoardSelectionMode,
+                                selectedBoardIds = selectedBoardIds
                             )
                         }
                     }
