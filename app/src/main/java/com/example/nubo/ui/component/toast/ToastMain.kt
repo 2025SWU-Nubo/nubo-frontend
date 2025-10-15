@@ -10,9 +10,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -46,7 +43,6 @@ import kotlinx.coroutines.sync.withLock
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.example.nubo.R
-import com.example.nubo.ui.theme.RedError
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
@@ -69,6 +65,7 @@ enum class AppToastLayout { TitleOnly, TitleWithSummary, TitleWithBody }
 enum class AppToastType { NORMAL, POSITIVE, NEGATIVE, FAVORITE, AI_RESULT }
 
 // ──────────────────────────────────────────────────────────────
+
 // 데이터 모델
 //   - preDelayMillis: 표시 지연(시트 닫힌 뒤 약간 기다렸다 띄우기 등)
 // ──────────────────────────────────────────────────────────────
@@ -116,7 +113,8 @@ fun defaultToastStyleProvider(): (AppToastType) -> AppToastStyle = { t ->
         AppToastType.NORMAL,
         AppToastType.POSITIVE,
         AppToastType.NEGATIVE,
-        AppToastType.FAVORITE -> AppToastStyle(
+        AppToastType.FAVORITE,
+        -> AppToastStyle(
             bg = Color.White,
             titleColor = Color.Black,
             textColor = Grey700,
@@ -131,8 +129,6 @@ fun defaultToastStyleProvider(): (AppToastType) -> AppToastStyle = { t ->
 // ──────────────────────────────────────────────────────────────
 private val DEFAULT_FAVORITE_ICON_RES = R.drawable.ic_board_fillstar
 private val DEFAULT_ERROR_ICON_RES = R.drawable.error_toast
-//private val DEFAULT_FAVORITE_ICON_TINT = PurpleMain500
-//private val DEFAULT_ERROR_ICON_TINT = RedError
 
 // ──────────────────────────────────────────────────────────────
 // 호스트 상태 (순차 처리 + 표시 지연 + exit 버퍼)

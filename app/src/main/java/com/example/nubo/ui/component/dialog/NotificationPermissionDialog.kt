@@ -4,11 +4,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.example.nubo.ui.theme.AppTextStyles
@@ -47,7 +49,7 @@ fun TwoButtonBasicDialog(
     onDismiss: () -> Unit,
 
     // 스타일 옵션(필요 시 오버라이드)
-    containerColor: Color = Color.White,
+    containerColor: Color = MaterialTheme.colorScheme.surface,
     primaryContainerColor: Color = PurpleMain500,
     primaryContentColor: Color = Color.White,
     secondaryContainerColor: Color = Grey30,
@@ -56,6 +58,8 @@ fun TwoButtonBasicDialog(
     bodyColor: Color = Color.Black,
     captionColor: Color = GreyMain300,
     shapeRadiusDp: Int = 18,
+    tonalElevation: Dp = 0.dp,
+    shadowElevation: Dp = 12.dp
 ) {
     // false면 아무것도 그리지 않음 (성능/의도 명확화)
     if (!visible) return
@@ -64,9 +68,9 @@ fun TwoButtonBasicDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(shapeRadiusDp.dp),
-            tonalElevation = 6.dp,
-            shadowElevation = 12.dp,
-            color = containerColor
+            color = containerColor,
+            tonalElevation = tonalElevation,
+            shadowElevation = shadowElevation
         ) {
             Column(
                 modifier = Modifier
@@ -157,7 +161,9 @@ fun NotificationPermissionDialog(
 
         onPrimaryClick = onAllow,
         onSecondaryClick = onLater,
-        onDismiss = onDismiss
+        onDismiss = onDismiss,
+        containerColor = Color.White,
+        tonalElevation = 0.dp
     )
 }
 
@@ -170,14 +176,17 @@ fun EditCardAlertDialog(
 ) {
     TwoButtonBasicDialog(
         visible = visible,
-        title = "변경 내용 취소",
-        body1 = "저장하지 않으면 요약 노트 수정 사항이 모두 사라져요.",
+        title = "저장되지 않은 내용",
+        body1 = "저장하지 않고 나가시겠어요?",
+        body2 = "지금 나가면 수정한 내용이 사라져요.",
 
         primaryButtonText = "계속 편집",
-        secondaryButtonText = "취소",
+        secondaryButtonText = "나가기",
 
         onPrimaryClick = onKeepEditing, // 편집 유지
         onSecondaryClick = onDiscardAndExit,       // 변경 폐기 후 나가기
-        onDismiss = onDismiss
+        onDismiss = onDismiss,
+        containerColor = Color.White,
+        tonalElevation = 0.dp
     )
 }

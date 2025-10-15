@@ -1,5 +1,6 @@
 package com.example.nubo.ui.screen.cardupload
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -59,7 +60,7 @@ class CardUploadViewModel @Inject constructor(
                     response: retrofit2.Response<CardUploadResponse>
                 ) {
                     when (response.code()) {
-                        200 -> _uploadEvents.tryEmit(UploadEvent.Created)
+                        200,201 -> _uploadEvents.tryEmit(UploadEvent.Created)
                         409 -> _uploadEvents.tryEmit(UploadEvent.AlreadyExists)
                         else -> _uploadEvents.tryEmit(
                             UploadEvent.Failed("업로드 실패: ${response.code()}")

@@ -115,7 +115,7 @@ fun CardDetailScreen(
             toastHost.show(
                 title = AnnotatedString(msg),
                 layout = AppToastLayout.TitleOnly,
-                type = AppToastType.FAVORITE,
+                type = AppToastType.ADD_CARD_RESULT,
                 durationMillis = 2000
             )
             // 한 번만 보이도록 즉시 소거
