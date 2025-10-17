@@ -83,3 +83,7 @@ fastlane/test_output/
 **/* 2.*
 
 
+
+# mac & IDE
+.DS_Store
+.kotlin/
