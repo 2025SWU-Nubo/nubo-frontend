@@ -23,23 +23,24 @@ class NuboApp : Application() {
 
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        val defaultCh = NotificationChannel("default_channel", "기본 알림", NotificationManager.IMPORTANCE_DEFAULT)
+        val defaultCh = NotificationChannel("default_channel", "기본 알림", NotificationManager.IMPORTANCE_HIGH)
         val reminderCh = NotificationChannel("reminder_channel", "미시청 카드", NotificationManager.IMPORTANCE_HIGH)
         val cardCh = NotificationChannel("card_channel", "카드 생성", NotificationManager.IMPORTANCE_HIGH)
         val boardCh = NotificationChannel("board_channel", "보드 알림", NotificationManager.IMPORTANCE_HIGH)
 
-        val uploadProgress = NotificationChannel(
-            "card_upload_progress_v2",
-            "카드 업로드 진행",
-            NotificationManager.IMPORTANCE_DEFAULT
-        )
+//        카드 업로드 진행 중은 알림 채널에 취소
+//        val uploadProgress = NotificationChannel(
+//            "card_upload_progress_v2",
+//            "카드 업로드 진행",
+//            NotificationManager.IMPORTANCE_DEFAULT
+//        )
 
         // Idempotent: creating with the same ID is safe
         nm.createNotificationChannel(defaultCh)
         nm.createNotificationChannel(reminderCh)
         nm.createNotificationChannel(cardCh)
         nm.createNotificationChannel(boardCh)
-        nm.createNotificationChannel(uploadProgress)
+//        nm.createNotificationChannel(uploadProgress)
     }
 }
 

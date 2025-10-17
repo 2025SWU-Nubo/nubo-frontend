@@ -128,7 +128,7 @@ class CardDetailViewModel @Inject constructor(
                     body = CardFavoriteRequest(favorite = next)
                 ).await()
 
-                _toast.value = if(next)"즐겨 찾기 완료!" else "즐겨 찾기 해제!"
+//                _toast.value = if(next)"즐겨 찾기 완료!" else "즐겨 찾기 해제!"
 
                 val confirmed = res.favorite
                 _uiState.value = CardDetailUiState.Success(old.copy(isFavorite = confirmed))

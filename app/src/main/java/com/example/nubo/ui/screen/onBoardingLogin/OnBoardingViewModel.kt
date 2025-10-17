@@ -196,7 +196,7 @@ class OnBoardingViewModel @Inject constructor(
     private fun handleTokenExpired() {
         Log.i("Auth", "Token expired, clearing stored data")
         authRepository.clearAuthData()
-        // ⬇ 커스텀 토스트로 발행 (NEGATIVE)
+        // 커스텀 토스트로 발행 (NEGATIVE)
         toast("로그인이 만료되었습니다. 다시 로그인해주세요.", type = AppToastType.NEGATIVE)
         showLoginButton()
     }
@@ -210,11 +210,13 @@ class OnBoardingViewModel @Inject constructor(
 
     // 권한 체크 후 이동
     private fun checkNotificationPermissionAndNavigate() {
-        if (NotificationPermissionHelper.shouldRequestNotificationPermission(context)) {
-            _shouldRequestNotificationPermission.value = true
-        } else {
-            navigateToMain()
-        }
+//        if (NotificationPermissionHelper.shouldRequestNotificationPermission(context)) {
+//            _shouldRequestNotificationPermission.value = true
+//        } else {
+//            navigateToMain()
+//        }
+
+        navigateToMain()
     }
 
     fun handleSignInResult(task: Task<GoogleSignInAccount>, onLoginComplete: (Intent) -> Unit) {

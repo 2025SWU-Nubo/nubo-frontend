@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -12,7 +13,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationManagerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
@@ -21,7 +25,10 @@ import com.example.nubo.ui.theme.Grey30
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.GreyMain300
+import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.ui.theme.PurpleMain500
+import com.example.nubo.utils.buildAppNotificationSettingsIntent
+import com.example.nubo.utils.rememberNotificationSettingsLauncher
 import kotlinx.coroutines.launch
 
 // 알림 설정 화면
@@ -32,6 +39,42 @@ fun NotificationSetScreen(
     onBack: () -> Unit = { navController?.popBackStack() },
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+
+    // 시스템 알림 허용 여부
+    var notificationsEnabled by remember {
+        mutableStateOf(com.example.nubo.utils.NotificationPermissionHelper.isSystemNotificationEnabled(context))
+    }
+    var reminderChannelOn by remember {
+        mutableStateOf(com.example.nubo.utils.NotificationPermissionHelper.isChannelEnabled(context, "reminder_channel"))
+    }
+
+
+    // 설정으로 나갔다가 돌아오면 최신 상태 반영
+    val settingsLauncher = rememberNotificationSettingsLauncher(
+        onReturn = {
+            notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+            reminderChannelOn =
+                com.example.nubo.utils.NotificationPermissionHelper.isChannelEnabled(context, "reminder_channel")
+        }
+    )
+
+    // 화면 복귀 시 최신값 반영
+    DisposableEffect(lifecycleOwner) {
+        val obs = LifecycleEventObserver { _, e ->
+            if (e == Lifecycle.Event.ON_RESUME) {
+                notificationsEnabled =
+                    com.example.nubo.utils.NotificationPermissionHelper.isSystemNotificationEnabled(context)
+                reminderChannelOn =
+                    com.example.nubo.utils.NotificationPermissionHelper.isChannelEnabled(context, "reminder_channel")
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
+
+
     // VM 상태 바인딩/스낵바/코루틴
     val ui = viewModel.uiState.collectAsState().value
     val scope = rememberCoroutineScope()
@@ -46,6 +89,13 @@ fun NotificationSetScreen(
                 .fillMaxSize()
                 .padding(inner)
         ) {
+            SystemNotificationBanner(
+                notificationsEnabled = notificationsEnabled,
+                onClickEnable = {
+                    com.example.nubo.utils.NotificationPermissionHelper.openAppNotificationSettings(context)
+                }
+            )
+
             Spacer(Modifier.height(3.dp))
             Divider(color = Grey50)
             Spacer(Modifier.height(16.dp))
@@ -99,35 +149,41 @@ fun NotificationSetScreen(
             )
             Spacer(Modifier.height(16.dp))
 
-            // 미시청 카드 리마인드 알림
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp, horizontal = 32.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 32.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "미시청 카드 리마인드 알림",
-                        style = AppTextStyles.b1_semibold_18,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                Column(Modifier.weight(1f)) {
+                    Text("미시청 카드 리마인드 알림", style = AppTextStyles.b1_semibold_18)
                     Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = "잊혀진 카드에 대한 리마인드를 제공합니다.",
-                        style = AppTextStyles.b3_regular_14,
-                        color = Grey500
-                    )
+                    Text("잊혀진 카드에 대한 리마인드를 제공합니다.", style = AppTextStyles.b3_regular_14, color = Grey500)
+
+//                    // 채널 상태 + 설정 이동
+//                    Spacer(Modifier.height(8.dp))
+//                    Row(verticalAlignment = Alignment.CenterVertically) {
+//                        val label = if (reminderChannelOn) "채널: 허용" else "채널: 차단됨"
+//                        val color = if (reminderChannelOn) PurpleMain500 else GreyMain300
+//                        Text(label, style = AppTextStyles.b3_regular_14, color = color)
+//                        Spacer(Modifier.width(8.dp))
+//                        TextButton(
+//                            onClick = {
+//                                com.example.nubo.utils.NotificationPermissionHelper
+//                                    .openChannelSettings(context, "reminder_channel")
+//                            },
+//                            contentPadding = PaddingValues(0.dp)
+//                        ) { Text("채널 설정", style = AppTextStyles.b2_semibold_16, color = PurpleMain500) }
+//                    }
                 }
+
+                // ④ 스위치 활성 조건 = 서버 on && 시스템 on && 채널 on
+                val enabled = ui.pushEnabled && notificationsEnabled && reminderChannelOn
                 Switch(
                     checked = ui.remindEnabled,
-                    enabled = ui.pushEnabled, // 전체 알림 꺼져 있으면 비활성화
+                    enabled = enabled,
                     onCheckedChange = { checked ->
                         scope.launch {
-                            viewModel.toggleRemind(checked) { msg ->
-                                scope.launch { snackbar.showSnackbar(msg) }
-                            }
+                            viewModel.toggleRemind(checked) { msg ->  scope.launch { snackbar.showSnackbar(msg) } }
                         }
                     },
                     colors = SwitchDefaults.colors(
@@ -140,6 +196,42 @@ fun NotificationSetScreen(
             }
         }
     }
+}
+
+
+@Composable
+private fun SystemNotificationBanner(
+    notificationsEnabled: Boolean,
+    onClickEnable: () -> Unit,
+) {
+    if (notificationsEnabled) return
+    Box(Modifier.padding(horizontal = 20.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Purple50, shape = RoundedCornerShape(72.dp))
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.bell_off),
+                contentDescription = null,
+                tint = GreyMain300,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = "휴대폰의 앱 알림이 꺼져있어요.",
+                style = AppTextStyles.b2_medium_16,
+                color = GreyMain300,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(onClick = onClickEnable, contentPadding = PaddingValues(0.dp)) {
+                Text("알림 켜기", style = AppTextStyles.b2_semibold_16, color = PurpleMain500)
+            }
+        }
+    }
+    Spacer(Modifier.height(16.dp))
 }
 
 

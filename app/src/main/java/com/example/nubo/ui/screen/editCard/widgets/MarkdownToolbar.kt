@@ -1,3 +1,4 @@
+
 package com.example.nubo.ui.screen.editCard.widgets
 
 import androidx.compose.*
@@ -27,6 +28,12 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.example.nubo.R
+//import com.example.nubo.utils.clearHeadingOnCurrentLine
+import com.example.nubo.utils.toggleListForSelection
+
+private val CHIP_HEIGHT = 45.dp
+private val CHIP_LONG_WIDTH = 75.dp
+private val CHIP_SHORT_WIDTH = 55.dp
 
 @Composable
 fun MarkdownToolbar(
@@ -35,8 +42,17 @@ fun MarkdownToolbar(
     modifier: Modifier = Modifier
 ) {
 
+    // 굵게(B)만 선택 상태 유지
+    var isBoldSelected by remember { mutableStateOf(false) }
+
+    // 포커스 이동 후 액션 실행 헬퍼 함수
+    fun focusThen(action: () -> Unit) {
+        editorFocusRequester.requestFocus()
+        action()
+    }
+
     // 현재 선택된 헤딩 레벨 추적
-    var selectedHeading by remember { mutableStateOf<Int?>(null) }
+//    var selectedHeading by remember { mutableStateOf<Int?>(null) }
 
     Surface(
         tonalElevation = 8.dp,
@@ -50,57 +66,49 @@ fun MarkdownToolbar(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 포커스 이동 후 액션 실행 헬퍼 함수
-            fun focusThen(action: () -> Unit) {
-                editorFocusRequester.requestFocus()
-                action()
-            }
+
 
             // 제목 버튼 (H1 또는 대제목)
             HeadingButton(
                 text = "제목",
-                isSelected = selectedHeading == 2,
-                onClick = {
-                    focusThen {
-                        toggleHeadingMarkdown(rtState, 2)
-                        selectedHeading = if (selectedHeading == 2) null else 1
-                    }
-                },
+//                isSelected = selectedHeading == 2,
+                onClick = { focusThen { toggleHeadingMarkdown(rtState, 2) } },
                 textSize = AppTextStyles.title_semibold_24
             )
 
             // 부제목 버튼 (H2)
             HeadingButton(
                 text = "부제목",
-                isSelected = selectedHeading == 3,
-                onClick = {
-                    focusThen {
-                        toggleHeadingMarkdown(rtState, 3)
-                        selectedHeading = if (selectedHeading == 3) null else 2
-                    }
-                },
+//                isSelected = selectedHeading == 3,
+                onClick =  { focusThen { toggleHeadingMarkdown(rtState, 3) } },
                 textSize = AppTextStyles.subtitle_semibold_20
             )
 
             // 본문 버튼 (일반 텍스트)
             HeadingButton(
                 text = "본문",
-                isSelected = selectedHeading == null,
-                onClick = {
-                    focusThen {
-                        // 모든 헤딩 해제
-                        selectedHeading = null
-                    }
-                },
+                onClick = { focusThen { /*clearHeadingOnCurrentLine(rtState)*/ } },
                 textSize = AppTextStyles.b2_medium_16
             )
 
+            val BOLD_STYLE = remember { SpanStyle(fontWeight = FontWeight.Bold) }
+
+            LaunchedEffect(rtState.annotatedString, rtState.selection) {
+                // currentSpanStyle.fontWeight == Bold 이면 선택 ON
+                isBoldSelected = (rtState.currentSpanStyle.fontWeight == FontWeight.Bold)
+            }
+
             // 굵게 버튼 (Bold)
             FilterChip(
-                selected = false,
+                modifier = Modifier
+//                    .width(CHIP_SHORT_WIDTH)
+                    .height(CHIP_HEIGHT),
+                selected = isBoldSelected,
                 onClick = {
                     focusThen {
-                        rtState.toggleSpanStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                        rtState.toggleSpanStyle(BOLD_STYLE) // 반드시 1회만
+                        // 즉시 반영(UX). 곧 selection 변화가 감지되면 위 LaunchedEffect가 실제 상태로 동기화함
+                        isBoldSelected = !isBoldSelected
                     }
                 },
                 label = {
@@ -108,29 +116,52 @@ fun MarkdownToolbar(
                         "B",
                         style = AppTextStyles.title_semibold_24
                     )
-                }
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = PurpleMain500,
+                    selectedLabelColor = Color.White,
+                    containerColor = Purple50,
+                    labelColor = Color.Black
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = isBoldSelected,
+                    borderColor = Color.Transparent,
+                    selectedBorderColor = Color.Transparent,
+                    disabledBorderColor = Color.Transparent,
+                    disabledSelectedBorderColor = Color.Transparent,
+                    borderWidth = 0.dp
+                )
             )
 
             // 순서 없는 리스트 버튼
-            IconButton(
-                onClick = { focusThen { rtState.toggleUnorderedList() } },
-                modifier = Modifier.size(40.dp)
+            FilledTonalIconButton(
+                onClick = { focusThen { toggleListForSelection(rtState, ordered = false) } },
+                modifier = Modifier.height(CHIP_HEIGHT).width(CHIP_SHORT_WIDTH),
+                shape = RoundedCornerShape(8.dp),
+                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                    containerColor = Purple50,     // 뒷배경(연보라)
+                    contentColor = GreyMain300     // 아이콘 색
+                )
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.list_toggles), // ← ← 아이콘 파일 필요
-                    tint = GreyMain300,
                     contentDescription = "순서 없는 리스트",
                 )
             }
 
             // 순서 있는 리스트 버튼
-            IconButton(
-                onClick = { focusThen { rtState.toggleOrderedList() } },
-                modifier = Modifier.size(40.dp)
+            FilledTonalIconButton(
+                onClick = { focusThen { toggleListForSelection(rtState, ordered = true) } },
+                modifier = Modifier.height(CHIP_HEIGHT).width(CHIP_SHORT_WIDTH),
+                shape = RoundedCornerShape(8.dp),
+                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                    containerColor = Purple50,     // 뒷배경(연보라)
+                    contentColor = GreyMain300     // 아이콘 색
+                )
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.list_numbers), // ← ← 아이콘 파일 필요
-                    tint = GreyMain300,
                     contentDescription = "순서 있는 리스트",
                 )
             }
@@ -151,26 +182,23 @@ fun MarkdownToolbar(
 @Composable
 private fun HeadingButton(
     text: String,
-    isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     textSize: TextStyle
 ) {
     Box(
         modifier = modifier
+            .size(CHIP_LONG_WIDTH, CHIP_HEIGHT)
             .clip(RoundedCornerShape(8.dp))
-            .background(
-                if (isSelected) PurpleMain500 // 보라색
-                else Color.White
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .background(Grey20)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+
     ) {
         Text(
             text = text,
-            color = if (isSelected) Color.White else Color.Black,
+            color = Color.Black,
             style = textSize
         )
     }
 }
-

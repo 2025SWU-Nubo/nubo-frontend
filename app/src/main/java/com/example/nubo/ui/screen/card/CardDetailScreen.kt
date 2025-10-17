@@ -1,3 +1,5 @@
+
+
 package com.example.nubo.ui.screen.card
 
 import android.content.Intent
@@ -33,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,6 +78,7 @@ import com.example.nubo.ui.theme.GreyMain100
 import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.PurpleMain500
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.max
 
 
@@ -101,6 +105,7 @@ fun CardDetailScreen(
     val scrollState = rememberScrollState()
     val toastHost = rememberAppToastHostState()
     val bottomSafe = rememberImeOrNavBottomPadding(extra = 24.dp) // 토스트 + 여유
+    val scope = rememberCoroutineScope()
 
     val infoState by viewModel.infoState.collectAsState()
 
@@ -115,8 +120,8 @@ fun CardDetailScreen(
             toastHost.show(
                 title = AnnotatedString(msg),
                 layout = AppToastLayout.TitleOnly,
-                type = AppToastType.ADD_CARD_RESULT,
-                durationMillis = 2000
+                type = AppToastType.POSITIVE,
+                durationMillis = 2200
             )
             // 한 번만 보이도록 즉시 소거
             onConsumeToast()
@@ -146,7 +151,21 @@ fun CardDetailScreen(
                 onBack = onBack,
                 onEdit = onEdit,
                 isFavorite = item.isFavorite,
-                onToggleFavorite = onToggleFavorite
+                onToggleFavorite = {
+                    val willBeFavorite = !item.isFavorite
+
+                    scope.launch {
+                        toastHost.show(
+                            title = AnnotatedString(
+                                if(willBeFavorite) "즐겨찾기에 추가했어요!" else "즐겨찾기를 해제했어요!"
+                            ),
+                            layout = AppToastLayout.TitleOnly,
+                            type = AppToastType.FAVORITE,
+                            durationMillis = 800
+                        )
+                        onToggleFavorite()
+                    }
+                }
             )
         }
     ) { inner ->
@@ -303,7 +322,7 @@ private fun ImageWithButton(
                 .size(36.dp) // background size
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color.Black.copy(alpha = 0.55f))
-                .clickable{onInfoClick()}
+                .clickable { onInfoClick() }
         ) {
             Icon(
                 painter = painterResource(R.drawable.info),
@@ -358,7 +377,7 @@ private fun ImageWithButton(
             onClick = onPlayClick,
             modifier = Modifier
                 .align(Alignment.Center)
-            ) {
+        ) {
             Icon(
                 painter = painterResource(R.drawable.play),
                 contentDescription = "Start",
@@ -493,7 +512,14 @@ private fun CardKeyword(
     keywords: List<String>
 ){
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(
+                animationSpec = tween(
+                    durationMillis = 500,
+                    easing = androidx.compose.animation.core.FastOutSlowInEasing
+                )
+            ),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(Color.White),
         border = BorderStroke(1.5.dp, Grey30),

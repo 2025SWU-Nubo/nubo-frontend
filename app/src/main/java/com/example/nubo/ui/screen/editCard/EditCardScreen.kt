@@ -1,3 +1,4 @@
+
 package com.example.nubo.ui.screen.editCard
 
 import androidx.activity.compose.BackHandler
@@ -15,6 +16,8 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -61,6 +64,7 @@ import com.example.nubo.ui.screen.editCard.widgets.NoSelectionToolbar
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Grey700
 import com.mohamedrejeb.richeditor.ui.material3.RichTextEditorDefaults
+import kotlinx.coroutines.launch
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -85,6 +89,11 @@ fun EditCardScreen(
     val uiEventFlow = viewModel.uiEvent
 
     val focusManager = LocalFocusManager.current
+
+    val scope = rememberCoroutineScope() // + NEW: for bringIntoView()
+
+    // + NEW: bring-into-view requester for the editor
+    val editorBringIntoView = remember { BringIntoViewRequester() }
 
     // 상태 먼저
     var initialMarkdown by rememberSaveable { mutableStateOf("") }
@@ -119,6 +128,21 @@ fun EditCardScreen(
     val keyboardVisible by rememberKeyboardVisible()
 
     var keepToolbar by remember { mutableStateOf(false) }      // 툴바 가시성 유지 플래그
+
+    // 하단 패딩(툴바 보정) 계산값을 Column에도 적용해서 마지막 줄까지 보이도록 하기
+    val contentBottomInset = when {
+        showAiBar -> 300.dp     // AiPromptBar + 여유
+        editorFocused && keyboardVisible && !showAiBar -> 64.dp + 12.dp // MarkdownBar + 여유
+        else -> 0.dp
+    }
+
+    // 키보드가 올라오면(=visible) 포커스 중일 때 에디터를 뷰포트로 스크롤
+    LaunchedEffect(keyboardVisible, editorFocused, showAiBar) {
+        if (keyboardVisible && editorFocused) {
+            withFrameNanos { /* wait one frame for IME insets */ }
+            scope.launch { editorBringIntoView.bringIntoView() }
+        }
+    }
 
     // 바 높이(대략치) — 토스트를 바 위로 띄우기 위한 패딩
     val aiBarHeight = 84.dp      // AiPromptBar 높이(+여유)
@@ -307,7 +331,7 @@ fun EditCardScreen(
                 }
             }
         },
-        ) { innerPadding ->
+    ) { innerPadding ->
 
         Box(
             modifier = Modifier
@@ -349,7 +373,9 @@ fun EditCardScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberScrollState())
+                    .imePadding()
+                    .padding(bottom = contentBottomInset),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // 시스템 기본 선택 툴바 숨김
@@ -361,6 +387,7 @@ fun EditCardScreen(
                                     .fillMaxWidth()
                                     .padding(horizontal = 20.dp)                // ← 좌우 여백 여기!
                                     .onGloballyPositioned { editorBounds = it.boundsInParent() } // ← 패딩 포함한 영역을 에디터로 간주
+//                                    .bringIntoViewRequester(editorBringIntoView)
                             ) {
                                 RichTextEditor(
                                     state = rtState,
@@ -373,9 +400,18 @@ fun EditCardScreen(
                                         .fillMaxWidth()
                                         .heightIn(min = 220.dp)
                                         .focusRequester(editorFocusRequester)
+                                        .bringIntoViewRequester(editorBringIntoView)
                                         .onFocusChanged { fs ->
                                             editorFocused = fs.isFocused
-                                            if (fs.isFocused) viewModel.toggleAiBar(false)
+                                            if (fs.isFocused) {
+                                                // AI 바는 닫고, 에디터가 보이도록 스크롤
+                                                viewModel.toggleAiBar(false)
+                                                // English: Scroll the editor into view on focus
+                                                scope.launch {
+                                                    withFrameNanos { /* wait one frame for IME insets */ }
+                                                    editorBringIntoView.bringIntoView()
+                                                }
+                                            }
                                         }
                                 )
                             }
@@ -465,7 +501,8 @@ fun EditCardScreen(
                     onValueChange = viewModel::onAiQueryChange,
                     onClose = { if (!aiLoading) viewModel.toggleAiBar(false) },
                     onSubmit = {
-                        viewModel.updateSummary(rtState.toMarkdown())
+                        val md = sanitizeToAllowedMarkdown(rtState.toMarkdown())
+                        viewModel.updateSummary(md)
                         viewModel.requestAiEdit()
                     },
                     showAiBar = showAiBar,

@@ -133,212 +133,223 @@ fun NotificationScreen(
     ) { inner ->
         val navPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
-
-        LazyColumn(
-            state = listState,
+        Column(
             modifier = Modifier
-                .padding(inner)
                 .fillMaxSize()
-                .padding(bottom = 0.dp)
+                .padding(inner)
         ) {
-            // ===== 알림 섹션 =====
-            item { SectionHeader("알림") }
-            // ===== 알림 설정 배너 ====
-            if (!notificationsEnabled) {
-                item {
-                    NotificationPermissionBanner(
-                        onClickEnable = { settingsLauncher.launch(buildAppNotificationSettingsIntent(context)) }
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(bottom = 0.dp)
+            ) {
+                // ===== 알림 섹션 =====
+                item { SectionHeader("알림") }
+                // ===== 알림 설정 배너 ====
+                if (!notificationsEnabled) {
+                    item {
+                        NotificationPermissionBanner(
+                            onClickEnable = { settingsLauncher.launch(buildAppNotificationSettingsIntent(context)) }
+                        )
+                    }
+                    // 알림 배너와 목록 사이 구분 바
+                    item {
+                        Column {
+                            Spacer(Modifier.height(16.dp))
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(6.dp)
+                                    .background(Grey10)
+                            )
+                            Spacer(Modifier.height(20.dp))
+                        }
+                    }
+                }
+
+                // ===== 최근 알림 리스트 =====
+                val visibleRecentItems = state.recent.take(expandedRecentCount)
+                itemsIndexed(
+                    visibleRecentItems,
+                    key = { _, it -> notiStableKey("recent", it) }
+                ) { _, item ->
+                    val loading = item.notificationId in state.actionLoadingIds
+                    NotiCard(
+                        item = item,
+                        tinted = true,
+                        loading = loading,
+                        onClick = { onClickItem(item) },
+                        onAcceptInvite = { onAcceptInvite(item) },
+                        onRejectInvite = { onRejectInvite(item) }
                     )
                 }
-                // 알림 배너와 목록 사이 구분 바
+
+                // ===== 최근 알림 더보기 버튼 =====
+                if (state.recent.size >= 3 && expandedRecentCount < state.recent.size) {
+                    item{
+                        TextButton(
+                            onClick = {
+                                // 1) 클릭 시점의 "기존 마지막 인덱스"를 계산
+                                //    헤더(1) + (배너가 있으면 2개 더) + 현재 노출 중인 최근 아이템 개수
+                                val bannerExtra = if (!notificationsEnabled) 2 else 0
+                                val firstNewRecentIndex = 1 + bannerExtra + expandedRecentCount
+
+                                // 2) 모든 최근 아이템을 보이도록 확장
+                                expandedRecentCount = state.recent.size
+                                addBottomSpacer = true
+                                onShowMore(NotiSection.Recent)
+
+                                // 3) 새로 드러나는 '첫 아이템' 위치로 부드럽게 스크롤
+                                scope.launch {
+                                    // 3) 리컴포지션으로 리스트가 확장 반영될 시간을 한 프레임 정도 줌
+                                    delay(18)
+
+                                    // 4) 방금 드러난 첫 아이템의 현재 위치를 조회
+                                    val layout = listState.layoutInfo
+                                    val target = layout.visibleItemsInfo.firstOrNull { it.index == firstNewRecentIndex }
+
+                                    if (target != null) {
+                                        // viewport의 시작(top)으로부터 목표 아이템 top까지의 픽셀 거리 계산
+                                        val distancePx = (target.offset - layout.viewportStartOffset).toFloat()
+
+                                        // 5) 지정한 duration으로 천천히 스크롤 (원하면 600~900ms 사이로 조절)
+                                        listState.animateScrollBy(
+                                            value = distancePx,
+                                            animationSpec = tween(
+                                                durationMillis = 900,              // ← 여기로 속도 조절
+                                                easing = FastOutSlowInEasing
+                                            )
+                                        )
+                                    } else {
+                                        // 혹시 가시 영역에 바로 안 잡히면 fallback
+                                        listState.animateScrollToItem(firstNewRecentIndex)
+                                    }
+                                }
+                            },
+                            modifier = Modifier.padding(horizontal =  16.dp)
+                        ) {
+                            Text(
+                                text = "${state.recent.size - expandedRecentCount}건 더보기",
+                                style = AppTextStyles.b2_semibold_16,
+                                color = PurpleMain500
+                            )
+                        }
+                    }
+                }
+
+                // ===== 지난 알림 섹션 =====
+                item { Spacer(Modifier.height(12.dp)) }
+
+                if (state.past.isNotEmpty()) {
+                    item { SectionSub("지난 알림") }
+                }
+                // ===== 지난 알림 리스트 =====
+                val visiblePastItems = state.past.take(expandedPastCount)
+                itemsIndexed(
+                    visiblePastItems,
+                    key = { _, it -> notiStableKey("past", it) }
+                ) { _, item ->
+
+
+                    val loading = item.notificationId in state.actionLoadingIds
+                    NotiCard(
+                        item = item,
+                        tinted = false,
+                        loading = loading,
+                        onClick = { onClickItem(item) },
+                        onAcceptInvite = { onAcceptInvite(item) },
+                        onRejectInvite = { onRejectInvite(item) }
+                    )
+                }
+
+                // ===== 지난 알림 더보기 버튼 =====
+                if (state.past.size >= 3 && expandedPastCount < state.past.size) {
+                    item {
+                        TextButton(
+                            onClick = {
+                                // 1) 지난 섹션 시작 인덱스 및 새로 드러날 첫 인덱스 계산
+                                val bannerExtra = if (!notificationsEnabled) 2 else 0
+                                val recentMoreBtnExtra =
+                                    if (state.recent.size >= 3 && expandedRecentCount < state.recent.size) 1 else 0
+                                // 구성: [타이틀 1] + [배너 0/2] + [최근N] + [최근더보기 0/1] + [Spacer 1] + [지난 타이틀 1]
+                                val pastSectionStartIndex =
+                                    1 + bannerExtra + expandedRecentCount + recentMoreBtnExtra + 1 + 1
+                                val firstNewPastIndex = pastSectionStartIndex + expandedPastCount
+
+                                // 2) 목록 확장
+                                expandedPastCount = state.past.size
+                                addBottomSpacer = true
+                                onShowMore(NotiSection.Past)
+
+                                scope.launch {
+                                    // 3) 확장 반영 대기
+                                    delay(18)
+
+                                    // 4) 목표 아이템 위치 파악
+                                    val layout = listState.layoutInfo
+                                    val target = layout.visibleItemsInfo.firstOrNull { it.index == firstNewPastIndex }
+
+                                    if (target != null) {
+                                        val distancePx = (target.offset - layout.viewportStartOffset).toFloat()
+
+                                        // 5) 천천히 스크롤 (duration으로 속도 조절)
+                                        listState.animateScrollBy(
+                                            value = distancePx,
+                                            animationSpec = tween(
+                                                durationMillis = 900,              // ← 필요시 700~1000으로 맞춤
+                                                easing = FastOutSlowInEasing
+                                            )
+                                        )
+                                    } else {
+                                        listState.animateScrollToItem(firstNewPastIndex)
+                                    }
+                                }
+                            },
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "${state.past.size - expandedPastCount}건 더보기",
+                                style = AppTextStyles.b2_semibold_16,
+                                color = PurpleMain500
+                            )
+                        }
+                    }
+                }
+
+                // ===== 로딩 인디케이터 =====
                 item {
-                    Column {
-                        Spacer(Modifier.height(16.dp))
-                        Box(
-                            Modifier
+                    if (state.loading) {
+                        Row(
+                            modifier = Modifier
                                 .fillMaxWidth()
-                                .height(6.dp)
-                                .background(Grey10)
-                        )
-                        Spacer(Modifier.height(20.dp))
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.Center
+                        ) { CircularProgressIndicator() }
+                    }
+                }
+
+                // ===== 하단 여분(내비와 겹치지 않게) =====
+                if (addBottomSpacer) {
+                    item {
+                        // Add nav bar height + extra 16dp breathing room
+                        Spacer(Modifier.height(navPadding + 16.dp))
                     }
                 }
             }
-
-            // ===== 최근 알림 리스트 =====
-            val visibleRecentItems = state.recent.take(expandedRecentCount)
-            itemsIndexed(
-                visibleRecentItems,
-                key = { _, it -> notiStableKey("recent", it) }
-            ) { _, item ->
-                val loading = item.notificationId in state.actionLoadingIds
-                NotiCard(
-                    item = item,
-                    tinted = true,
-                    loading = loading,
-                    onClick = { onClickItem(item) },
-                    onAcceptInvite = { onAcceptInvite(item) },
-                    onRejectInvite = { onRejectInvite(item) }
-                )
-            }
-
-            // ===== 최근 알림 더보기 버튼 =====
-            if (state.recent.size >= 3 && expandedRecentCount < state.recent.size) {
-                item{
-                    TextButton(
-                        onClick = {
-                            // 1) 클릭 시점의 "기존 마지막 인덱스"를 계산
-                            //    헤더(1) + (배너가 있으면 2개 더) + 현재 노출 중인 최근 아이템 개수
-                            val bannerExtra = if (!notificationsEnabled) 2 else 0
-                            val firstNewRecentIndex = 1 + bannerExtra + expandedRecentCount
-
-                            // 2) 모든 최근 아이템을 보이도록 확장
-                            expandedRecentCount = state.recent.size
-                            addBottomSpacer = true
-                            onShowMore(NotiSection.Recent)
-
-                            // 3) 새로 드러나는 '첫 아이템' 위치로 부드럽게 스크롤
-                            scope.launch {
-                                // 3) 리컴포지션으로 리스트가 확장 반영될 시간을 한 프레임 정도 줌
-                                delay(18)
-
-                                // 4) 방금 드러난 첫 아이템의 현재 위치를 조회
-                                val layout = listState.layoutInfo
-                                val target = layout.visibleItemsInfo.firstOrNull { it.index == firstNewRecentIndex }
-
-                                if (target != null) {
-                                    // viewport의 시작(top)으로부터 목표 아이템 top까지의 픽셀 거리 계산
-                                    val distancePx = (target.offset - layout.viewportStartOffset).toFloat()
-
-                                    // 5) 지정한 duration으로 천천히 스크롤 (원하면 600~900ms 사이로 조절)
-                                    listState.animateScrollBy(
-                                        value = distancePx,
-                                        animationSpec = tween(
-                                            durationMillis = 900,              // ← 여기로 속도 조절
-                                            easing = FastOutSlowInEasing
-                                        )
-                                    )
-                                } else {
-                                    // 혹시 가시 영역에 바로 안 잡히면 fallback
-                                    listState.animateScrollToItem(firstNewRecentIndex)
-                                }
-                            }
-                        },
-                        modifier = Modifier.padding(horizontal =  16.dp)
-                    ) {
-                        Text(
-                            text = "${state.recent.size - expandedRecentCount}건 더보기",
-                            style = AppTextStyles.b2_semibold_16,
-                            color = PurpleMain500
-                        )
-                    }
-                }
-            }
-
-            // ===== 지난 알림 섹션 =====
-            item { Spacer(Modifier.height(12.dp)) }
-
-            if (state.past.isNotEmpty()) {
-                item { SectionSub("지난 알림") }
-            }
-            // ===== 지난 알림 리스트 =====
-            val visiblePastItems = state.past.take(expandedPastCount)
-            itemsIndexed(
-                visiblePastItems,
-                key = { _, it -> notiStableKey("past", it) }
-            ) { _, item ->
-
-
-                val loading = item.notificationId in state.actionLoadingIds
-                NotiCard(
-                    item = item,
-                    tinted = false,
-                    loading = loading,
-                    onClick = { onClickItem(item) },
-                    onAcceptInvite = { onAcceptInvite(item) },
-                    onRejectInvite = { onRejectInvite(item) }
-                )
-            }
-
-            // ===== 지난 알림 더보기 버튼 =====
-            if (state.past.size >= 3 && expandedPastCount < state.past.size) {
-                item {
-                    TextButton(
-                        onClick = {
-                            // 1) 지난 섹션 시작 인덱스 및 새로 드러날 첫 인덱스 계산
-                            val bannerExtra = if (!notificationsEnabled) 2 else 0
-                            val recentMoreBtnExtra =
-                                if (state.recent.size >= 3 && expandedRecentCount < state.recent.size) 1 else 0
-                            // 구성: [타이틀 1] + [배너 0/2] + [최근N] + [최근더보기 0/1] + [Spacer 1] + [지난 타이틀 1]
-                            val pastSectionStartIndex =
-                                1 + bannerExtra + expandedRecentCount + recentMoreBtnExtra + 1 + 1
-                            val firstNewPastIndex = pastSectionStartIndex + expandedPastCount
-
-                            // 2) 목록 확장
-                            expandedPastCount = state.past.size
-                            addBottomSpacer = true
-                            onShowMore(NotiSection.Past)
-
-                            scope.launch {
-                                // 3) 확장 반영 대기
-                                delay(18)
-
-                                // 4) 목표 아이템 위치 파악
-                                val layout = listState.layoutInfo
-                                val target = layout.visibleItemsInfo.firstOrNull { it.index == firstNewPastIndex }
-
-                                if (target != null) {
-                                    val distancePx = (target.offset - layout.viewportStartOffset).toFloat()
-
-                                    // 5) 천천히 스크롤 (duration으로 속도 조절)
-                                    listState.animateScrollBy(
-                                        value = distancePx,
-                                        animationSpec = tween(
-                                            durationMillis = 900,              // ← 필요시 700~1000으로 맞춤
-                                            easing = FastOutSlowInEasing
-                                        )
-                                    )
-                                } else {
-                                    listState.animateScrollToItem(firstNewPastIndex)
-                                }
-                            }
-                        },
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            text = "${state.past.size - expandedPastCount}건 더보기",
-                            style = AppTextStyles.b2_semibold_16,
-                            color = PurpleMain500
-                        )
-                    }
-                }
-            }
-
-            // ===== 로딩 인디케이터 =====
-            item {
-                if (state.loading) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.Center
-                    ) { CircularProgressIndicator() }
-                }
-            }
-
-            // ===== 하단 여분(내비와 겹치지 않게) =====
-            if (addBottomSpacer) {
-                item {
-                    // Add nav bar height + extra 16dp breathing room
-                    Spacer(Modifier.height(navPadding + 16.dp))
-                }
-            }
-
-            item { CenterLabelDivider(label = "7일 전 알림까지 확인할 수 있어요",
+            // --- 고정 푸터 ---
+            NotificationFooter(
+                label = "7일 전 알림까지 확인할 수 있어요",
                 lineColor = Grey50,
-                labelColor = Grey200) }
+                labelColor = Grey200,
+                navPadding = navPadding
+            )
 
         }
+
+
+
     }
 }
 
@@ -426,7 +437,7 @@ private fun NotiCard(
                 NotiType.UnviewedReminder -> "미시청 카드 리마인드"
                 NotiType.NewCard -> "추가하기"
                 NotiType.Invite -> "공유하기"
-                NotiType.System -> "시스템"
+                NotiType.System -> "기타"
             }
 
             /* 알림 소제목 */
@@ -479,6 +490,31 @@ private fun NotiCard(
         }
     }
 }
+
+@Composable
+private fun NotificationFooter(
+    label: String,
+    modifier: Modifier = Modifier,
+    lineColor: Color = GreyMain100,  // 필요 시 Grey50로 변경 가능
+    labelColor: Color = GreyMain300, // 필요 시 Grey200로 변경 가능
+    navPadding: Dp = 0.dp
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(Color.White) // 바탕 흰색으로 깔아 겹침 시 가독성 보장
+    ) {
+        CenterLabelDivider(
+            label = label,
+            lineColor = lineColor,
+            labelColor = labelColor,
+            modifier = Modifier.padding(horizontal = 0.dp, vertical = 12.dp)
+        )
+        // 내비게이션 바와 겹치지 않도록 하단 여백
+        Spacer(Modifier.height(navPadding + 12.dp))
+    }
+}
+
 
 // ===== Custom Buttons =====
 @Composable

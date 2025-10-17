@@ -1,11 +1,16 @@
 package com.example.nubo.utils
 
 import android.app.Activity
+import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 
 class NotificationPermissionHelper {
@@ -118,6 +123,47 @@ class NotificationPermissionHelper {
                     onDenied()
                 }
             }
+        }
+
+        /** 시스템(앱 전체) 알림 허용 여부 */
+        fun isSystemNotificationEnabled(context: Context): Boolean =
+            NotificationManagerCompat.from(context).areNotificationsEnabled()
+
+        /** 특정 채널 허용 여부 (O+), 없으면 false */
+        fun isChannelEnabled(context: Context, channelId: String): Boolean {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return true
+            val nm = context.getSystemService(NotificationManager::class.java)
+            val ch = nm.getNotificationChannel(channelId) ?: return false
+            return ch.importance != NotificationManager.IMPORTANCE_NONE
+        }
+
+        /** 앱 알림 설정 화면 열기 */
+        fun openAppNotificationSettings(context: Context) {
+            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                }
+            } else {
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", context.packageName, null)
+                }
+            }
+            context.startActivity(intent)
+        }
+
+        /** 채널 설정 화면 열기 (O+), 미만은 앱 설정으로 */
+        fun openChannelSettings(context: Context, channelId: String) {
+            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
+                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    putExtra(Settings.EXTRA_CHANNEL_ID, channelId)
+                }
+            } else {
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", context.packageName, null)
+                }
+            }
+            context.startActivity(intent)
         }
     }
 }

@@ -129,6 +129,7 @@ fun defaultToastStyleProvider(): (AppToastType) -> AppToastStyle = { t ->
 // ──────────────────────────────────────────────────────────────
 private val DEFAULT_FAVORITE_ICON_RES = R.drawable.ic_board_fillstar
 private val DEFAULT_ERROR_ICON_RES = R.drawable.error_toast
+private val DEFAULT_POSITIVE_ICON_RES = R.drawable.check
 
 // ──────────────────────────────────────────────────────────────
 // 호스트 상태 (순차 처리 + 표시 지연 + exit 버퍼)
@@ -247,10 +248,13 @@ fun AppToastHost(
             // 타입별 아이콘 강제 규칙
             val isFavorite = t.type == AppToastType.FAVORITE
             val isNegative = t.type == AppToastType.NEGATIVE
+            val isPositive = t.type == AppToastType.POSITIVE
+            // 아이콘 리소스
             val effectiveIconRes: Int? = when {
                 t.iconRes != null -> t.iconRes
                 isFavorite -> DEFAULT_FAVORITE_ICON_RES
                 isNegative -> DEFAULT_ERROR_ICON_RES
+                isPositive -> DEFAULT_POSITIVE_ICON_RES
                 else -> null
             }
 
@@ -265,6 +269,7 @@ fun AppToastHost(
 
             val fixedWidth =
                 if (t.type == AppToastType.FAVORITE)
+                    // 즐겨찾기만 가로길이를 좀 더 작게
                     Modifier.fillMaxWidth(0.90f).widthIn(max = 300.dp)
                 else
                     Modifier.fillMaxWidth(0.92f).widthIn(max = 360.dp)

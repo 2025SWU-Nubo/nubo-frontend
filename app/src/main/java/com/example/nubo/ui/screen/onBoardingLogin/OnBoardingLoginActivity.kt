@@ -30,6 +30,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationManagerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.example.components.toast.AppToastOverlay
 import com.example.components.toast.AppToastType
 import com.example.components.toast.rememberAppToastHostState
@@ -41,7 +44,9 @@ import com.example.nubo.ui.screen.notification.NotificationViewModel
 import com.example.nubo.ui.screen.profile.AuthViewModel
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.PurpleMain500
+import com.example.nubo.utils.buildAppNotificationSettingsIntent
 import com.example.nubo.utils.cacheToStore
+import com.example.nubo.utils.rememberNotificationSettingsLauncher
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
@@ -51,6 +56,8 @@ import kotlinx.coroutines.delay
 class OnBoardingLoginActivity : ComponentActivity() {
 
     private val viewModel: OnBoardingViewModel by viewModels()
+
+
 
     // Google 로그인 런처
     private val googleSignInLauncher = registerForActivityResult(
@@ -89,15 +96,41 @@ class OnBoardingLoginActivity : ComponentActivity() {
         intent?.let { cacheToStore(it) }
 
         setContent {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+
+            var notificationsEnabled by remember {
+                mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled())
+            }
+
+            // settings launcher to open app's notification settings
+            val settingsLauncher = rememberNotificationSettingsLauncher(
+                onReturn = {
+                    // refresh flag after coming back from settings
+                    notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+                }
+            )
+
+            DisposableEffect(lifecycleOwner) {
+                val obs = LifecycleEventObserver { _, ev ->
+                    if (ev == Lifecycle.Event.ON_RESUME) {
+                        notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(obs)
+                onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+            }
+
+
             val uiState = viewModel.uiState.collectAsState().value
             val askPermission by viewModel.shouldRequestNotificationPermission.collectAsState()
 
             val toastHost = rememberAppToastHostState()
 
             // 진입 즉시 자동으로 토큰 검증 플로우 시작(기존 onStartButtonClicked 로직 재사용)
-//            LaunchedEffect(Unit) {
-//                viewModel.onStartButtonClicked()
-//            }
+            LaunchedEffect(Unit) {
+                viewModel.onStartButtonClicked()
+            }
 
             // 토스트 이벤트 수신
             LaunchedEffect(Unit) {
@@ -122,9 +155,19 @@ class OnBoardingLoginActivity : ComponentActivity() {
                     NotificationPermissionDialog(
                         visible = true,
                         onAllow = {
-                            requestNotificationPermissionLauncher.launch(
-                                android.Manifest.permission.POST_NOTIFICATIONS
-                            )
+                            if (com.example.nubo.utils.NotificationPermissionHelper
+                                    .shouldRequestNotificationPermission(context)
+                            ) {
+                                requestNotificationPermissionLauncher.launch(
+                                    android.Manifest.permission.POST_NOTIFICATIONS
+                                )
+                            }
+
+                            // 앱 알림 설정 바로 열기
+                            com.example.nubo.utils.NotificationPermissionHelper
+                                .openAppNotificationSettings(context)
+
+                            viewModel.onLoginNotificationPermissionHandled()
                         },
                         onLater = { viewModel.onLoginNotificationPermissionHandled() },
                         onDismiss = { viewModel.onLoginNotificationPermissionHandled() }
