@@ -244,34 +244,28 @@ fun BoardDetailScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                DetailTopBar(onBack = {
-                    // 현재 보드의 최신 이름 전달
-                    val latestName = ui.board?.name ?: boardTitle
-                    navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_id", boardId)
-                    navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_name", latestName)
-                    // MyBoardScreen에 새로고침이 필요하다는 신호를 보냄
-                    navController.previousBackStackEntry?.savedStateHandle?.set("needs_refresh", true)
-                    navController.popBackStack()
+                DetailTopBar(
+                    onBack = {
+                        // 현재 보드의 최신 이름 전달
+                        val latestName = ui.board?.name ?: boardTitle
+                        navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_id", boardId)
+                        navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_name", latestName)
+                        // MyBoardScreen에 새로고침이 필요하다는 신호를 보냄
+                        navController.previousBackStackEntry?.savedStateHandle?.set("needs_refresh", true)
+                        navController.popBackStack()
 
-                }, // 메뉴 버튼 클릭 시 보드 설정 바텀 시트 표시
-                    onMenuClick = { bottomSheetType = BottomSheetType.BOARD_SETTINGS },
-                    isSelectionMode = isSelectionMode)
+                    }, // 메뉴 버튼 클릭 시 보드 설정 바텀 시트 표시
+                    onMenuClick = { bottomSheetType = BottomSheetType.BOARD_EDIT },
+                    isSelectionMode = isSelectionMode
+                )
                 BoardTitleBar(
-                    title = ui.board?.name ?: boardTitle,)
+                    title = ui.board?.name ?: boardTitle,
+                )
                 // 즐겨찾기 필터만 뷰모델과 연결 (정렬 버튼은 UI만 유지, 서버 쿼리는 LATEST 고정)
                 BoardFilterButton(
                     favoriteSelected = ui.favoriteOnly,
                     onToggleFavorite = { enabled -> viewModel.setFavoriteFilter(enabled) },
                     onAddClick = { dialogMode = InputDialogMode.CreateSection },
-                    onSelectClick = {// 선택/취소 버튼 클릭 시 로직
-                        if (isSelectionMode) {
-                            resetSelectionState() // '취소' 시 모든 선택 상태 초기화
-                        } else {
-                            isSelectionMode = true
-                            // 선택 모드 진입 시 바텀 시트 타입 설정
-                            bottomSheetType = BottomSheetType.SELECTION
-                        }
-                    },
                     onRequestSort = { sortKey -> viewModel.setSort(sortKey) },
                     isSelectionMode = isSelectionMode, // 선택 상태 변수 전달
                 )
@@ -311,6 +305,20 @@ fun BoardDetailScreen(
                             } else {
                                 val encodedTitle = java.net.URLEncoder.encode(section.title, "utf-8")
                                 navController.navigate("section_detail/${section.id}/$encodedTitle")
+                            }
+                        },
+                        onCardLongClick = { cardId ->
+                            if (!isSelectionMode) {
+                                isSelectionMode = true
+                                bottomSheetType = BottomSheetType.SELECTION
+                                selectedCards = setOf(cardId) // 롱클릭한 카드를 첫 선택 항목으로 지정
+                            }
+                        },
+                        onSectionLongClick = { section ->
+                            if (!isSelectionMode) {
+                                isSelectionMode = true
+                                bottomSheetType = BottomSheetType.SELECTION
+                                selectedSections = setOf(section.id) // 롱클릭한 섹션을 첫 선택 항목으로 지정
                             }
                         },
                         onFavoriteClick = { section: BoardItem ->
@@ -395,7 +403,7 @@ fun BoardDetailScreen(
                     )
                 }
 
-                BottomSheetType.BOARD_SETTINGS -> {
+                /*BottomSheetType.BOARD_SETTINGS -> {
                     // 새로 추가된 보드 설정 바텀 시트
                     BoardSettingsContent(
                         onDeleteClick = {
@@ -409,7 +417,7 @@ fun BoardDetailScreen(
                         },
                         onDismiss = { bottomSheetType = BottomSheetType.NONE }
                     )
-                }
+                }*/
                 // BOARD_EDIT 상태일 때 BoardEditSheet를 보여주는 case
                 BottomSheetType.BOARD_EDIT -> {
                     // 현재 보드 정보가 있을 때만 설정 화면을 보여줌
@@ -418,9 +426,9 @@ fun BoardDetailScreen(
                             source = source,
                             currentName = currentBoard.name,
                             isCurrentlyShared = currentBoard.shared,
-                            onBack = {
-                                // 뒤로가기 시 이전 바텀바(BOARD_SETTINGS)로 돌아감
-                                bottomSheetType = BottomSheetType.BOARD_SETTINGS
+                            onDismiss = {
+                                // 바텀시트 닫기
+                                bottomSheetType = BottomSheetType.NONE
                             },
                             onInviteClick = {
                                 // TODO: 참여자 초대 화면으로 이동하는 로직
@@ -461,9 +469,11 @@ fun BoardDetailScreen(
                     )
                 }
             )
+
             null -> Unit
             // Rename 등 나머지 케이스를 처리하기 위한 else 분기
-            else -> { /* Do nothing for other cases */ }
+            else -> { /* Do nothing for other cases */
+            }
         }
     }
     // --- 섹션 및 카드 삭제 다이얼로그 호출 코드 추가 ---
@@ -487,7 +497,7 @@ fun BoardDetailScreen(
             }
         )
     }
-    // --- 보드 전체 삭제 다이얼로그 ---
+    /*// --- 보드 전체 삭제 다이얼로그 ---
     if (showBoardDeleteDialog) {
         BoardDeleteConfirmationDialog(
             visible = true,
@@ -509,7 +519,7 @@ fun BoardDetailScreen(
                 }
             }
         )
-    }
+    }*/
     // 토스트 UI를 화면에 배치
     AppToastHost(hostState = toastHostState)
 }
@@ -518,7 +528,8 @@ fun BoardDetailScreen(
 fun DetailTopBar(
     onBack: () -> Unit,
     onMenuClick: () -> Unit,
-    isSelectionMode: Boolean) {
+    isSelectionMode: Boolean
+) {
     val titleText = "나의 보드"
 
     Row(
@@ -584,7 +595,6 @@ fun BoardFilterButton(
     favoriteSelected: Boolean,
     onToggleFavorite: (Boolean) -> Unit,
     onAddClick: () -> Unit,
-    onSelectClick: () -> Unit,
     onRequestSort: (String) -> Unit,
     isSelectionMode: Boolean
 ) {
@@ -627,56 +637,34 @@ fun BoardFilterButton(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        painter = painterResource(if(isFavoriteSelected) R.drawable.selected_star else R.drawable.ic_filter_star),
+                        painter = painterResource(if (isFavoriteSelected) R.drawable.selected_star else R.drawable.ic_filter_star),
                         contentDescription = "즐겨찾기",
                         modifier = Modifier.size(16.dp)
                     )
                 }
             }
         }
-        // 오른쪽 버튼들(기존 그대로)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
-                onClick = onAddClick,
-                enabled = !isSelectionMode,
-                shape = RoundedCornerShape(5.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Purple100.copy(alpha = 0.3f),
-                    contentColor = PurpleMain500,
-                    // 비활성화 상태에서도 활성화 색상과 동일하게 유지
-                    disabledContainerColor = Purple100.copy(alpha = 0.3f),
-                    disabledContentColor = PurpleMain500
-                ),
-                border = BorderStroke(0.5.dp, PurpleMain500),
-                contentPadding = PaddingValues(horizontal = 10.dp),
-                modifier = Modifier.height(32.dp)
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_filter_add),
-                    contentDescription = "섹션 추가",
-                    tint = PurpleMain500
-                )
-            }
-
-            // 선택 버튼 UI
-            // '선택' 또는 '취소' 버튼
-            val buttonText = if (isSelectionMode) "취소" else "선택"
-            val containerColor = if (isSelectionMode) PurpleMain500 else Purple100.copy(alpha = 0.3f)
-            val contentColor = if (isSelectionMode) Color.White else PurpleMain500
-
-            Button(
-                onClick = onSelectClick, // 클릭 시 isSelectionMode 상태를 토글하는 람다 연결 예정
-                shape = RoundedCornerShape(5.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = containerColor,
-                    contentColor = contentColor
-                ),
-                border = if (!isSelectionMode) BorderStroke(0.5.dp, PurpleMain500) else null,
-                contentPadding = PaddingValues(horizontal = 10.dp),
-                modifier = Modifier.height(32.dp)
-            ) {
-                Text(text = buttonText, style = label_medium_12)
-            }
+        // 섹션 추가 버튼
+        Button(
+            onClick = onAddClick,
+            enabled = !isSelectionMode,
+            shape = RoundedCornerShape(5.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Purple100.copy(alpha = 0.3f),
+                contentColor = PurpleMain500,
+                // 비활성화 상태에서도 활성화 색상과 동일하게 유지
+                disabledContainerColor = Purple100.copy(alpha = 0.3f),
+                disabledContentColor = PurpleMain500
+            ),
+            border = BorderStroke(0.5.dp, PurpleMain500),
+            contentPadding = PaddingValues(horizontal = 10.dp),
+            modifier = Modifier.height(32.dp)
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_filter_add),
+                contentDescription = "섹션 추가",
+                tint = PurpleMain500
+            )
         }
     }
 }

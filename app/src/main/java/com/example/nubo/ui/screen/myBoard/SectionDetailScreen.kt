@@ -175,7 +175,7 @@ fun SectionDetailScreen(
                     navController.previousBackStackEntry?.savedStateHandle?.set("needs_refresh", true)
                     navController.popBackStack()
                 },// 메뉴 버튼 클릭 시 보드 설정 바텀 시트 표시
-                    onMenuClick = { bottomSheetType = BottomSheetType.SECTION_SETTINGS },
+                    onMenuClick = { bottomSheetType = BottomSheetType.SECTION_SETTINGS},
                     isSelectionMode = isSelectionMode)
                 // 패딩 조절된 TitleBar 사용
                 BoardTitleBar(
@@ -184,11 +184,6 @@ fun SectionDetailScreen(
                 SectionFilterButton(
                     favoriteSelected = ui.favoriteOnly,
                     onToggleFavorite = { enabled -> viewModel.setFavoriteFilter(enabled) },
-                    onSelectClick = {
-                        if (isSelectionMode) resetSelectionState()
-                        else {isSelectionMode = true
-                              bottomSheetType = BottomSheetType.SELECTION}
-                    },
                     onRequestSort = { sortKey -> viewModel.setSort(sortKey) },
                     isSelectionMode = isSelectionMode
                 )
@@ -213,7 +208,13 @@ fun SectionDetailScreen(
                                 navController.navigate("card_detail/$cardId")
                             }
                         },
-                        onCardLongClick = {},
+                        onCardLongClick = {cardId ->
+                            // 롱클릭 시 선택 모드로 진입하고, 현재 카드 선택
+                            if (!isSelectionMode) {
+                                isSelectionMode = true
+                                bottomSheetType = BottomSheetType.SELECTION
+                                selectedCards = setOf(cardId) // 새 Set으로 첫 항목 선택
+                            }},
                         isSelectionMode = isSelectionMode,
                         selectedCardIds = selectedCards,
 
@@ -283,21 +284,27 @@ fun SectionDetailScreen(
                         }
                     )
                 }
-
                 BottomSheetType.SECTION_SETTINGS -> {
-                    // 새로 추가된 섹션 설정 바텀 시트
-                    SectionSettingsContent(
-                        onRenameClick = {
-                            // 이름 변경 버튼 클릭 시 다이얼로그 띄우기
-                            dialogMode = InputDialogMode.Rename(
-                                sectionId = sectionId,
-                                currentName = ui.board?.name ?: sectionTitle
-                            )
-                            // 바텀 시트 닫기
-                            bottomSheetType = BottomSheetType.NONE
-                        },
-                        onDismiss = { bottomSheetType = BottomSheetType.NONE }
-                    )
+                    ui.board?.let { currentBoard ->
+                        // 새로 추가된 섹션 설정 바텀 시트
+                        SectionSettingsContent(
+                            currentName = currentBoard.name,
+                            isCurrentlyShared = currentBoard.shared,
+                            onDismiss = {
+                                // 바텀시트 닫기
+                                bottomSheetType = BottomSheetType.NONE
+                            },
+                            onConfirm = { newName, isShared ->
+                                // 이름이 변경되었을 때만 API 호출
+                                if (newName != currentBoard.name) {
+                                    viewModel.renameCurrentBoard(newName)
+                                }
+
+                                // 완료 후 바텀시트 전체 닫기
+                                bottomSheetType = BottomSheetType.NONE
+                            }
+                        )
+                    }
                 }
                 else -> {}
             }
@@ -358,7 +365,6 @@ fun SectionDetailScreen(
 fun SectionFilterButton(
     favoriteSelected: Boolean,
     onToggleFavorite: (Boolean) -> Unit,
-    onSelectClick: () -> Unit,
     onRequestSort: (String) -> Unit,
     isSelectionMode: Boolean
 ) {
@@ -402,33 +408,12 @@ fun SectionFilterButton(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_filter_star),
+                        painter = painterResource(if(isFavoriteSelected) R.drawable.selected_star else R.drawable.ic_filter_star),
                         contentDescription = "즐겨찾기",
                         modifier = Modifier.size(16.dp)
                     )
                 }
             }
-        }
-        // 오른쪽: '선택'/'취소' 버튼 UI
-        val buttonText = if (isSelectionMode) "취소" else "선택"
-        val containerColor = if (isSelectionMode) PurpleMain500 else Purple100.copy(alpha = 0.3f)
-        val contentColor = if (isSelectionMode) Color.White else PurpleMain500
-
-        Button(
-            onClick = onSelectClick,
-            shape = RoundedCornerShape(5.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = containerColor,
-                contentColor = contentColor,
-                // 비활성화 상태에서도 활성화 색상과 동일하게 유지
-                disabledContainerColor = Purple100.copy(alpha = 0.3f),
-                disabledContentColor = PurpleMain500
-            ),
-            border = if (!isSelectionMode) BorderStroke(0.5.dp, PurpleMain500) else null,
-            contentPadding = PaddingValues(horizontal = 10.dp),
-            modifier = Modifier.height(32.dp)
-        ) {
-            Text(text = buttonText, style = AppTextStyles.label_medium_12)
         }
     }
 }

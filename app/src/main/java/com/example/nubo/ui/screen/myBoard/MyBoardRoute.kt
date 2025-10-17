@@ -246,9 +246,6 @@ fun MyBoardRoute(
                                 showBoardDeleteDialog = true
                                 boardBottomSheetType = BottomSheetType.NONE
                             },
-                            onSettingsClick = {
-                                boardBottomSheetType = BottomSheetType.BOARD_EDIT
-                            },
                             onDismiss = { resetBoardSelectionState() }
                         )
                     }
@@ -258,8 +255,8 @@ fun MyBoardRoute(
                                 source = board.source,
                                 currentName = board.title,
                                 isCurrentlyShared = false, // MyBoard에서는 공유 여부 알 수 없으므로 false로 고정
-                                onBack = {
-                                    boardBottomSheetType = BottomSheetType.BOARD_SETTINGS
+                                onDismiss = {
+                                    boardBottomSheetType = BottomSheetType.NONE
                                 },
                                 onInviteClick = { /* TODO */ },
                                 onConfirm = { newName, isShared ->

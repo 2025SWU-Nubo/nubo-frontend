@@ -147,18 +147,17 @@ interface BoardService {
         @Body body: BulkMoveRequest
     ): Response<BulkMoveResponse>
 
-    // 섹션(보드) 삭제 API
+    // 보드(섹션 삭제)
     @HTTP(method = "DELETE", path = "/api/board", hasBody = true)
     suspend fun deleteBoards(
         @Header("Authorization") authHeader: String,
         @Body body: BoardDeleteRequest
-    ): Response<List<BoardDeleteResponse>>
+    ): Response<List<BoardDeleteResponse>> // 응답 형식이 List라고 가정
 
-    // 섹션(보드) 복구 API
+    // 새로운 보드 복구 API 엔드포인트
     @PATCH("/api/board/restore")
     suspend fun restoreBoards(
         @Header("Authorization") authHeader: String,
         @Body body: BoardRestoreRequest
-    ): BoardRestoreResponse
-
+    ): Response<BoardRestoreResponse>
 }

@@ -66,8 +66,8 @@ class BoardDetailViewModel @Inject constructor(
     val deleteCompleteEvent = _deleteCompleteEvent.asSharedFlow()
 
     //  마지막으로 삭제된 항목들의 ID를 임시 저장하는 변수
-    private var lastDeletedSectionIds: Set<Int> = emptySet()
-    private var lastDeletedCardIds: Set<Int> = emptySet()
+    private var lastDeletedSectionIds: Set<Long> = emptySet()
+    private var lastDeletedCardIds: Set<Long> = emptySet()
     // --- 마지막 카드 삭제 유형을 저장하는 변수 ---
     private var lastCardDeleteMode: String = ""
 
@@ -435,26 +435,28 @@ class BoardDetailViewModel @Inject constructor(
         executeDeleteActions(selectedSectionIds, selectedCardIds, boardDeleteOption, cardDeleteOption)
     }
 
-    // 공통 삭제 로직
+    // --- 공통 삭제 로직 (응답값 처리 추가) ---
     private suspend fun executeDeleteActions(
         selectedSectionIds: Set<Int>,
         selectedCardIds: Set<Int>,
         boardDeleteOption: String,
         cardDeleteOption: String
     ) {
-        // --- 삭제 실행 전에 ID 저장 ---
-        lastDeletedSectionIds = selectedSectionIds
-        lastDeletedCardIds = selectedCardIds
+        // 삭제 실행 전 임시 변수 초기화
+        lastDeletedSectionIds = emptySet()
+        lastDeletedCardIds = emptySet()
         lastCardDeleteMode = cardDeleteOption
-        // --------------------------
+
         _ui.value = _ui.value.copy(isLoading = true, error = null)
         try {
             val token = "Bearer ${authRepository.getAccessToken()}"
-            var allSuccess = true
 
-            // 코루틴 스코프를 만들어 섹션과 카드 삭제를 병렬로 처리
+            // 삭제된 ID들을 누적해서 담을 변수
+            val finalDeletedSectionIds = mutableSetOf<Long>()
+            val finalDeletedCardIds = mutableSetOf<Long>()
+
             coroutineScope {
-                // 섹션 삭제 API 호출 (선택된 경우에만)
+                // 섹션 삭제 API 호출
                 val boardJob = if (selectedSectionIds.isNotEmpty()) {
                     async {
                         val request = BoardDeleteRequest(
@@ -462,11 +464,17 @@ class BoardDetailViewModel @Inject constructor(
                             deleteLinkedCards = boardDeleteOption
                         )
                         val response = boardService.deleteBoards(token, request)
-                        response.isSuccessful
+                        if (response.isSuccessful && response.body() != null) {
+                            response.body()!!.forEach {
+                                finalDeletedSectionIds.add(it.boardId)
+                                finalDeletedCardIds.addAll(it.deletedCardIds)
+                            }
+                            true // 성공
+                        } else false // 실패
                     }
                 } else null
 
-                // 카드 삭제 API 호출 (선택된 경우에만)
+                // 카드 삭제 API 호출
                 val cardJob = if (selectedCardIds.isNotEmpty()) {
                     async {
                         val request = CardDeleteRequest(
@@ -474,117 +482,87 @@ class BoardDetailViewModel @Inject constructor(
                             deleteMode = cardDeleteOption
                         )
                         val response = cardService.deleteCards(token, request)
-                        // 응답이 성공했고, 모든 카드의 상태가 DELETED 또는 DETACHED인지 확인
-                        response.isSuccessful && response.body()?.results?.all {
-                            it.status == "DELETED" || it.status == "DETACHED"
-                        } ?: false
+                        if (response.isSuccessful && response.body() != null) {
+                            response.body()!!.results.forEach {
+                                finalDeletedCardIds.add(it.cardId.toLong())
+                            }
+                            true // 성공
+                        } else false // 실패
                     }
                 } else null
 
-                // 모든 작업의 성공 여부를 확인
                 val boardResult = boardJob?.await() ?: true
                 val cardResult = cardJob?.await() ?: true
-                allSuccess = boardResult && cardResult
-            }
 
-            if (allSuccess) {
-                // --- 성공 시 삭제된 총 개수를 이벤트로 전송 ---
-                val deletedCount = selectedSectionIds.size + selectedCardIds.size
-                _deleteCompleteEvent.emit(deletedCount)
+                if (boardResult && cardResult) {
+                    // 모든 삭제 작업 성공 시, 최종 ID들을 상태 변수에 저장
+                    lastDeletedSectionIds = finalDeletedSectionIds
+                    lastDeletedCardIds = finalDeletedCardIds
 
-                // currentBoardId가 유효한 경우(상세화면)에만 화면을 새로고침합니다.
-                if (currentBoardId > -1) {
-                    loadPage(reset = true)
+                    val deletedCount = selectedSectionIds.size + selectedCardIds.size
+                    _deleteCompleteEvent.emit(deletedCount)
+                    if (currentBoardId > -1) loadPage(reset = true)
+                } else {
+                    throw Exception("일부 항목 삭제에 실패했습니다.")
                 }
-            } else {
-                throw Exception("일부 항목 삭제에 실패했습니다.")
             }
         } catch (e: Exception) {
-            // 실패 시 로그, 토스트 및 임시 ID 초기화
             Log.e("BoardDetailVM", "Delete action failed", e)
             _toastMessage.value = "삭제에 실패했습니다."
             _ui.value = _ui.value.copy(isLoading = false, error = e.message ?: "삭제 중 오류가 발생했습니다.")
+            // 실패 시 임시 ID 초기화
             lastDeletedSectionIds = emptySet()
             lastDeletedCardIds = emptySet()
             lastCardDeleteMode = ""
         }
     }
 
-    // 삭제 실행 취소(복구) 함수
-    // --- 삭제 실행 취소(복구) 함수를 suspend 함수로 변경 ---
+    // --- [수정] 삭제 실행 취소(복구) 함수 (API 통합) ---
     suspend fun undoLastDeletion() {
-        // viewModelScope.launch를 제거하여 호출자가 작업 완료를 기다리게 함
+        if (lastDeletedSectionIds.isEmpty() && lastDeletedCardIds.isEmpty()) return
+
         _ui.value = _ui.value.copy(isLoading = true, error = null)
         try {
             val token = "Bearer ${authRepository.getAccessToken()}"
-            var restoredSections = 0
-            var restoredCards = 0
+            // 복구 요청 DTO 생성
+            val request = BoardRestoreRequest(
+                boardIds = lastDeletedSectionIds.toList(), // 섹션 ID는 boardIds 필드에 담김
+                sectionIds = emptyList(), // 상세화면에서는 섹션만 삭제하므로 sectionIds는 비워둠
+                cardIds = lastDeletedCardIds.toList()
+            )
 
-            coroutineScope {
-                val boardJob = if (lastDeletedSectionIds.isNotEmpty()) {
-                    async {
-                        val request = BoardRestoreRequest(boardIds = lastDeletedSectionIds.map { it.toLong() })
-                        boardService.restoreBoards(token, request).restoredCount
-                    }
-                } else null
+            // 통합된 복구 API 호출
+            val response = boardService.restoreBoards(token, request)
 
-                // --- 카드 복구 요청 시 boardId와 deleteMode 추가 ---
-                val cardJob = if (lastDeletedCardIds.isNotEmpty()) {
-                    async {
-                        // --- currentBoardId가 0보다 클 때만 값을 넣고, 아닐 경우 null 전송 ---
-                        val boardIdForRequest = if (currentBoardId > 0) currentBoardId.toLong() else null
+            if (response.isSuccessful && response.body() != null) {
+                val restoredBoards = response.body()!!.restoredBoardIds.size
+                val restoredCards = response.body()!!.restoredCardIds.size
 
-                        val request = CardRestoreRequest(
-                            cardIds = lastDeletedCardIds.map { it.toLong() },
-                            boardId = boardIdForRequest,
-                            deleteMode = lastCardDeleteMode
-                        )
-                        cardService.restoreCards(token, request).restoredCount
-                    }
-                } else null
+                val message = when {
+                    restoredBoards > 0 && restoredCards > 0 -> "${restoredBoards}개 섹션과 ${restoredCards}개 카드 삭제가 취소되었습니다."
+                    restoredBoards > 0 -> "${restoredBoards}개 섹션 삭제가 취소되었습니다."
+                    restoredCards > 0 -> "${restoredCards}개 카드 삭제가 취소되었습니다."
+                    else -> null
+                }
+                message?.let { _toastMessage.value = it }
 
-                restoredSections = boardJob?.await() ?: 0
-                restoredCards = cardJob?.await() ?: 0
-            }
-
-            val message = when {
-                restoredSections > 0 && restoredCards > 0 -> "${restoredSections}개의 섹션과 ${restoredCards}개의 카드 삭제가 취소되었습니다."
-                restoredSections > 0 -> "${restoredSections}개의 섹션 삭제가 취소되었습니다."
-                restoredCards > 0 -> "${restoredCards}개의 카드 삭제가 취소되었습니다."
-                else -> null
-            }
-
-            message?.let { _toastMessage.value = it }
-
-            if (currentBoardId > -1) {
-                loadPage(reset = true)
+                if (currentBoardId > -1) {
+                    loadPage(reset = true)
+                }
+            } else {
+                _toastMessage.value = "복구에 실패했습니다."
+                throw Exception("Restore request failed with code ${response.code()}")
             }
 
         } catch (e: Exception) {
+            Log.e("BoardDetailVM", "Undo deletion failed", e)
             _ui.value = _ui.value.copy(isLoading = false, error = e.message ?: "복구 중 오류가 발생했습니다.")
         } finally {
+            // 성공/실패 여부와 관계없이 임시 ID는 모두 비움
             lastDeletedSectionIds = emptySet()
             lastDeletedCardIds = emptySet()
-            // 로딩 상태를 false로 변경
+            lastCardDeleteMode = ""
             _ui.value = _ui.value.copy(isLoading = false)
         }
     }
-
-    // --- 현재 보드 자체를 삭제하는 함수 ---
-    suspend fun deleteCurrentBoard() {
-        // currentBoardId가 유효하지 않으면 아무것도 하지 않음
-        if (currentBoardId <= -1) {
-            _toastMessage.value = "삭제할 보드 정보를 찾을 수 없습니다."
-            return
-        }
-        // executeDeleteActions를 재사용하여 삭제 로직 실행
-        // 보드 자신을 '선택된 섹션'으로 간주하여 전달
-        executeDeleteActions(
-            selectedSectionIds = setOf(currentBoardId),
-            selectedCardIds = emptySet(),
-            boardDeleteOption = "DELETE_ORPHANS", // 요청된 옵션
-            cardDeleteOption = "" // 카드 목록이 비어있으므로 이 옵션은 무시됨
-        )
-    }
-
 }

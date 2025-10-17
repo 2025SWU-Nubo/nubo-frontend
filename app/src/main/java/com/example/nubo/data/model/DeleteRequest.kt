@@ -12,13 +12,14 @@ data class BoardDeleteRequest(
 
 // 보드 삭제 응답
 data class BoardDeleteResponse(
-    val boardId: Int,
+    val boardId: Long,
     val status: String,
     val option: String,
     val linksDetached: Int,
     val cardsSoftDeleted: Int,
     val sectionsDeleted: Int,
-    val error: String?
+    val deletedSectionIds: List<Long>,
+    val deletedCardIds: List<Long>
 )
 
 // 카드 삭제/제거 요청

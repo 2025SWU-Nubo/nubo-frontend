@@ -563,7 +563,7 @@ fun FilterButtons(
                 // --- '즐겨찾기'일 때는 아이콘만, 아닐 때는 기존 UI를 보여주도록 분기 ---
                 if (label == "즐겨찾기") {
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_filter_star),
+                        painter = painterResource(if(isSelected) R.drawable.selected_star else R.drawable.ic_filter_star),
                         contentDescription = "즐겨찾기",
                         modifier = Modifier.size(16.dp)
                     )

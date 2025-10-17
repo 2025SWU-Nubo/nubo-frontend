@@ -64,9 +64,14 @@ class BoardViewModel @Inject constructor(
     // ------------------------------------
 
     // --- 삭제/복구 관련 상태 및 이벤트 ---
-    private var lastDeletedBoardIds: Set<Int> = emptySet()
-    private var lastDeletedCardIds: Set<Int> = emptySet() // <--- 카드 ID 저장을 위해 추가
-    private var lastCardDeleteMode: String = ""         // <--- 카드 삭제 모드 저장을 위해 추가
+    //  나의 보드 탭에서 보드/섹션/카드 동시 복구를 위한 ID 저장 변수
+    private var lastDeletedBoardIdsForUndo: Set<Long> = emptySet()
+    private var lastDeletedSectionIdsForUndo: Set<Long> = emptySet()
+    private var lastDeletedCardIdsForUndo: Set<Long> = emptySet()
+
+    // 다른 화면에서 카드만 삭제/복구할 때 사용되는 변수
+    private var lastDeletedCardIds: Set<Int> = emptySet()
+    private var lastCardDeleteMode: String = ""
 
 
     init {
@@ -303,96 +308,90 @@ class BoardViewModel @Inject constructor(
     }
 
     // --- 보드 전체 삭제 공통 로직 ---
-    suspend fun deleteBoards(boardIds: Set<Int>): Int? { // 반환 타입을 Int?로 변경
-        lastDeletedBoardIds = boardIds
-
+    suspend fun deleteBoards(boardIds: Set<Int>): Int? {
         try {
             val token = "Bearer ${authRepository.getAccessToken()}"
             val request = BoardDeleteRequest(
                 boardIds = boardIds.map { it.toLong() },
                 deleteLinkedCards = "DELETE_ORPHANS"
             )
+            // API 응답 타입이 List<BoardDeleteResponse>라고 가정합니다.
             val response = boardService.deleteBoards(token, request)
 
-            return if (response.isSuccessful) {
+            return if (response.isSuccessful && response.body() != null) {
+                val deletedItems = response.body()!!
+
+                // 실행 취소를 위해 삭제된 ID들을 Long 타입 Set으로 저장
+                lastDeletedBoardIdsForUndo = deletedItems.map { it.boardId }.toSet()
+                lastDeletedSectionIdsForUndo = deletedItems.flatMap { it.deletedSectionIds }.toSet()
+                lastDeletedCardIdsForUndo = deletedItems.flatMap { it.deletedCardIds }.toSet()
+
                 // 성공 시, 목록을 새로고침하고 삭제된 개수를 반환
                 refresh()
                 boardIds.size
             } else {
+                Log.e("BoardViewModel", "Delete boards request failed: ${response.code()}")
                 _toastMessage.value = "보드 삭제에 실패했습니다."
-                lastDeletedBoardIds = emptySet()
                 null // 실패 시 null 반환
             }
         } catch (e: Exception) {
             Log.e("BoardViewModel", "Delete boards failed", e)
             _toastMessage.value = "삭제 중 오류가 발생했습니다."
-            lastDeletedBoardIds = emptySet()
             return null // 실패 시 null 반환
         }
     }
 
-    // --- 보드와 카드를 모두 복구하는 통합 실행 취소 함수 ---
+    // --- 보드 복구 로직 (API 명세에 맞게 통합) ---
     suspend fun undoLastDeletion() {
-        // 복구할 항목이 없으면 종료
-        if (lastDeletedBoardIds.isEmpty() && lastDeletedCardIds.isEmpty()) return
-
-        try {
-            val token = "Bearer ${authRepository.getAccessToken()}"
-            var restoredBoards = 0
-            var restoredCards = 0
-
-            coroutineScope {
-                // 보드 복구 작업 (비동기)
-                val boardJob = if (lastDeletedBoardIds.isNotEmpty()) {
-                    async {
-                        val request = BoardRestoreRequest(boardIds = lastDeletedBoardIds.map { it.toLong() })
-                        boardService.restoreBoards(token, request).restoredCount
-                    }
-                } else null
-
-                // 카드 복구 작업 (비동기)
-                val cardJob = if (lastDeletedCardIds.isNotEmpty()) {
-                    async {
-                        // CardRestoreRequest를 올바르게 생성
-                        val request = CardRestoreRequest(
-                            cardIds = lastDeletedCardIds.map { it.toLong() },
-                            boardId = null, // 나의 보드/카드 탭에서는 특정 보드 ID가 없음
-                            deleteMode = lastCardDeleteMode
-                        )
-                        cardService.restoreCards(token, request).restoredCount
-                    }
-                } else null
-
-                // 각 작업의 결과(복구된 개수)를 취합
-                restoredBoards = boardJob?.await() ?: 0
-                restoredCards = cardJob?.await() ?: 0
+        // 1. 나의 보드 탭에서 '보드' 삭제를 취소하는 경우
+        if (lastDeletedBoardIdsForUndo.isNotEmpty()) {
+            try {
+                val token = "Bearer ${authRepository.getAccessToken()}"
+                val request = BoardRestoreRequest(
+                    boardIds = lastDeletedBoardIdsForUndo.toList(),
+                    sectionIds = lastDeletedSectionIdsForUndo.toList(),
+                    cardIds = lastDeletedCardIdsForUndo.toList()
+                )
+                // API 명세에 맞는 새로운 서비스 함수 호출 (반환값에 restoredCount가 있다고 가정)
+                val response = boardService.restoreBoards(token, request)
+                if (response.isSuccessful && response.body() != null) {
+                    val count = response.body()!!.restoredBoardIds.size
+                    _toastMessage.value = "${count}개 보드 삭제가 취소되었습니다."
+                    refresh()
+                } else {
+                    _toastMessage.value = "복구에 실패했습니다."
+                }
+            } catch (e: Exception) {
+                Log.e("BoardViewModel", "Undo board deletion failed", e)
+                _toastMessage.value = "복구 중 오류가 발생했습니다."
+            } finally {
+                // 성공/실패와 관계없이 임시 ID 초기화
+                lastDeletedBoardIdsForUndo = emptySet()
+                lastDeletedSectionIdsForUndo = emptySet()
+                lastDeletedCardIdsForUndo = emptySet()
             }
+            return // 보드 복구 로직 수행 후 함수 종료
+        }
 
-            // --- 복구 결과에 따른 토스트 메시지 생성 로직 ---
-            val message = when {
-                // 보드가 1개 이상 복구되었다면, 카드 복구 여부와 관계없이 보드 기준으로만 메시지 표시
-                restoredBoards > 0 -> "${restoredBoards}개의 보드 삭제가 취소되었습니다."
-                // 보드는 복구되지 않고 카드만 복구된 경우
-                restoredCards > 0 -> "${restoredCards}개의 카드 삭제가 취소되었습니다."
-                else -> null
+        // 2. (참고) 다른 화면에서 '카드'만 삭제했을 경우의 기존 복구 로직
+        if (lastDeletedCardIds.isNotEmpty()) {
+            try {
+                val token = "Bearer ${authRepository.getAccessToken()}"
+                val request = CardRestoreRequest(
+                    cardIds = lastDeletedCardIds.map { it.toLong() },
+                    boardId = null,
+                    deleteMode = lastCardDeleteMode
+                )
+                val response = cardService.restoreCards(token, request)
+                _toastMessage.value = "${response.restoredCount}개 카드 삭제가 취소되었습니다."
+                refresh() // 카드 목록도 새로고침이 필요할 수 있으므로 refresh() 호출
+            } catch (e: Exception) {
+                Log.e("BoardViewModel", "Undo card deletion failed", e)
+                _toastMessage.value = "복구 중 오류가 발생했습니다."
+            } finally {
+                lastDeletedCardIds = emptySet()
+                lastCardDeleteMode = ""
             }
-            // ---------------------------------------------------
-
-            message?.let { _toastMessage.value = it }
-
-            // 하나라도 복구된 항목이 있다면 목록을 새로고침
-            if (restoredBoards > 0 || restoredCards > 0) {
-                refresh()
-            }
-
-        } catch (e: Exception) {
-            Log.e("BoardViewModel", "Undo deletion failed", e)
-            _toastMessage.value = "복구 중 오류가 발생했습니다."
-        } finally {
-            // 성공/실패 여부와 관계없이 임시 ID는 모두 비움
-            lastDeletedBoardIds = emptySet()
-            lastDeletedCardIds = emptySet()
-            lastCardDeleteMode = ""
         }
     }
 }

@@ -4,14 +4,17 @@ import com.google.gson.annotations.SerializedName
 
 // 섹션(보드) 복구 요청
 data class BoardRestoreRequest(
-    @SerializedName("boardIds")
-    val boardIds: List<Long>
+    val boardIds: List<Long>,
+    val sectionIds: List<Long>,
+    val cardIds: List<Long>
 )
 
-// 섹션(보드) 복구 응답
+// 보드 / 섹션 복구 응답
 data class BoardRestoreResponse(
-    @SerializedName("restoredCount")
-    val restoredCount: Int
+    val restoredCount: Int,
+    val restoredBoardIds: List<Long>,
+    val restoredSectionIds: List<Long>,
+    val restoredCardIds: List<Long>
 )
 
 // 카드 복구 요청
