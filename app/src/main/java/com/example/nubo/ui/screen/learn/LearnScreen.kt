@@ -1,16 +1,15 @@
 package com.example.nubo.ui.screen.learn
 
+import com.example.nubo.ui.screen.learn.GlbBackgroundView
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,9 +45,12 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -62,6 +64,11 @@ import com.example.nubo.ui.theme.Grey50
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+
 
 // BottomProgressCard 애니메이션 시간 조절
 // 전역에서 쓸 상수 (밀리초)
@@ -121,8 +128,6 @@ fun LearnScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF9EC5E1)) // 배경 느낌만 잡는 임시색
-            .padding(horizontal = 16.dp)
     ) {
         when (val state = uiState) {
             is DashboardUiState.Loading -> {
@@ -133,12 +138,28 @@ fun LearnScreen(
                 Text(
                     text = state.message,
                     modifier = Modifier.align(Alignment.Center),
-                    color = Color.White
+                    color = Color.Black
                 )
             }
 
             is DashboardUiState.Success -> {
                 val dashboardData = state.data
+
+                // (맨 뒤) 스크린 자체의 배경 이미지
+                Image(
+                    painter = painterResource(id = R.drawable.dashboard_bg), // 배경 이미지
+                    contentDescription = "배경 이미지",
+                    modifier = Modifier.fillMaxSize().zIndex(0f),
+                    contentScale = ContentScale.Crop
+                )
+
+                // 3D 배경을 아래에, 기존 UI를 위에 배치
+
+                // 3D 배경 뷰 (이제 한 줄로 깔끔하게 호출)
+                GlbBackgroundView(
+                    modifier = Modifier.fillMaxSize().zIndex(0f),
+                    glbUrl = dashboardData.dashboardBackground
+                )
 
                 // --- 데이터 연결 ---
                 // 1. 캘린더 날짜/카운트
@@ -158,7 +179,7 @@ fun LearnScreen(
                 val berryCount = dashboardData.berryCount
                 val currentStage = dashboardData.stage
 
-                Column(modifier = Modifier.fillMaxSize()) {
+                Column(modifier = Modifier.fillMaxSize().zIndex(2f)) {
                     TopBar(
                         title = "대시보드",
                         onClickChart = { /* TODO */ }
@@ -217,7 +238,7 @@ private fun TopBar(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 8.dp, vertical = 15.dp),
+            .padding(horizontal = 24.dp, vertical = 15.dp),
         contentAlignment = Alignment.Center
     ) {
         // 타이틀 텍스트
@@ -263,7 +284,8 @@ private fun WeeklyCalendar(
 ) {
     // 요일 라벨 줄
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth()
+            .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         daysLabel.forEachIndexed { idx, dayLabel ->
@@ -282,7 +304,8 @@ private fun WeeklyCalendar(
 
     // 날짜 숫자 버튼 줄
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth()
+        .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         datesAsInt.forEachIndexed { idx, dayNumber ->
@@ -440,6 +463,7 @@ private fun BottomProgressCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 16.dp),
     ) {
         // 그림자 박스는 카드 자체만 감싼다 (배지는 별도)
         CustomShadowBox(
