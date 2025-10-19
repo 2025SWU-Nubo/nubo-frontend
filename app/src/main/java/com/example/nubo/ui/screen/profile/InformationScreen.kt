@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -77,6 +78,27 @@ fun InformationScreen(
     //로그아웃 뷰모델
     val authViewModel: AuthViewModel = hiltViewModel()
 
+    // 상태 관찰
+    val isLoading by authViewModel.isLoading.observeAsState(initial = false)
+    val requireLogin by authViewModel.requireLogin.observeAsState()
+    val withdrawSuccess by authViewModel.withdrawSuccess.observeAsState()
+    val errorMessage by authViewModel.errorMessage.observeAsState()
+
+    LaunchedEffect(requireLogin) {
+        requireLogin ?: return@LaunchedEffect
+        // 로그인 필요 → 상위 전환 로직 사용(또는 로그인 화면 이동)
+        onLogout()
+    }
+    LaunchedEffect(withdrawSuccess) {
+        withdrawSuccess ?: return@LaunchedEffect
+        // 탈퇴 성공 → 상위 전환(onWithdraw) 실행
+        onWithdraw()
+    }
+    LaunchedEffect(errorMessage) {
+        errorMessage ?: return@LaunchedEffect
+        // TODO: 스낵바/토스트 등 사용자 안내
+    }
+
     Scaffold(
         topBar = {
             TopBar(onBack = {
@@ -116,12 +138,14 @@ fun InformationScreen(
                 name = currentName,
                 email = email,
                 onLogout = {
-                    //  토큰/유저정보 삭제
-                    authViewModel.logoutClearAll()
-                    // 화면 전환은 상위(MainActivity)에서 처리하도록 콜백 호출
+                    // 로그아웃: 서버의 현재 기기 FCM 매핑 삭제 + 로컬 인증정보 삭제
+                    authViewModel.logout()
+                    // 화면 전환 등 후처리는 상위 콜백에서 처리
                     onLogout()
                 },
-                onWithdraw = onWithdraw,
+                onWithdraw = {
+                    authViewModel.withdraw()
+                },
                 onEditName = onEditName
             )
         }

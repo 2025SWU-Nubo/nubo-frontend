@@ -26,6 +26,7 @@ class NotificationRepository @Inject constructor(
 
     companion object {
         private const val KEY_REGISTERED_TOKEN = "registered_fcm_token"
+        private const val KEY_REGISTERED_AT = "registered_at_epoch"
     }
 
     @Volatile private var lastRegistered: String? = null
@@ -38,25 +39,36 @@ class NotificationRepository @Inject constructor(
         data class Failure(val error: Throwable) : RegisterOutcome()
     }
 
-    suspend fun registerDeviceTokenIfNeeded(fcmToken: String): RegisterOutcome {
+    suspend fun registerDeviceTokenIfNeeded(
+        fcmToken: String,
+        force: Boolean = false,
+        ttlHours: Int = 24
+    ): RegisterOutcome {
         if (fcmToken.isBlank()) {
             android.util.Log.w("FCM_REG", "skip: blank token")
             return RegisterOutcome.SkippedBlank
         }
 
+        val now = System.currentTimeMillis()
         val lastInMem = lastRegistered
         val lastInPrefs = prefs.getString(KEY_REGISTERED_TOKEN, null)
+        val lastAt = prefs.getLong(KEY_REGISTERED_AT, 0L)
+        val expired = (now - lastAt) > ttlHours * 60L * 60L * 1000L
 
-        if (fcmToken == lastInMem || fcmToken == lastInPrefs) {
-            android.util.Log.d("FCM_REG", "skip: already registered (mem=${lastInMem != null}, prefs=${lastInPrefs != null})")
+        // 이미 등록 + TTL 유효 + force 아님 → 스킵
+        if (!force && !expired && (fcmToken == lastInMem || fcmToken == lastInPrefs)) {
+            android.util.Log.d("FCM_REG", "skip: already registered (mem=${lastInMem != null}, prefs=${lastInPrefs != null}), expired=$expired")
             return RegisterOutcome.SkippedAlready
         }
 
-        android.util.Log.d("FCM_REG", "try register (${fcmToken.take(12)}...)")
+        android.util.Log.d("FCM_REG", "try register (force=$force, expired=$expired, ${fcmToken.take(12)}...)")
         return runCatching {
-            api.registerDeviceToken(RegisterDeviceTokenRequest(fcmToken))
+            api.registerDeviceToken(RegisterDeviceTokenRequest(fcmToken)) // 서버 upsert 전제
             lastRegistered = fcmToken
-            prefs.edit { putString(KEY_REGISTERED_TOKEN, fcmToken) }
+            prefs.edit {
+                putString(KEY_REGISTERED_TOKEN, fcmToken)
+                putLong(KEY_REGISTERED_AT, now)
+            }
             android.util.Log.d("FCM_REG", "success 200 (${fcmToken.take(12)}...)")
             RegisterOutcome.Success
         }.getOrElse { e ->
@@ -65,10 +77,40 @@ class NotificationRepository @Inject constructor(
         }
     }
 
+//    suspend fun registerDeviceTokenIfNeeded(fcmToken: String): RegisterOutcome {
+//        if (fcmToken.isBlank()) {
+//            android.util.Log.w("FCM_REG", "skip: blank token")
+//            return RegisterOutcome.SkippedBlank
+//        }
+//
+//        val lastInMem = lastRegistered
+//        val lastInPrefs = prefs.getString(KEY_REGISTERED_TOKEN, null)
+//
+//        if (fcmToken == lastInMem || fcmToken == lastInPrefs) {
+//            android.util.Log.d("FCM_REG", "skip: already registered (mem=${lastInMem != null}, prefs=${lastInPrefs != null})")
+//            return RegisterOutcome.SkippedAlready
+//        }
+//
+//        android.util.Log.d("FCM_REG", "try register (${fcmToken.take(12)}...)")
+//        return runCatching {
+//            api.registerDeviceToken(RegisterDeviceTokenRequest(fcmToken))
+//            lastRegistered = fcmToken
+//            prefs.edit { putString(KEY_REGISTERED_TOKEN, fcmToken) }
+//            android.util.Log.d("FCM_REG", "success 200 (${fcmToken.take(12)}...)")
+//            RegisterOutcome.Success
+//        }.getOrElse { e ->
+//            android.util.Log.w("FCM_REG","fail: ${e.message}")
+//            RegisterOutcome.Failure(e)
+//        }
+//    }
+
     suspend fun deleteDeviceToken(fcmToken: String) {
         runCatching {
             api.deleteDeviceToken(DeleteDeviceTokenRequest(deviceToken = fcmToken))
-            prefs.edit() { remove(KEY_REGISTERED_TOKEN) }
+            prefs.edit() {
+                remove(KEY_REGISTERED_TOKEN)
+                remove(KEY_REGISTERED_AT)
+            }
             lastRegistered = null
         }.onFailure { e ->
             android.util.Log.e("FCM","deleteDeviceToken failed", e)
@@ -121,4 +163,30 @@ class NotificationRepository @Inject constructor(
     suspend fun markAllRead() {
         api.markAllRead()
     }
+
+    // NotificationRepository.kt
+    suspend fun deleteRegisteredTokenIfAny() {
+        val prefs = context.getSharedPreferences("push_prefs", Context.MODE_PRIVATE)
+        val reg = prefs.getString(KEY_REGISTERED_TOKEN, null)
+        val cachedLatest = prefs.getString("latest_fcm_token", null)
+
+        // 1) 서버에 등록됐다고 기억한 토큰이 있으면 우선 삭제
+        if (!reg.isNullOrBlank()) {
+            runCatching { api.deleteDeviceToken(DeleteDeviceTokenRequest(reg)) }
+                .onSuccess {
+                    prefs.edit { remove(KEY_REGISTERED_TOKEN) }
+                    lastRegistered = null
+                    android.util.Log.d("FCM_REG", "deleted registered token (${reg.take(12)}...)")
+                }
+                .onFailure { android.util.Log.w("FCM_REG", "delete registered failed: ${it.message}") }
+        }
+
+        // 2) 캐시 최신 토큰도 다를 수 있으니 한 번 더 시도(중복이면 서버에서 idempotent 처리 가정)
+        if (!cachedLatest.isNullOrBlank() && cachedLatest != reg) {
+            runCatching { api.deleteDeviceToken(DeleteDeviceTokenRequest(cachedLatest)) }
+                .onSuccess { android.util.Log.d("FCM_REG", "deleted cached latest (${cachedLatest.take(12)}...)") }
+                .onFailure { android.util.Log.w("FCM_REG", "delete cached latest failed: ${it.message}") }
+        }
+    }
+
 }

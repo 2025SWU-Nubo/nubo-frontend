@@ -16,7 +16,7 @@ import retrofit2.HttpException
 import javax.inject.Inject
 
 class BoardRepository @Inject constructor(
-    private val boardService: BoardService
+    private val boardService: BoardService,
 ) {
     // 최근 본 보드 조회
     suspend fun getRecentBoards(token: String): Result<List<RecentBoardResponse>> = runCatching {

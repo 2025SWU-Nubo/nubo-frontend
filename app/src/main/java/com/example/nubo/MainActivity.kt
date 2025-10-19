@@ -179,7 +179,7 @@ fun MainScreen(
 
     val toastHost = rememberAppToastHostState()
     val toastScope = rememberCoroutineScope()
-    AppToastOverlay(hostState = toastHost)
+    AppToastOverlay(hostState = toastHost,extraBottomOffset = 72.dp)
 
     val cardUploadVm: CardUploadViewModel = hiltViewModel()
 
@@ -313,6 +313,7 @@ fun MainScreen(
                 composable("profile") {
                     ProfileRoute(
                         navController = navController,
+                        onBellClick ={navController.navigate("notification")},
                         onBack = { navController.popBackStack() },
                         onMyInfo = { navController.navigate("information") },
                         modifier = Modifier.padding(innerPadding),
@@ -552,7 +553,7 @@ fun MainScreen(
         // 미시청 목록(학습 탭) 진입 플래그가 있으면 이동함
         if (DeepLinkStore.pendingGoUnread) {
             DeepLinkStore.pendingGoUnread = false
-            navController.navigate("learn") {
+            navController.navigate("myboard") {
                 popUpTo("home") { inclusive = false }
                 launchSingleTop = true
             }

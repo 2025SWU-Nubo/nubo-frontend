@@ -7,11 +7,24 @@ import com.example.nubo.data.model.ProfileResponse
 import com.example.nubo.data.network.ProfileService
 import com.example.nubo.data.repository.ProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import javax.inject.Inject
+
+// 1) 이벤트 타입 정의: ViewModel은 Compose 타입에 의존하지 않도록 String + Kind만 전달
+sealed interface ProfileEvent {
+    data class ShowToast(
+        val message: String,
+        val kind: ToastKind = ToastKind.NORMAL,
+        val durationMillis: Int = 1600
+    ) : ProfileEvent
+}
+
+enum class ToastKind { NORMAL, POSITIVE, NEGATIVE }
 
 data class ProfileUiState(
     val isLoading: Boolean = false,
@@ -29,6 +42,9 @@ class ProfileViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(ProfileUiState(isLoading = true))
     val uiState: StateFlow<ProfileUiState> = _uiState
+
+    private val _events = MutableSharedFlow<ProfileEvent>()
+    val events: SharedFlow<ProfileEvent> = _events
 
     init {
         // 로컬 캐시에서 마지막 알림 상태 복원
@@ -109,10 +125,27 @@ class ProfileViewModel @Inject constructor(
                 remindEnabled = if (!checked) false else null
             )
             profileRepository.updateNotification(req)
-                .onSuccess { profileRepository.saveNotificationPrefs(checked, nextRemind) }
+                .onSuccess {
+
+                    profileRepository.saveNotificationPrefs(checked, nextRemind)
+                    _events.emit(
+                        ProfileEvent.ShowToast(
+                            message = if (checked) "전체 알림 켰어요." else "전체 알림 껐어요",
+                            kind = ToastKind.NORMAL
+                        )
+                    )
+                }
                 .onFailure {
                     _uiState.value = prev
-                    onError(it.message ?: "알림 설정 저장에 실패했습니다")
+                    val msg = it.message ?: "전체 알림 설정 저장에 실패했습니다"
+
+                    _events.emit(
+                        ProfileEvent.ShowToast(
+                            message = msg,
+                            kind = ToastKind.NEGATIVE,
+                            durationMillis = 2000
+                        )
+                    )
                 }
         }
     }
@@ -129,10 +162,24 @@ class ProfileViewModel @Inject constructor(
             profileRepository.updateNotification(req)
                 .onSuccess {
                     profileRepository.saveNotificationPrefs(_uiState.value.pushEnabled, checked)
+                    _events.emit(
+                        ProfileEvent.ShowToast(
+                            message = if (checked) "리마인드 알림을 켰어요." else "리마인드 알림을 껐어요.",
+                            kind = ToastKind.NORMAL
+                        )
+                    )
                 }
                 .onFailure {
                     _uiState.value = prev
-                    onError(it.message ?: "리마인드 설정 저장에 실패했습니다")
+                    val msg = it.message ?: "리마인드 설정 저장에 실패했습니다"
+
+                    _events.emit(
+                        ProfileEvent.ShowToast(
+                            message = msg,
+                            kind = ToastKind.NEGATIVE,
+                            durationMillis = 2000
+                        )
+                    )
                 }
         }
     }

@@ -5,7 +5,10 @@ import com.example.nubo.data.model.NotificationSetRequest
 import com.example.nubo.data.model.ProfileResponse
 import com.google.android.gms.common.api.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Header
+import retrofit2.http.Headers
 import retrofit2.http.PATCH
 
 interface ProfileService {
@@ -24,4 +27,11 @@ interface ProfileService {
     suspend fun updateNotification(
         @Body body: NotificationSetRequest
     ):retrofit2.Response<Unit>
+
+    // 회원 탈퇴 (204 No Content)
+    @Headers("Content-Type: application/json")
+    @DELETE("/api/user/me")
+    suspend fun deleteMe(
+        @Header("Authorization") bearer: String
+    ): retrofit2.Response<Unit>
 }
