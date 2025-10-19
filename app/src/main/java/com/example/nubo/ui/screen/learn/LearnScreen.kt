@@ -68,6 +68,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.viewinterop.AndroidView
 
 
 // BottomProgressCard 애니메이션 시간 조절
@@ -145,19 +146,8 @@ fun LearnScreen(
             is DashboardUiState.Success -> {
                 val dashboardData = state.data
 
-                // (맨 뒤) 스크린 자체의 배경 이미지
-                Image(
-                    painter = painterResource(id = R.drawable.dashboard_bg), // 배경 이미지
-                    contentDescription = "배경 이미지",
-                    modifier = Modifier.fillMaxSize().zIndex(0f),
-                    contentScale = ContentScale.Crop
-                )
-
-                // 3D 배경을 아래에, 기존 UI를 위에 배치
-
-                // 3D 배경 뷰 (이제 한 줄로 깔끔하게 호출)
                 GlbBackgroundView(
-                    modifier = Modifier.fillMaxSize().zIndex(0f),
+                    modifier = Modifier.fillMaxSize(),
                     glbUrl = dashboardData.dashboardBackground
                 )
 
@@ -179,7 +169,8 @@ fun LearnScreen(
                 val berryCount = dashboardData.berryCount
                 val currentStage = dashboardData.stage
 
-                Column(modifier = Modifier.fillMaxSize().zIndex(2f)) {
+                Column(modifier = Modifier
+                    .fillMaxSize()) {
                     TopBar(
                         title = "대시보드",
                         onClickChart = { /* TODO */ }
@@ -219,7 +210,7 @@ fun LearnScreen(
                         levelUpText = "레벨${dashboardData.stage + 1}. ${getStageName(dashboardData.stage + 1)}로 성장했어요.",
                         currentProgressFromServer = growthRate / 100f
                     )
-                    Spacer(Modifier.height(140.dp))
+                    Spacer(Modifier.height(130.dp))
                 }
             }
         }
@@ -256,7 +247,7 @@ private fun TopBar(
                 .align(Alignment.CenterEnd)
                 .size(38.dp)
                 .clip(CircleShape),
-                //.clickable(onClick = onClickChart),
+            //.clickable(onClick = onClickChart),
             contentAlignment = Alignment.Center
         ) {
             /*Icon(
@@ -284,7 +275,8 @@ private fun WeeklyCalendar(
 ) {
     // 요일 라벨 줄
     Row(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -304,8 +296,9 @@ private fun WeeklyCalendar(
 
     // 날짜 숫자 버튼 줄
     Row(
-        modifier = Modifier.fillMaxWidth()
-        .padding(horizontal = 16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         datesAsInt.forEachIndexed { idx, dayNumber ->
