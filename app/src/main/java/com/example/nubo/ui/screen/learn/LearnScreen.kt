@@ -234,16 +234,16 @@ private fun TopBar(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .size(38.dp)
-                .clip(CircleShape)
-                .clickable(onClick = onClickChart),
+                .clip(CircleShape),
+                //.clickable(onClick = onClickChart),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
+            /*Icon(
                 imageVector = Icons.Outlined.BarChart,
                 contentDescription = "통계",
                 tint = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size(24.dp)
-            )
+            )*/
         }
     }
 }

@@ -33,7 +33,9 @@ fun BoardDetailContent(
     cardItems: List<CardItem>,
     cardHeights: List<Dp>,
     onCardClick: (Int) -> Unit,
+    onCardLongClick: (Int) -> Unit,
     onSectionClick: (BoardItem) -> Unit,
+    onSectionLongClick: (BoardItem) -> Unit,
     onFavoriteClick: (BoardItem) -> Unit,
     // 선택 관련 상태 파라미터들
     isSelectionMode: Boolean,
@@ -56,7 +58,7 @@ fun BoardDetailContent(
                     BoardCardWithText(
                         board = item,
                         onClick = { onSectionClick(item) },
-                        onLongClick = { onSectionClick(item) },
+                        onLongClick = { onSectionLongClick(item) },
                         onFavoriteClick = onFavoriteClick,
                         // 선택 관련 파라미터 전달
                         isSelectionMode = isSelectionMode,
@@ -86,7 +88,7 @@ fun BoardDetailContent(
                             height = cardHeights.getOrNull(index * 2) ?: 180.dp,
                             imageUrl = item.imageUrl,
                             onClick = { onCardClick(item.id) },
-                            onLongClick = {  },
+                            onLongClick = { onCardLongClick(item.id) },
                             // 선택 관련 파라미터 전달
                             isSelectionMode = isSelectionMode,
                             isSelected = selectedCards.contains(item.id),
@@ -107,7 +109,7 @@ fun BoardDetailContent(
                             isSelectionMode = isSelectionMode,
                             isSelected = selectedCards.contains(item.id),
                             onClick = { onCardClick(item.id) },
-                            onLongClick = {  },
+                            onLongClick = { onCardLongClick(item.id) },
                             isFavorite = item.isFavorite
                         )
                     }
