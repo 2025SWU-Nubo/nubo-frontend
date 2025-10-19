@@ -313,6 +313,7 @@ fun MainScreen(
                 composable("profile") {
                     ProfileRoute(
                         navController = navController,
+                        onBellClick ={navController.navigate("notification")},
                         onBack = { navController.popBackStack() },
                         onMyInfo = { navController.navigate("information") },
                         modifier = Modifier.padding(innerPadding),
