@@ -528,12 +528,27 @@ fun ToastDemoScreen(
 @Composable
 fun AppToastOverlay(
     hostState: AppToastHostState,
-    extraBottomOffset: Dp = 88.dp,
+    extraBottomOffset: Dp = 72.dp,
 ) {
     // 네비게이션 바 인셋 계산 (한 번만)
     val bottomInset = WindowInsets.navigationBars
         .asPaddingValues()
         .calculateBottomPadding()
+
+    // 토스트 표시 여부를 오버레이 레벨에서 관리
+    var showOverlay by remember { mutableStateOf(false) }
+    // exit 동안만 잠깐 더 유지
+    LaunchedEffect(hostState.current) {
+        if (hostState.current != null) {
+            showOverlay = true
+        } else {
+            // AppToastHost.exit 애니메이션 140ms + 버퍼
+            kotlinx.coroutines.delay(200)
+            showOverlay = false
+        }
+    }
+
+    if (!showOverlay) return  // 완전히 사라지면 Popup 자체를 제거해 터치 통과
 
     Popup(
         alignment = Alignment.BottomCenter,
@@ -541,13 +556,14 @@ fun AppToastOverlay(
             focusable = false,
             dismissOnBackPress = false,
             dismissOnClickOutside = false,
-            excludeFromSystemGesture = false,
+            excludeFromSystemGesture = true,
             usePlatformDefaultWidth = false
         )
     ) {
+        // 하단 바 클릭영역과 겹치지 않도록 충분히 올려둠
         Column(
             modifier = Modifier
-                .padding(bottom = bottomInset + 12.dp)
+                .padding(bottom = bottomInset + extraBottomOffset)
                 .fillMaxWidth(),   // 폭 안정 (크래시 방지)
             horizontalAlignment = Alignment.CenterHorizontally
         ) {

@@ -36,6 +36,7 @@ import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import javax.inject.Inject
+import androidx.core.content.edit
 
 data class UiToast(
     val message: String,
@@ -70,6 +71,8 @@ class OnBoardingViewModel @Inject constructor(
     private suspend fun emitToast(toast: UiToast) {
         _toastEvents.emit(toast)
     }
+
+    private var pendingAccessToken: String? = null
 
     // 알림 권한 요청이 필요한지 상태 관리
     private val _shouldRequestNotificationPermission = MutableStateFlow(false)
@@ -196,6 +199,9 @@ class OnBoardingViewModel @Inject constructor(
     private fun handleTokenExpired() {
         Log.i("Auth", "Token expired, clearing stored data")
         authRepository.clearAuthData()
+        viewModelScope.launch {
+            runCatching { notificationRepository.deleteRegisteredTokenIfAny() }
+        }
         // 커스텀 토스트로 발행 (NEGATIVE)
         toast("로그인이 만료되었습니다. 다시 로그인해주세요.", type = AppToastType.NEGATIVE)
         showLoginButton()
@@ -236,6 +242,10 @@ class OnBoardingViewModel @Inject constructor(
 
 
     private fun sendAuthCodeToServer(authCode: String, onLoginComplete: (Intent) -> Unit) {
+        viewModelScope.launch {
+            runCatching { notificationRepository.deleteRegisteredTokenIfAny() }
+        }
+
         _uiState.value = _uiState.value.copy(isLoading = true)
         val request = LoginRequest(authCode)
 
@@ -248,6 +258,8 @@ class OnBoardingViewModel @Inject constructor(
                             val existingUser = authRepository.getUserInfo()
                             val newUser = loginResponse.user
 
+                            pendingAccessToken = loginResponse.accessToken
+
                             if (existingUser != null && existingUser.id != newUser.id) {
                                 _uiState.value = _uiState.value.copy(
                                     existingUser = existingUser,
@@ -255,6 +267,8 @@ class OnBoardingViewModel @Inject constructor(
                                 )
                             } else {
                                 saveUserAndNavigate(newUser, loginResponse.accessToken, onLoginComplete)
+                                // Clear the held token since it's already persisted
+                                pendingAccessToken = null
                             }
                         }
                     } else {
@@ -271,8 +285,19 @@ class OnBoardingViewModel @Inject constructor(
 
     fun confirmAccountSwitch(onLoginComplete: (Intent) -> Unit) {
         val newUser = _uiState.value.loginResponseUser ?: return
-        val accessToken = authRepository.getAccessToken() ?: return
-        saveUserAndNavigate(newUser, accessToken, onLoginComplete)
+        val accessTokenFromLogin = pendingAccessToken
+        if (accessTokenFromLogin.isNullOrEmpty()) {
+            // Safety fallback: if somehow missing, read from repo (should not usually happen)
+            android.util.Log.w("Auth", "pendingAccessToken is null; falling back to repository token")
+            val fallback = authRepository.getAccessToken() ?: return
+            saveUserAndNavigate(newUser, fallback, onLoginComplete)
+        } else {
+            saveUserAndNavigate(newUser, accessTokenFromLogin, onLoginComplete)
+            // Once persisted, clear the held token
+            pendingAccessToken = null
+        }
+
+        viewModelScope.launch { runCatching { notificationRepository.deleteRegisteredTokenIfAny() } }
     }
 
     @SuppressLint("HardwareIds")
@@ -285,20 +310,23 @@ class OnBoardingViewModel @Inject constructor(
                     android.util.Log.w("FCM_REG", "getToken OK but empty")
                     return@addOnSuccessListener
                 }
-                android.util.Log.d("FCM_REG", "getToken OK (${fcmToken.take(12)}...)")
-                viewModelScope.launch { registerTokenIfNeeded(fcmToken) }
+                android.util.Log.d("FCM_REG", "getToken OK (${fcmToken}...)")
+//                viewModelScope.launch { registerTokenIfNeeded(fcmToken) }
+                prefs.edit() { putString("latest_fcm_token", fcmToken).apply() }
+                viewModelScope.launch { notificationRepository.registerDeviceTokenIfNeeded(fcmToken, force = true) }
+
             }
             .addOnFailureListener { e ->
                 // ⬇ FCM이 바로 토큰 못 줄 때 캐시로 보완
                 val cached = prefs.getString("latest_fcm_token", null)
-                android.util.Log.w("FCM_REG", "getToken FAIL ${e.message}; cached=${cached?.take(12)}...")
+                android.util.Log.w("FCM_REG", "getToken FAIL ${e.message}; cached=${cached}...")
                 if (!cached.isNullOrBlank()) {
-                    viewModelScope.launch { registerTokenIfNeeded(cached) }
+                    viewModelScope.launch { notificationRepository.registerDeviceTokenIfNeeded(cached, force = true) }
                 }
             }
     }
 
-    fun ensurePushTokenRegistered() {
+    fun ensurePushTokenRegistered(force: Boolean = false) {
         FirebaseMessaging.getInstance().isAutoInitEnabled = true
         FirebaseMessaging.getInstance().token
             .addOnSuccessListener { token ->
@@ -306,14 +334,18 @@ class OnBoardingViewModel @Inject constructor(
                     android.util.Log.w("FCM_REG", "ensure: getToken empty")
                 } else {
                     android.util.Log.d("FCM_REG", "ensure: getToken (${token.take(12)}...)")
-                    viewModelScope.launch { registerTokenIfNeeded(token) }
+//                    viewModelScope.launch { registerTokenIfNeeded(token) }
+                    viewModelScope.launch { notificationRepository.registerDeviceTokenIfNeeded(token, force = force) }
+
                 }
             }
             .addOnFailureListener { e ->
                 val cached = prefs.getString("latest_fcm_token", null)
                 android.util.Log.w("FCM_REG", "ensure: getToken FAIL ${e.message}; cached=${cached?.take(12)}...")
                 if (!cached.isNullOrBlank()) {
-                    viewModelScope.launch { registerTokenIfNeeded(cached) }
+//                    viewModelScope.launch { registerTokenIfNeeded(cached) }
+                    viewModelScope.launch { notificationRepository.registerDeviceTokenIfNeeded(cached, force = force) }
+
                 }
             }
     }
