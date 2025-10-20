@@ -129,6 +129,7 @@ fun LearnScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
+            .background(color =Color(0xFF96C1D2))
     ) {
         when (val state = uiState) {
             is DashboardUiState.Loading -> {
@@ -667,7 +668,7 @@ fun AnimatedProgressBar(
             .fillMaxWidth()
             .height(16.dp) // 원하는 높이
             .clip(RoundedCornerShape(999.dp))
-            .background(GreyMain300.copy(alpha = 0.3f)) // 배경 (연한 회색/투명)
+            .background(GreyMain300) // 배경 (연한 회색/투명)
     ) {
         Box(
             modifier = Modifier
