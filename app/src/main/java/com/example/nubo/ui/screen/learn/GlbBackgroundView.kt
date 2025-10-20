@@ -111,14 +111,14 @@ fun GlbBackgroundView(
                 // 이제 'instance'는 ModelInstance 타입
                 val node = ModelNode(modelInstance = instance).apply {
                     // ... (크기/위치 조절 코드) ...
-                    var z = -3f
+                    var z = -1f
                     val e = extents
                     val maxHalf = maxOf(e.x, e.y, e.z)
                     val full = maxHalf * 1f
-                    val target = 2.5f // 전체적인 크기
+                    val target = 6f // 전체적인 크기
                     val factor = if (full > 0f) target / full else 1f
                     scale = io.github.sceneview.math.Scale(factor)
-                    position = io.github.sceneview.math.Position(0f, -0.5f, z)
+                    position = io.github.sceneview.math.Position(0f, -0.45f, z)
                 }
 
                 // --- 노드 검색, 크기 조절, 리스트에 추가 ---
@@ -128,18 +128,30 @@ fun GlbBackgroundView(
                 startPositions.clear()
                 cloudFloatNodes.clear()
 
-                // --- 1. 라이트 노드 검색 및 배치 ---
-                val lightX = -4.0f // 좌측
-                val lightY = 5.0f  // 상단
-                val lightZ = -1f  // 장면 앞쪽
+                /*// --- 1. 라이트 노드 검색 및 배치 ---
+                val lightX = -4f // 좌측
+                val lightY = 6.0f  // 상단
+                val lightZ = -3f  // 장면 앞쪽
 
+                //주광
                 node.nodes["Area Light_Main"]?.let { light ->
                     light.position = Position(x = lightX, y = lightY, z = lightZ)
                 }
+                //보조광
                 node.nodes["Point Light_Sub"]?.let { light ->
                     // Area Light와 살짝 다른 위치
-                    light.position = Position(x = lightX + 0.5f, y = lightY - 0.5f, z = lightZ)
+                    light.position = Position(x = lightX + 0.2f, y = lightY - 0.7f, z = lightZ)
                 }
+
+                // 물방울 하이라이트용 조명
+                node.nodes["Raindrop Point_01"]?.let { light ->
+                    light.position = Position(x = lightX + 1.0f, y = lightY - 3.0f, z = lightZ)
+                }
+
+                // 4. [추가] 언덕 강조용 조명
+                node.nodes["Hill Point"]?.let { light ->
+                    light.position = Position(x = lightX + 1.5f, y = lightY - 3.0f, z = lightZ)
+                }*/
 
                 // 2. 이름으로 노드 찾기 (크기 조절)
                 val cloudNode = node.nodes["Cloud_Main"]
@@ -147,25 +159,25 @@ fun GlbBackgroundView(
                 val cloudNodeM = node.nodes["Face_Mouth"]
 
                 val cloudYOffset = -2.7f
-                val cloudXOffset = 0.03f
+                val cloudXOffset = 0.05f
 
                 // 1. 크기 및 위치 조절 (구름)
                 cloudNode?.let {
-                    it.scale = Scale(1.1f)
+                    it.scale = Scale(1.3f)
                     it.position = it.position + Position(y = cloudYOffset)
                     cloudFloatNodes.add(it) // <--- [추가] 둥실 리스트에 추가
                     startPositions[it] = it.position // <--- [추가] 둥실 애니메이션 시작 위치 저장
                 }
                 // (눈)
                 cloudNodeEye?.let {
-                    it.scale = Scale(1f)
+                    it.scale = Scale(0.8f)
                     it.position = it.position + Position(y = cloudYOffset)
                     cloudFloatNodes.add(it) // <--- [추가]
                     startPositions[it] = it.position // <--- [추가]
                 }
                 // (입)
                 cloudNodeM?.let {
-                    it.scale = Scale(1f)
+                    it.scale = Scale(0.8f)
                     it.position = it.position + Position(y = cloudYOffset, x = cloudXOffset)
                     cloudFloatNodes.add(it) // <--- [추가]
                     startPositions[it] = it.position // <--- [추가]
@@ -182,7 +194,7 @@ fun GlbBackgroundView(
                         drop.scale = Scale(0.7f)
 
                         // Y 오프셋을 더한 위치를 시작점으로 저장
-                        val newStartPosition = drop.position + Position(y = rainStartYOffset)
+                        val newStartPosition = drop.position + Position(y = rainStartYOffset,z=-1f)
 
                         raindropNodes.add(drop)
                         startPositions[drop] = newStartPosition // 수정된 위치를 저장
@@ -241,7 +253,7 @@ fun GlbBackgroundView(
                 val timeSeconds = frameTimeNanos / 1_000_000_000.0
 
                 // 1. 물방울 애니메이션 (동시 낙하)
-                val fallDistance = -6f
+                val fallDistance = -9f
                 val fallDuration = 3.0
                 val waitDuration = 7.0
                 val totalCycleDuration = fallDuration + waitDuration
@@ -263,23 +275,32 @@ fun GlbBackgroundView(
                     drop.position = startPos + Position(y = progress.toFloat() * fallDistance)
                 }
 
-                // 2. 풀잎 애니메이션 (5초 주기, 큰 각도, 다른 타이밍)
-                val leafAngle = 20f
-                val leafCycleDuration = 5.0
+                // 2. 풀잎 - 각도 고정 + 살짝 손 흔들기
+
+                // --- 애니메이션 값 ---
+                val leafAngle = 5f // [!!] 흔드는 각도 (아주 살짝)
+                val leafCycleDuration = 4.0 // 4초에 1번 왕복 (천천히)
                 val leafSpeed = (2 * PI) / leafCycleDuration
-                val leafTimeOffset = 2.5
+                val leafTimeOffset = 2.0 // 잎사귀끼리 시간차
+                // ---
 
                 leafNodes.forEachIndexed { index, leaf ->
                     val startPos = startPositions[leaf]
+
+                    // 1. 위치를 원본 위치로 고정 (필수!)
+                    if (startPos != null) leaf.position = startPos
+
+                    // 2. sin() 값으로 좌우 흔들림(Z축) 각도 계산
                     val sway = sin(timeSeconds * leafSpeed + (index * leafTimeOffset)).toFloat() * leafAngle
-                    leaf.rotation = Rotation(x = sway)
-                    if(startPos != null) leaf.position = startPos
+
+                    // 4. X축(0), Y축(고정), Z축(애니메이션) 적용
+                    leaf.rotation = Rotation(x = 50f, y = 0f, z = sway)
                 }
 
                 // --- 3. 구름 둥실 애니메이션 ---
 
                 // "아주 조금" (위아래로 움직일 최대 거리)
-                val floatAmplitude = 0.05f
+                val floatAmplitude = 0.07f
                 // "5초에 한번" 왕복
                 val floatCycleDurationSeconds = 6.0
 
