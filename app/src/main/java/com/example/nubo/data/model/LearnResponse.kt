@@ -20,7 +20,11 @@ data class DashboardResponse(
     val growthRate: Int,
 
     @SerializedName("berryCount")
-    val berryCount: Int
+    val berryCount: Int,
+
+    // 배경 .glb 파일 url
+    @SerializedName("dashboardBackground")
+    val dashboardBackground: String
 )
 
 // 주간 비디오 카운트

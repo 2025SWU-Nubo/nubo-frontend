@@ -5,11 +5,13 @@ plugins {
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.ksp)
     id("com.google.gms.google-services")
+    // 대시보드 렌더링
+    id("kotlin-parcelize")
 }
 
 android {
     namespace = "com.example.nubo"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.nubo"
@@ -120,5 +122,8 @@ dependencies {
 
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 
+    // 대시보드 렌더링
+    // Sceneform & Filament for 3D rendering
+    implementation("io.github.sceneview:sceneview:2.2.0")
 }
 
