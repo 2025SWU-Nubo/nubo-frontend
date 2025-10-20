@@ -2,6 +2,7 @@ package com.example.nubo.ui.screen.learn
 
 import com.example.nubo.ui.screen.learn.GlbBackgroundView
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -147,10 +148,36 @@ fun LearnScreen(
             is DashboardUiState.Success -> {
                 val dashboardData = state.data
 
-                GlbBackgroundView(
-                    modifier = Modifier.fillMaxSize(),
-                    glbUrl = dashboardData.dashboardBackground
-                )
+                // 플레이스홀더 제어용 상태
+                var isModelLoading by remember { mutableStateOf(true) }
+
+                Box(modifier = Modifier.fillMaxSize()) {
+
+                    // 1. 3D 배경 뷰
+                    GlbBackgroundView(
+                        modifier = Modifier.fillMaxSize(),
+                        glbUrl = dashboardData.dashboardBackground,
+                        onModelLoaded = {
+                            // GlbBackgroundView가 로딩이 끝났다고 알려줌
+                            isModelLoading = false
+                        }
+                    )
+
+                    // 2. 2D 플레이스홀더 이미지
+                    AnimatedVisibility(
+                        visible = isModelLoading, // 이 상태로 제어
+                        enter = fadeIn(animationSpec = tween(100)),
+                        exit = fadeOut(animationSpec = tween(500))
+                    ) {
+                        Image(
+                            // TODO: R.drawable.dashboard_placeholder 이미지 추가 필요
+                            painter = painterResource(id = R.drawable.dashboard_bg),
+                            contentDescription = "로딩 중 배경",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
 
                 // --- 데이터 연결 ---
                 // 1. 캘린더 날짜/카운트
