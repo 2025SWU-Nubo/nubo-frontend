@@ -49,6 +49,7 @@ import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -100,14 +101,25 @@ fun EditCardScreen(
     var currentMarkdown by rememberSaveable { mutableStateOf("") }
     var suppressVmSync by remember { mutableStateOf(false) }
 
-// 2) 그 다음에 이벤트 수집
+    // AI 편집 적용 시 커서 위치 보존
     LaunchedEffect(Unit) {
         uiEventFlow.collect { event ->
             when (event) {
                 is EditCardUiEvent.ApplyAiEdit -> {
                     suppressVmSync = true
+
+                    // 현재 커서 위치 저장
+                    val currentSelection = rtState.selection
+
+                    // 마크다운 적용
                     rtState.setMarkdown(event.markdown)
                     currentMarkdown = sanitizeToAllowedMarkdown(rtState.toMarkdown())
+
+                    // 커서 위치 복원 (새 마크다운 길이 범위 내로 제한)
+                    val newLength = rtState.toMarkdown().length
+                    val restoredCursor = currentSelection.end.coerceIn(0, newLength)
+                    rtState.selection = TextRange(restoredCursor)
+
                     suppressVmSync = false
                 }
             }
@@ -185,14 +197,27 @@ fun EditCardScreen(
     }
 
 
-    // 에디터 → 뷰모델 동기화
+    // 에디터 → 뷰모델 동기화 개선
     LaunchedEffect(rtState) {
-        snapshotFlow { sanitizeToAllowedMarkdown(rtState.toMarkdown()) }
-            .collectLatest { md ->
-                currentMarkdown = md                 // 한글 주석: 변경 감지용 현재값 갱신 (필수)
+        snapshotFlow {
+            // 마크다운과 커서 위치를 함께 관찰
+            Triple(
+                sanitizeToAllowedMarkdown(rtState.toMarkdown()),
+                rtState.selection,
+                rtState.annotatedString.text
+            )
+        }
+            .collectLatest { (md, selection, displayText) ->
+                currentMarkdown = md
+
+                // VM 동기화 시 현재 커서 위치 로깅 (디버깅용)
+                // Log.d("EditCard", "Cursor at: ${selection.end}, Display length: ${displayText.length}, MD length: ${md.length}")
+
                 if (!suppressVmSync) {
                     (uiState as? EditCardUiState.Ready)?.let {
-                        if (it.summary != md) viewModel.updateSummary(md)   // 한글 주석: 필요 시 VM 동기화
+                        if (it.summary != md) {
+                            viewModel.updateSummary(md)
+                        }
                     }
                 }
             }
@@ -303,7 +328,7 @@ fun EditCardScreen(
                 modifier = Modifier
                     .imePadding()
                     .zIndex(30f)
-                    .padding(bottom = if (editorFocused && keyboardVisible && !showAiBar) 64.dp else 30.dp),
+                    .padding(bottom = if (editorFocused && keyboardVisible && !showAiBar) 68.dp else 45.dp),
                 enter = EnterTransition.None,
                 exit = ExitTransition.None
             ) {

@@ -1,4 +1,3 @@
-
 package com.example.nubo.ui.screen.editCard.widgets
 
 import androidx.compose.*
@@ -7,6 +6,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
 import com.mohamedrejeb.richeditor.model.RichTextState
 import com.example.nubo.utils.toggleHeadingMarkdown
+import com.example.nubo.utils.clearHeadingMarkdown
+import com.example.nubo.utils.detectLineMarkdown
+import com.example.nubo.utils.ListType
 import com.example.nubo.ui.theme.Grey5
 import androidx.compose.material3.Surface
 import androidx.compose.ui.unit.dp
@@ -26,9 +28,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
 import com.example.nubo.R
-//import com.example.nubo.utils.clearHeadingOnCurrentLine
 import com.example.nubo.utils.toggleListForSelection
 
 private val CHIP_HEIGHT = 45.dp
@@ -41,9 +41,11 @@ fun MarkdownToolbar(
     editorFocusRequester: FocusRequester,
     modifier: Modifier = Modifier
 ) {
-
-    // 굵게(B)만 선택 상태 유지
+    // 현재 라인의 마크다운 상태 추적
+    var currentHeadingLevel by remember { mutableStateOf<Int?>(null) }
+    var currentListType by remember { mutableStateOf<ListType?>(null) }
     var isBoldSelected by remember { mutableStateOf(false) }
+    var hasSelection by remember { mutableStateOf(false) }
 
     // 포커스 이동 후 액션 실행 헬퍼 함수
     fun focusThen(action: () -> Unit) {
@@ -51,8 +53,18 @@ fun MarkdownToolbar(
         action()
     }
 
-    // 현재 선택된 헤딩 레벨 추적
-//    var selectedHeading by remember { mutableStateOf<Int?>(null) }
+    // 커서 위치나 텍스트 변경 시 현재 마크다운 상태 감지
+    LaunchedEffect(rtState.annotatedString, rtState.selection) {
+        val state = detectLineMarkdown(rtState)
+        currentHeadingLevel = state.headingLevel
+        currentListType = state.listType
+
+        // 텍스트 선택 여부 확인
+        hasSelection = rtState.selection.start != rtState.selection.end
+
+        // Bold 상태 감지
+        isBoldSelected = (rtState.currentSpanStyle.fontWeight == FontWeight.Bold)
+    }
 
     Surface(
         tonalElevation = 8.dp,
@@ -62,52 +74,64 @@ fun MarkdownToolbar(
         color = Grey5
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp).horizontalScroll(rememberScrollState()),
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-
-
-            // 제목 버튼 (H1 또는 대제목)
+            // 제목 버튼 (H2)
             HeadingButton(
                 text = "제목",
-//                isSelected = selectedHeading == 2,
-                onClick = { focusThen { toggleHeadingMarkdown(rtState, 2) } },
+                isSelected = currentHeadingLevel == 2,
+                onClick = {
+                    focusThen {
+                        toggleHeadingMarkdown(rtState, 2)
+                    }
+                },
                 textSize = AppTextStyles.title_semibold_24
             )
 
-            // 부제목 버튼 (H2)
+            // 부제목 버튼 (H3)
             HeadingButton(
                 text = "부제목",
-//                isSelected = selectedHeading == 3,
-                onClick =  { focusThen { toggleHeadingMarkdown(rtState, 3) } },
+                isSelected = currentHeadingLevel == 3,
+                onClick = {
+                    focusThen {
+                        toggleHeadingMarkdown(rtState, 3)
+                    }
+                },
                 textSize = AppTextStyles.subtitle_semibold_20
             )
 
-            // 본문 버튼 (일반 텍스트)
+            // 본문 버튼
             HeadingButton(
                 text = "본문",
-                onClick = { focusThen { /*clearHeadingOnCurrentLine(rtState)*/ } },
+                isSelected = currentHeadingLevel == null && currentListType == null,
+                onClick = {
+                    focusThen {
+                        clearHeadingMarkdown(rtState)
+                    }
+                },
                 textSize = AppTextStyles.b2_medium_16
             )
 
             val BOLD_STYLE = remember { SpanStyle(fontWeight = FontWeight.Bold) }
 
-            LaunchedEffect(rtState.annotatedString, rtState.selection) {
-                // currentSpanStyle.fontWeight == Bold 이면 선택 ON
-                isBoldSelected = (rtState.currentSpanStyle.fontWeight == FontWeight.Bold)
-            }
-
-            // 굵게 버튼 (Bold)
+            // 굵게 버튼 (Bold) - 선택 여부에 따라 다르게 동작
             FilterChip(
-                modifier = Modifier
-//                    .width(CHIP_SHORT_WIDTH)
-                    .height(CHIP_HEIGHT),
+                modifier = Modifier.height(CHIP_HEIGHT),
                 selected = isBoldSelected,
                 onClick = {
                     focusThen {
-                        rtState.toggleSpanStyle(BOLD_STYLE) // 반드시 1회만
-                        // 즉시 반영(UX). 곧 selection 변화가 감지되면 위 LaunchedEffect가 실제 상태로 동기화함
+                        if (hasSelection) {
+                            // 텍스트가 선택되어 있으면 선택된 텍스트만 굵게
+                            rtState.toggleSpanStyle(BOLD_STYLE)
+                        } else {
+                            // 선택이 없으면 현재 커서 위치부터 입력되는 텍스트에 적용
+                            rtState.toggleSpanStyle(BOLD_STYLE)
+                        }
+                        // 즉시 UI 반영
                         isBoldSelected = !isBoldSelected
                     }
                 },
@@ -118,10 +142,10 @@ fun MarkdownToolbar(
                     )
                 },
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = PurpleMain500,
+                    selectedContainerColor = GreyMain300,
                     selectedLabelColor = Color.White,
-                    containerColor = Purple50,
-                    labelColor = Color.Black
+                    containerColor = Grey20,
+                    labelColor = GreyMain300
                 ),
                 border = FilterChipDefaults.filterChipBorder(
                     enabled = true,
@@ -136,68 +160,75 @@ fun MarkdownToolbar(
 
             // 순서 없는 리스트 버튼
             FilledTonalIconButton(
-                onClick = { focusThen { toggleListForSelection(rtState, ordered = false) } },
+                onClick = {
+                    focusThen {
+                        toggleListForSelection(rtState, ordered = false)
+                    }
+                },
                 modifier = Modifier.height(CHIP_HEIGHT).width(CHIP_SHORT_WIDTH),
                 shape = RoundedCornerShape(8.dp),
                 colors = IconButtonDefaults.filledTonalIconButtonColors(
-                    containerColor = Purple50,     // 뒷배경(연보라)
-                    contentColor = GreyMain300     // 아이콘 색
+                    containerColor = if (currentListType == ListType.UNORDERED)
+                        PurpleMain500 else Purple50,
+                    contentColor = if (currentListType == ListType.UNORDERED)
+                        Color.White else GreyMain300
                 )
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.list_toggles), // ← ← 아이콘 파일 필요
+                    painter = painterResource(id = R.drawable.list_toggles),
                     contentDescription = "순서 없는 리스트",
                 )
             }
 
             // 순서 있는 리스트 버튼
             FilledTonalIconButton(
-                onClick = { focusThen { toggleListForSelection(rtState, ordered = true) } },
+                onClick = {
+                    focusThen {
+                        toggleListForSelection(rtState, ordered = true)
+                    }
+                },
                 modifier = Modifier.height(CHIP_HEIGHT).width(CHIP_SHORT_WIDTH),
                 shape = RoundedCornerShape(8.dp),
                 colors = IconButtonDefaults.filledTonalIconButtonColors(
-                    containerColor = Purple50,     // 뒷배경(연보라)
-                    contentColor = GreyMain300     // 아이콘 색
+                    containerColor = if (currentListType == ListType.ORDERED)
+                        PurpleMain500 else Purple50,
+                    contentColor = if (currentListType == ListType.ORDERED)
+                        Color.White else GreyMain300
                 )
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.list_numbers), // ← ← 아이콘 파일 필요
+                    painter = painterResource(id = R.drawable.list_numbers),
                     contentDescription = "순서 있는 리스트",
                 )
             }
-//
-//            AssistChip(onClick = { focusThen { toggleHeadingMarkdown(rtState, 2) } }, label = { Text("H2", style = MaterialTheme.typography.titleMedium) })
-//            AssistChip(onClick = { focusThen { toggleHeadingMarkdown(rtState, 3) } }, label = { Text("H3", style = MaterialTheme.typography.titleSmall) })
-//            FilterChip(selected = false, onClick = { focusThen { rtState.toggleSpanStyle(SpanStyle(fontWeight = FontWeight.Bold)) } }, label = { Text("B", fontWeight = FontWeight.Bold) })
-//            AssistChip(onClick = { focusThen { rtState.toggleUnorderedList() } }, label = { Text("• 리스트", style = MaterialTheme.typography.labelMedium) })
-//            AssistChip(onClick = { focusThen { rtState.toggleOrderedList() } }, label = { Text("1 리스트", style = MaterialTheme.typography.labelMedium) })
         }
     }
 }
 
 /**
  * 헤딩 버튼 컴포저블
- * 제목, 부제목, 본문 버튼에 사용
  */
 @Composable
 private fun HeadingButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    textSize: TextStyle
+    textSize: TextStyle,
+    isSelected: Boolean = false
 ) {
     Box(
         modifier = modifier
             .size(CHIP_LONG_WIDTH, CHIP_HEIGHT)
             .clip(RoundedCornerShape(8.dp))
-            .background(Grey20)
+            .background(
+                if (isSelected) PurpleMain500 else Grey10
+            )
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
-
     ) {
         Text(
             text = text,
-            color = Color.Black,
+            color = if (isSelected) Color.White else Color.Black,
             style = textSize
         )
     }

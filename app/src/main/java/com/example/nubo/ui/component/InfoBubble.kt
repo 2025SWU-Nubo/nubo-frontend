@@ -20,17 +20,27 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import com.example.nubo.ui.theme.AppTextStyles
+import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.Grey700
 import com.example.nubo.ui.theme.GreyMain300
 
+/**
+ * 말풍선 모양 Shape (꼬리 포함)
+ * @param cornerRadius 버블 모서리 둥글기
+ * @param tailWidth 꼬리 너비 (가로)
+ * @param tailHeight 꼬리 높이 (세로)
+ * @param tailOnRight 꼬리 방향 (true: 오른쪽, false: 왼쪽)
+ * @param tailCenterYFraction 꼬리의 세로 위치 (0f = 상단, 1f = 하단)
+ */
 class SpeechBubbleShape(
-    private val cornerRadius: Dp = 15.dp,     // Bubble corner radius
-    private val tailWidth: Dp = 10.dp,        // Tail width (horizontal)
-    private val tailHeight: Dp = 12.dp,       // Tail height (vertical)
-    private val tailOnRight: Boolean = true,  // Tail side
-    private val tailCenterYFraction: Float = 0.3f // Tail vertical anchor (0f..1f)
-) : Shape{
+    private val cornerRadius: Dp = 15.dp,
+    private val tailWidth: Dp = 10.dp,
+    private val tailHeight: Dp = 12.dp,
+    private val tailOnRight: Boolean = true,
+    private val tailCenterYFraction: Float = 0.3f
+) : Shape {
     override fun createOutline(
         size: Size,
         layoutDirection: LayoutDirection,
@@ -41,12 +51,12 @@ class SpeechBubbleShape(
             val tW = tailWidth.toPx()
             val tH = tailHeight.toPx()
 
-            // Guard for extremely small sizes
+            // 극단적으로 작은 크기 방어 처리
             val bodyWidth = if (tailOnRight) size.width - tW else size.width - tW
             val w = max(0f, bodyWidth)
             val h = size.height
 
-            // Tail Y center
+            // 꼬리 Y축 중심점
             val cy = (h * tailCenterYFraction).coerceIn(r + 4f, h - r - 4f)
 
             val left = if (tailOnRight) 0f else tW
@@ -56,7 +66,7 @@ class SpeechBubbleShape(
 
             val path = Path()
 
-            // Rounded rect (manual)
+            // 둥근 사각형 그리기 (수동)
             path.moveTo(left + r, top)
             path.lineTo(right - r, top)
             path.quadraticBezierTo(right, top, right, top + r)
@@ -67,21 +77,21 @@ class SpeechBubbleShape(
             path.lineTo(left, top + r)
             path.quadraticBezierTo(left, top, left + r, top)
 
-            // Add tail
+            // 꼬리 추가
             if (tailOnRight) {
-                // Right-side tail: points outward to the right
+                // 오른쪽 꼬리: 오른쪽으로 튀어나옴
                 val baseY1 = cy - tH / 2f
                 val baseY2 = cy + tH / 2f
                 path.moveTo(right, baseY1)
-                path.lineTo(right + tW, cy)  // tip
+                path.lineTo(right + tW, cy)  // 끝점
                 path.lineTo(right, baseY2)
                 path.close()
             } else {
-                // Left-side tail
+                // 왼쪽 꼬리
                 val baseY1 = cy - tH / 2f
                 val baseY2 = cy + tH / 2f
                 path.moveTo(left, baseY1)
-                path.lineTo(left - tW, cy)   // tip
+                path.lineTo(left - tW, cy)   // 끝점
                 path.lineTo(left, baseY2)
                 path.close()
             }
@@ -91,6 +101,10 @@ class SpeechBubbleShape(
     }
 }
 
+/**
+ * 정보 표시용 말풍선 컴포넌트
+ * 카테고리, 저장 날짜, 저장 플랫폼을 균등하게 표시
+ */
 @Composable
 fun InfoBubble(
     title: String,
@@ -102,7 +116,6 @@ fun InfoBubble(
     modifier: Modifier = Modifier,
     tailOnRight: Boolean = true
 ) {
-
     Surface(
         shape = SpeechBubbleShape(
             cornerRadius = 10.dp,
@@ -119,99 +132,142 @@ fun InfoBubble(
         // 전체 내부 콘텐츠
         Row(
             modifier = Modifier
-                .padding( horizontal = 8.dp, vertical = 12.dp)
-                .height(IntrinsicSize.Min), // for vertical dividers
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 8.dp, vertical = 10.dp)
+                .height(IntrinsicSize.Min), // 구분선 높이 자동 조정
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp) // 균등 간격
         ) {
-            // Ai 카테고리 컨테이네
-            Column(
-                modifier = Modifier.weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = title,
-                    style = AppTextStyles.label_medium_14
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = subtitleLeft,
-                    style = AppTextStyles.caption_regular_9,
-                    color = Grey700
-                )
-            }
+            // ── AI 카테고리 컨테이너 ──
+            InfoSection(
+                mainText = title,
+                subText = subtitleLeft,
+                modifier = Modifier.weight(1f)
+            )
 
             VerticalDivider()
 
-            // 저장 날짜 컨테이너
-            Column(
-                Modifier
-                    .weight(0.6f),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = centerValue,
-                    style = AppTextStyles.label_medium_14
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = subtitleCenter,
-                    style = AppTextStyles.caption_regular_9,
-                    color = Grey700
-                )
-            }
+            // ── 저장 날짜 컨테이너 ──
+            InfoSection(
+                mainText = centerValue,
+                subText = subtitleCenter,
+                modifier = Modifier.weight(1f)
+            )
 
             VerticalDivider()
 
-            // 저장 플랫폼 컨테이너
+            // ── 저장 플랫폼 컨테이너 ──
             Column(
-                Modifier
+                modifier = Modifier
                     .weight(0.6f)
-                    .padding(end = 4.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(start = 4.dp, end = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-
-                    Icon(
-                        painter = painterResource(id = savedPlatformResId),
-                        contentDescription = "뒤로가기",
-                        tint = Grey700,
-                        modifier = Modifier.size(20.dp)
-                    )
+                Icon(
+                    painter = painterResource(id = savedPlatformResId),
+                    contentDescription = "저장 플랫폼",
+                    tint = Grey700,
+                    modifier = Modifier.size(20.dp)
+                )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = subtitleRight,
                     style = AppTextStyles.caption_regular_9,
-                    color = Grey700
+                    color = Grey700,
+                    textAlign = TextAlign.Center, // 중앙 정렬
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
     }
 }
 
-// 카테고리 분리 선
+/**
+ * 정보 섹션 컴포저블 (재사용)
+ * 제목과 부제목을 수직 중앙 정렬하여 표시
+ */
+@Composable
+private fun InfoSection(
+    mainText: String,
+    subText: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center // 수직 중앙 정렬
+    ) {
+        Text(
+            text = mainText,
+            style = AppTextStyles.label_medium_14,
+            textAlign = TextAlign.Center, // 텍스트 중앙 정렬
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = subText,
+            style = AppTextStyles.caption_regular_9,
+            color = Grey700,
+            textAlign = TextAlign.Center, // 텍스트 중앙 정렬
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+/**
+ * 카테고리 구분 세로선
+ */
 @Composable
 private fun VerticalDivider() {
     Box(
         Modifier
-            .height(18.dp)
+            .fillMaxHeight() // Row의 높이에 맞춤
             .width(1.dp)
-            .background(GreyMain300)
-            .padding(horizontal = 4.dp)
+            .padding(vertical = 8.dp)
+            .background(Grey200)
     )
 }
 
-// 프리뷰
-@Preview(showBackground = true)
+// ── 프리뷰 ──
+@Preview(showBackground = true, widthDp = 320)
 @Composable
 private fun InfoBubblePreview() {
     MaterialTheme(colorScheme = lightColorScheme()) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // 일반 케이스
             InfoBubble(
                 title = "#요리 레시피",
                 subtitleLeft = "AI 카테고리",
                 centerValue = "2024.03.03",
                 subtitleCenter = "저장한 날짜",
                 subtitleRight = "저장 플랫폼",
+                savedPlatformResId = R.drawable.youtube_logo
+            )
+
+            // 긴 제목 케이스 (줄바꿈 테스트)
+            InfoBubble(
+                title = "#인공지능과 머신러닝의 미래",
+                subtitleLeft = "AI 카테고리",
+                centerValue = "2024.12.25",
+                subtitleCenter = "저장한 날짜",
+                subtitleRight = "저장 플랫폼",
+                savedPlatformResId = R.drawable.youtube_logo
+            )
+
+            // 왼쪽 꼬리 케이스
+            InfoBubble(
+                title = "#디자인",
+                subtitleLeft = "AI 카테고리",
+                centerValue = "2025.01.15",
+                subtitleCenter = "저장한 날짜",
+                subtitleRight = "저장 플랫폼",
                 savedPlatformResId = R.drawable.youtube_logo,
-                modifier = Modifier.padding(16.dp)
+                tailOnRight = false
             )
         }
     }
