@@ -1,7 +1,9 @@
 package com.example.nubo.ui.screen.myBoard
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -17,6 +19,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -38,6 +41,9 @@ fun MyBoardRoute(
     // MainScreen의 기본 BottomNavBar를 숨길지 여부를 알리기 위한 콜백
     onSelectionModeChange: (Boolean) -> Unit
 ) {
+
+    // selectedTab 상태를 MyBoardRoute에서 관리
+    var selectedTab by rememberSaveable { mutableStateOf(1) } // 1 = 보드 탭
 
     val boardDetailViewModel: BoardDetailViewModel = hiltViewModel()
     val cardViewModel: MyCardViewModel = hiltViewModel() // MyBoardScreen에 필요
@@ -65,9 +71,12 @@ fun MyBoardRoute(
     // --- 보드 삭제 다이얼로그 상태 ---
     var showBoardDeleteDialog by remember { mutableStateOf(false) }
 
+    // 보드 삭제 시 삭제할 ID를 임시 저장할 변수
+    var boardIdsToDelete by remember { mutableStateOf(emptySet<Int>()) }
+
     val scope = rememberCoroutineScope()
 
-    // --- [추가] ModalBottomSheet 상태 관리 ---
+    // --- ModalBottomSheet 상태 관리 ---
     @OptIn(ExperimentalMaterial3Api::class)
     val bottomSheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true // 부분적으로 확장되는 상태 스킵 (항상 전체 확장)
@@ -224,10 +233,12 @@ fun MyBoardRoute(
                                             targetBoardId = targetId.toLong(),
                                             selectedCardIds = selectedCardIds
                                         )
+
                                         BoardAction.MOVE -> boardViewModel.moveCardsFromGlobal(
                                             targetBoardId = targetId.toLong(),
                                             selectedCardIds = selectedCardIds
                                         )
+
                                         null -> {}
                                     }
                                 }
@@ -243,15 +254,21 @@ fun MyBoardRoute(
                     BottomSheetType.BOARD_SETTINGS -> {
                         BoardSettingsContent(
                             onDeleteClick = {
+                                // 현재 ID 목록을 새 변수에 캡처
+                                boardIdsToDelete = selectedBoardIds
+
                                 showBoardDeleteDialog = true
+                                // 바텀시트를 닫도록 명시 (이래야 onDismiss가 호출됨)
                                 boardBottomSheetType = BottomSheetType.NONE
                             },
                             onDismiss = { resetBoardSelectionState() }
                         )
                     }
+
                     BottomSheetType.BOARD_EDIT -> {
                         boardForEditing?.let { board ->
                             BoardEditSheet(
+                                modifier = Modifier.imePadding(),
                                 source = board.source,
                                 currentName = board.title,
                                 isCurrentlyShared = false, // MyBoard에서는 공유 여부 알 수 없으므로 false로 고정
@@ -269,6 +286,7 @@ fun MyBoardRoute(
                             )
                         }
                     }
+
                     else -> {}
                 }
             }
@@ -281,6 +299,18 @@ fun MyBoardRoute(
             cardViewModel = cardViewModel,
             boardViewModel = boardViewModel,
             boardDetailViewModel = boardDetailViewModel,
+            // 상태와 람다 전달
+            selectedTab = selectedTab,
+            onTabSelected = { newTab ->
+                // 탭이 실제로 변경될 때만 새로고침
+                if (selectedTab != newTab) {
+                    when (newTab) {
+                        0 -> cardViewModel.refresh() // 카드 탭
+                        1 -> boardViewModel.refresh() // 보드 탭
+                    }
+                }
+                selectedTab = newTab
+            },
             isCardSelectionMode = isCardSelectionMode,
             selectedCardIds = selectedCardIds,
             onCardClick = { cardId ->
@@ -306,7 +336,8 @@ fun MyBoardRoute(
                 if (isBoardSelectionMode) {
                     // 선택모드에서는 클릭으로 선택/해제
                     val id = board.serverBoardId
-                    selectedBoardIds = if (selectedBoardIds.contains(id)) selectedBoardIds - id else selectedBoardIds + id
+                    selectedBoardIds =
+                        if (selectedBoardIds.contains(id)) selectedBoardIds - id else selectedBoardIds + id
                 } else {
                     // 일반 모드에서 상세 화면으로 이동 시, source를 쿼리 파라미터로 전달
                     val encodedTitle = java.net.URLEncoder.encode(board.title, "utf-8")
@@ -322,6 +353,7 @@ fun MyBoardRoute(
                     boardBottomSheetType = BottomSheetType.BOARD_SETTINGS
                     onSelectionModeChange(true)
                 }
+                Log.d("MyBoardRouteDebug", "onBoardLongClick triggered: Board ID = ${board.serverBoardId}, Title = ${board.title}")
             }
         )
     }
@@ -331,7 +363,11 @@ fun MyBoardRoute(
             visible = true,
             selectedCardCount = selectedCardIds.size,
             selectedSectionCount = 0,
-            onDismiss = { showDeleteDialog = false },
+            onDismiss = {
+                showBoardDeleteDialog = false
+                resetBoardSelectionState() // 다이얼로그 닫을 때 선택모드 해제
+                boardIdsToDelete = emptySet() // 임시 변수 초기화
+            },
             onRemove = {
                 scope.launch {
                     boardDetailViewModel.removeItemsFromBoard(emptySet(), selectedCardIds)
@@ -341,10 +377,17 @@ fun MyBoardRoute(
             },
             onDelete = {
                 scope.launch {
-                    boardDetailViewModel.deleteItems(emptySet(), selectedCardIds)
-                    showDeleteDialog = false
-                    resetCardSelectionState()
+                    // selectedBoardIds 대신 캡처해둔 boardIdsToDelete 사용
+                    val deletedCount = boardViewModel.deleteBoards(boardIdsToDelete)
+                    if (deletedCount != null && deletedCount > 0) {
+                        navController.currentBackStackEntry
+                            ?.savedStateHandle
+                            ?.set("deleted_board_count", deletedCount)
+                    }
                 }
+                showBoardDeleteDialog = false
+                resetBoardSelectionState() // 삭제 후 선택모드 해제
+                boardIdsToDelete = emptySet() // 임시 변수 초기화
             }
         )
     }
@@ -358,7 +401,7 @@ fun MyBoardRoute(
             },
             onDelete = {
                 scope.launch {
-                    val deletedCount = boardViewModel.deleteBoards(selectedBoardIds)
+                    val deletedCount = boardViewModel.deleteBoards(boardIdsToDelete)
                     if (deletedCount != null && deletedCount > 0) {
                         navController.currentBackStackEntry
                             ?.savedStateHandle

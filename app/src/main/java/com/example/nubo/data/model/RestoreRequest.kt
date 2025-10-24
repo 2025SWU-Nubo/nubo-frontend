@@ -6,7 +6,7 @@ import com.google.gson.annotations.SerializedName
 data class BoardRestoreRequest(
     val boardIds: List<Long>,
     val sectionIds: List<Long>,
-    val cardIds: List<Long>
+    val cardRestore: CardRestoreRequest?
 )
 
 // 보드 / 섹션 복구 응답

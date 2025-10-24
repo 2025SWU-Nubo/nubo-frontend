@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -423,6 +424,7 @@ fun BoardDetailScreen(
                     // 현재 보드 정보가 있을 때만 설정 화면을 보여줌
                     ui.board?.let { currentBoard ->
                         BoardEditSheet(
+                            modifier = Modifier.imePadding(),
                             source = source,
                             currentName = currentBoard.name,
                             isCurrentlyShared = currentBoard.shared,

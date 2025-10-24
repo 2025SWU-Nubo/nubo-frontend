@@ -517,18 +517,34 @@ class BoardDetailViewModel @Inject constructor(
         }
     }
 
-    // --- [수정] 삭제 실행 취소(복구) 함수 (API 통합) ---
+    // --- 삭제 실행 취소(복구) 함수 (API 통합) ---
     suspend fun undoLastDeletion() {
         if (lastDeletedSectionIds.isEmpty() && lastDeletedCardIds.isEmpty()) return
 
         _ui.value = _ui.value.copy(isLoading = true, error = null)
         try {
             val token = "Bearer ${authRepository.getAccessToken()}"
+            // cardRestore 객체를 먼저 생성합니다.
+            val cardRestoreData = if (lastDeletedCardIds.isNotEmpty()) {
+                // boardId 로직:
+                // 1. 삭제된 섹션이 있으면(lastDeletedSectionIds), 그 중 첫 번째 ID를 boardId로 사용
+                // 2. 삭제된 섹션이 없고 카드만 삭제되었다면, 현재 보드 ID(currentBoardId)를 사용
+                val boardIdForRestore = lastDeletedSectionIds.firstOrNull() ?: currentBoardId.toLong()
+
+                CardRestoreRequest(
+                    cardIds = lastDeletedCardIds.toList(),
+                    boardId = boardIdForRestore,
+                    deleteMode = lastCardDeleteMode // 저장해둔 카드 삭제 모드 사용
+                )
+            } else {
+                null // 복구할 카드가 없으면 null
+            }
+
             // 복구 요청 DTO 생성
             val request = BoardRestoreRequest(
                 boardIds = lastDeletedSectionIds.toList(), // 섹션 ID는 boardIds 필드에 담김
                 sectionIds = emptyList(), // 상세화면에서는 섹션만 삭제하므로 sectionIds는 비워둠
-                cardIds = lastDeletedCardIds.toList()
+                cardRestore = cardRestoreData // 'cardIds' 대신 'cardRestore' 객체 전달
             )
 
             // 통합된 복구 API 호출
