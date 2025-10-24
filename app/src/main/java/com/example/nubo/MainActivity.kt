@@ -190,7 +190,7 @@ fun MainScreen(
 
             val (msg, type, dur) = when (ev) {
                 CardUploadViewModel.UploadEvent.Created ->
-                    Triple("카드 생성을 시작했어요", AppToastType.NORMAL, 1500)
+                    Triple("카드 생성을 완료했어요!", AppToastType.POSITIVE, 1500)
                 CardUploadViewModel.UploadEvent.AlreadyExists ->
                     Triple("이미 생성된 카드예요", AppToastType.NEGATIVE, 2000)
                 is CardUploadViewModel.UploadEvent.Failed ->
