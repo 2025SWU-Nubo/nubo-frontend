@@ -67,6 +67,9 @@ fun MyBoardScreen(
     boardViewModel: BoardViewModel = hiltViewModel(),
     cardViewModel: MyCardViewModel = hiltViewModel(),
     boardDetailViewModel: BoardDetailViewModel = hiltViewModel(),
+    //탭 선택 상태 전달 받음
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
     // 카드 선택
     isCardSelectionMode: Boolean,
@@ -79,8 +82,6 @@ fun MyBoardScreen(
     onBoardClick: (com.example.nubo.model.myBoard.BoardItem) -> Unit,
     onBoardLongClick: (com.example.nubo.model.myBoard.BoardItem) -> Unit,
 ) {
-    var selectedTab by remember { mutableStateOf(1) }
-
     val scope = rememberCoroutineScope()
 
     // --- 토스트 메시지를 boardViewModel에서 구독 ---
@@ -204,7 +205,9 @@ fun MyBoardScreen(
                     if (isSearchMode) {
                         closeSearchMode()
                     }
-                    selectedTab = newTab
+                    // 부모(Route)가 전달해준 람다를 호출
+                    // (새로고침 로직은 MyBoardRoute로 이동됨)
+                    onTabSelected(newTab)
                 },
                 isSelectionMode = isCardSelectionMode || isBoardSelectionMode
             )
@@ -338,7 +341,7 @@ fun MyBoardScreen(
         // -토스트 UI를 화면에 배치 ---
         AppToastHost(
             hostState = toastHostState,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 80.dp) // 스낵바와 겹치지 않도록 패딩 추가
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 100.dp) // 스낵바와 겹치지 않도록 패딩 추가
         )
     }
 }

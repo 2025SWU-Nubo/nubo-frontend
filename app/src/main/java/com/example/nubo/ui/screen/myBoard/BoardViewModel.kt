@@ -73,6 +73,9 @@ class BoardViewModel @Inject constructor(
     private var lastDeletedCardIds: Set<Int> = emptySet()
     private var lastCardDeleteMode: String = ""
 
+    // 보드 삭제 시 사용된 옵션(deleteMode)을 저장할 변수
+    private var lastDeletedBoardDeleteModeForUndo: String = ""
+
 
     init {
         refresh()
@@ -326,6 +329,9 @@ class BoardViewModel @Inject constructor(
                 lastDeletedSectionIdsForUndo = deletedItems.flatMap { it.deletedSectionIds }.toSet()
                 lastDeletedCardIdsForUndo = deletedItems.flatMap { it.deletedCardIds }.toSet()
 
+                // 응답에서 받은 삭제 옵션(option)을 저장
+                lastDeletedBoardDeleteModeForUndo = deletedItems.firstOrNull()?.option ?: ""
+
                 // 성공 시, 목록을 새로고침하고 삭제된 개수를 반환
                 refresh()
                 boardIds.size
@@ -347,18 +353,35 @@ class BoardViewModel @Inject constructor(
         if (lastDeletedBoardIdsForUndo.isNotEmpty()) {
             try {
                 val token = "Bearer ${authRepository.getAccessToken()}"
+
+                // 'cardRestore' 객체를 먼저 생성
+                val cardRestoreData = if (lastDeletedCardIdsForUndo.isNotEmpty()) {
+                    CardRestoreRequest(
+                        cardIds = lastDeletedCardIdsForUndo.toList(),
+                        // 삭제된 보드 ID 목록의 첫 번째 값을 사용
+                        boardId = lastDeletedBoardIdsForUndo.firstOrNull(),
+                        // 저장해둔 삭제 옵션 값 사용
+                        deleteMode = lastDeletedBoardDeleteModeForUndo
+                    )
+                } else {
+                    null // 복구할 카드가 없으면 null
+                }
+
+                // 새로운 BoardRestoreRequest 구조로 객체 생성
                 val request = BoardRestoreRequest(
                     boardIds = lastDeletedBoardIdsForUndo.toList(),
                     sectionIds = lastDeletedSectionIdsForUndo.toList(),
-                    cardIds = lastDeletedCardIdsForUndo.toList()
+                    cardRestore = cardRestoreData // 'cardIds' 대신 'cardRestore' 객체 전달
                 )
-                // API 명세에 맞는 새로운 서비스 함수 호출 (반환값에 restoredCount가 있다고 가정)
+
+                // API 명세에 맞는 새로운 서비스 함수 호출
                 val response = boardService.restoreBoards(token, request)
                 if (response.isSuccessful && response.body() != null) {
+                    // (기존 로직)
                     val count = response.body()!!.restoredBoardIds.size
                     _toastMessage.value = "${count}개 보드 삭제가 취소되었습니다."
                     refresh()
-                } else {
+                }else {
                     _toastMessage.value = "복구에 실패했습니다."
                 }
             } catch (e: Exception) {
