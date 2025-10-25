@@ -12,6 +12,7 @@ import com.example.nubo.data.model.BoardRestoreRequest
 import com.example.nubo.data.model.BoardSearchItemResponse
 import com.example.nubo.data.model.BulkCopyRequest
 import com.example.nubo.data.model.BulkMoveRequest
+import com.example.nubo.data.model.CardRestoreInfo
 import com.example.nubo.data.model.CardRestoreRequest
 import com.example.nubo.data.model.FavoriteRequest
 import com.example.nubo.data.model.PagedResponse
@@ -67,7 +68,7 @@ class BoardViewModel @Inject constructor(
     //  나의 보드 탭에서 보드/섹션/카드 동시 복구를 위한 ID 저장 변수
     private var lastDeletedBoardIdsForUndo: Set<Long> = emptySet()
     private var lastDeletedSectionIdsForUndo: Set<Long> = emptySet()
-    private var lastDeletedCardIdsForUndo: Set<Long> = emptySet()
+    private var lastDeletedCardRestoresForUndo: List<CardRestoreInfo> = emptyList()
 
     // 다른 화면에서 카드만 삭제/복구할 때 사용되는 변수
     private var lastDeletedCardIds: Set<Int> = emptySet()
@@ -327,7 +328,9 @@ class BoardViewModel @Inject constructor(
                 // 실행 취소를 위해 삭제된 ID들을 Long 타입 Set으로 저장
                 lastDeletedBoardIdsForUndo = deletedItems.map { it.boardId }.toSet()
                 lastDeletedSectionIdsForUndo = deletedItems.flatMap { it.deletedSectionIds }.toSet()
-                lastDeletedCardIdsForUndo = deletedItems.flatMap { it.deletedCardIds }.toSet()
+
+                // 'cardRestores'의 원본 리스트 구조를 그대로 저장
+                lastDeletedCardRestoresForUndo = deletedItems.flatMap { it.cardRestores }
 
                 // 응답에서 받은 삭제 옵션(option)을 저장
                 lastDeletedBoardDeleteModeForUndo = deletedItems.firstOrNull()?.option ?: ""
@@ -347,41 +350,33 @@ class BoardViewModel @Inject constructor(
         }
     }
 
-    // --- 보드 복구 로직 (API 명세에 맞게 통합) ---
+    // --- 보드 복구 로직 ---
     suspend fun undoLastDeletion() {
         // 1. 나의 보드 탭에서 '보드' 삭제를 취소하는 경우
         if (lastDeletedBoardIdsForUndo.isNotEmpty()) {
             try {
                 val token = "Bearer ${authRepository.getAccessToken()}"
 
-                // 'cardRestore' 객체를 먼저 생성
-                val cardRestoreData = if (lastDeletedCardIdsForUndo.isNotEmpty()) {
-                    CardRestoreRequest(
-                        cardIds = lastDeletedCardIdsForUndo.toList(),
-                        // 삭제된 보드 ID 목록의 첫 번째 값을 사용
-                        boardId = lastDeletedBoardIdsForUndo.firstOrNull(),
-                        // 저장해둔 삭제 옵션 값 사용
-                        deleteMode = lastDeletedBoardDeleteModeForUndo
-                    )
-                } else {
-                    null // 복구할 카드가 없으면 null
-                }
-
-                // 새로운 BoardRestoreRequest 구조로 객체 생성
+                // API 명세에 맞는 BoardRestoreRequest 객체를 생성
                 val request = BoardRestoreRequest(
                     boardIds = lastDeletedBoardIdsForUndo.toList(),
                     sectionIds = lastDeletedSectionIdsForUndo.toList(),
-                    cardRestore = cardRestoreData // 'cardIds' 대신 'cardRestore' 객체 전달
+                    // 'deleteBoards'에서 저장해둔 'cardRestores' 리스트를 그대로 전달
+                    cardRestores = lastDeletedCardRestoresForUndo
                 )
 
-                // API 명세에 맞는 새로운 서비스 함수 호출
                 val response = boardService.restoreBoards(token, request)
+
                 if (response.isSuccessful && response.body() != null) {
-                    // (기존 로직)
+                    // API 응답 스펙에 'restoredBoardIds'가 있으므로 사용
                     val count = response.body()!!.restoredBoardIds.size
-                    _toastMessage.value = "${count}개 보드 삭제가 취소되었습니다."
+                    _toastMessage.value = "${count}개의 보드 삭제가 취소되었습니다."
+                    // 또는 전체 복구 개수를 사용
+                    // val totalCount = response.body()!!.restoredCount
+                    // _toastMessage.value = "${totalCount}개 항목이 복구되었습니다."
+
                     refresh()
-                }else {
+                } else {
                     _toastMessage.value = "복구에 실패했습니다."
                 }
             } catch (e: Exception) {
@@ -391,12 +386,13 @@ class BoardViewModel @Inject constructor(
                 // 성공/실패와 관계없이 임시 ID 초기화
                 lastDeletedBoardIdsForUndo = emptySet()
                 lastDeletedSectionIdsForUndo = emptySet()
-                lastDeletedCardIdsForUndo = emptySet()
+                // 새로 만든 변수를 초기화
+                lastDeletedCardRestoresForUndo = emptyList()
             }
             return // 보드 복구 로직 수행 후 함수 종료
         }
 
-        // 2. (참고) 다른 화면에서 '카드'만 삭제했을 경우의 기존 복구 로직
+        // 2. 다른 화면에서 '카드'만 삭제했을 경우의 기존 복구 로직
         if (lastDeletedCardIds.isNotEmpty()) {
             try {
                 val token = "Bearer ${authRepository.getAccessToken()}"

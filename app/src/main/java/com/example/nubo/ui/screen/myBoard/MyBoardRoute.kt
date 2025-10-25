@@ -15,6 +15,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,6 +29,8 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Observer
+import androidx.lifecycle.compose.LocalLifecycleOwner
 
 /**
  * MyBoardScreen과 관련된 모든 상태와 로직을 관리하는 컨테이너 컴포저블.
@@ -125,30 +128,44 @@ fun MyBoardRoute(
     // --- 실행 취소 스낵바 상태를 Route에서 관리 ---
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // --- SavedStateHandle을 감시하여 스낵바 표시 ---
-    LaunchedEffect(Unit) {
-        // 현재 화면(MyBoardRoute)의 SavedStateHandle에서 "deleted_board_count" 값을 관찰
-        navController.currentBackStackEntry
-            ?.savedStateHandle
-            ?.getLiveData<Int>("deleted_board_count")?.observeForever { count ->
-                if (count > 0) {
-                    scope.launch {
-                        val result = snackbarHostState.showSnackbar(
-                            message = "${count}개의 보드가 삭제되었습니다.",
-                            actionLabel = "실행 취소",
-                            duration = SnackbarDuration.Long
-                        )
-                        if (result == SnackbarResult.ActionPerformed) {
-                            boardViewModel.undoLastDeletion()
-                        }
+    // --- SavedStateHandle을 감시하여 스낵바 표시 (수정된 버전) ---
+
+    // 1. 현재 컴포저블의 생명주기(LifecycleOwner)를 가져옴.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    // 2. SavedStateHandle을 한 번만 가져옴
+    val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
+
+    // 3. LaunchedEffect 대신 DisposableEffect를 사용
+    //    (lifecycleOwner나 savedStateHandle이 변경될 때마다 이펙트를 재실행)
+    DisposableEffect(lifecycleOwner, savedStateHandle) {
+
+        // 4. 관찰자(Observer) 로직을 정의합니다.
+        val observer = Observer<Int> { count ->
+            if (count > 0) {
+                scope.launch {
+                    val result = snackbarHostState.showSnackbar(
+                        message = "${count}개의 보드가 삭제되었습니다.",
+                        actionLabel = "실행 취소",
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        boardViewModel.undoLastDeletion()
                     }
-                    // [중요] 스낵바를 띄운 후에는 반드시 값을 제거하여
-                    // 화면이 다시 그려질 때(예: 화면 회전) 스낵바가 또 뜨는 것을 방지
-                    navController.currentBackStackEntry
-                        ?.savedStateHandle
-                        ?.remove<Int>("deleted_board_count")
                 }
+                // 스낵바를 띄운 후에는 반드시 값을 제거
+                savedStateHandle?.remove<Int>("deleted_board_count")
             }
+        }
+
+        // 5. 'observe'를 사용하고, lifecycleOwner를 전달
+        val liveData = savedStateHandle?.getLiveData<Int>("deleted_board_count")
+        liveData?.observe(lifecycleOwner, observer)
+
+        // 6. onDispose: 이 컴포저블이 화면에서 사라질 때(Disposed) 실행될 클린업 로직
+        //    메모리 누수 방지
+        onDispose {
+            liveData?.removeObserver(observer)
+        }
     }
 
     // --- 삭제 이벤트 처리 로직을 하나로 통합 및 개선 ---
