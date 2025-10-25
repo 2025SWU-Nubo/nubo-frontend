@@ -47,6 +47,7 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
@@ -59,6 +60,7 @@ import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.ui.theme.PurpleMain500
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -148,6 +150,13 @@ fun MyBoardScreen(
     val focusManager = LocalFocusManager.current                // 포커스 매니저
     val keyboard = LocalSoftwareKeyboardController.current      // 키보드 컨트롤러
 
+    // 현재 탭의 검색 진행 여부 파악
+    val isSearchingCard by cardViewModel.isSearching
+    val isSearchingBoard by boardViewModel.isSearching
+    val currentIsSearching = if (selectedTab == 0) isSearchingCard else isSearchingBoard
+
+
+
     // 검색 모드 닫는 로직
     val closeSearchMode = {
         isSearchMode = false
@@ -165,6 +174,31 @@ fun MyBoardScreen(
         if (isSearchMode) {
             focusRequester.requestFocus()   // 검색창 포커스
             keyboard?.show()                // 키보드 올림
+        }
+    }
+
+    LaunchedEffect(searchText, selectedTab, isSearchMode) {
+        if (!isSearchMode) return@LaunchedEffect // 검색 모드가 아닐 땐 동작 X
+        val q = searchText.trim()
+
+        // 빈 문자열이면 즉시 초기화(서버 호출 안 함)
+        if (q.isEmpty()) {
+            hasSearched = false
+            boardViewModel.clearSearch()
+            cardViewModel.clearSearch()
+            return@LaunchedEffect
+        }
+
+        // 타이핑 멈춘 뒤 350ms 후 서버 호출
+        delay(350)
+
+        // 최소 1자 이상일 때만 검색(원하면 2자로 변경 가능)
+        if (q.length >= 1) {
+            hasSearched = true
+            when (selectedTab) {
+                0 -> cardViewModel.searchCards(q)   // 카드 탭
+                1 -> boardViewModel.searchBoards(q) // 보드 탭
+            }
         }
     }
 
@@ -219,32 +253,37 @@ fun MyBoardScreen(
                 onSearchOpen = { isSearchMode = true },
                 onSearchClose = { closeSearchMode() }, // 검색 닫는 공통 로직 추가
                 onSearchSubmit = {
-                    focusManager.clearFocus()
-                    keyboard?.hide()
-                    val q = searchText.trim()
-                    if (q.isNotBlank()) {
-                        hasSearched = true
-                        // 선택된 탭에 따라 다른 ViewModel의 함수 호출
-                        when (selectedTab) {
-                            0 -> cardViewModel.searchCards(q) // 카드 탭
-                            1 -> boardViewModel.searchBoards(q) // 보드 탭
-                        }
-                    }
+                    /* no-op: 실시간 검색으로만 처리 */
+//                    focusManager.clearFocus()
+//                    keyboard?.hide()
+//                    val q = searchText.trim()
+//                    if (q.isNotBlank()) {
+//                        hasSearched = true
+//                        // 선택된 탭에 따라 다른 ViewModel의 함수 호출
+//                        when (selectedTab) {
+//                            0 -> cardViewModel.searchCards(q) // 카드 탭
+//                            1 -> boardViewModel.searchBoards(q) // 보드 탭
+//                        }
+//                    }
                 },
                 focusRequester = focusRequester,
-                isSelectionMode = isCardSelectionMode
+                isSelectionMode = isCardSelectionMode,
+                isSearching = currentIsSearching
             )
-            FilterButtons(
-                onRequestFilter = { f ->
-                    if (selectedTab == 1) boardViewModel.setFilter(f)   // 보드 탭
-                    else cardViewModel.setFilter(f)       // 카드 탭
-                },
-                onRequestSort = { s ->
-                    if (selectedTab == 1) boardViewModel.setSort(s)
-                    else cardViewModel.setSort(s)
-                },
-                enabled = !isCardSelectionMode
-            )
+
+            // 검색 "진행 중"일 때 칩 감추기
+            if (!(isSearchMode)) {
+                FilterButtons(
+                    onRequestFilter = { f ->
+                        if (selectedTab == 1) boardViewModel.setFilter(f) else cardViewModel.setFilter(f)
+                    },
+                    onRequestSort = { s ->
+                        if (selectedTab == 1) boardViewModel.setSort(s) else cardViewModel.setSort(s)
+                    },
+                    enabled = !isCardSelectionMode
+                )
+            }
+
             Box(modifier = Modifier.weight(1f)) {
                 when (selectedTab) {
                     0 -> { // 카드 탭 UI 로직
@@ -254,7 +293,7 @@ fun MyBoardScreen(
                             // --- 검색 모드일 때의 UI ---
                             if (isSearching) {
                                 // 1. API 통신 중일 때 (로딩)
-                                EmptyStateUI(iconRes = searchingIcon, message = "검색중..")
+                                SearchingIndicator()
                             } else {
                                 // 2. API 통신이 끝났을 때
                                 if (hasSearched) {
@@ -295,7 +334,7 @@ fun MyBoardScreen(
                         if (isSearchMode) {
                             // --- 검색 모드일 때의 UI ---
                             if (isSearching) {
-                                EmptyStateUI(iconRes = searchingIcon, message = "검색중..")
+                                SearchingIndicator()
                             } else {
                                 if (hasSearched) {
                                     if (boardSearchResults.isEmpty()) {
@@ -413,8 +452,11 @@ fun TitleBar(
     onSearchClose: () -> Unit,
     onSearchSubmit: () -> Unit,
     focusRequester: FocusRequester,
-    isSelectionMode: Boolean
+    isSelectionMode: Boolean,
+    isSearching: Boolean
 ) {
+    // 검색 입력 포커스 상태
+    var searchFocused by remember { mutableStateOf(false) }
     val titleText = if (selectedTab == 0) "나의 카드" else "나의 보드"
 
     Column(modifier = Modifier.padding(top = 27.dp)) {
@@ -451,7 +493,11 @@ fun TitleBar(
                             .height(36.dp)
                             .clip(RoundedCornerShape(7.dp))
                             .background(Color.White)
-                            .border(0.8.dp, Grey50, RoundedCornerShape(7.dp))
+                            .border(
+                                0.8.dp,
+                                if (searchFocused) PurpleMain500 else Grey50,
+                                RoundedCornerShape(7.dp)
+                            )
                             .focusRequester(focusRequester)
                             .padding(horizontal = 12.dp)
                     ) {
@@ -471,14 +517,16 @@ fun TitleBar(
                             BasicTextField(
                                 value = searchText,
                                 onValueChange = onSearchTextChange,
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .onFocusChanged { searchFocused = it.isFocused },
                                 singleLine = true,
                                 textStyle = AppTextStyles.b3_medium_14.copy(
                                     color = MaterialTheme.colorScheme.onSurface
                                 ),
                                 cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                                keyboardActions = KeyboardActions(onSearch = { onSearchSubmit() }),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = { /* no-op: 실시간 검색으로만 처리 */ }),
                                 //플레이스홀더
                                 decorationBox = { inner ->
                                     Box(
@@ -626,7 +674,7 @@ fun EmptyStateUI(modifier: Modifier = Modifier, iconRes: Int, message: String) {
     Column(
         modifier = modifier
             .fillMaxSize() // 화면 전체를 차지하도록 변경
-            .padding(horizontal = 24.dp, vertical = 40.dp),
+            .padding(horizontal = 24.dp, vertical = 60.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center // 세로 방향에서도 중앙 정렬
     ) {
@@ -736,3 +784,29 @@ fun SortFilterButton(
         }
     }
 }
+
+// 로딩 인디케이터
+@Composable
+private fun SearchingIndicator(
+    message: String = "검색 중..."
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp, vertical = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        androidx.compose.material3.CircularProgressIndicator()
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = message,
+            style = AppTextStyles.b2_bold_16,
+            color = Grey1000,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+
+
