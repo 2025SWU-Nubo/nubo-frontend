@@ -142,7 +142,7 @@ fun MarkdownToolbar(
                     )
                 },
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = GreyMain300,
+                    selectedContainerColor = PurpleMain500,
                     selectedLabelColor = Color.White,
                     containerColor = Grey20,
                     labelColor = GreyMain300
