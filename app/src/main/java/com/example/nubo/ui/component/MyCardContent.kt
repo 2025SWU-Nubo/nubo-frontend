@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -92,7 +93,7 @@ fun MyCardContent(
                 // 여기서 각 카드가 선택되었는지 여부를 계산
                 val isSelected = selectedCardIds.contains(item.id)
                 MyMasonryCard(
-                    height = cardHeights.getOrNull(index * 2) ?: 180.dp,
+                    height = cardHeights.getOrNull(index * 2+1) ?: 180.dp,
                     imageUrl = item.imageUrl,
                     onClick = { onCardClick(item.id) },
                     onLongClick = { onCardLongClick(item.id) },
@@ -113,7 +114,7 @@ fun MyMasonryCard(
     imageUrl: String,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    // [추가] 선택 관련 파라미터
+    // 선택 관련 파라미터
     isSelectionMode: Boolean,
     isSelected: Boolean,
     isFavorite: Boolean)
@@ -137,10 +138,16 @@ fun MyMasonryCard(
                 .fillMaxSize()
                 .graphicsLayer(
                     scaleX = 1.2f, // 가로로 1.2배 확대
-                    scaleY = 1.2f  // 세로로 1.2배 확대
+                    scaleY = 1.2f,  // 세로로 1.2배 확대
                 )
-        } else {
-            Modifier.fillMaxSize()
+        } else{
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer(
+                    scaleX = 2.6f,
+                    scaleY = 2.6f,
+                    transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 0.5f)
+                )
         }
 
         AsyncImage(

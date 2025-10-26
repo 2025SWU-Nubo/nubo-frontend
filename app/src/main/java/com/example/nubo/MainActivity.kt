@@ -196,9 +196,14 @@ fun MainScreen(
             val (msg, type, dur) = when (ev) {
                 CardUploadViewModel.UploadEvent.Created ->{
                     // 카드 업로드 성공 시, MyBoardRoute에 새로고침 신호 전송
-                    navController.currentBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("needs_refresh", true)
+                    try {
+                        navController.getBackStackEntry("myboard")
+                            .savedStateHandle
+                            .set("needs_refresh", true)
+                    } catch (e: Exception) {
+                        // myboard 스택이 없는 경우 (거의 없음)
+                        android.util.Log.e("MainVM", "Failed to find myboard backstack entry", e)
+                    }
                     Triple("카드 생성을 완료했어요!", AppToastType.POSITIVE, 1500)
                 }
                 CardUploadViewModel.UploadEvent.AlreadyExists ->
