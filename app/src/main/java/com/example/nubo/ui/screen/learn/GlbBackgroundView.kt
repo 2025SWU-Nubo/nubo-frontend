@@ -61,11 +61,7 @@ data class LoadedNodes(
 fun GlbBackgroundView(
     modifier: Modifier = Modifier,
     glbUrl: String,
-
-    todayVideoCount : Int
-
     onModelLoaded: () -> Unit
-
 ) {
     // --- 애니메이션 대상 노드와 상태 저장 ---
     // 1. 애니메이션을 적용할 노드 리스트
@@ -80,6 +76,7 @@ fun GlbBackgroundView(
 
     // 꽃 저장
     val flowerSwayNodes = remember { mutableStateListOf<Node>() }
+
 
     // 로더 생성
     val context = LocalContext.current
@@ -119,7 +116,7 @@ fun GlbBackgroundView(
                     val e = extents
                     val maxHalf = maxOf(e.x, e.y, e.z)
                     val full = maxHalf * 1f
-                    val target = 5.5f // 전체적인 크기
+                    val target = 6f
                     val factor = if (full > 0f) target / full else 1f
                     scale = Scale(factor)
                     position = Position(0f, -0.45f, z)
@@ -164,55 +161,40 @@ fun GlbBackgroundView(
                 val cloudNodeEye = node.nodes["Face_Eye"]
                 val cloudNodeM = node.nodes["Face_Mouth"]
 
-                val cloudYOffset = -2f
+                val cloudYOffset = -2.7f
                 val cloudXOffset = 0.05f
 
                 // 1. 크기 및 위치 조절 (구름)
                 cloudNode?.let {
-                    it.scale = Scale(1.2f)
-                    it.position = it.position + Position(y = cloudYOffset,z=3f)
-                    cloudFloatNodes.add(it) // <--- 둥실 리스트에 추가
-                    startPositions[it] = it.position // <--- 둥실 애니메이션 시작 위치 저장
+                    it.scale = Scale(1.3f)
+                    it.position = it.position + Position(y = cloudYOffset)
+                    tempClouds.add(it) // [수정] 임시 리스트에 추가
+                    tempPositions[it] = it.position
                 }
                 cloudNodeEye?.let {
                     it.scale = Scale(0.8f)
-                    it.position = it.position + Position(y = cloudYOffset,z=3f)
-                    cloudFloatNodes.add(it) 
-                    startPositions[it] = it.position 
+                    it.position = it.position + Position(y = cloudYOffset)
+                    tempClouds.add(it) // [수정]
+                    tempPositions[it] = it.position
                 }
                 cloudNodeM?.let {
                     it.scale = Scale(0.8f)
-                    it.position = it.position + Position(y = cloudYOffset, x = cloudXOffset,z=3f)
-                    cloudFloatNodes.add(it) 
-                    startPositions[it] = it.position 
+                    it.position = it.position + Position(y = cloudYOffset, x = cloudXOffset)
+                    tempClouds.add(it) // [수정]
+                    tempPositions[it] = it.position
                 }
 
                 val rainStartYOffset = 0.8f
                 val rainNodeNames = listOf(
-                    "Raindrop_01", "Raindrop_04", "Raindrop_03", "Raindrop_02", "Raindrop_05"
+                    "Raindrop_01", "Raindrop_02", "Raindrop_03", "Raindrop_04", "Raindrop_05"
                 )
-
-                // 오늘 카운트에 맞춰 보여줄 물방울 개수 결정
-                // 0개: 0, 1~5개: 카운트만큼, 5개 초과: 5개
-                val dropsToShow = todayVideoCount.coerceAtMost(rainNodeNames.size)
-
-                rainNodeNames.forEachIndexed() { index, name ->
+                rainNodeNames.forEach { name ->
                     node.nodes[name]?.let { drop ->
-                        if (index < dropsToShow) {
-                            // --- 보여야 하는 물방울 ---
-                            drop.isVisible = true // 보이도록 설정
-                            drop.scale = Scale(0.7f)
-
-                            // Y 오프셋을 더한 위치를 시작점으로 저장
-                            val newStartPosition = drop.position + Position(y = rainStartYOffset, z = 3f)
-                            startPositions[drop] = newStartPosition // 수정된 위치를 저장
-
-                            raindropNodes.add(drop)
-
-                        } else {
-                            // --- 숨겨야 하는 물방울 ---
-                            drop.isVisible = false // 숨김 처리
-                        }
+                        drop.scale = Scale(0.7f)
+                        val newStartPosition =
+                            drop.position + Position(y = rainStartYOffset, z = -1f)
+                        tempRaindrops.add(drop) // [수정]
+                        tempPositions[drop] = newStartPosition
                     }
                 }
 
@@ -292,68 +274,27 @@ fun GlbBackgroundView(
             onFrame = { frameTimeNanos ->
                 val timeSeconds = frameTimeNanos / 1_000_000_000.0
 
-                // 1. 물방울 애니메이션 (대기 -> 낙하 -> 바운스 -> 둥실)
-                // --- 애니메이션 단계별 시간 (초) ---
-                val waitDuration = 1.0      // 1. 상단 대기 시간 (단축)
-                val fallDuration = 2.0      // 2. 낙하 시간
-                val bounceDuration = 0.5    // 3. 바운스 시간
-                val floatDuration = 10   // 4. 하단 둥실 시간 (10초 주기를 맞추기 위한 나머지 시간)
-                // --- 총 사이클 ---
-                val totalCycleDuration = waitDuration + fallDuration + bounceDuration + floatDuration
+                // 1. 물방울 애니메이션 (동시 낙하)
+                val fallDistance = -9f
+                val fallDuration = 3.0
+                val waitDuration = 7.0
+                val totalCycleDuration = fallDuration + waitDuration
+                // val rainStaggerSeconds = 1.2 // <--- [삭제] 시간차 제거
 
-                // --- 둥실거림 설정 (구름 로직과 유사) ---
-                val floatAmplitudewater = 0.2f
-                val floatCycleSeconds = 6.0 // 둥실거림 1회전 속도
-                val floatSpeedwater = (2 * PI) / floatCycleSeconds
-
-                // --- 낙하/바운스 거리 ---
-                val fallDistance = -3.0f
-                val bounceHeight = 1.3f
-                val finalRestY = fallDistance + bounceHeight // 최종 위치: -2.0f
-
+                // 'forEachIndexed' -> 'forEach'
                 raindropNodes.forEach { drop ->
                     val startPos = startPositions[drop] ?: return@forEach
 
-                    // 10초 주기로 반복
+                    // 'staggeredTime' -> 'timeSeconds' (시간차 로직 삭제)
                     val timeInCycle = timeSeconds % totalCycleDuration
 
-                    // 둥실거림 Y 오프셋 (항상 계산)
-                    val floatY = sin(timeSeconds * floatSpeedwater).toFloat() * floatAmplitudewater
-
-                    // --- 시간대별로 다른 애니메이션 적용 (총 10초) ---
-                    when {
-                        // 1. 상단 대기 (0 ~ 1.0초)
-                        timeInCycle < waitDuration -> {
-                            drop.position = startPos
-                        }
-
-                        // 2. 낙하 중 (1.0 ~ 3.0초)
-                        timeInCycle < waitDuration + fallDuration -> {
-                            val timeIntoFall = timeInCycle - waitDuration
-                            val progress = timeIntoFall / fallDuration // 0.0 to 1.0
-
-                            // 가속도(ease-in) 적용: progress * progress
-                            val easedProgress = progress * progress
-                            drop.position = startPos + Position(y = (easedProgress * fallDistance).toFloat())
-                        }
-
-                        // 3. 바운스 중 (3.0 ~ 3.5초)
-                        timeInCycle < waitDuration + fallDuration + bounceDuration -> {
-                            val timeIntoBounce = timeInCycle - (waitDuration + fallDuration)
-                            val progress = timeIntoBounce / bounceDuration // 0.0 to 1.0
-
-                            // -4.0f -> -2.0f 로 이동 (선형 보간)
-                            // y = 시작 + (끝 - 시작) * progress
-                            val y = fallDistance + (finalRestY - fallDistance) * progress
-                            drop.position = startPos + Position(y = y.toFloat())
-                        }
-
-                        // 4. 하단 둥실 (3.5 ~ 10.0초)
-                        else -> {
-                            // 최종 위치 (-2.0f) + 둥실거림
-                            drop.position = startPos + Position(y = finalRestY + floatY)
-                        }
+                    var progress = 0.0
+                    if (timeInCycle >= waitDuration) { // 7.0초 ~ 10.0초 사이
+                        val timeIntoFall = timeInCycle - waitDuration
+                        progress = timeIntoFall / fallDuration
                     }
+
+                    drop.position = startPos + Position(y = progress.toFloat() * fallDistance)
                 }
 
                 // 2. 풀잎 - 각도 고정 + 살짝 손 흔들기
@@ -382,8 +323,8 @@ fun GlbBackgroundView(
                 // --- 3. 구름 둥실 애니메이션 ---
 
                 // "아주 조금" (위아래로 움직일 최대 거리)
-                val floatAmplitude = 0.2f
-                // "6초에 한번" 왕복
+                val floatAmplitude = 0.07f
+                // "5초에 한번" 왕복
                 val floatCycleDurationSeconds = 6.0
 
                 val floatSpeed = (2 * PI) / floatCycleDurationSeconds
