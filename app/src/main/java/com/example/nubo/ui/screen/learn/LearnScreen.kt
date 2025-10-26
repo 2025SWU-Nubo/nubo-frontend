@@ -2,6 +2,7 @@ package com.example.nubo.ui.screen.learn
 
 import com.example.nubo.ui.screen.learn.GlbBackgroundView
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
