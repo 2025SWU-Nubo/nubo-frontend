@@ -31,7 +31,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Observer
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import kotlinx.coroutines.flow.collectLatest
 
 /**
  * MyBoardScreen과 관련된 모든 상태와 로직을 관리하는 컨테이너 컴포저블.
@@ -109,6 +108,23 @@ fun MyBoardRoute(
         resetCardSelectionState()
     }
 
+    // --- 다른 화면에서 돌아왔을 때 새로고침을 처리하는 로직 ---
+    LaunchedEffect(Unit) {
+        // MyBoardRoute의 SavedStateHandle에서 "needs_refresh" 값을 관찰
+        val handle = navController.currentBackStackEntry?.savedStateHandle
+        handle?.getLiveData<Boolean>("needs_refresh")?.observeForever { needsRefresh ->
+            if (needsRefresh) {
+                // 나의 보드 탭과 나의 카드 탭의 데이터를 모두 새로고침
+                boardViewModel.refresh()
+                cardViewModel.refresh()
+
+                // 신호를 처리한 후에는 반드시 제거하여 중복 새로고침 방지
+                handle.remove<Boolean>("needs_refresh")
+            }
+        }
+    }
+
+
     // --- 실행 취소 스낵바 상태를 Route에서 관리 ---
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -150,22 +166,6 @@ fun MyBoardRoute(
         onDispose {
             liveData?.removeObserver(observer)
         }
-    }
-
-    // --- 다른 화면에서 돌아왔을 때 새로고침을 처리하는 로직 ---
-    // LaunchedEffect의 키로 기존 savedStateHandle을 사용합니다.
-    LaunchedEffect(savedStateHandle) {
-        savedStateHandle?.getStateFlow("needs_refresh", false)
-            ?.collectLatest { needsRefresh ->
-                if (needsRefresh) {
-                    // 나의 보드 탭과 나의 카드 탭의 데이터를 모두 새로고침
-                    boardViewModel.refresh()
-                    cardViewModel.refresh()
-
-                    // 신호를 처리한 후에는 'false'로 되돌려 중복 새로고침 방지
-                    savedStateHandle.set("needs_refresh", false)
-                }
-            }
     }
 
     // --- 삭제 이벤트 처리 로직을 하나로 통합 및 개선 ---

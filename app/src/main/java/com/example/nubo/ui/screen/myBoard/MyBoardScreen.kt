@@ -124,6 +124,12 @@ fun MyBoardScreen(
         }
     }
 
+
+    // 검색 결과가 바뀔 때도 높이를 다시 계산하도록 키 추가
+    val randomHeights = remember(selectedTab, cardViewModel.cards.value, cardViewModel.searchResults.value) {
+        (if (selectedTab == 0) cardViewModel.searchResults.value else cardViewModel.cards.value).map { randomCardHeight() }
+    }
+
     // 아이콘 리소스를 변수로 정의합니다.
     val noResultsIcon = R.drawable.error_face
     // 검색 중 아이콘
@@ -219,12 +225,6 @@ fun MyBoardScreen(
             handle?.remove<String>("renamed_board_name")
         }
     }
-
-    // 현재 화면에 표시될 카드 리스트를 결정
-    val currentCardList = if (isSearchMode && hasSearched) cardSearchResults else cardViewModel.cards.value
-    // 'currentCardList'가 변경될 때만 카드 높이를 다시 계산하도록 키를 수정합니다.
-    val randomHeights = remember(currentCardList) {
-        currentCardList.map { randomCardHeight() }}
 
     Box(Modifier.fillMaxSize()) {
         Column(
