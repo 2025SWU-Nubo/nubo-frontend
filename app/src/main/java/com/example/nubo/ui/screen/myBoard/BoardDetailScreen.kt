@@ -75,6 +75,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import com.example.components.toast.AppToastHost
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.rememberAppToastHostState
@@ -523,7 +524,10 @@ fun BoardDetailScreen(
         )
     }*/
     // 토스트 UI를 화면에 배치
-    AppToastHost(hostState = toastHostState)
+    AppToastHost(
+        hostState = toastHostState,
+        modifier = Modifier.padding(bottom = 40.dp))
+
 }
 
 @Composable
@@ -587,6 +591,9 @@ fun BoardTitleBar(title: String) {
                 text = decodedTitle,
                 style = headline_regular_26,
                 color = MaterialTheme.colorScheme.onSurface,
+                overflow = TextOverflow.Ellipsis, // 말줄임표 추가
+                maxLines = 1,
+                modifier = Modifier.weight(1f, fill = false) // 남는 공간만 차지
             )
         }
     }

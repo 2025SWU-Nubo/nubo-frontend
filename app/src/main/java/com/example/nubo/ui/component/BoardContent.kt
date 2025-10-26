@@ -32,6 +32,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.AsyncImage
 import com.example.nubo.R
 import com.example.nubo.model.myBoard.BoardItem
@@ -157,7 +158,9 @@ fun BoardCardWithText(
                         text = board.title,
                         style = b2_semibold_16,
                         color = DefaultText,
-                        maxLines = 1
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis, // 말줄임표 추가
+                        modifier = Modifier.weight(1f, fill = false) // 남는 공간만 차지
                     )
                     // 즐겨찾기 아이콘 (빈별/채운별 리소스 교체)
                     Icon(

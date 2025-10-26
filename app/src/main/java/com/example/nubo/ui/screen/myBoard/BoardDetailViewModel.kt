@@ -21,6 +21,7 @@ import com.example.nubo.data.model.UpsertBoardRequest
 import com.example.nubo.data.model.BulkCopyRequest
 import com.example.nubo.data.model.BulkMoveRequest
 import com.example.nubo.data.model.CardDeleteRequest
+import com.example.nubo.data.model.CardRestoreInfo
 import com.example.nubo.data.model.CardRestoreRequest
 import com.example.nubo.data.network.CardService
 import kotlinx.coroutines.async
@@ -70,6 +71,8 @@ class BoardDetailViewModel @Inject constructor(
     private var lastDeletedCardIds: Set<Long> = emptySet()
     // --- 마지막 카드 삭제 유형을 저장하는 변수 ---
     private var lastCardDeleteMode: String = ""
+    // '섹션 삭제' 시 함께 삭제된 카드 정보 (boardId + cardIds)
+    private var lastDeletedCardRestores: List<CardRestoreInfo> = emptyList()
 
     //  토스트 메시지 상태 변수와 초기화 함수
     private val _toastMessage = MutableStateFlow<String?>(null)
@@ -445,6 +448,7 @@ class BoardDetailViewModel @Inject constructor(
         // 삭제 실행 전 임시 변수 초기화
         lastDeletedSectionIds = emptySet()
         lastDeletedCardIds = emptySet()
+        lastDeletedCardRestores = emptyList()
         lastCardDeleteMode = cardDeleteOption
 
         _ui.value = _ui.value.copy(isLoading = true, error = null)
@@ -453,7 +457,9 @@ class BoardDetailViewModel @Inject constructor(
 
             // 삭제된 ID들을 누적해서 담을 변수
             val finalDeletedSectionIds = mutableSetOf<Long>()
-            val finalDeletedCardIds = mutableSetOf<Long>()
+            // 카드 ID를 두 소스에서 따로 받음
+            val finalCardRestores = mutableListOf<CardRestoreInfo>() // (섹션 삭제 시)
+            val finalDeletedCardIdsFromCardJob = mutableSetOf<Long>() // (카드 삭제 시)
 
             coroutineScope {
                 // 섹션 삭제 API 호출
@@ -467,7 +473,8 @@ class BoardDetailViewModel @Inject constructor(
                         if (response.isSuccessful && response.body() != null) {
                             response.body()!!.forEach {
                                 finalDeletedSectionIds.add(it.boardId)
-                                finalDeletedCardIds.addAll(it.deletedCardIds)
+                                // CardRestoreInfo 리스트를 저장
+                                finalCardRestores.addAll(it.cardRestores)
                             }
                             true // 성공
                         } else false // 실패
@@ -484,7 +491,8 @@ class BoardDetailViewModel @Inject constructor(
                         val response = cardService.deleteCards(token, request)
                         if (response.isSuccessful && response.body() != null) {
                             response.body()!!.results.forEach {
-                                finalDeletedCardIds.add(it.cardId.toLong())
+                                // '카드만 삭제' ID를 별도 변수에 저장
+                                finalDeletedCardIdsFromCardJob.add(it.cardId.toLong())
                             }
                             true // 성공
                         } else false // 실패
@@ -497,7 +505,9 @@ class BoardDetailViewModel @Inject constructor(
                 if (boardResult && cardResult) {
                     // 모든 삭제 작업 성공 시, 최종 ID들을 상태 변수에 저장
                     lastDeletedSectionIds = finalDeletedSectionIds
-                    lastDeletedCardIds = finalDeletedCardIds
+                    // 두 변수에 나누어 저장
+                    lastDeletedCardRestores = finalCardRestores
+                    lastDeletedCardIds = finalDeletedCardIdsFromCardJob
 
                     val deletedCount = selectedSectionIds.size + selectedCardIds.size
                     _deleteCompleteEvent.emit(deletedCount)
@@ -513,38 +523,42 @@ class BoardDetailViewModel @Inject constructor(
             // 실패 시 임시 ID 초기화
             lastDeletedSectionIds = emptySet()
             lastDeletedCardIds = emptySet()
+            lastDeletedCardRestores = emptyList()
             lastCardDeleteMode = ""
         }
     }
 
     // --- 삭제 실행 취소(복구) 함수 (API 통합) ---
     suspend fun undoLastDeletion() {
-        if (lastDeletedSectionIds.isEmpty() && lastDeletedCardIds.isEmpty()) return
+        // 새 변수까지 함께 체크
+        if (lastDeletedSectionIds.isEmpty() && lastDeletedCardIds.isEmpty() && lastDeletedCardRestores.isEmpty()) return
 
         _ui.value = _ui.value.copy(isLoading = true, error = null)
         try {
             val token = "Bearer ${authRepository.getAccessToken()}"
-            // cardRestore 객체를 먼저 생성합니다.
-            val cardRestoreData = if (lastDeletedCardIds.isNotEmpty()) {
-                // boardId 로직:
-                // 1. 삭제된 섹션이 있으면(lastDeletedSectionIds), 그 중 첫 번째 ID를 boardId로 사용
-                // 2. 삭제된 섹션이 없고 카드만 삭제되었다면, 현재 보드 ID(currentBoardId)를 사용
-                val boardIdForRestore = lastDeletedSectionIds.firstOrNull() ?: currentBoardId.toLong()
+            // cardRestores 리스트를 조합
+            val allCardRestores = mutableListOf<CardRestoreInfo>()
 
-                CardRestoreRequest(
-                    cardIds = lastDeletedCardIds.toList(),
-                    boardId = boardIdForRestore,
-                    deleteMode = lastCardDeleteMode // 저장해둔 카드 삭제 모드 사용
+            // 2-1. 섹션과 함께 삭제된 카드들 (List<CardRestoreInfo>)
+            allCardRestores.addAll(lastDeletedCardRestores)
+
+            // 2-2. 카드만 삭제된 것들 (lastDeletedCardIds)
+            if (lastDeletedCardIds.isNotEmpty()) {
+                // 이 카드들은 현재 보드(currentBoardId) 소속으로 간주
+                allCardRestores.add(
+                    CardRestoreInfo(
+                        cardIds = lastDeletedCardIds.toList(),
+                        boardId = currentBoardId.toLong()
+                        // (참고: lastCardDeleteMode는 '카드 복구' API용)
+                    )
                 )
-            } else {
-                null // 복구할 카드가 없으면 null
             }
 
             // 복구 요청 DTO 생성
             val request = BoardRestoreRequest(
                 boardIds = lastDeletedSectionIds.toList(), // 섹션 ID는 boardIds 필드에 담김
                 sectionIds = emptyList(), // 상세화면에서는 섹션만 삭제하므로 sectionIds는 비워둠
-                cardRestore = cardRestoreData // 'cardIds' 대신 'cardRestore' 객체 전달
+                cardRestores = allCardRestores // 조합된 리스트 전달
             )
 
             // 통합된 복구 API 호출
@@ -577,6 +591,7 @@ class BoardDetailViewModel @Inject constructor(
             // 성공/실패 여부와 관계없이 임시 ID는 모두 비움
             lastDeletedSectionIds = emptySet()
             lastDeletedCardIds = emptySet()
+            lastDeletedCardRestores = emptyList()
             lastCardDeleteMode = ""
             _ui.value = _ui.value.copy(isLoading = false)
         }
