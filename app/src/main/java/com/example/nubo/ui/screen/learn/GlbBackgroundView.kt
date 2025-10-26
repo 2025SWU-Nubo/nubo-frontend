@@ -34,21 +34,11 @@ import okhttp3.Request
 import java.io.File
 import java.io.IOException
 import io.github.sceneview.rememberCameraNode
+import io.github.sceneview.rememberEnvironmentLoader
 import io.github.sceneview.rememberMainLightNode
 import kotlin.math.PI
 import kotlin.math.sin
 
-/**
- *  백그라운드 스레드의 모든 작업 결과를 담을 데이터 클래스
- */
-data class LoadedNodes(
-    val rootNode: ModelNode,
-    val raindrops: List<Node>,
-    val leaves: List<Node>,
-    val clouds: List<Node>,
-    val flowers: List<Node>,
-    val positions: Map<Node, Position>
-)
 
 /**
  * URL로부터 .glb 파일을 로드하여 화면 배경에 3D 모델을 렌더링하는 Composable
@@ -61,11 +51,7 @@ data class LoadedNodes(
 fun GlbBackgroundView(
     modifier: Modifier = Modifier,
     glbUrl: String,
-
     todayVideoCount : Int
-
-    onModelLoaded: () -> Unit
-
 ) {
     // --- 애니메이션 대상 노드와 상태 저장 ---
     // 1. 애니메이션을 적용할 노드 리스트
@@ -103,36 +89,34 @@ fun GlbBackgroundView(
     LaunchedEffect(glbUrl) {
         isLoading = true
         try {
-            //1. IO 스레드에서 모든 무거운 작업을 처리하고, 'LoadedNodes' 결과만 반환
-            val loadedData: LoadedNodes = withContext(Dispatchers.IO) {
-                Log.d("GlbBackgroundView", "모델 로딩 및 노드 설정 시작 (IO 스레드)")
+            val localFile = downloadGlbToCache(context, glbUrl)
 
-                // --- 1. 모델 다운로드 및 로딩 ---
-                val localFile = downloadGlbToCache(context, glbUrl)
-                val fileUri = localFile.toUri().toString()
-                val modelInstance = modelLoader.loadModelInstance(fileUri)
-                    ?: throw IOException("ModelInstance 로딩 실패")
+            // localFile.path 대신, 'file://' URI 문자열을 생성
+            val fileUri = localFile.toUri().toString()
 
-                // --- 2. ModelNode 생성 및 기본 설정 ---
-                val node = ModelNode(modelInstance = modelInstance).apply {
+            // modelLoader에 fileUri를 전달
+            val modelInstance = modelLoader.loadModelInstance(fileUri)
+
+            modelInstance?.let { instance -> // 'it'의 이름도 instance로 명확하게 변경
+                // 이제 'instance'는 ModelInstance 타입
+                val node = ModelNode(modelInstance = instance).apply {
+                    // ... (크기/위치 조절 코드) ...
                     var z = -1f
                     val e = extents
                     val maxHalf = maxOf(e.x, e.y, e.z)
                     val full = maxHalf * 1f
                     val target = 5.5f // 전체적인 크기
                     val factor = if (full > 0f) target / full else 1f
-                    scale = Scale(factor)
-                    position = Position(0f, -0.45f, z)
+                    scale = io.github.sceneview.math.Scale(factor)
+                    position = io.github.sceneview.math.Position(0f, -0.45f, z)
                 }
 
-                // [수정] 3. Compose 상태가 아닌 '임시' 리스트에 노드를 담음
-                val tempRaindrops = mutableListOf<Node>()
-                val tempLeaves = mutableListOf<Node>()
-                val tempClouds = mutableListOf<Node>()
-                val tempFlowers = mutableListOf<Node>()
-                val tempPositions = mutableMapOf<Node, Position>()
-
                 // --- 노드 검색, 크기 조절, 리스트에 추가 ---
+                // 1. 기존 애니메이션 노드 리스트 초기화
+                raindropNodes.clear()
+                leafNodes.clear()
+                startPositions.clear()
+                cloudFloatNodes.clear()
 
                 /*// --- 1. 라이트 노드 검색 및 배치 ---
                 val lightX = -4f // 좌측
@@ -171,23 +155,27 @@ fun GlbBackgroundView(
                 cloudNode?.let {
                     it.scale = Scale(1.2f)
                     it.position = it.position + Position(y = cloudYOffset,z=3f)
-                    cloudFloatNodes.add(it) // <--- 둥실 리스트에 추가
-                    startPositions[it] = it.position // <--- 둥실 애니메이션 시작 위치 저장
+                    cloudFloatNodes.add(it) // <--- [추가] 둥실 리스트에 추가
+                    startPositions[it] = it.position // <--- [추가] 둥실 애니메이션 시작 위치 저장
                 }
+                // (눈)
                 cloudNodeEye?.let {
                     it.scale = Scale(0.8f)
                     it.position = it.position + Position(y = cloudYOffset,z=3f)
-                    cloudFloatNodes.add(it) 
-                    startPositions[it] = it.position 
+                    cloudFloatNodes.add(it) // <--- [추가]
+                    startPositions[it] = it.position // <--- [추가]
                 }
+                // (입)
                 cloudNodeM?.let {
                     it.scale = Scale(0.8f)
                     it.position = it.position + Position(y = cloudYOffset, x = cloudXOffset,z=3f)
-                    cloudFloatNodes.add(it) 
-                    startPositions[it] = it.position 
+                    cloudFloatNodes.add(it) // <--- [추가]
+                    startPositions[it] = it.position // <--- [추가]
                 }
 
                 val rainStartYOffset = 0.8f
+
+                // 3. 물방울 찾기, 크기 조절, 리스트에 저장
                 val rainNodeNames = listOf(
                     "Raindrop_01", "Raindrop_04", "Raindrop_03", "Raindrop_02", "Raindrop_05"
                 )
@@ -216,57 +204,32 @@ fun GlbBackgroundView(
                     }
                 }
 
+                // 4. 풀잎 찾기, 리스트에 저장
                 val leafNodeNames = listOf("Flower_Leaf_01", "Flower_Leaf_02")
                 leafNodeNames.forEach { name ->
                     node.nodes[name]?.let { leaf ->
-                        tempLeaves.add(leaf) // [수정]
-                        tempPositions[leaf] = leaf.position
+                        leafNodes.add(leaf)
+                        startPositions[leaf] = leaf.position // <--- 풀잎 시작 위치 저장
                     }
                 }
 
+                // 5. 꽃 찾기
                 node.nodes["Flower"]?.let { bell ->
-                    tempFlowers.add(bell) // [수정]
-                    tempPositions[bell] = bell.position
+                    flowerSwayNodes.add(bell)
+                    startPositions[bell] = bell.position // 시작 위치 저장
                 }
+                // --- 노드 검색, 크기 조절, 리스트에 추가 ---
 
-                // [수정] 4. withContext의 결과로 LoadedNodes 객체를 반환
-                LoadedNodes(
-                    rootNode = node,
-                    raindrops = tempRaindrops,
-                    leaves = tempLeaves,
-                    clouds = tempClouds,
-                    flowers = tempFlowers,
-                    positions = tempPositions
-                )
-            } // [ IO 스레드 종료 ]
-
-            // [수정] 2. 메인 스레드로 돌아온 후, Compose 상태 리스트들을 업데이트
-            Log.d("GlbBackgroundView", "백그라운드 작업 완료. Compose 상태 업데이트")
-            raindropNodes.clear()
-            raindropNodes.addAll(loadedData.raindrops)
-
-            leafNodes.clear()
-            leafNodes.addAll(loadedData.leaves)
-
-            cloudFloatNodes.clear()
-            cloudFloatNodes.addAll(loadedData.clouds)
-
-            flowerSwayNodes.clear()
-            flowerSwayNodes.addAll(loadedData.flowers)
-
-            startPositions.clear()
-            startPositions.putAll(loadedData.positions)
-
-            childNodes.clear()
-            childNodes.add(loadedData.rootNode)
-
+                childNodes.clear()
+                childNodes.add(node)
+            }
         } catch (e: Exception) {
             e.printStackTrace()
+            //오류 발생 시 로그를 남겨서 원인을 확인
             Log.e("GlbBackgroundView", "모델 로딩 실패", e)
             childNodes.clear()
         } finally {
             isLoading = false
-            onModelLoaded() // 로딩 완료 콜백 호출
         }
     }
 
@@ -372,8 +335,7 @@ fun GlbBackgroundView(
                     if (startPos != null) leaf.position = startPos
 
                     // 2. sin() 값으로 좌우 흔들림(Z축) 각도 계산
-                    val sway =
-                        sin(timeSeconds * leafSpeed + (index * leafTimeOffset)).toFloat() * leafAngle
+                    val sway = sin(timeSeconds * leafSpeed + (index * leafTimeOffset)).toFloat() * leafAngle
 
                     // 4. X축(0), Y축(고정), Z축(애니메이션) 적용
                     leaf.rotation = Rotation(x = 50f, y = 0f, z = sway)
@@ -396,7 +358,7 @@ fun GlbBackgroundView(
                 }
 
                 // ---  4. 꽃(종) 스윙 애니메이션 ---
-                val bellAngle = 5f // 좌우로 흔들릴 각도
+                val bellAngle = 6f // 좌우로 흔들릴 각도 (15도)
                 val bellCycleDuration = 8.0 // 6초에 1번 왕복 (살랑살랑)
 
                 val bellSpeed = (2 * PI) / bellCycleDuration
@@ -411,8 +373,8 @@ fun GlbBackgroundView(
 
             },
         )
-        // 플레이스홀더가 사라진 후, 모델 파싱이 끝나기 전까지
-        // 잠깐 노출될 수 있는 내부 로딩 인디케이터
+
+        // 로딩 인디케이터 (맨 앞)
         if (isLoading) {
             CircularProgressIndicator(Modifier.align(Alignment.Center))
         }
