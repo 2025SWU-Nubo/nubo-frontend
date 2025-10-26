@@ -44,6 +44,8 @@ import com.example.nubo.ui.theme.Grey20
 import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.GreyMain300
+import com.example.nubo.ui.theme.Purple200
+import com.example.nubo.ui.theme.Purple300
 import com.example.nubo.ui.theme.Purple50
 import kotlin.collections.chunked
 
@@ -128,17 +130,23 @@ fun BoardCardWithText(
                     )
                 } else {
                     // 썸네일이 비어있을 때
+                    AsyncImage(
+                        model = board.imageUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop // 가운데부터 꽉 차게
+                    )
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Purple50, RoundedCornerShape(12.dp)) // 배경색을 Grey10으로 변경
+                            .background(Purple50, RoundedCornerShape(12.dp))
                             .clip(RoundedCornerShape(12.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.nubo_logo), // 아이콘을 nubo_logo로 변경
                             contentDescription = null,
-                            tint = Color.Unspecified, //  tint 제거
+                            tint = Purple300, //  연한 보라
                             modifier = Modifier.size(100.dp) // 로고 크기 조절
                         )
                     }
