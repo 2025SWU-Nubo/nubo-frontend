@@ -37,29 +37,12 @@ fun BottomSheetHost(
     onBackToAddMenu: () -> Unit,
     onBackToCreateBoard: ()-> Unit,
     onInviteComplete: (List<String>) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showToast: (String, AppToastType, Int,Int) -> Unit
 ) {
     if (route == null) return
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    val toastHost = rememberAppToastHostState()
-    val toastScope = rememberCoroutineScope()
-
-    // 오버레이도 바깥에 한 번만
-    AppToastOverlay(hostState = toastHost)
-
-    // 공통 람다
-    val showToast: (String, AppToastType, Int) -> Unit = { msg, type, duration ->
-        toastScope.launch {
-            toastHost.show(
-                title = AnnotatedString(msg),
-                type = type,
-                layout = AppToastLayout.TitleOnly,
-                durationMillis = duration
-            )
-        }
-    }
 
     // 참여자 초대 상대 관리
     var invitedEmails by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
@@ -70,37 +53,20 @@ fun BottomSheetHost(
 
     val context = LocalContext.current
 
-//    LaunchedEffect(ui.created) {
-//        ui.created?.let { created ->
-//            val typeKo = if (ui.isShared) "공유" else "개인"
-//            Toast.makeText(
-//                context,
-//                "‘${created.name}’ ${if (ui.isShared) "공유" else "개인"} 보드를 생성했어요.",
-//                Toast.LENGTH_SHORT
-//            ).show()
-//            // 1) 상위에 알림 (여기서는 상위가 리스트 새로고침 등을 하도록 name/shared 전달)
-//            onCreateBoard(ui.name.trim(), ui.isShared)
-//            // 2) VM 내부 created 신호 소비 및 입력 초기화
-//            createBoardViewModel.consumeCreated()
-//            // 3) 시트 닫기
-//            onDismiss()
-//        }
-//    }
-
     // 성공 처리 (토스트 이후 상위 알림도 생성 결과 이름 사용 권장)
     LaunchedEffect(ui.created) {
         ui.created?.let { created ->
-            Toast.makeText(
-                context,
+            showToast(
                 "‘${created.name}’ ${if (ui.isShared) "공유" else "개인"} 보드를 생성했어요.",
-                Toast.LENGTH_SHORT
-            ).show()
-            onCreateBoard(created.name, ui.isShared)   // ← ui.name.trim() 대신 created.name 사용
+                AppToastType.POSITIVE,
+                1800,
+                550
+            )
+            onCreateBoard(created.name, ui.isShared)
             createBoardViewModel.consumeCreated()
             onDismiss()
         }
     }
-
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -125,10 +91,6 @@ fun BottomSheetHost(
             },
             label = "BottomSheetSwitch"
         ) { target ->
-            val toastHost = rememberAppToastHostState()
-// 전역 오버레이는 화면 맨 위에
-            AppToastOverlay(hostState = toastHost)
-
             when (target) {
                 SheetRoute.AddMenu -> AddMenuSheet(
                     onClose = onDismiss,

@@ -99,6 +99,8 @@ fun NotificationSetScreen(
                     ToastKind.POSITIVE -> AppToastType.POSITIVE
                     ToastKind.NEGATIVE -> AppToastType.NEGATIVE
                     ToastKind.NORMAL   -> AppToastType.NORMAL
+                    ToastKind.ALARM_ALLOW   -> AppToastType.ALARM_ALLOWED
+                    ToastKind.ALARM_DENY -> AppToastType.ALARM_DENIED
                 }
                 toastHost.show(
                     title = AnnotatedString(ev.message),

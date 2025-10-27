@@ -81,9 +81,9 @@ class OnBoardingLoginActivity : ComponentActivity() {
     private val requestNotificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (granted) {
-                viewModel.toast("알림 권한이 허용되었어요.⏰", AppToastType.POSITIVE)
+                viewModel.toast("알림 권한이 허용되었어요.", AppToastType.ALARM_ALLOWED)
             } else {
-                viewModel.toast("알림 권한이 거부되었어요.", AppToastType.NEGATIVE)
+                viewModel.toast("알림 권한이 거부되었어요.", AppToastType.ALARM_DENIED)
             }
             viewModel.onLoginNotificationPermissionHandled()
         }

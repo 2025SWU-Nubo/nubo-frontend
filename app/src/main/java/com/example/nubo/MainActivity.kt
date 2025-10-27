@@ -180,7 +180,19 @@ fun MainScreen(
 
     val toastHost = rememberAppToastHostState()
     val toastScope = rememberCoroutineScope()
-    AppToastOverlay(hostState = toastHost,extraBottomOffset = 72.dp)
+    AppToastOverlay(hostState = toastHost,extraBottomOffset = 54.dp)
+
+    val showToast: (String, AppToastType, Int,Int) -> Unit = { msg, type, duration,preDelay ->
+        toastScope.launch {
+            toastHost.show(
+                title = AnnotatedString(msg),
+                type = type,
+                layout = AppToastLayout.TitleOnly,
+                durationMillis = duration,
+                preDelayMillis = preDelay
+            )
+        }
+    }
 
     val cardUploadVm: CardUploadViewModel = hiltViewModel()
 
@@ -708,6 +720,7 @@ fun MainScreen(
         }
     }
 
+
     BottomSheetHost(
         route = sheetRoute,
         onDismiss = { sheetRoute = null },
@@ -725,7 +738,8 @@ fun MainScreen(
         onBackToCreateBoard = { sheetRoute = SheetRoute.CreateBoard },
         onInviteComplete = { emails ->
             // TODO Submit invites via ViewModel
-        }
+        },
+        showToast = showToast
     )
 }
 
