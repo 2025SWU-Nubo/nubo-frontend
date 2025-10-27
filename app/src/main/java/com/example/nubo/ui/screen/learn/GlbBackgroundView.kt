@@ -138,7 +138,7 @@ fun GlbBackgroundView(
                     light.position = Position(x = lightX + 1.0f, y = lightY - 3.0f, z = lightZ)
                 }
 
-                // 4. [추가] 언덕 강조용 조명
+                // 4. 언덕 강조용 조명
                 node.nodes["Hill Point"]?.let { light ->
                     light.position = Position(x = lightX + 1.5f, y = lightY - 3.0f, z = lightZ)
                 }*/
@@ -153,22 +153,22 @@ fun GlbBackgroundView(
 
                 // 1. 크기 및 위치 조절 (구름)
                 cloudNode?.let {
-                    it.scale = Scale(1.3f)
-                    it.position = it.position + Position(y = cloudYOffset,z=3f)
+                    it.scale = Scale(1.2f)
+                    it.position = it.position + Position(y = cloudYOffset,z=3.2f)
                     cloudFloatNodes.add(it) // <--- [추가] 둥실 리스트에 추가
                     startPositions[it] = it.position // <--- [추가] 둥실 애니메이션 시작 위치 저장
                 }
                 // (눈)
                 cloudNodeEye?.let {
                     it.scale = Scale(0.8f)
-                    it.position = it.position + Position(y = cloudYOffset,z=3f)
+                    it.position = it.position + Position(y = cloudYOffset,z=3.2f)
                     cloudFloatNodes.add(it) // <--- [추가]
                     startPositions[it] = it.position // <--- [추가]
                 }
                 // (입)
                 cloudNodeM?.let {
                     it.scale = Scale(0.8f)
-                    it.position = it.position + Position(y = cloudYOffset, x = cloudXOffset,z=3f)
+                    it.position = it.position + Position(y = cloudYOffset, x = cloudXOffset,z=3.2f)
                     cloudFloatNodes.add(it) // <--- [추가]
                     startPositions[it] = it.position // <--- [추가]
                 }
@@ -192,7 +192,7 @@ fun GlbBackgroundView(
                             drop.scale = Scale(0.7f)
 
                             // Y 오프셋을 더한 위치를 시작점으로 저장
-                            val newStartPosition = drop.position + Position(y = rainStartYOffset, z = 3f)
+                            val newStartPosition = drop.position + Position(y = rainStartYOffset, z = 2.5f)
                             startPositions[drop] = newStartPosition // 수정된 위치를 저장
 
                             raindropNodes.add(drop)
@@ -256,8 +256,8 @@ fun GlbBackgroundView(
                 val timeSeconds = frameTimeNanos / 1_000_000_000.0
 
                 // --- 둥실거림 설정 (구름 로직과 유사) ---
-                val floatAmplitudewater = 0.2f
-                val floatCycleSeconds = 6.0 // 둥실거림 1회전 속도
+                val floatAmplitudewater = 0.1f
+                val floatCycleSeconds = 5.0 // 둥실거림 1회전 속도
                 val floatSpeedwater = (2 * PI) / floatCycleSeconds
 
                 raindropNodes.forEach { drop ->
@@ -296,7 +296,7 @@ fun GlbBackgroundView(
                 // --- 3. 구름 둥실 애니메이션 ---
 
                 // "아주 조금" (위아래로 움직일 최대 거리)
-                val floatAmplitude = 0.2f
+                val floatAmplitude = 0.1f
                 // "6초에 한번" 왕복
                 val floatCycleDurationSeconds = 6.0
 
@@ -310,8 +310,8 @@ fun GlbBackgroundView(
                 }
 
                 // ---  4. 꽃(종) 스윙 애니메이션 ---
-                val bellAngle = 6f // 좌우로 흔들릴 각도 (15도)
-                val bellCycleDuration = 8.0 // 6초에 1번 왕복 (살랑살랑)
+                val bellAngle = 6f // 좌우로 흔들릴 각도 (6도)
+                val bellCycleDuration = 6.0 // 6초에 1번 왕복 (살랑살랑)
 
                 val bellSpeed = (2 * PI) / bellCycleDuration
                 val bellSway = sin(timeSeconds * bellSpeed).toFloat() * bellAngle

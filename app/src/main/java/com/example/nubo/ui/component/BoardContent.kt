@@ -151,6 +151,18 @@ fun BoardCardWithText(
                         )
                     }
                 }
+                // board.source가 "ai"일 경우 좌측 상단에 아이콘 표시
+                if (board.source == "AI") {
+                    Icon(
+                        painter = painterResource(id = R.drawable.board_ai_mark),
+                        contentDescription = "AI 보드 마크",
+                        tint = Color.Unspecified, // 원본 드로어블 색상 사용
+                        modifier = Modifier
+                            .align(Alignment.TopStart) // 좌측 상단 정렬
+                            .padding(start = 8.dp) // 패딩
+                            .size(32.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(6.dp))

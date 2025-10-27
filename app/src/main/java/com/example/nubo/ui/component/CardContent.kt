@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
 import com.example.nubo.data.model.CardResponse
@@ -52,8 +54,7 @@ fun CardContent(cards: List<CardResponse>,
 
     Row(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+            .fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Column(
@@ -92,13 +93,31 @@ fun MasonryCard(item: CardItem, onClick: () -> Unit) {
             .clickable { onClick() }, // 클릭 시 전면 상세 스크린 오픈
         contentAlignment = Alignment.Center
     ) {
+
+        // 높이가 300dp일 때만 이미지를 1.2배 확대하는 Modifier 적용
+        val imageModifier = if (item.height == 300.dp) { // 'item.height'로 조건 변경
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer(
+                    scaleX = 1.2f, // 가로로 1.2배 확대
+                    scaleY = 1.2f,  // 세로로 1.2배 확대
+                )
+        } else{
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer(
+                    scaleX = 2.6f,
+                    scaleY = 2.6f,
+                    transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 0.5f)
+                )
+        }
+
         AsyncImage(
             model = item.imageUrl,
             contentDescription = item.title,
             contentScale = ContentScale.Crop,
-            modifier = Modifier
+            modifier = imageModifier
                 .fillMaxSize()
-                .clip(RoundedCornerShape(12.dp))
         )
     }
 }
