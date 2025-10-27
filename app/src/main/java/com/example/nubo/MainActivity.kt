@@ -55,6 +55,7 @@ import com.example.nubo.ui.screen.card.CardDetailViewModel
 import com.example.nubo.ui.screen.cardupload.CardUploadViewModel
 import com.example.nubo.ui.screen.editCard.EditCardRoute
 import com.example.nubo.ui.screen.home.HomeScreen
+import com.example.nubo.ui.screen.home.HomeViewModel
 import com.example.nubo.ui.screen.learn.LearnScreen
 import com.example.nubo.ui.screen.myBoard.ActionsContent
 import com.example.nubo.ui.screen.myBoard.BoardAction
@@ -190,7 +191,7 @@ fun MainScreen(
 
             val (msg, type, dur) = when (ev) {
                 CardUploadViewModel.UploadEvent.Started ->
-                    Triple("카드 생성 중이에요", AppToastType.NORMAL, 1200)
+                    Triple("카드 생성 중이에요", AppToastType.UPLOAD, 1200)
                 CardUploadViewModel.UploadEvent.Succeeded ->
                     Triple("카드 생성을 완료했어요!", AppToastType.POSITIVE, 1500)
                 CardUploadViewModel.UploadEvent.AlreadyExists ->
@@ -205,6 +206,15 @@ fun MainScreen(
                     layout = AppToastLayout.TitleOnly,
                     durationMillis = dur
                 )
+            }
+
+            // 업로드 성공/이미 있음 -> 홈에게 새로고침 신호 발사
+            if (ev is CardUploadViewModel.UploadEvent.Succeeded ||
+                ev is CardUploadViewModel.UploadEvent.AlreadyExists
+            ) {
+                // 홈 목적지에 time-based tick으로 신호(같은 값 중복 방지)
+                navController.getBackStackEntry("home")
+                    .savedStateHandle["refresh_home"] = System.currentTimeMillis()
             }
         }
     }
@@ -270,7 +280,25 @@ fun MainScreen(
                 startDestination = "home",
                 modifier = Modifier.fillMaxSize()
             ) {
-                composable("home") {
+                composable("home") { backStackEntry ->
+                    val homeVm: HomeViewModel = hiltViewModel(backStackEntry)
+
+                    // Main에서 쏜 신호를 StateFlow로 구독
+                    val refreshFlow = remember(backStackEntry) {
+                        backStackEntry.savedStateHandle.getStateFlow("refresh_home", 0L)
+                    }
+
+                    // 신호가 오면 즉각 홈 데이터 갱신
+                    LaunchedEffect(Unit) {
+                        refreshFlow
+                            .drop(1) // 초기값 0L은 무시
+                            .collectLatest {
+                                // 현재 칩 선택 유지한 채 카드 새로고침 + 최근 본 보드도 갱신
+                                homeVm.refreshForCurrentSelection()
+                                homeVm.loadRecentBoards()
+                            }
+                    }
+
                     HomeScreen(
                         modifier = Modifier
                             .padding(innerPadding)
@@ -284,7 +312,6 @@ fun MainScreen(
                             navController.navigate("board_detail/$boardId/$encoded")
                         },
                         onOpenCardDetail = { id -> navController.navigate("card_detail/$id") },
-                        // top-right notification button on Home
                         onNotificationsClick = {
                             navController.navigate("notification") {
                                 launchSingleTop = true

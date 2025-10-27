@@ -62,7 +62,7 @@ enum class AppToastLayout { TitleOnly, TitleWithSummary, TitleWithBody }
 //  - NEGATIVE : 흰 배경 + 좌측 에러 아이콘 강제 노출
 //  - NORMAL/POSITIVE: 흰 배경
 // ──────────────────────────────────────────────────────────────
-enum class AppToastType { NORMAL, POSITIVE, NEGATIVE, FAVORITE, AI_RESULT }
+enum class AppToastType { NORMAL, POSITIVE, NEGATIVE, FAVORITE, AI_RESULT,UPLOAD }
 
 // ──────────────────────────────────────────────────────────────
 
@@ -114,6 +114,7 @@ fun defaultToastStyleProvider(): (AppToastType) -> AppToastStyle = { t ->
         AppToastType.POSITIVE,
         AppToastType.NEGATIVE,
         AppToastType.FAVORITE,
+        AppToastType.UPLOAD
         -> AppToastStyle(
             bg = Color.White,
             titleColor = Color.Black,
@@ -130,6 +131,7 @@ fun defaultToastStyleProvider(): (AppToastType) -> AppToastStyle = { t ->
 private val DEFAULT_FAVORITE_ICON_RES = R.drawable.ic_board_fillstar
 private val DEFAULT_ERROR_ICON_RES = R.drawable.error_toast
 private val DEFAULT_POSITIVE_ICON_RES = R.drawable.check
+private val DEFAULT_UPLOAD_ICON_RES = R.drawable.upload_light
 
 // ──────────────────────────────────────────────────────────────
 // 호스트 상태 (순차 처리 + 표시 지연 + exit 버퍼)
@@ -249,12 +251,14 @@ fun AppToastHost(
             val isFavorite = t.type == AppToastType.FAVORITE
             val isNegative = t.type == AppToastType.NEGATIVE
             val isPositive = t.type == AppToastType.POSITIVE
+            val isUpload = t.type == AppToastType.UPLOAD
             // 아이콘 리소스
             val effectiveIconRes: Int? = when {
                 t.iconRes != null -> t.iconRes
                 isFavorite -> DEFAULT_FAVORITE_ICON_RES
                 isNegative -> DEFAULT_ERROR_ICON_RES
                 isPositive -> DEFAULT_POSITIVE_ICON_RES
+                isUpload -> DEFAULT_UPLOAD_ICON_RES
                 else -> null
             }
 
