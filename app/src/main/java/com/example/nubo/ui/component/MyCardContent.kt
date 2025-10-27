@@ -123,7 +123,7 @@ fun MyMasonryCard(
         modifier = Modifier
             .width(182.dp)
             .height(height)
-            .clip(RoundedCornerShape(12.dp)) // 확대된 이미지를 잘라내는 역할
+            .clip(RoundedCornerShape(8.dp)) // 확대된 이미지를 잘라내는 역할
             .background(Grey50)
             .combinedClickable(
                 onClick = onClick,
@@ -159,13 +159,12 @@ fun MyMasonryCard(
         //---- 즐겨찾기 추가 ---
         if (isFavorite) {
             Icon(
-                painter = painterResource(id = R.drawable.ic_board_fillstar),
+                painter = painterResource(id = R.drawable.card_favorite_new),
                 contentDescription = "즐겨찾기",
                 tint = Color.Unspecified, // 아이콘 원본 색상 사용
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = 12.dp, end = 12.dp)
-                    .size(24.dp) // 아이콘 크기 지정
+                    .padding(top = 10.dp, end = 10.dp)
             )
         }
         // --- 선택 모드 오버레이 ---

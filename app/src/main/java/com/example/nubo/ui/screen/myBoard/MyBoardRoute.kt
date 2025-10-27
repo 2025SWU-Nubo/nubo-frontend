@@ -1,5 +1,6 @@
 package com.example.nubo.ui.screen.myBoard
 
+import android.os.Parcelable
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.WindowInsets
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Observer
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.parcelize.Parcelize
 
 /**
  * MyBoardScreen과 관련된 모든 상태와 로직을 관리하는 컨테이너 컴포저블.
@@ -123,30 +125,31 @@ fun MyBoardRoute(
     //    (lifecycleOwner나 savedStateHandle이 변경될 때마다 이펙트를 재실행)
     DisposableEffect(lifecycleOwner, savedStateHandle) {
 
-        // 4. 관찰자(Observer) 로직을 정의합니다.
-        val observer = Observer<Int> { count ->
-            if (count > 0) {
+        // Int 대신 BoardDeleteEvent를 관찰
+        val observer = Observer<BoardDeleteEvent> { event ->
+
+            // event가 null이 아니고 count가 0보다 클 때만 실행
+            if (event != null && event.count > 0) {
                 scope.launch {
                     val result = snackbarHostState.showSnackbar(
-                        message = "${count}개의 보드가 삭제되었습니다.",
+                        message = "${event.count}개의 보드가 삭제되었습니다.", // <--- event.count 사용
                         actionLabel = "실행 취소",
                         duration = SnackbarDuration.Long
                     )
                     if (result == SnackbarResult.ActionPerformed) {
                         boardViewModel.undoLastDeletion()
                     }
+
+                    // 스낵바 처리가 끝난 후, 코루틴 '안'에서 이벤트를 제거 (소비)
+                    savedStateHandle?.remove<BoardDeleteEvent>("deleted_board_event") // <---
                 }
-                // 스낵바를 띄운 후에는 반드시 값을 제거
-                savedStateHandle?.remove<Int>("deleted_board_count")
             }
         }
 
-        // 5. 'observe'를 사용하고, lifecycleOwner를 전달
-        val liveData = savedStateHandle?.getLiveData<Int>("deleted_board_count")
+        // 새로운 키와 타입으로 LiveData를 구독
+        val liveData = savedStateHandle?.getLiveData<BoardDeleteEvent>("deleted_board_event") // <---
         liveData?.observe(lifecycleOwner, observer)
 
-        // 6. onDispose: 이 컴포저블이 화면에서 사라질 때(Disposed) 실행될 클린업 로직
-        //    메모리 누수 방지
         onDispose {
             liveData?.removeObserver(observer)
         }
@@ -158,6 +161,7 @@ fun MyBoardRoute(
         savedStateHandle?.getStateFlow("needs_refresh", false)
             ?.collectLatest { needsRefresh ->
                 if (needsRefresh) {
+                    Log.d("MyBoardRouteDebug", ">>> 'needs_refresh' 신호 받음! 뷰모델 새로고침 시도.")
                     // 나의 보드 탭과 나의 카드 탭의 데이터를 모두 새로고침
                     boardViewModel.refresh()
                     cardViewModel.refresh()
@@ -420,9 +424,13 @@ fun MyBoardRoute(
                 scope.launch {
                     val deletedCount = boardViewModel.deleteBoards(boardIdsToDelete)
                     if (deletedCount != null && deletedCount > 0) {
+                        // Int 대신 고유한 ID를 가진 Event 객체를 set
                         navController.currentBackStackEntry
                             ?.savedStateHandle
-                            ?.set("deleted_board_count", deletedCount)
+                            ?.set("deleted_board_event", BoardDeleteEvent(count = deletedCount))
+
+                        // 스낵바가 뜨는 것과 별개로 목록 새로고침 시작
+                        boardViewModel.refresh()
                     }
                 }
                 showBoardDeleteDialog = false
@@ -431,3 +439,9 @@ fun MyBoardRoute(
         )
     }
 }
+
+@Parcelize // 1. @Parcelize 어노테이션 추가
+private data class BoardDeleteEvent(
+    val count: Int,
+    val id: Long = System.currentTimeMillis()
+) : Parcelable // 2. : Parcelable 인터페이스 구현

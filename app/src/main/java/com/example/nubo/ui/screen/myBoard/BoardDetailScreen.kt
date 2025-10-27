@@ -752,7 +752,7 @@ fun NuboInputDialog(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 24.dp),
+                    .padding(horizontal = 16.dp, vertical = 24.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(

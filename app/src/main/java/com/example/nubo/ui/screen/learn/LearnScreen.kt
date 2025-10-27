@@ -321,7 +321,7 @@ private fun WeeklyCalendar(
                         modifier = Modifier
                             .size(circleSize)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.85f))
+                            .background(Color.White.copy(alpha = 0.7f))
                     )
                 }
 
@@ -364,7 +364,13 @@ private fun WeeklyCalendar(
                     .height(40.dp),
                 contentAlignment = Alignment.TopCenter
             ) {
-                val visible = selectedIndex == idx && getBubbleCount(idx) > 0
+                // 1. 현재 아이템이 선택되었거나 (isSelected)
+                // 2. (현재 아이템이 오늘 날짜이고 (isToday) &&
+                //    아직 아무것도 선택하지 않았다면 (!hasSelection, selectedIndex가 -1일 때))
+                val visible = (selectedIndex == idx || (idx == todayIndex && selectedIndex == -1))
+                    && getBubbleCount(idx) > 0
+                // --- --- ---
+
                 if (visible) {
                     SpeechBubble(count = getBubbleCount(idx))
                 }
@@ -391,7 +397,7 @@ private fun SpeechBubble(
                     shape = RoundedCornerShape(percent = 100),
                     clip = false
                 )
-                .background(Color.White.copy(alpha = 0.70f), shape = RoundedCornerShape(percent = 100)),
+                .background(Color.White, shape = RoundedCornerShape(percent = 100)),
             contentAlignment = Alignment.Center
         ) {
             // 꼬리 (위쪽 삼각형) : 몸체와 겹칠 때 꼬리가 위 레이어로 가도록 배치
@@ -410,7 +416,7 @@ private fun SpeechBubble(
                             RoundedCornerShape(5.dp)
                         }
                     )
-                    .background(Color.White.copy(alpha = 0.70f))
+                    .background(Color.White)
             )
 
             // 내용 (물방울 + n개)

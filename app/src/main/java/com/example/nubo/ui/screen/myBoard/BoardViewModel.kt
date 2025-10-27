@@ -336,7 +336,6 @@ class BoardViewModel @Inject constructor(
                 lastDeletedBoardDeleteModeForUndo = deletedItems.firstOrNull()?.option ?: ""
 
                 // 성공 시, 목록을 새로고침하고 삭제된 개수를 반환
-                refresh()
                 boardIds.size
             } else {
                 Log.e("BoardViewModel", "Delete boards request failed: ${response.code()}")

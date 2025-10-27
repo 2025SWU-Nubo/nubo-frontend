@@ -101,7 +101,7 @@ fun BoardCardWithText(
     Box(
         modifier = Modifier
             .width(190.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(Color.White)
             .combinedClickable( // 일반 클릭과 롱클릭을 함께 처리
                 onClick = onClick,
@@ -117,7 +117,7 @@ fun BoardCardWithText(
                 modifier = Modifier
                     .width(182.dp)
                     .height(130.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(8.dp))
                     .background(Grey50),
             ) {
                 if (!board.imageUrl.isNullOrEmpty()) {
@@ -139,8 +139,8 @@ fun BoardCardWithText(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Purple50, RoundedCornerShape(12.dp))
-                            .clip(RoundedCornerShape(12.dp)),
+                            .background(Purple50, RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(8.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -150,6 +150,18 @@ fun BoardCardWithText(
                             modifier = Modifier.size(100.dp) // 로고 크기 조절
                         )
                     }
+                }
+                // board.source가 "ai"일 경우 좌측 상단에 아이콘 표시
+                if (board.source == "AI") {
+                    Icon(
+                        painter = painterResource(id = R.drawable.board_ai_mark),
+                        contentDescription = "AI 보드 마크",
+                        tint = Color.Unspecified, // 원본 드로어블 색상 사용
+                        modifier = Modifier
+                            .align(Alignment.TopStart) // 좌측 상단 정렬
+                            .padding(start = 8.dp) // 패딩
+                            .size(32.dp)
+                    )
                 }
             }
 

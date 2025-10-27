@@ -138,7 +138,7 @@ fun GlbBackgroundView(
                     light.position = Position(x = lightX + 1.0f, y = lightY - 3.0f, z = lightZ)
                 }
 
-                // 4. [추가] 언덕 강조용 조명
+                // 4. 언덕 강조용 조명
                 node.nodes["Hill Point"]?.let { light ->
                     light.position = Position(x = lightX + 1.5f, y = lightY - 3.0f, z = lightZ)
                 }*/
@@ -148,32 +148,32 @@ fun GlbBackgroundView(
                 val cloudNodeEye = node.nodes["Face_Eye"]
                 val cloudNodeM = node.nodes["Face_Mouth"]
 
-                val cloudYOffset = -2f
+                val cloudYOffset = -1.8f
                 val cloudXOffset = 0.05f
 
                 // 1. 크기 및 위치 조절 (구름)
                 cloudNode?.let {
                     it.scale = Scale(1.2f)
-                    it.position = it.position + Position(y = cloudYOffset,z=3f)
+                    it.position = it.position + Position(y = cloudYOffset,z=3.2f)
                     cloudFloatNodes.add(it) // <--- [추가] 둥실 리스트에 추가
                     startPositions[it] = it.position // <--- [추가] 둥실 애니메이션 시작 위치 저장
                 }
                 // (눈)
                 cloudNodeEye?.let {
                     it.scale = Scale(0.8f)
-                    it.position = it.position + Position(y = cloudYOffset,z=3f)
+                    it.position = it.position + Position(y = cloudYOffset,z=3.2f)
                     cloudFloatNodes.add(it) // <--- [추가]
                     startPositions[it] = it.position // <--- [추가]
                 }
                 // (입)
                 cloudNodeM?.let {
                     it.scale = Scale(0.8f)
-                    it.position = it.position + Position(y = cloudYOffset, x = cloudXOffset,z=3f)
+                    it.position = it.position + Position(y = cloudYOffset, x = cloudXOffset,z=3.2f)
                     cloudFloatNodes.add(it) // <--- [추가]
                     startPositions[it] = it.position // <--- [추가]
                 }
 
-                val rainStartYOffset = 0.8f
+                val rainStartYOffset = -1f
 
                 // 3. 물방울 찾기, 크기 조절, 리스트에 저장
                 val rainNodeNames = listOf(
@@ -192,7 +192,7 @@ fun GlbBackgroundView(
                             drop.scale = Scale(0.7f)
 
                             // Y 오프셋을 더한 위치를 시작점으로 저장
-                            val newStartPosition = drop.position + Position(y = rainStartYOffset, z = 3f)
+                            val newStartPosition = drop.position + Position(y = rainStartYOffset, z = 2.5f)
                             startPositions[drop] = newStartPosition // 수정된 위치를 저장
 
                             raindropNodes.add(drop)
@@ -255,68 +255,20 @@ fun GlbBackgroundView(
             onFrame = { frameTimeNanos ->
                 val timeSeconds = frameTimeNanos / 1_000_000_000.0
 
-                // 1. 물방울 애니메이션 (대기 -> 낙하 -> 바운스 -> 둥실)
-                // --- 애니메이션 단계별 시간 (초) ---
-                val waitDuration = 1.0      // 1. 상단 대기 시간 (단축)
-                val fallDuration = 2.0      // 2. 낙하 시간
-                val bounceDuration = 0.5    // 3. 바운스 시간
-                val floatDuration = 10   // 4. 하단 둥실 시간 (10초 주기를 맞추기 위한 나머지 시간)
-                // --- 총 사이클 ---
-                val totalCycleDuration = waitDuration + fallDuration + bounceDuration + floatDuration
-
                 // --- 둥실거림 설정 (구름 로직과 유사) ---
-                val floatAmplitudewater = 0.2f
-                val floatCycleSeconds = 6.0 // 둥실거림 1회전 속도
+                val floatAmplitudewater = 0.1f
+                val floatCycleSeconds = 5.0 // 둥실거림 1회전 속도
                 val floatSpeedwater = (2 * PI) / floatCycleSeconds
 
-                // --- 낙하/바운스 거리 ---
-                val fallDistance = -3.0f
-                val bounceHeight = 1.3f
-                val finalRestY = fallDistance + bounceHeight // 최종 위치: -2.0f
-
                 raindropNodes.forEach { drop ->
+                    // 1. 3D 모델에서 설정한 초기 위치 (구름과 꽃 사이)
                     val startPos = startPositions[drop] ?: return@forEach
 
-                    // 10초 주기로 반복
-                    val timeInCycle = timeSeconds % totalCycleDuration
-
-                    // 둥실거림 Y 오프셋 (항상 계산)
+                    // 2. 시간에 따른 둥실거림 Y 오프셋 계산
                     val floatY = sin(timeSeconds * floatSpeedwater).toFloat() * floatAmplitudewater
 
-                    // --- 시간대별로 다른 애니메이션 적용 (총 10초) ---
-                    when {
-                        // 1. 상단 대기 (0 ~ 1.0초)
-                        timeInCycle < waitDuration -> {
-                            drop.position = startPos
-                        }
-
-                        // 2. 낙하 중 (1.0 ~ 3.0초)
-                        timeInCycle < waitDuration + fallDuration -> {
-                            val timeIntoFall = timeInCycle - waitDuration
-                            val progress = timeIntoFall / fallDuration // 0.0 to 1.0
-
-                            // 가속도(ease-in) 적용: progress * progress
-                            val easedProgress = progress * progress
-                            drop.position = startPos + Position(y = (easedProgress * fallDistance).toFloat())
-                        }
-
-                        // 3. 바운스 중 (3.0 ~ 3.5초)
-                        timeInCycle < waitDuration + fallDuration + bounceDuration -> {
-                            val timeIntoBounce = timeInCycle - (waitDuration + fallDuration)
-                            val progress = timeIntoBounce / bounceDuration // 0.0 to 1.0
-
-                            // -4.0f -> -2.0f 로 이동 (선형 보간)
-                            // y = 시작 + (끝 - 시작) * progress
-                            val y = fallDistance + (finalRestY - fallDistance) * progress
-                            drop.position = startPos + Position(y = y.toFloat())
-                        }
-
-                        // 4. 하단 둥실 (3.5 ~ 10.0초)
-                        else -> {
-                            // 최종 위치 (-2.0f) + 둥실거림
-                            drop.position = startPos + Position(y = finalRestY + floatY)
-                        }
-                    }
+                    // 3. 초기 위치(startPos)에 둥실거림(floatY)만 적용
+                    drop.position = startPos + Position(y = floatY)
                 }
 
                 // 2. 풀잎 - 각도 고정 + 살짝 손 흔들기
@@ -344,7 +296,7 @@ fun GlbBackgroundView(
                 // --- 3. 구름 둥실 애니메이션 ---
 
                 // "아주 조금" (위아래로 움직일 최대 거리)
-                val floatAmplitude = 0.2f
+                val floatAmplitude = 0.1f
                 // "6초에 한번" 왕복
                 val floatCycleDurationSeconds = 6.0
 
@@ -358,8 +310,8 @@ fun GlbBackgroundView(
                 }
 
                 // ---  4. 꽃(종) 스윙 애니메이션 ---
-                val bellAngle = 6f // 좌우로 흔들릴 각도 (15도)
-                val bellCycleDuration = 8.0 // 6초에 1번 왕복 (살랑살랑)
+                val bellAngle = 6f // 좌우로 흔들릴 각도 (6도)
+                val bellCycleDuration = 6.0 // 6초에 1번 왕복 (살랑살랑)
 
                 val bellSpeed = (2 * PI) / bellCycleDuration
                 val bellSway = sin(timeSeconds * bellSpeed).toFloat() * bellAngle
