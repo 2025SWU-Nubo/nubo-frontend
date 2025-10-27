@@ -24,7 +24,7 @@ sealed interface ProfileEvent {
     ) : ProfileEvent
 }
 
-enum class ToastKind { NORMAL, POSITIVE, NEGATIVE }
+enum class ToastKind { NORMAL, POSITIVE, NEGATIVE,ALARM_ALLOW,ALARM_DENY }
 
 data class ProfileUiState(
     val isLoading: Boolean = false,
@@ -131,7 +131,7 @@ class ProfileViewModel @Inject constructor(
                     _events.emit(
                         ProfileEvent.ShowToast(
                             message = if (checked) "전체 알림 켰어요." else "전체 알림 껐어요",
-                            kind = ToastKind.NORMAL
+                            kind = if(checked) ToastKind.ALARM_ALLOW else ToastKind.ALARM_DENY
                         )
                     )
                 }
@@ -165,7 +165,7 @@ class ProfileViewModel @Inject constructor(
                     _events.emit(
                         ProfileEvent.ShowToast(
                             message = if (checked) "리마인드 알림을 켰어요." else "리마인드 알림을 껐어요.",
-                            kind = ToastKind.NORMAL
+                            kind = if (checked) ToastKind.ALARM_ALLOW else ToastKind.ALARM_DENY
                         )
                     )
                 }

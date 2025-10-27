@@ -306,7 +306,7 @@ private fun RecentBoardCard(
     ) {
         // Top image
         AsyncImage(
-            model = videoThumbnailUrl ?: R.drawable.basic_profile_image, // fallback
+            model = videoThumbnailUrl ?: R.drawable.bg_profile_header, // fallback
             contentDescription = "보드 썸네일",
             contentScale = ContentScale.Crop,
             modifier = Modifier

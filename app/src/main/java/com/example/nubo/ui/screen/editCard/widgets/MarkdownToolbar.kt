@@ -30,6 +30,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import com.example.nubo.R
 import com.example.nubo.utils.toggleListForSelection
+import androidx.compose.ui.text.TextRange
+import kotlinx.coroutines.delay
 
 private val CHIP_HEIGHT = 45.dp
 private val CHIP_LONG_WIDTH = 75.dp
@@ -46,6 +48,11 @@ fun MarkdownToolbar(
     var currentListType by remember { mutableStateOf<ListType?>(null) }
     var isBoldSelected by remember { mutableStateOf(false) }
     var hasSelection by remember { mutableStateOf(false) }
+
+    // 커서 위치를 저장할 변수
+    var pendingCursorPosition by remember { mutableStateOf<Int?>(null) }
+
+    val coroutineScope = rememberCoroutineScope()
 
     // 포커스 이동 후 액션 실행 헬퍼 함수
     fun focusThen(action: () -> Unit) {
@@ -64,6 +71,16 @@ fun MarkdownToolbar(
 
         // Bold 상태 감지
         isBoldSelected = (rtState.currentSpanStyle.fontWeight == FontWeight.Bold)
+    }
+
+    // pendingCursorPosition이 설정되면 다음 프레임에 커서 적용
+    LaunchedEffect(pendingCursorPosition) {
+        pendingCursorPosition?.let { pos ->
+            // 약간의 딜레이 후 커서 설정 (setMarkdown이 완료될 시간 확보)
+            delay(50)
+            rtState.selection = TextRange(pos)
+            pendingCursorPosition = null
+        }
     }
 
     Surface(
@@ -86,7 +103,7 @@ fun MarkdownToolbar(
                 isSelected = currentHeadingLevel == 2,
                 onClick = {
                     focusThen {
-                        toggleHeadingMarkdown(rtState, 2)
+                        pendingCursorPosition = toggleHeadingMarkdown(rtState, 2)
                     }
                 },
                 textSize = AppTextStyles.title_semibold_24
@@ -98,7 +115,7 @@ fun MarkdownToolbar(
                 isSelected = currentHeadingLevel == 3,
                 onClick = {
                     focusThen {
-                        toggleHeadingMarkdown(rtState, 3)
+                        pendingCursorPosition = toggleHeadingMarkdown(rtState, 3)
                     }
                 },
                 textSize = AppTextStyles.subtitle_semibold_20
@@ -110,7 +127,8 @@ fun MarkdownToolbar(
                 isSelected = currentHeadingLevel == null && currentListType == null,
                 onClick = {
                     focusThen {
-                        clearHeadingMarkdown(rtState)
+                        val newCursor = clearHeadingMarkdown(rtState)
+                        pendingCursorPosition = newCursor
                     }
                 },
                 textSize = AppTextStyles.b2_medium_16
