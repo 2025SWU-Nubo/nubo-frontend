@@ -27,8 +27,12 @@ class CardUploadViewModel @Inject constructor(
 ) : ViewModel() {
 
     sealed class UploadEvent {
+        // 업로드 시작(요청 발행)
+        data object Started : UploadEvent()
+        // 서버가 생성/수락 완료)
+        data object Succeeded : UploadEvent()
         // 200 OK created (혹은 처리 시작 시점)
-        data object Created : UploadEvent()
+//        data object Created : UploadEvent()
         // 409 Conflict (이미 생성됨)
         data object AlreadyExists : UploadEvent()
         // 그 외 실패
@@ -52,7 +56,7 @@ class CardUploadViewModel @Inject constructor(
         )
 
         // Optional: immediate feedback
-        _uploadEvents.tryEmit(UploadEvent.Created)
+        _uploadEvents.tryEmit(UploadEvent.Started)
         repository.uploadCard(token, req)  // returns Call<CardUploadResponse>
             .enqueue(object : retrofit2.Callback<CardUploadResponse> {
                 override fun onResponse(
@@ -60,7 +64,7 @@ class CardUploadViewModel @Inject constructor(
                     response: retrofit2.Response<CardUploadResponse>
                 ) {
                     when (response.code()) {
-                        200,201 -> _uploadEvents.tryEmit(UploadEvent.Created)
+                        200,201 -> _uploadEvents.tryEmit(UploadEvent.Succeeded)
                         409 -> _uploadEvents.tryEmit(UploadEvent.AlreadyExists)
                         else -> _uploadEvents.tryEmit(
                             UploadEvent.Failed("업로드 실패: ${response.code()}")

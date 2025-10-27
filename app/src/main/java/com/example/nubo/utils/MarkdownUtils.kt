@@ -87,75 +87,63 @@ fun detectLineMarkdown(state: RichTextState): LineMarkdownState {
 
 /**
  * H2/H3 헤딩 토글 - 커서 위치 완벽 보존
- * 핵심: 실제 콘텐츠 내에서의 커서 위치를 기준으로 계산
+ * setMarkdown() 대신 텍스트 직접 조작으로 커서 위치 보존
  */
-fun toggleHeadingMarkdown(state: RichTextState, level: Int /* 2 or 3 */) {
+fun toggleHeadingMarkdown(state: RichTextState, level: Int /* 2 or 3 */): Int {
+    // 현재 상태 저장
     val md = state.toMarkdown()
-    val caret = clamp(state.selection.end, md.length)
+    val mdCaret = clamp(state.selection.end, md.length)
 
-    val ls = lineStart(md, caret)
-    val le = lineEnd(md, caret)
+    val ls = lineStart(md, mdCaret)
+    val le = lineEnd(md, mdCaret)
     val line = md.substring(ls, le)
 
-    // 현재 라인의 헤딩 레벨 및 마크다운 접두사 길이 확인
-    val currentLevel: Int?
-    val currentPrefixLength: Int
+    // 헤딩 파싱
+    val prefixMatch = Regex("^(\\s*)(#{1,6}\\s+)?(.*)$").find(line)
+    val headingPrefix = prefixMatch?.groupValues?.get(2) ?: ""
+    val pureContent = prefixMatch?.groupValues?.get(3) ?: line
 
-    when {
-        line.trimStart().startsWith("### ") -> {
-            currentLevel = 3
-            currentPrefixLength = line.indexOf("### ") + 4  // "### " = 4글자
-        }
-        line.trimStart().startsWith("## ") -> {
-            currentLevel = 2
-            currentPrefixLength = line.indexOf("## ") + 3  // "## " = 3글자
-        }
-        else -> {
-            currentLevel = null
-            currentPrefixLength = 0
-        }
+    val currentLevel: Int? = when {
+        headingPrefix.trim().startsWith("###") -> 3
+        headingPrefix.trim().startsWith("##") -> 2
+        else -> null
     }
 
+    val currentPrefixLength = headingPrefix.length
+
     // 새로운 헤딩 접두사
-    val newPrefix = if (currentLevel == level) {
-        // 같은 레벨이면 제거 (본문으로)
+    val newHeadingPrefix = if (currentLevel == level) {
         ""
     } else {
-        // 다른 레벨로 변경
         "#".repeat(level) + " "
     }
 
-    val newPrefixLength = newPrefix.length
+    val newLine = newHeadingPrefix + pureContent
+    val newPrefixLength = newHeadingPrefix.length
 
-    // 헤딩 마크다운 제거한 순수 텍스트
-    val pureContent = line.replace(Regex("^\\s*#{1,6}\\s+"), "")
-
-    // 새로운 라인 구성
-    val newLine = newPrefix + pureContent
-
-    // 커서의 실제 콘텐츠 내 위치 계산
-    // 커서가 마크다운 접두사보다 앞에 있으면 콘텐츠 시작으로, 아니면 상대 위치 유지
-    val caretOffsetInLine = caret - ls
+    // 커서의 콘텐츠 내 위치
+    val caretOffsetInLine = mdCaret - ls
     val caretInContent = if (caretOffsetInLine <= currentPrefixLength) {
-        0  // 접두사 영역에 있었으면 콘텐츠 시작으로
+        0
     } else {
-        caretOffsetInLine - currentPrefixLength  // 콘텐츠 내 상대 위치
+        caretOffsetInLine - currentPrefixLength
     }
 
-    // 새로운 커서 위치 = 라인 시작 + 새 접두사 길이 + 콘텐츠 내 위치
-    val newCaret = clamp(ls + newPrefixLength + caretInContent, md.length)
-
-    // 마크다운 업데이트
+    // 새 마크다운 생성
     val newMd = replaceRangeSafe(md, ls, le, newLine)
+    val targetCaretInMd = clamp(ls + newPrefixLength + caretInContent, newMd.length)
 
+    // setMarkdown만 호출하고 커서 위치는 반환
     state.setMarkdown(newMd)
-    state.selection = TextRange(newCaret)
+
+    // 계산된 커서 위치 반환 (호출자가 설정)
+    return targetCaretInMd
 }
 
 /**
  * 현재 라인의 모든 헤딩 마크다운 제거 (본문으로 되돌리기)
  */
-fun clearHeadingMarkdown(state: RichTextState) {
+fun clearHeadingMarkdown(state: RichTextState): Int {
     val md = state.toMarkdown()
     val caret = clamp(state.selection.end, md.length)
 
@@ -163,8 +151,8 @@ fun clearHeadingMarkdown(state: RichTextState) {
     val le = lineEnd(md, caret)
     val line = md.substring(ls, le)
 
-    // 헤딩 마크다운이 없으면 아무것도 안 함
-    if (!line.trimStart().startsWith("#")) return
+    // 헤딩 마크다운이 없으면 현재 커서 반환
+    if (!line.trimStart().startsWith("#")) return caret
 
     // 현재 접두사 길이 계산
     val prefixMatch = Regex("^\\s*#{1,6}\\s+").find(line)
@@ -182,11 +170,11 @@ fun clearHeadingMarkdown(state: RichTextState) {
     }
 
     // 새로운 커서 위치 (접두사 없음)
-    val newCaret = clamp(ls + caretInContent, md.length)
-
     val newMd = replaceRangeSafe(md, ls, le, pureContent)
+    val newCaret = clamp(ls + caretInContent, newMd.length)
+
     state.setMarkdown(newMd)
-    state.selection = TextRange(newCaret)
+    return newCaret
 }
 
 /**
@@ -298,12 +286,12 @@ fun toggleListForSelection(state: RichTextState, ordered: Boolean) {
 
     val replaced = toggled.joinToString("\n")
     val newMd = replaceRangeSafe(md, start, end, replaced)
-    state.setMarkdown(newMd)
 
     // 새로운 커서 라인의 시작 위치 계산
     val newCaretLineStart = start + toggled.take(caretLine).sumOf { it.length + 1 }
     val newCaret = clamp(newCaretLineStart + newPrefixLength + caretInContent, newMd.length)
 
+    state.setMarkdown(newMd)
     state.selection = TextRange(newCaret)
 }
 

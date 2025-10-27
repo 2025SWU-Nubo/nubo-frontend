@@ -29,6 +29,7 @@ import coil.compose.AsyncImage
 import com.example.nubo.R
 import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles
+import com.example.nubo.ui.theme.Grey10
 import com.example.nubo.ui.theme.Grey20
 import com.example.nubo.ui.theme.Purple300
 
@@ -246,7 +247,7 @@ fun ProfileScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(6.dp)
-                        .background(Grey20)   // 원하는 배경색
+                        .background(Grey10)   // 원하는 배경색
                 )
 
                 Spacer(Modifier.height(15.dp))

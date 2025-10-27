@@ -28,6 +28,8 @@ import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey1000
+import com.example.nubo.ui.theme.Grey20
+import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.Grey30
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Grey500
@@ -117,15 +119,13 @@ fun NotificationSetScreen(
         Box(Modifier.fillMaxSize().padding(inner)) {
 
             Column(modifier = Modifier.fillMaxSize()) {
+                Divider(color = Grey50)
                 SystemNotificationBanner(
                     notificationsEnabled = notificationsEnabled,
                     onClickEnable = {
                         com.example.nubo.utils.NotificationPermissionHelper.openAppNotificationSettings(context)
                     }
                 )
-
-                Spacer(Modifier.height(3.dp))
-                Divider(color = Grey50)
                 Spacer(Modifier.height(16.dp))
 
                 // 전체 알림 섹션
@@ -170,11 +170,7 @@ fun NotificationSetScreen(
                 }
 
                 Spacer(Modifier.height(16.dp))
-                Divider(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = Grey30,
-                    thickness = 5.dp
-                )
+                Divider(color = Grey20)
                 Spacer(Modifier.height(16.dp))
 
                 Row(
@@ -269,6 +265,12 @@ private fun SystemNotificationBanner(
         }
     }
     Spacer(Modifier.height(16.dp))
+    Spacer(Modifier.height(3.dp))
+    Divider(
+        modifier = Modifier.fillMaxWidth(),
+        color = Grey30,
+        thickness = 5.dp
+    )
 }
 
 
