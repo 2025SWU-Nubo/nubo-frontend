@@ -209,7 +209,7 @@ fun MainScreen(
             val (msg, type, dur) = when (ev) {
                 CardUploadViewModel.UploadEvent.Started ->
                     Triple("카드 생성 중이에요", AppToastType.UPLOAD, 1200)
-                CardUploadViewModel.UploadEvent.Succeeded ->
+                CardUploadViewModel.UploadEvent.Succeeded -> {
                     // 카드 업로드 성공 시, MyBoardRoute에 새로고침 신호 전송
                     try {
                         navController.getBackStackEntry("myboard")
