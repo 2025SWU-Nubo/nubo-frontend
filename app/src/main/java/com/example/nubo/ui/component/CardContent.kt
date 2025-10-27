@@ -88,7 +88,7 @@ fun MasonryCard(item: CardItem, onClick: () -> Unit) {
         modifier = Modifier
             .width(180.dp)
             .height(item.height)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(Grey50)
             .clickable { onClick() }, // 클릭 시 전면 상세 스크린 오픈
         contentAlignment = Alignment.Center
