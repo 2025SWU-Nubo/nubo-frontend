@@ -2,6 +2,7 @@ package com.example.nubo.ui.screen.learn
 
 import com.example.nubo.ui.screen.learn.GlbBackgroundView
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -124,7 +125,6 @@ fun LearnScreen(
         }
     }
 
-
 //================= 화면 UI 시작 =================
     Box(
         modifier = modifier
@@ -147,11 +147,6 @@ fun LearnScreen(
             is DashboardUiState.Success -> {
                 val dashboardData = state.data
 
-                GlbBackgroundView(
-                    modifier = Modifier.fillMaxSize(),
-                    glbUrl = dashboardData.dashboardBackground
-                )
-
                 // --- 데이터 연결 ---
                 // 1. 캘린더 날짜/카운트
                 val weeklyCounts = dashboardData.weeklyVideoCounts
@@ -169,6 +164,15 @@ fun LearnScreen(
                 val growthRate = dashboardData.growthRate
                 val berryCount = dashboardData.berryCount
                 val currentStage = dashboardData.stage
+
+                // 오늘 학습 카운트 계산 (물방울 개수 적용)
+                val todayCount = bubbleCounts.getOrNull(todayIndex) ?: 0
+
+                GlbBackgroundView(
+                    modifier = Modifier.fillMaxSize(),
+                    glbUrl = dashboardData.dashboardBackground,
+                    todayVideoCount = todayCount // 오늘 카운트 값 3D 그래픽 파일에 전달
+                )
 
                 Column(modifier = Modifier
                     .fillMaxSize()) {
@@ -348,7 +352,9 @@ private fun WeeklyCalendar(
     Spacer(Modifier.height(10.dp))
 
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .padding(horizontal = 16.dp)
+            .fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         datesAsInt.forEachIndexed { idx, _ ->
@@ -385,14 +391,14 @@ private fun SpeechBubble(
                     shape = RoundedCornerShape(percent = 100),
                     clip = false
                 )
-                .background(Color.White, shape = RoundedCornerShape(percent = 100)),
+                .background(Color.White.copy(alpha = 0.70f), shape = RoundedCornerShape(percent = 100)),
             contentAlignment = Alignment.Center
         ) {
             // 꼬리 (위쪽 삼각형) : 몸체와 겹칠 때 꼬리가 위 레이어로 가도록 배치
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .offset(y = (-7).dp)                // 위로 겹치기
+                    .offset(y = (-7.5).dp)                // 위로 겹치기
                     .zIndex(1f)                         // 몸체보다 위에
                     .size(width = 12.dp, height = 8.dp)
                     .clip(
@@ -404,7 +410,7 @@ private fun SpeechBubble(
                             RoundedCornerShape(5.dp)
                         }
                     )
-                    .background(Color.White)
+                    .background(Color.White.copy(alpha = 0.70f))
             )
 
             // 내용 (물방울 + n개)

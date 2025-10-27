@@ -69,6 +69,9 @@ fun MyBoardScreen(
     boardViewModel: BoardViewModel = hiltViewModel(),
     cardViewModel: MyCardViewModel = hiltViewModel(),
     boardDetailViewModel: BoardDetailViewModel = hiltViewModel(),
+    //탭 선택 상태 전달 받음
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
     // 카드 선택
     isCardSelectionMode: Boolean,
@@ -81,8 +84,6 @@ fun MyBoardScreen(
     onBoardClick: (com.example.nubo.model.myBoard.BoardItem) -> Unit,
     onBoardLongClick: (com.example.nubo.model.myBoard.BoardItem) -> Unit,
 ) {
-    var selectedTab by remember { mutableStateOf(1) }
-
     val scope = rememberCoroutineScope()
 
     // --- 토스트 메시지를 boardViewModel에서 구독 ---
@@ -121,12 +122,6 @@ fun MyBoardScreen(
             }
             boardDetailViewModel.clearToastMessage()
         }
-    }
-
-
-    // 검색 결과가 바뀔 때도 높이를 다시 계산하도록 키 추가
-    val randomHeights = remember(selectedTab, cardViewModel.cards.value, cardViewModel.searchResults.value) {
-        (if (selectedTab == 0) cardViewModel.searchResults.value else cardViewModel.cards.value).map { randomCardHeight() }
     }
 
     // 아이콘 리소스를 변수로 정의합니다.
@@ -225,6 +220,12 @@ fun MyBoardScreen(
         }
     }
 
+    // 현재 화면에 표시될 카드 리스트를 결정
+    val currentCardList = if (isSearchMode && hasSearched) cardSearchResults else cardViewModel.cards.value
+    // 'currentCardList'가 변경될 때만 카드 높이를 다시 계산하도록 키를 수정합니다.
+    val randomHeights = remember(currentCardList) {
+        currentCardList.map { randomCardHeight() }}
+
     Box(Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -238,7 +239,9 @@ fun MyBoardScreen(
                     if (isSearchMode) {
                         closeSearchMode()
                     }
-                    selectedTab = newTab
+                    // 부모(Route)가 전달해준 람다를 호출
+                    // (새로고침 로직은 MyBoardRoute로 이동됨)
+                    onTabSelected(newTab)
                 },
                 isSelectionMode = isCardSelectionMode || isBoardSelectionMode
             )
@@ -377,7 +380,7 @@ fun MyBoardScreen(
         // -토스트 UI를 화면에 배치 ---
         AppToastHost(
             hostState = toastHostState,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 80.dp) // 스낵바와 겹치지 않도록 패딩 추가
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 100.dp) // 스낵바와 겹치지 않도록 패딩 추가
         )
     }
 }

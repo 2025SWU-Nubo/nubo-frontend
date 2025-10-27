@@ -41,6 +41,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.AppToastOverlay
 import com.example.components.toast.AppToastType
@@ -49,6 +50,7 @@ import com.example.nubo.deeplink.DeepLinkContract
 import com.example.nubo.deeplink.DeepLinkStore
 import com.example.nubo.ui.component.BottomNavBar
 import com.example.nubo.ui.component.sheet.BottomSheetHost
+import com.example.nubo.ui.component.sheet.CreateBoardViewModel
 import com.example.nubo.ui.component.sheet.SheetRoute
 import com.example.nubo.ui.screen.card.CardDetailRoute
 import com.example.nubo.ui.screen.card.CardDetailViewModel
@@ -196,6 +198,9 @@ fun MainScreen(
 
     val cardUploadVm: CardUploadViewModel = hiltViewModel()
 
+    // 보드 생성을 감지
+    val createBoardViewModel: CreateBoardViewModel = hiltViewModel()
+
     LaunchedEffect(Unit) {
         cardUploadVm.uploadEvents.collect { ev ->
 
@@ -205,7 +210,17 @@ fun MainScreen(
                 CardUploadViewModel.UploadEvent.Started ->
                     Triple("카드 생성 중이에요", AppToastType.UPLOAD, 1200)
                 CardUploadViewModel.UploadEvent.Succeeded ->
+                    // 카드 업로드 성공 시, MyBoardRoute에 새로고침 신호 전송
+                    try {
+                        navController.getBackStackEntry("myboard")
+                            .savedStateHandle
+                            .set("needs_refresh", true)
+                    } catch (e: Exception) {
+                        // myboard 스택이 없는 경우 (거의 없음)
+                        android.util.Log.e("MainVM", "Failed to find myboard backstack entry", e)
+                    }
                     Triple("카드 생성을 완료했어요!", AppToastType.POSITIVE, 1500)
+                }
                 CardUploadViewModel.UploadEvent.AlreadyExists ->
                     Triple("이미 생성된 카드예요", AppToastType.NEGATIVE, 2000)
                 is CardUploadViewModel.UploadEvent.Failed ->
@@ -228,6 +243,23 @@ fun MainScreen(
                 navController.getBackStackEntry("home")
                     .savedStateHandle["refresh_home"] = System.currentTimeMillis()
             }
+        }
+    }
+
+    // CreateBoardViewModel의 UI 상태를 구독
+    val createBoardState by createBoardViewModel.ui.collectAsStateWithLifecycle()
+
+    // 보드 생성 완료 시
+    LaunchedEffect(createBoardState.created) {
+        // 'created' 상태가 null이 아니면, 보드 생성이 성공한 것
+        if (createBoardState.created != null) {
+            // MyBoardRoute가 감지할 수 있도록 "needs_refresh" 플래그 설정
+            navController.currentBackStackEntry
+                ?.savedStateHandle
+                ?.set("needs_refresh", true)
+
+            // 플래그를 재설정하여 중복 새로고침 방지
+            createBoardViewModel.consumeCreated()
         }
     }
 

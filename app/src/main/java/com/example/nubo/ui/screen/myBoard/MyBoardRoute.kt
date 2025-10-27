@@ -1,7 +1,9 @@
 package com.example.nubo.ui.screen.myBoard
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -13,10 +15,12 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -25,6 +29,9 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Observer
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.flow.collectLatest
 
 /**
  * MyBoardScreen과 관련된 모든 상태와 로직을 관리하는 컨테이너 컴포저블.
@@ -38,6 +45,9 @@ fun MyBoardRoute(
     // MainScreen의 기본 BottomNavBar를 숨길지 여부를 알리기 위한 콜백
     onSelectionModeChange: (Boolean) -> Unit
 ) {
+
+    // selectedTab 상태를 MyBoardRoute에서 관리
+    var selectedTab by rememberSaveable { mutableStateOf(1) } // 1 = 보드 탭
 
     val boardDetailViewModel: BoardDetailViewModel = hiltViewModel()
     val cardViewModel: MyCardViewModel = hiltViewModel() // MyBoardScreen에 필요
@@ -65,9 +75,12 @@ fun MyBoardRoute(
     // --- 보드 삭제 다이얼로그 상태 ---
     var showBoardDeleteDialog by remember { mutableStateOf(false) }
 
+    // 보드 삭제 시 삭제할 ID를 임시 저장할 변수
+    var boardIdsToDelete by remember { mutableStateOf(emptySet<Int>()) }
+
     val scope = rememberCoroutineScope()
 
-    // --- [추가] ModalBottomSheet 상태 관리 ---
+    // --- ModalBottomSheet 상태 관리 ---
     @OptIn(ExperimentalMaterial3Api::class)
     val bottomSheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true // 부분적으로 확장되는 상태 스킵 (항상 전체 확장)
@@ -96,48 +109,61 @@ fun MyBoardRoute(
         resetCardSelectionState()
     }
 
-    // --- 다른 화면에서 돌아왔을 때 새로고침을 처리하는 로직 ---
-    LaunchedEffect(Unit) {
-        // MyBoardRoute의 SavedStateHandle에서 "needs_refresh" 값을 관찰
-        val handle = navController.currentBackStackEntry?.savedStateHandle
-        handle?.getLiveData<Boolean>("needs_refresh")?.observeForever { needsRefresh ->
-            if (needsRefresh) {
-                // 나의 보드 탭과 나의 카드 탭의 데이터를 모두 새로고침
-                boardViewModel.refresh()
-                cardViewModel.refresh()
-
-                // 신호를 처리한 후에는 반드시 제거하여 중복 새로고침 방지
-                handle.remove<Boolean>("needs_refresh")
-            }
-        }
-    }
-
-
     // --- 실행 취소 스낵바 상태를 Route에서 관리 ---
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // --- SavedStateHandle을 감시하여 스낵바 표시 ---
-    LaunchedEffect(Unit) {
-        // 현재 화면(MyBoardRoute)의 SavedStateHandle에서 "deleted_board_count" 값을 관찰
-        navController.currentBackStackEntry
-            ?.savedStateHandle
-            ?.getLiveData<Int>("deleted_board_count")?.observeForever { count ->
-                if (count > 0) {
-                    scope.launch {
-                        val result = snackbarHostState.showSnackbar(
-                            message = "${count}개의 보드가 삭제되었습니다.",
-                            actionLabel = "실행 취소",
-                            duration = SnackbarDuration.Long
-                        )
-                        if (result == SnackbarResult.ActionPerformed) {
-                            boardViewModel.undoLastDeletion()
-                        }
+    // --- SavedStateHandle을 감시하여 스낵바 표시 (수정된 버전) ---
+
+    // 1. 현재 컴포저블의 생명주기(LifecycleOwner)를 가져옴.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    // 2. SavedStateHandle을 한 번만 가져옴
+    val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
+
+    // 3. LaunchedEffect 대신 DisposableEffect를 사용
+    //    (lifecycleOwner나 savedStateHandle이 변경될 때마다 이펙트를 재실행)
+    DisposableEffect(lifecycleOwner, savedStateHandle) {
+
+        // 4. 관찰자(Observer) 로직을 정의합니다.
+        val observer = Observer<Int> { count ->
+            if (count > 0) {
+                scope.launch {
+                    val result = snackbarHostState.showSnackbar(
+                        message = "${count}개의 보드가 삭제되었습니다.",
+                        actionLabel = "실행 취소",
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        boardViewModel.undoLastDeletion()
                     }
-                    // [중요] 스낵바를 띄운 후에는 반드시 값을 제거하여
-                    // 화면이 다시 그려질 때(예: 화면 회전) 스낵바가 또 뜨는 것을 방지
-                    navController.currentBackStackEntry
-                        ?.savedStateHandle
-                        ?.remove<Int>("deleted_board_count")
+                }
+                // 스낵바를 띄운 후에는 반드시 값을 제거
+                savedStateHandle?.remove<Int>("deleted_board_count")
+            }
+        }
+
+        // 5. 'observe'를 사용하고, lifecycleOwner를 전달
+        val liveData = savedStateHandle?.getLiveData<Int>("deleted_board_count")
+        liveData?.observe(lifecycleOwner, observer)
+
+        // 6. onDispose: 이 컴포저블이 화면에서 사라질 때(Disposed) 실행될 클린업 로직
+        //    메모리 누수 방지
+        onDispose {
+            liveData?.removeObserver(observer)
+        }
+    }
+
+    // --- 다른 화면에서 돌아왔을 때 새로고침을 처리하는 로직 ---
+    // LaunchedEffect의 키로 기존 savedStateHandle을 사용합니다.
+    LaunchedEffect(savedStateHandle) {
+        savedStateHandle?.getStateFlow("needs_refresh", false)
+            ?.collectLatest { needsRefresh ->
+                if (needsRefresh) {
+                    // 나의 보드 탭과 나의 카드 탭의 데이터를 모두 새로고침
+                    boardViewModel.refresh()
+                    cardViewModel.refresh()
+
+                    // 신호를 처리한 후에는 'false'로 되돌려 중복 새로고침 방지
+                    savedStateHandle.set("needs_refresh", false)
                 }
             }
     }
@@ -224,10 +250,12 @@ fun MyBoardRoute(
                                             targetBoardId = targetId.toLong(),
                                             selectedCardIds = selectedCardIds
                                         )
+
                                         BoardAction.MOVE -> boardViewModel.moveCardsFromGlobal(
                                             targetBoardId = targetId.toLong(),
                                             selectedCardIds = selectedCardIds
                                         )
+
                                         null -> {}
                                     }
                                 }
@@ -243,15 +271,21 @@ fun MyBoardRoute(
                     BottomSheetType.BOARD_SETTINGS -> {
                         BoardSettingsContent(
                             onDeleteClick = {
+                                // 현재 ID 목록을 새 변수에 캡처
+                                boardIdsToDelete = selectedBoardIds
+
                                 showBoardDeleteDialog = true
+                                // 바텀시트를 닫도록 명시 (이래야 onDismiss가 호출됨)
                                 boardBottomSheetType = BottomSheetType.NONE
                             },
                             onDismiss = { resetBoardSelectionState() }
                         )
                     }
+
                     BottomSheetType.BOARD_EDIT -> {
                         boardForEditing?.let { board ->
                             BoardEditSheet(
+                                modifier = Modifier.imePadding(),
                                 source = board.source,
                                 currentName = board.title,
                                 isCurrentlyShared = false, // MyBoard에서는 공유 여부 알 수 없으므로 false로 고정
@@ -269,6 +303,7 @@ fun MyBoardRoute(
                             )
                         }
                     }
+
                     else -> {}
                 }
             }
@@ -281,6 +316,18 @@ fun MyBoardRoute(
             cardViewModel = cardViewModel,
             boardViewModel = boardViewModel,
             boardDetailViewModel = boardDetailViewModel,
+            // 상태와 람다 전달
+            selectedTab = selectedTab,
+            onTabSelected = { newTab ->
+                // 탭이 실제로 변경될 때만 새로고침
+                if (selectedTab != newTab) {
+                    when (newTab) {
+                        0 -> cardViewModel.refresh() // 카드 탭
+                        1 -> boardViewModel.refresh() // 보드 탭
+                    }
+                }
+                selectedTab = newTab
+            },
             isCardSelectionMode = isCardSelectionMode,
             selectedCardIds = selectedCardIds,
             onCardClick = { cardId ->
@@ -306,7 +353,8 @@ fun MyBoardRoute(
                 if (isBoardSelectionMode) {
                     // 선택모드에서는 클릭으로 선택/해제
                     val id = board.serverBoardId
-                    selectedBoardIds = if (selectedBoardIds.contains(id)) selectedBoardIds - id else selectedBoardIds + id
+                    selectedBoardIds =
+                        if (selectedBoardIds.contains(id)) selectedBoardIds - id else selectedBoardIds + id
                 } else {
                     // 일반 모드에서 상세 화면으로 이동 시, source를 쿼리 파라미터로 전달
                     val encodedTitle = java.net.URLEncoder.encode(board.title, "utf-8")
@@ -322,6 +370,7 @@ fun MyBoardRoute(
                     boardBottomSheetType = BottomSheetType.BOARD_SETTINGS
                     onSelectionModeChange(true)
                 }
+                Log.d("MyBoardRouteDebug", "onBoardLongClick triggered: Board ID = ${board.serverBoardId}, Title = ${board.title}")
             }
         )
     }
@@ -331,7 +380,11 @@ fun MyBoardRoute(
             visible = true,
             selectedCardCount = selectedCardIds.size,
             selectedSectionCount = 0,
-            onDismiss = { showDeleteDialog = false },
+            onDismiss = {
+                showBoardDeleteDialog = false
+                resetBoardSelectionState() // 다이얼로그 닫을 때 선택모드 해제
+                boardIdsToDelete = emptySet() // 임시 변수 초기화
+            },
             onRemove = {
                 scope.launch {
                     boardDetailViewModel.removeItemsFromBoard(emptySet(), selectedCardIds)
@@ -341,10 +394,17 @@ fun MyBoardRoute(
             },
             onDelete = {
                 scope.launch {
-                    boardDetailViewModel.deleteItems(emptySet(), selectedCardIds)
-                    showDeleteDialog = false
-                    resetCardSelectionState()
+                    // selectedBoardIds 대신 캡처해둔 boardIdsToDelete 사용
+                    val deletedCount = boardViewModel.deleteBoards(boardIdsToDelete)
+                    if (deletedCount != null && deletedCount > 0) {
+                        navController.currentBackStackEntry
+                            ?.savedStateHandle
+                            ?.set("deleted_board_count", deletedCount)
+                    }
                 }
+                showBoardDeleteDialog = false
+                resetBoardSelectionState() // 삭제 후 선택모드 해제
+                boardIdsToDelete = emptySet() // 임시 변수 초기화
             }
         )
     }
@@ -358,7 +418,7 @@ fun MyBoardRoute(
             },
             onDelete = {
                 scope.launch {
-                    val deletedCount = boardViewModel.deleteBoards(selectedBoardIds)
+                    val deletedCount = boardViewModel.deleteBoards(boardIdsToDelete)
                     if (deletedCount != null && deletedCount > 0) {
                         navController.currentBackStackEntry
                             ?.savedStateHandle

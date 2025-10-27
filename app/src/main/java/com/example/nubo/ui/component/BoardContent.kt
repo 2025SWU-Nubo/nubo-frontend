@@ -32,6 +32,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.AsyncImage
 import com.example.nubo.R
 import com.example.nubo.model.myBoard.BoardItem
@@ -43,6 +44,8 @@ import com.example.nubo.ui.theme.Grey20
 import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.GreyMain300
+import com.example.nubo.ui.theme.Purple200
+import com.example.nubo.ui.theme.Purple300
 import com.example.nubo.ui.theme.Purple50
 import kotlin.collections.chunked
 
@@ -127,17 +130,23 @@ fun BoardCardWithText(
                     )
                 } else {
                     // 썸네일이 비어있을 때
+                    AsyncImage(
+                        model = board.imageUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop // 가운데부터 꽉 차게
+                    )
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Purple50, RoundedCornerShape(12.dp)) // 배경색을 Grey10으로 변경
+                            .background(Purple50, RoundedCornerShape(12.dp))
                             .clip(RoundedCornerShape(12.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.nubo_logo), // 아이콘을 nubo_logo로 변경
                             contentDescription = null,
-                            tint = Color.Unspecified, //  tint 제거
+                            tint = Purple300, //  연한 보라
                             modifier = Modifier.size(100.dp) // 로고 크기 조절
                         )
                     }
@@ -157,7 +166,9 @@ fun BoardCardWithText(
                         text = board.title,
                         style = b2_semibold_16,
                         color = DefaultText,
-                        maxLines = 1
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis, // 말줄임표 추가
+                        modifier = Modifier.weight(1f, fill = false) // 남는 공간만 차지
                     )
                     // 즐겨찾기 아이콘 (빈별/채운별 리소스 교체)
                     Icon(

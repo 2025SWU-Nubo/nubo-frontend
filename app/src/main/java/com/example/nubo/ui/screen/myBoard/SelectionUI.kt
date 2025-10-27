@@ -120,6 +120,7 @@ fun SelectionBottomBar(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
+                .imePadding()
                 .animateContentSize(), // 내용물 크기 변경 시 애니메이션
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
             shadowElevation = 8.dp,
@@ -234,7 +235,8 @@ private fun SelectionButton(
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.height(40.dp),
+        modifier = modifier
+            .height(40.dp),
         shape = RoundedCornerShape(4.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = backgroundColor,
@@ -322,6 +324,8 @@ fun SectionSettingsContent(
     isCurrentlyShared: Boolean,
     onDismiss: () -> Unit,
     onConfirm: (newName: String, isShared: Boolean) -> Unit,
+    modifier: Modifier
+
 ) {
     // --- 입력값 및 유효성 검사 상태 ---
     var name by rememberSaveable { mutableStateOf(currentName) }
@@ -336,6 +340,7 @@ fun SectionSettingsContent(
 
     Surface(
         modifier = Modifier
+            .imePadding()
             .fillMaxWidth(),
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         shadowElevation = 8.dp, // 입체 효과
@@ -346,7 +351,6 @@ fun SectionSettingsContent(
                 .background(color = Color.White)
                 .height(300.dp)
                 .navigationBarsPadding()
-                .imePadding()
                 .padding(start = 18.dp, end = 18.dp, top = 13.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -961,6 +965,7 @@ fun BoardEditSheet(
     isCurrentlyShared: Boolean,
     onDismiss: () -> Unit,
     onInviteClick: () -> Unit,
+    modifier: Modifier,
     onConfirm: (newName: String, isShared: Boolean) -> Unit
 ) {
     //보드 소스 확인
@@ -979,6 +984,7 @@ fun BoardEditSheet(
 
     Surface(
         modifier = Modifier
+            .imePadding()
             .fillMaxWidth(),
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         shadowElevation = 8.dp, // 입체 효과
@@ -989,7 +995,6 @@ fun BoardEditSheet(
                 .background(color = Color.White)
                 .height(300.dp)
                 .navigationBarsPadding()
-                .imePadding()
                 .padding(start = 18.dp, end = 18.dp, top = 13.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {

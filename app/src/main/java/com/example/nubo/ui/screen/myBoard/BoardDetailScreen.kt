@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -74,6 +75,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import com.example.components.toast.AppToastHost
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.rememberAppToastHostState
@@ -423,6 +425,7 @@ fun BoardDetailScreen(
                     // 현재 보드 정보가 있을 때만 설정 화면을 보여줌
                     ui.board?.let { currentBoard ->
                         BoardEditSheet(
+                            modifier = Modifier.imePadding(),
                             source = source,
                             currentName = currentBoard.name,
                             isCurrentlyShared = currentBoard.shared,
@@ -521,7 +524,10 @@ fun BoardDetailScreen(
         )
     }*/
     // 토스트 UI를 화면에 배치
-    AppToastHost(hostState = toastHostState)
+    AppToastHost(
+        hostState = toastHostState,
+        modifier = Modifier.padding(bottom = 40.dp))
+
 }
 
 @Composable
@@ -585,6 +591,9 @@ fun BoardTitleBar(title: String) {
                 text = decodedTitle,
                 style = headline_regular_26,
                 color = MaterialTheme.colorScheme.onSurface,
+                overflow = TextOverflow.Ellipsis, // 말줄임표 추가
+                maxLines = 1,
+                modifier = Modifier.weight(1f, fill = false) // 남는 공간만 차지
             )
         }
     }
