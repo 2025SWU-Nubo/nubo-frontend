@@ -115,7 +115,8 @@ fun NotificationSetScreen(
 
 
     Scaffold(
-        topBar = { NotiTopBar(onBack = onBack) },
+        topBar = {
+            NotiTopBar(onBack = onBack) },
         snackbarHost = { SnackbarHost(hostState = snackbar) } // ← 실패 시 안내 토스트
     ) { inner ->
         Box(Modifier.fillMaxSize().padding(inner)) {
@@ -240,6 +241,8 @@ private fun SystemNotificationBanner(
     onClickEnable: () -> Unit,
 ) {
     if (notificationsEnabled) return
+    Spacer(Modifier.height(16.dp))
+
     Box(Modifier.padding(horizontal = 20.dp)) {
         Row(
             modifier = Modifier
@@ -267,14 +270,12 @@ private fun SystemNotificationBanner(
         }
     }
     Spacer(Modifier.height(16.dp))
-    Spacer(Modifier.height(3.dp))
     Divider(
         modifier = Modifier.fillMaxWidth(),
         color = Grey30,
         thickness = 5.dp
     )
 }
-
 
 // 상단바
 @Composable
@@ -283,13 +284,12 @@ private fun NotiTopBar(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 15.dp)
+//            .height(52.dp)
+            .padding(horizontal = 6.dp, vertical = 11.dp)
     ) {
-        // 뒤로가기 버튼 박스
         Box(
             modifier = Modifier
-                .size(38.dp)
-                .background(Color.White.copy(alpha = 0.00f), CircleShape)
+                .size(46.dp)
                 .clickable(onClick = onBack)
                 .align(Alignment.CenterStart),
             contentAlignment = Alignment.Center
@@ -297,11 +297,11 @@ private fun NotiTopBar(onBack: () -> Unit) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_arrow_back),
                 contentDescription = "뒤로",
-                tint = Grey1000
+                tint = Grey1000,
+                modifier = Modifier.size(24.dp)
             )
         }
-
-        // 화면 타이틀
+        // 중앙 타이틀
         Text(
             text = "알림 설정",
             style = AppTextStyles.subtitle_semibold_20,
@@ -310,6 +310,7 @@ private fun NotiTopBar(onBack: () -> Unit) {
         )
     }
 }
+
 
 @Composable
 private fun rememberImeOrNavBottomPadding(extra: Dp = 0.dp): Dp {
