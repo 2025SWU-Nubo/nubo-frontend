@@ -68,6 +68,7 @@ import com.example.nubo.model.card.CardItem
 import com.example.nubo.ui.component.randomCardHeight
 import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
 import com.example.nubo.ui.theme.AppTextStyles.b3_medium_14
+import com.example.nubo.utils.postRefreshTick
 import getDisplayDate
 import java.net.URLDecoder
 import androidx.compose.ui.draw.clip
@@ -253,7 +254,8 @@ fun BoardDetailScreen(
                         navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_id", boardId)
                         navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_name", latestName)
                         // MyBoardScreen에 새로고침이 필요하다는 신호를 보냄
-                        navController.previousBackStackEntry?.savedStateHandle?.set("needs_refresh", true)
+                        navController.postRefreshTick("myboard")
+
                         navController.popBackStack()
 
                     }, // 메뉴 버튼 클릭 시 보드 설정 바텀 시트 표시

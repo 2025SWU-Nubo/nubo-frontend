@@ -60,6 +60,7 @@ import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.ui.theme.PurpleMain500
 import com.example.nubo.ui.theme.RedError
 import kotlinx.coroutines.launch
+import com.example.nubo.utils.refreshTicks
 
 @Composable
 fun SectionDetailScreen(
