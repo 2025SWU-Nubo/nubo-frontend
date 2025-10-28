@@ -182,7 +182,7 @@ fun MainScreen(
 
     val toastHost = rememberAppToastHostState()
     val toastScope = rememberCoroutineScope()
-    AppToastOverlay(hostState = toastHost,extraBottomOffset = 54.dp)
+
 
     val showToast: (String, AppToastType, Int,Int) -> Unit = { msg, type, duration,preDelay ->
         toastScope.launch {
@@ -773,6 +773,8 @@ fun MainScreen(
         },
         showToast = showToast
     )
+
+    AppToastOverlay(hostState = toastHost,extraBottomOffset = 54.dp)
 }
 
 fun getSelectedIndex(route: String?): Int {
