@@ -3,6 +3,7 @@ package com.example.nubo.data.repository
 import com.example.nubo.data.mapper.toDomain
 import com.example.nubo.data.model.BoardItemResponse
 import com.example.nubo.data.model.BoardResponse
+import com.example.nubo.data.model.HomeBoardResponse
 import com.example.nubo.data.model.PageState
 import com.example.nubo.data.model.PagedResult
 import com.example.nubo.data.model.RecentBoardResponse
@@ -18,6 +19,19 @@ import javax.inject.Inject
 class BoardRepository @Inject constructor(
     private val boardService: BoardService,
 ) {
+    // 미시청 보드 이름 조회
+    suspend fun getHomeBoards(
+        token: String,
+        sort: String? = "LATEST"
+    ): Result<List<HomeBoardResponse>> = runCatching {
+        boardService.getHomeBoards(
+            authHeader = "Bearer $token",
+            acceptHeader = "application/json",
+            sort = sort
+        )
+    }
+
+
     // 최근 본 보드 조회
     suspend fun getRecentBoards(token: String): Result<List<RecentBoardResponse>> = runCatching {
         boardService.getRecentBoard(

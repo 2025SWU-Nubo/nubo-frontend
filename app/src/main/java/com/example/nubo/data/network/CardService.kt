@@ -39,12 +39,7 @@ interface CardService {
         @Query("size") size: Int? = null
     ): PagedResponse<CardResponse>
 
-    @GET("/api/home/boards/all/unviewed-cards")
-    fun getUnviewedAllCards(
-        @Header("Authorization") authorization: String,
-        @Header("Accept") accept: String = "application/json",
-        @Query("limit") limit: Int = 20
-    ): Call<List<CardResponse>>
+
 
 
     @POST("api/card")
@@ -68,6 +63,14 @@ interface CardService {
         @Path("boardId") boardId: Long,
         @Query("limit") limit: Int = 10
     ): Call<List<CardResponse>>
+
+    @GET("/api/home/boards/all/unviewed-cards")
+    fun getUnviewedAllCards(
+        @Header("Authorization") authorization: String,
+        @Header("Accept") accept: String = "application/json",
+        @Query("limit") limit: Int = 20
+    ): Call<List<CardResponse>>
+
 
     @PATCH("/api/card/{cardId}/summary")
     fun updateCardSummary(

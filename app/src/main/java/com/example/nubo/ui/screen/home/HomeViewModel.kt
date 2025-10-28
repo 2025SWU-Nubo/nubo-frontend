@@ -87,40 +87,6 @@ class HomeViewModel @Inject constructor(
         refreshForCurrentSelection()
     }
 
-    /** 현재 선택된 칩("all" or boardId)에 맞춰 카드만 새로고침 */
-//    fun refreshForCurrentSelection(){
-//        val token = authRepository.getAccessToken() ?: return
-//        val sel = _selectedChipId.value ?: "all"
-//
-//        if(sel == "all"){
-//            loadCards()
-//        }else{
-//            val boardId = sel.toLongOrNull() ?: return
-//            _isLoading.value = true
-//
-//            //미지청 추천 영상 조회
-//            cardRepository.getUnviewedCardsByBoard(token,boardId)
-//                .enqueue(object : Callback<List<CardResponse>>{
-//                    override fun onResponse(call: Call<List<CardResponse>?>, response: Response<List<CardResponse>?>) {
-//                        _isLoading.value = false
-//                        if (response.isSuccessful) {
-//                            _cards.value = response.body().orEmpty()
-//                            Log.d("HomeViewModel", "✅ Board $boardId cards loaded: size=${_cards.value?.size}")
-//                        } else {
-//                            _cards.value = emptyList()
-//                            Log.e("HomeViewModel", "❌ Failed to load board $boardId cards: code=${response.code()}")
-//                        }
-//                    }
-//
-//                    override fun onFailure(call: Call<List<CardResponse>?>, t: Throwable) {
-//                        _isLoading.value = false
-//                        _cards.value = emptyList()
-//                        Log.e("HomeViewModel", "❌ Board $boardId cards request failed: ${t.localizedMessage}", t)
-//                    }
-//                })
-//        }
-//    }
-
     fun refreshForCurrentSelection(){
         val token = authRepository.getAccessToken() ?: return
         val sel = _selectedChipId.value ?: "all"
@@ -257,23 +223,19 @@ class HomeViewModel @Inject constructor(
                 Log.d("HomeViewModel", "❌ Token is null, cannot load boards")
                 return@launch}
 
-            boardRepository.getMyBoards(
-                token = token,
-                sort = com.example.nubo.domain.model.BoardCardSort.LATEST,
-                filter = com.example.nubo.domain.model.BoardCardFilter.ALL,
-                page = 0,
-                size = 20
-            )
-
-                .onSuccess { paged ->
-                    val list = paged.items
-                    _boards.value = list
-                    Log.d("HomeViewModel", "✅ Boards loaded: size=${list.size}, data=$list")
-
+            boardRepository.getHomeBoards(token, sort = "LATEST")
+                .onSuccess { list ->
+                    // 홈 보드 응답을 칩으로 변환
                     val built = buildList {
                         add(RecommendChipItem(id = "all", title = "전체", isSelected = false))
                         list.forEach { b ->
-                            add(RecommendChipItem(id = b.id.toString(), title = b.name, isSelected = false))
+                            add(
+                                RecommendChipItem(
+                                    id = b.boardId.toString(),
+                                    title = b.boardName,
+                                    isSelected = false
+                                )
+                            )
                         }
                     }
                     val current = _selectedChipId.value ?: "all"
@@ -284,13 +246,48 @@ class HomeViewModel @Inject constructor(
                         built.map { it.copy(isSelected = it.id == "all") }
                     }
                     _chips.value = adjusted
+                    Log.d("HomeViewModel", "✅ Chips from /api/home/boards loaded: size=${list.size}")
                 }
                 .onFailure { e ->
-                    _boards.value = emptyList()
                     _chips.value = listOf(RecommendChipItem("all", "전체", isSelected = true))
                     _selectedChipId.value = "all"
-                    Log.e("HomeViewModel", "❌ Failed to load boards: ${e.localizedMessage}", e)
+                    Log.e("HomeViewModel", "❌ Failed to load home boards for chips: ${e.localizedMessage}", e)
                 }
+
+//            boardRepository.getMyBoards(
+//                token = token,
+//                sort = com.example.nubo.domain.model.BoardCardSort.LATEST,
+//                filter = com.example.nubo.domain.model.BoardCardFilter.ALL,
+//                page = 0,
+//                size = 20
+//            )
+//
+//                .onSuccess { paged ->
+//                    val list = paged.items
+//                    _boards.value = list
+//                    Log.d("HomeViewModel", "✅ Boards loaded: size=${list.size}, data=$list")
+//
+//                    val built = buildList {
+//                        add(RecommendChipItem(id = "all", title = "전체", isSelected = false))
+//                        list.forEach { b ->
+//                            add(RecommendChipItem(id = b.id.toString(), title = b.name, isSelected = false))
+//                        }
+//                    }
+//                    val current = _selectedChipId.value ?: "all"
+//                    val adjusted = if (current == "all" || built.any { it.id == current }) {
+//                        built.map { it.copy(isSelected = it.id == current) }
+//                    } else {
+//                        _selectedChipId.value = "all"
+//                        built.map { it.copy(isSelected = it.id == "all") }
+//                    }
+//                    _chips.value = adjusted
+//                }
+//                .onFailure { e ->
+//                    _boards.value = emptyList()
+//                    _chips.value = listOf(RecommendChipItem("all", "전체", isSelected = true))
+//                    _selectedChipId.value = "all"
+//                    Log.e("HomeViewModel", "❌ Failed to load boards: ${e.localizedMessage}", e)
+//                }
         }
     }
 
