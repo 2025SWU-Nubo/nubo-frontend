@@ -51,6 +51,7 @@ fun BottomSheetHost(
     val createBoardViewModel: CreateBoardViewModel = hiltViewModel()
     val ui by createBoardViewModel.ui.collectAsState() // CreateBoardUiState(name, isShared, isLoading, nameError, created)
 
+    var pendingToastMessage by rememberSaveable { mutableStateOf<String?>(null) }
     val context = LocalContext.current
 
     // 성공 처리 (토스트 이후 상위 알림도 생성 결과 이름 사용 권장)
@@ -76,6 +77,18 @@ fun BottomSheetHost(
         dragHandle = { BottomSheetDefaults.DragHandle() },
         modifier = modifier
     ) {
+
+        LaunchedEffect(route, pendingToastMessage) {
+            if (route == SheetRoute.CreateBoard && pendingToastMessage != null) {
+                showToast(
+                    pendingToastMessage!!, // 예약된 메시지 사용
+                    AppToastType.POSITIVE,
+                    1600,
+                    160 // 160ms 지연 후 CreateBoardSheet 위에 토스트가 뜸
+                )
+                pendingToastMessage = null // 토스트를 띄웠으므로 상태를 비움
+            }
+        }
         AnimatedContent(
             targetState = route,
             transitionSpec = {
@@ -136,8 +149,16 @@ fun BottomSheetHost(
                         // 1) 부모에 초대 이메일 전달(서버 전송은 부모/VM에서 처리 권장)
                         createBoardViewModel.setInvitedEmails(emails)
                         onInviteComplete(emails)
-                        // 2) CreateBoard 시트로 되돌아가기
+
+                        // 2) 시트 전환 직후 자연스럽게 띄우기
+                        val count = emails.size
+                        if (count > 0) {
+                            pendingToastMessage = "참여자 ${count}명 초대 완료!"
+                        }
+
+                        // 3) CreateBoard 시트로 되돌아가기
                         onBackToCreateBoard()
+
                     }
                     )
                 SheetRoute.AddVideo -> AddVideoSheet(
