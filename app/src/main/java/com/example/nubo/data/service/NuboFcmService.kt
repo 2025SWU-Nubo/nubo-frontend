@@ -84,7 +84,7 @@ class NuboFcmService : FirebaseMessagingService() {
 
         // 4) 알림 빌드/표시
         val notification = NotificationCompat.Builder(this, payload.channelId)
-            .setSmallIcon(R.drawable.noti_nubo) // TODO: 운영 아이콘으로 교체 가능
+            .setSmallIcon(R.drawable.nubo_symbol) // TODO: 운영 아이콘으로 교체 가능
             .setContentTitle(payload.title)               // 서버 title 우선
             .setContentText(payload.body)                 // 서버 body 우선
             .setStyle(NotificationCompat.BigTextStyle().bigText(payload.body))
