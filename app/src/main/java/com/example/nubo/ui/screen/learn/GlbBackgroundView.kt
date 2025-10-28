@@ -257,7 +257,7 @@ fun GlbBackgroundView(
 
                 // --- 둥실거림 설정 (구름 로직과 유사) ---
                 val floatAmplitudewater = 0.1f
-                val floatCycleSeconds = 5.0 // 둥실거림 1회전 속도
+                val floatCycleSeconds = 4.0 // 둥실거림 1회전 속도
                 val floatSpeedwater = (2 * PI) / floatCycleSeconds
 
                 raindropNodes.forEach { drop ->
@@ -298,7 +298,7 @@ fun GlbBackgroundView(
                 // "아주 조금" (위아래로 움직일 최대 거리)
                 val floatAmplitude = 0.1f
                 // "6초에 한번" 왕복
-                val floatCycleDurationSeconds = 6.0
+                val floatCycleDurationSeconds = 5.0
 
                 val floatSpeed = (2 * PI) / floatCycleDurationSeconds
                 val floatY = sin(timeSeconds * floatSpeed).toFloat() * floatAmplitude
