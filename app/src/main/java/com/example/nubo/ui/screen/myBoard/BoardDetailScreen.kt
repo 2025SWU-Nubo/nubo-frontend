@@ -28,6 +28,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -345,7 +346,13 @@ fun BoardDetailScreen(
                         selectedCards = selectedCards
                     )
                 } else {
-                    Text("Loading...")
+                    // 로딩 인디케이터를 가운데 정렬하기 위해 Box 사용
+                    Box(
+                        modifier = Modifier.fillMaxSize(), // 1. 남은 공간을 모두 채움
+                        contentAlignment = Alignment.Center // 2. 자식을 가운데 정렬
+                    ) {
+                        CircularProgressIndicator() // 3. 로딩 인디케이터
+                    }
                 }
             }
         }
