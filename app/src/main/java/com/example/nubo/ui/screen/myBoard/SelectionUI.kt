@@ -494,8 +494,7 @@ fun DeleteConfirmationDialog(
     selectedCardCount: Int,
     selectedSectionCount: Int,
     onDismiss: () -> Unit,
-    onRemove: () -> Unit, // 보드에서 제거
-    onDelete: () -> Unit  // 영구 삭제
+    onDelete: () -> Unit  //  삭제
 ) {
     if (!visible) return
 
@@ -514,20 +513,19 @@ fun DeleteConfirmationDialog(
                 ),
             contentAlignment = Alignment.BottomCenter
         ) {
-            // 두 개의 흰색 박스를 Column으로 감싸 수직으로 배치
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 20.dp) // 화면 하단과의 여백
+                    .padding(bottom = 20.dp)
                     .navigationBarsPadding()
             ) {
-                // 메인 다이얼로그 (제거, 삭제)
+                // 메인 다이얼로그 (삭제)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp)
-                        .clip(RoundedCornerShape(24.dp))
+                        .clip(RoundedCornerShape(14.dp)) // 모서리를 14.dp로 변경
                         .background(Color.White)
                         .clickable( // 배경 클릭 전파 방지
                             interactionSource = remember { MutableInteractionSource() },
@@ -535,29 +533,18 @@ fun DeleteConfirmationDialog(
                             onClick = {}
                         ),
                     horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                )  {
                     val title = when {
-                        selectedSectionCount > 0 && selectedCardCount > 0 -> "카드와 섹션을 삭제할까요, 아니면 이 보드에서 제거할까요?"
-                        selectedSectionCount > 0 -> "이 섹션을 삭제할까요, 아니면 이 보드에서 제거할까요?"
-                        else -> "이 카드를 삭제할까요, 아니면 이 보드에서 제거할까요?"
+                        selectedSectionCount > 0 && selectedCardCount > 0 -> "삭제를 클릭하면 선택한 모든 콘텐츠(섹션 내부 카드 포함)가 삭제됩니다."
+                        selectedSectionCount > 0 -> "삭제를 클릭하면 섹션 내 모든 콘텐츠가 삭제됩니다."
+                        else -> "삭제를 클릭하면 선택한 모든 카드가 삭제됩니다."
                     }
                     Text(
                         text = title,
-                        style = b2_regular_16,
-                        color = GreyMain300,
+                        style = b3_regular_14, // 폰트 스타일 변경
+                        color = Grey500, // 텍스트 색상 변경
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(vertical = 16.dp)
-                    )
-                    Divider(color = Grey50)
-                    Text(
-                        text = "보드에서 제거",
-                        style = b1_semibold_18,
-                        color = PurpleMain500,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .noRippleClickable { onRemove() }
-                            .padding(vertical = 16.dp),
-                        textAlign = TextAlign.Center
+                        modifier = Modifier.padding(vertical = 16.dp) // 패딩 조정
                     )
                     Divider(color = Grey50)
                     Text(
