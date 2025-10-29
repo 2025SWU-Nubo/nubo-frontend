@@ -481,7 +481,7 @@ fun TitleBar(
                 // 탭별 플레이스홀더
                 val placeholderText =
                     if (selectedTab == 0) "카드명 또는 키워드로 카드 검색"
-                    else "보드명 또는 키워드로 보드 검색"
+                    else "보드명으로 보드 검색"
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
