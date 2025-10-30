@@ -130,7 +130,7 @@ class ProfileViewModel @Inject constructor(
                     profileRepository.saveNotificationPrefs(checked, nextRemind)
                     _events.emit(
                         ProfileEvent.ShowToast(
-                            message = if (checked) "전체 알림 켰어요." else "전체 알림 껐어요",
+                            message = if (checked) "전체 알림 켰어요." else "전체 알림 껐어요.",
                             kind = if(checked) ToastKind.ALARM_ALLOW else ToastKind.ALARM_DENY
                         )
                     )

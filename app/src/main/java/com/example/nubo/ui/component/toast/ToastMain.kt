@@ -278,6 +278,7 @@ fun AppToastHost(
                 else PaddingValues(horizontal = 30.dp, vertical = 18.dp)
 
             val useImageBackground = toastStyle.backgroundRes != null
+            // 토스트 배경 컬러
             val surfaceColor = if (useImageBackground) Color.Transparent else toastStyle.bg
 
             val fixedWidth =
@@ -298,7 +299,7 @@ fun AppToastHost(
                     color = surfaceColor,
                     shape = toastStyle.shape,
                     tonalElevation = 0.dp,
-                    modifier = fixedWidth.shadow(elevation = 8.dp, shape = toastStyle.shape)
+                    modifier = fixedWidth.shadow(elevation = 5.dp, shape = toastStyle.shape)
                 ) {
                     if (useImageBackground) {
                         // 이미지 배경(풀블리드) + 스크림 + 중앙 정렬
