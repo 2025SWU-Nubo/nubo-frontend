@@ -79,6 +79,7 @@ import com.example.nubo.ui.screen.profile.NotificationSetScreen
 import com.example.nubo.ui.screen.profile.ProfileRoute
 import com.example.nubo.ui.theme.NuboAppTheme
 import com.example.nubo.utils.cacheToStore
+import com.example.nubo.utils.postRefreshTick
 import com.example.nubo.utils.startOnboardingForLogin
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
@@ -211,12 +212,8 @@ fun MainScreen(
                     Triple("카드 생성 중이에요", AppToastType.UPLOAD, 1200)
                 CardUploadViewModel.UploadEvent.Succeeded -> {
                     // MyBoard에 새로고침 신호 전송
-                    try {
-                        navController.getBackStackEntry("myboard")
-                            .savedStateHandle["refresh_myboard_tick"] = System.currentTimeMillis()
-                    } catch (e: Exception) {
-                        android.util.Log.e("MainVM", "myboard backstack not found", e)
-                    }
+                    // 유틸리티 함수를 사용해 "myboard" 라우트에 신호를 보냄
+                    navController.postRefreshTick("myboard")
                     Triple("카드 생성을 완료했어요!", AppToastType.POSITIVE, 1500)
                 }
                 CardUploadViewModel.UploadEvent.AlreadyExists ->

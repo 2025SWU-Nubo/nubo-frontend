@@ -35,7 +35,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.parcelize.Parcelize
 import com.example.nubo.utils.refreshTicks
-import com.example.nubo.utils.REFRESH_TICK_KEY
 
 
 /**
@@ -159,19 +158,19 @@ fun MyBoardRoute(
     }
 
     // --- 다른 화면에서 돌아왔을 때 새로고침을 처리하는 로직 ---
-    // 한글 주석: 본인 라우트("myboard")의 SavedStateHandle
+    // 본인 라우트("myboard")의 SavedStateHandle
     val handle = remember(navController) {
         navController.getBackStackEntry("myboard").savedStateHandle
     }
 
-    // 한글 주석: tick 기반 새로고침(이 Route 한 곳에서만 소비)
+    // tick 기반 새로고침(이 Route 한 곳에서만 소비)
     LaunchedEffect(Unit) {
         handle.refreshTicks().collectLatest { tick ->
             if (tick != 0L) {
                 boardViewModel.refresh()
                 cardViewModel.refresh()
 
-                // 한글 주석: 초기화는 선택사항(다음 tick은 항상 새로운 값이라 중복 트리거 없음)
+                //  초기화는 선택사항(다음 tick은 항상 새로운 값이라 중복 트리거 없음)
                 // handle[REFRESH_TICK_KEY] = 0L
             }
         }

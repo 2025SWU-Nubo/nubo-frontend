@@ -10,16 +10,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -55,12 +52,12 @@ import com.example.nubo.model.myBoard.MyCardItem
 import com.example.nubo.ui.component.randomCardHeight
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey200
-import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.ui.theme.PurpleMain500
 import com.example.nubo.ui.theme.RedError
+import com.example.nubo.utils.REFRESH_TICK_KEY
 import kotlinx.coroutines.launch
-import com.example.nubo.utils.refreshTicks
+import com.example.nubo.utils.postRefreshTick
 
 @Composable
 fun SectionDetailScreen(
@@ -168,13 +165,15 @@ fun SectionDetailScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                // 패딩 조절된 TopBar 사용
                 DetailTopBar(onBack = {
                     val latestName = ui.board?.name ?: sectionTitle
                     navController.previousBackStackEntry?.savedStateHandle?.set("renamed_section_id", sectionId)
                     navController.previousBackStackEntry?.savedStateHandle?.set("renamed_section_name", latestName)
-                    // 이전 화면에 새로고침이 필요하다는 신호를 보냄
-                    navController.previousBackStackEntry?.savedStateHandle?.set("needs_refresh", true)
+
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set(REFRESH_TICK_KEY, System.currentTimeMillis())
+
                     navController.popBackStack()
                 },// 메뉴 버튼 클릭 시 보드 설정 바텀 시트 표시
                     onMenuClick = { bottomSheetType = BottomSheetType.SECTION_SETTINGS},
@@ -359,7 +358,8 @@ fun SectionDetailScreen(
         )
     }
     // 토스트 UI를 화면에 배치
-    AppToastHost(hostState = toastHostState)
+    AppToastHost(hostState = toastHostState,
+        modifier = Modifier.padding(bottom = 40.dp))
 }
 
 

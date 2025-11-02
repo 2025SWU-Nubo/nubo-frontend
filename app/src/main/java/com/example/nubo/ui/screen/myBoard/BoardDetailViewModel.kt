@@ -1,6 +1,7 @@
 package com.example.nubo.ui.screen.myBoard
 
 import android.util.Log
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.nubo.data.model.BoardDeleteRequest
@@ -22,12 +23,14 @@ import com.example.nubo.data.model.BulkCopyRequest
 import com.example.nubo.data.model.BulkMoveRequest
 import com.example.nubo.data.model.CardDeleteRequest
 import com.example.nubo.data.model.CardRestoreInfo
-import com.example.nubo.data.model.CardRestoreRequest
 import com.example.nubo.data.network.CardService
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import com.example.nubo.utils.refreshTicks
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 
 data class BoardDetailUiState(
     val isLoading: Boolean = false,
@@ -50,6 +53,7 @@ data class UiBoardNode(
 
 @HiltViewModel
 class BoardDetailViewModel @Inject constructor(
+    private val savedStateHandle: SavedStateHandle,
     private val boardRepository: BoardRepository,
     private val authRepository: AuthRepository,
     private val boardService: BoardService,
@@ -82,11 +86,43 @@ class BoardDetailViewModel @Inject constructor(
         _toastMessage.value = null
     }
 
-    fun init(boardId: Int) {
-        if (bootstrapped && currentBoardId == boardId) return
+    // --- ViewModel 최초 생성 시 신호 수신 시작 ---
+    init {
+        observeRefreshSignal() // [추가]
+    }
+
+    // --- 새로고침 신호(tick)를 수신하는 함수 ---
+    private fun observeRefreshSignal() {
+        savedStateHandle.refreshTicks()
+            .onEach { tick ->
+                // 0L은 초기값이므로 무시하고,
+                // currentBoardId가 세팅된 이후에 수신된 신호일 때만 새로고침
+                if (tick != 0L && currentBoardId != -1) {
+                    Log.d("RefreshSignal", "Tick received in BoardDetailViewModel, refreshing $currentBoardId")
+                    // init() 또는 loadPage(reset=true)를 호출해 데이터를 새로고침
+                    loadPage(reset = true)
+                }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    fun init(boardId: Int, forceRefresh: Boolean = false) {
+
+        // 강제 새로고침이 아닐 때만 이 보호 로직을 실행
+        if (!forceRefresh && bootstrapped && currentBoardId == boardId) {
+            Log.d("BoardDetailVM", "Init skipped (already loaded)")
+            return
+        }
+
+        Log.d("BoardDetailVM", "Init executing (Force: $forceRefresh)")
         bootstrapped = true
         currentBoardId = boardId
-        _ui.value = BoardDetailUiState(isLoading = true, favoriteOnly = false)
+
+        // 기존 필터/정렬 상태를 유지하도록 UiState를 완전 리셋하는 대신 copy 사용
+        _ui.value = _ui.value.copy(
+            isLoading = true,
+            error = null
+        )
         loadPage(reset = true)
     }
 
