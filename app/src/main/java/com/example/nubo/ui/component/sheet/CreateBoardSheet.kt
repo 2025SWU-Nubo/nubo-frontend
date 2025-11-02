@@ -80,8 +80,10 @@ fun CreateBoardSheet(
     nameError: String?,
     onSubmit: (String) -> Unit
 ){
-    var touched by rememberSaveable { mutableStateOf(false) }
 
+    // 사용자가 타이핑 중일 때 커서/선택 상태를 보존하기 위한 로컬 상태
+    // 단, "텍스트 값" 자체는 반드시 VM과 동기화한다
+    var touched by rememberSaveable { mutableStateOf(false) }
     var nameValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue(text = name)) // VM 값으로 초기화
     }
@@ -122,7 +124,9 @@ fun CreateBoardSheet(
         ) {
             // 왼쪽 뒤로가기
             IconButton(
-                onClick = onBack,
+                onClick = {
+                    onNameChange(nameValue.text)
+                    onBack },
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .offset(x = (-18).dp)
@@ -156,6 +160,7 @@ fun CreateBoardSheet(
                 onValueChange = {v ->
                     nameValue = v
                     if(!touched) touched = true
+                    onNameChange(v.text) // 입력할 때마다 VM으로 즉시 반영
                                 },
                 singleLine = true,
                 maxLines = 1,
@@ -266,7 +271,9 @@ fun CreateBoardSheet(
                 horizontalAlignment = Alignment.Start
             ) {
                 Row( // 텍스트, 아이콘 묶기
-                    modifier = Modifier.clickable { onInviteClick() },
+                    modifier = Modifier.clickable {
+                        onNameChange(nameValue.text)
+                        onInviteClick() },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(

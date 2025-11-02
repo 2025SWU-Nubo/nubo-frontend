@@ -142,7 +142,7 @@ fun MyBoardRoute(
                         boardViewModel.undoLastDeletion()
                     }
 
-                    // 스낵바 처리가 끝난 후, 코루틴 '안'에서 이벤트를 제거 (소비)
+                    // 스낵바 처리가 끝난 후, 코루틴 '안'에서 이벤트를 제거 ( 소비)
                     savedStateHandle?.remove<BoardDeleteEvent>("deleted_board_event") // <---
                 }
             }
@@ -393,13 +393,6 @@ fun MyBoardRoute(
                 showBoardDeleteDialog = false
                 resetBoardSelectionState() // 다이얼로그 닫을 때 선택모드 해제
                 boardIdsToDelete = emptySet() // 임시 변수 초기화
-            },
-            onRemove = {
-                scope.launch {
-                    boardDetailViewModel.removeItemsFromBoard(emptySet(), selectedCardIds)
-                    showDeleteDialog = false
-                    resetCardSelectionState()
-                }
             },
             onDelete = {
                 scope.launch {

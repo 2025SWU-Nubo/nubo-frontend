@@ -183,7 +183,7 @@ fun MainScreen(
 
     val toastHost = rememberAppToastHostState()
     val toastScope = rememberCoroutineScope()
-    AppToastOverlay(hostState = toastHost,extraBottomOffset = 54.dp)
+
 
     val showToast: (String, AppToastType, Int,Int) -> Unit = { msg, type, duration,preDelay ->
         toastScope.launch {
@@ -412,18 +412,21 @@ fun MainScreen(
                 }
 
                 composable(
-                    route = "section_detail/{sectionId}/{sectionTitle}",
+                    route = "section_detail/{sectionId}/{sectionTitle}/{boardTitle}",
                     arguments = listOf(
                         navArgument("sectionId") { type = NavType.IntType },
-                        navArgument("sectionTitle") { type = NavType.StringType }
+                        navArgument("sectionTitle") { type = NavType.StringType },
+                        navArgument("boardTitle") { type = NavType.StringType }
                     )
                 ) { backStackEntry ->
                     val sectionId = backStackEntry.arguments?.getInt("sectionId") ?: return@composable
                     val sectionTitle = backStackEntry.arguments?.getString("sectionTitle") ?: "로딩 중..."
+                    val boardTitle = backStackEntry.arguments?.getString("boardTitle") ?: ""
                     SectionDetailScreen(
                         sectionId = sectionId,
                         sectionTitle = sectionTitle,
                         navController = navController,
+                        boardTitle = boardTitle
                     )
                 }
 
@@ -769,6 +772,8 @@ fun MainScreen(
         },
         showToast = showToast
     )
+
+    AppToastOverlay(hostState = toastHost,extraBottomOffset = 54.dp)
 }
 
 fun getSelectedIndex(route: String?): Int {

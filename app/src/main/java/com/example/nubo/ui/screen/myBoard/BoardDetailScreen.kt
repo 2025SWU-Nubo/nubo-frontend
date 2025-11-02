@@ -28,6 +28,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -86,6 +87,7 @@ import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.utils.REFRESH_TICK_KEY
 import kotlinx.coroutines.launch
+import com.example.components.toast.AppToastType
 
 // 어떤 다이얼로그를 띄울지 구분하기 위한 sealed class
 sealed class InputDialogMode {
@@ -187,10 +189,14 @@ fun BoardDetailScreen(
     // ViewModel의 toastMessage 변경을 감지하여 토스트 표시
     LaunchedEffect(toastMessage) {
         toastMessage?.let { message ->
+            val isSuccess = (message.contains("복제") || message.contains("이동")) && message.contains("완료")
+            val toastType = if (isSuccess) AppToastType.POSITIVE else AppToastType.NORMAL
+
             scope.launch {
                 toastHostState.show(
                     title = buildAnnotatedString { append(message) },
-                    layout = AppToastLayout.TitleOnly // 제목만 있는 레이아웃 사용
+                    layout = AppToastLayout.TitleOnly, // 제목만 있는 레이아웃 사용
+                    type = toastType,
                 )
             }
             // 토스트를 띄운 후에는 상태를 다시 null로 초기화하여 중복 표시 방지
@@ -314,7 +320,13 @@ fun BoardDetailScreen(
                                 }
                             } else {
                                 val encodedTitle = java.net.URLEncoder.encode(section.title, "utf-8")
-                                navController.navigate("section_detail/${section.id}/$encodedTitle")
+
+                                // 현재 보드의 타이틀 가져오기
+                                val currentBoardTitle = ui.board?.name ?: boardTitle
+                                val encodedBoardTitle = java.net.URLEncoder.encode(currentBoardTitle, "utf-8")
+
+                                // 라우트에 boardTitle을 추가하여 전달
+                                navController.navigate("section_detail/${section.id}/$encodedTitle/$encodedBoardTitle")
                             }
                         },
                         onCardLongClick = { cardId ->
@@ -342,7 +354,13 @@ fun BoardDetailScreen(
                         selectedCards = selectedCards
                     )
                 } else {
-                    Text("Loading...")
+                    // 로딩 인디케이터를 가운데 정렬하기 위해 Box 사용
+                    Box(
+                        modifier = Modifier.fillMaxSize(), // 1. 남은 공간을 모두 채움
+                        contentAlignment = Alignment.Center // 2. 자식을 가운데 정렬
+                    ) {
+                        CircularProgressIndicator() // 3. 로딩 인디케이터
+                    }
                 }
             }
         }
@@ -494,12 +512,6 @@ fun BoardDetailScreen(
             selectedCardCount = selectedCards.size,
             selectedSectionCount = selectedSections.size,
             onDismiss = { showDeleteDialog = false },
-            onRemove = {
-                scope.launch {
-                    viewModel.removeItemsFromBoard(selectedSections, selectedCards)
-                    showDeleteDialog = false
-                }
-            },
             onDelete = {
                 scope.launch {
                     viewModel.deleteItems(selectedSections, selectedCards)

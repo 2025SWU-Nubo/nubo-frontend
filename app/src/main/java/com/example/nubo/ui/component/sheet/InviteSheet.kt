@@ -218,14 +218,9 @@ fun InviteSheet (
         //완료하기 버튼
         Button(modifier = Modifier.fillMaxWidth().height(50.dp),
             onClick ={
-
                 val count = selected.size
                 if (count > 0) {
-                    Toast.makeText(context, "${count}명 초대 완료!", Toast.LENGTH_SHORT).show()
-
                     onComplete(selected.toList())
-
-                    onBack()
                 }
         } ,
             shape = RoundedCornerShape(8.dp),

@@ -17,6 +17,7 @@ import com.example.nubo.data.model.BulkMoveResponse
 import com.example.nubo.data.model.CardSearchItemResponse
 import com.example.nubo.data.model.FavoriteRequest
 import com.example.nubo.data.model.FavoriteResponse
+import com.example.nubo.data.model.HomeBoardResponse
 import com.example.nubo.data.model.PagedResponse
 import com.example.nubo.data.model.RecentBoardResponse
 import com.example.nubo.data.model.UpsertBoardRequest
@@ -32,6 +33,14 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface BoardService {
+
+    // 홈_미시청 보드 이름 조회
+    @GET("/api/home/boards")
+    suspend fun getHomeBoards(
+        @Header("Authorization") authHeader: String,
+        @Header("Accept") acceptHeader: String = "application/json",
+        @Query("sort") sort: String? = null // LATEST | OLDEST | ALPHABET
+    ): List<HomeBoardResponse>
 
     // 나의 보드 조회
     @GET("/api/board")

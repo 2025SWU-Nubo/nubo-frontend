@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -51,9 +53,11 @@ import com.example.nubo.data.model.CardItemDto
 import com.example.nubo.model.myBoard.MyCardItem
 import com.example.nubo.ui.component.randomCardHeight
 import com.example.nubo.ui.theme.AppTextStyles
+import com.example.nubo.ui.theme.AppTextStyles.subtitle_medium_16
 import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.ui.theme.PurpleMain500
+import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.RedError
 import com.example.nubo.utils.REFRESH_TICK_KEY
 import kotlinx.coroutines.launch
@@ -64,6 +68,7 @@ fun SectionDetailScreen(
     sectionId: Int,
     sectionTitle: String,
     navController: NavController,
+    boardTitle: String,
     // BoardDetailViewModel을 재사용
     viewModel: BoardDetailViewModel = hiltViewModel(),
 ) {
@@ -165,7 +170,9 @@ fun SectionDetailScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                DetailTopBar(onBack = {
+                SectionDetailTopBar(
+                   title = boardTitle, // 전달받은 boardTitle 사용
+                  onBack = {
                     val latestName = ui.board?.name ?: sectionTitle
                     navController.previousBackStackEntry?.savedStateHandle?.set("renamed_section_id", sectionId)
                     navController.previousBackStackEntry?.savedStateHandle?.set("renamed_section_name", latestName)
@@ -177,7 +184,8 @@ fun SectionDetailScreen(
                     navController.popBackStack()
                 },// 메뉴 버튼 클릭 시 보드 설정 바텀 시트 표시
                     onMenuClick = { bottomSheetType = BottomSheetType.SECTION_SETTINGS},
-                    isSelectionMode = isSelectionMode)
+                    isSelectionMode = isSelectionMode
+                )
                 // 패딩 조절된 TitleBar 사용
                 BoardTitleBar(
                     title = detailState?.name ?: sectionTitle,)
@@ -190,8 +198,12 @@ fun SectionDetailScreen(
                 )
 
                 if (ui.isLoading && detailState == null) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Loading...")
+                    // 로딩 인디케이터를 가운데 정렬하기 위해 Box 사용
+                    Box(
+                        modifier = Modifier.fillMaxSize(), // 1. 남은 공간을 모두 채움
+                        contentAlignment = Alignment.Center // 2. 자식을 가운데 정렬
+                    ) {
+                        CircularProgressIndicator() // 3. 로딩 인디케이터
                     }
                 } else if (detailState != null) {
                     val cardItems = detailState.cards.content.map { it.toMyCardItem() }
@@ -343,12 +355,6 @@ fun SectionDetailScreen(
             selectedCardCount = selectedCards.size,
             selectedSectionCount = 0,
             onDismiss = { showDeleteDialog = false },
-            onRemove = {
-                scope.launch {
-                    viewModel.removeItemsFromBoard(emptySet(), selectedCards)
-                    showDeleteDialog = false
-                }
-            },
             onDelete = {
                 scope.launch {
                     viewModel.deleteItems(emptySet(), selectedCards)
@@ -362,6 +368,65 @@ fun SectionDetailScreen(
         modifier = Modifier.padding(bottom = 40.dp))
 }
 
+/**
+ * 섹션 상세 화면 전용 상단바.
+ * 이전 화면(보드)의 타이틀을 받아와 표시합니다.
+ */
+@Composable
+fun SectionDetailTopBar(
+    title: String,
+    onBack: () -> Unit,
+    onMenuClick: () -> Unit,
+    isSelectionMode: Boolean
+) {
+    val decodedTitle = try {
+        // URL 디코딩
+        java.net.URLDecoder.decode(title, "utf-8")
+    } catch (e: Exception) {
+        title // 디코딩 실패 시 원본 사용
+    }
+
+    // 6자가 넘으면 말줄임표 처리
+    val displayTitle = if (decodedTitle.length > 10) {
+        "${decodedTitle.take(10)}..."
+    } else {
+        decodedTitle
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 14.dp, end = 16.dp, top = 13.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 왼쪽 (뒤로가기 버튼 + 타이틀)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_arrow_back),
+                contentDescription = "뒤로가기",
+                tint = GreyMain300,
+                modifier = Modifier.clickable { onBack() }
+            )
+            Spacer(modifier = Modifier.width(5.dp))
+            Text(
+                text = displayTitle, // 6자 이상 시 말줄임표 적용된 텍스트
+                style = subtitle_medium_16,
+                color = GreyMain300
+            )
+        }
+
+        // 중간을 채우는 빈 공간
+        Spacer(modifier = Modifier.weight(1f))
+
+        // 오른쪽 (메뉴 버튼)
+        Icon(
+            painter = painterResource(id = R.drawable.ic_board_menu),
+            contentDescription = "섹션 메뉴",
+            tint = GreyMain300,
+            modifier = Modifier.clickable(enabled = !isSelectionMode) { onMenuClick() }
+        )
+    }
+}
 
 // 필터 버튼
 @Composable
