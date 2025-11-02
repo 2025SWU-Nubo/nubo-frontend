@@ -1,8 +1,8 @@
 package com.example.nubo.ui.screen.learn
 
 import com.example.nubo.ui.screen.learn.GlbBackgroundView
+import com.example.nubo.ui.screen.learn.GraphicBackgroundView
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -46,9 +46,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -67,9 +65,6 @@ import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.viewinterop.AndroidView
 
 
 // BottomProgressCard 애니메이션 시간 조절
@@ -91,45 +86,18 @@ fun LearnScreen(
     val uiState by viewModel.uiState.collectAsState()
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
 
-    // CardDetailScreen으로부터 레벨업/열매 신호 수신 ---
-    val handle = navController.currentBackStackEntry?.savedStateHandle
-    val levelUpStage by handle?.getLiveData<Int>("show_levelup_stage")?.observeAsState() ?: remember {
-        mutableStateOf(
-            null
-        )
-    }
-    val berryGained by handle?.getLiveData<Boolean>("show_berry_gained")?.observeAsState() ?: remember {
-        mutableStateOf(
-            false
-        )
-    }
+    // --- ViewModel로부터 이벤트 직접 구독 ---
+    val levelUpStage: Int? by viewModel.levelUpEvent.collectAsState()
+    val berryGained: Boolean by viewModel.berryGainedEvent.collectAsState()
 
-    // 레벨업 애니메이션 트리거 상태
-    var showLevelUp by remember { mutableStateOf(false) }
-
-
-
-    LaunchedEffect(levelUpStage) {
-        levelUpStage?.let {
-            showLevelUp = true
-            // handle이 null일 수 있으므로 안전 호출(?.) 사용
-            handle?.remove<Int>("show_levelup_stage")
-        }
-    }
-
-    LaunchedEffect(berryGained) {
-        if (berryGained == true) {
-            // TODO: 열매 수확 토스트 띄우기 로직
-            // handle이 null일 수 있으므로 안전 호출(?.) 사용
-            handle?.remove<Boolean>("show_berry_gained")
-        }
-    }
+    // levelUpStage가 null이 아닌지 여부로 애니메이션 트리거 결정
+    val showLevelUp = levelUpStage != null
 
 //================= 화면 UI 시작 =================
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(color =Color(0xFF96C1D2))
+            .background(color = Color(0xFF96C1D2))
     ) {
         when (val state = uiState) {
             is DashboardUiState.Loading -> {
@@ -168,14 +136,20 @@ fun LearnScreen(
                 // 오늘 학습 카운트 계산 (물방울 개수 적용)
                 val todayCount = bubbleCounts.getOrNull(todayIndex) ?: 0
 
-                GlbBackgroundView(
+                /*GlbBackgroundView(
                     modifier = Modifier.fillMaxSize(),
                     glbUrl = dashboardData.dashboardBackground,
                     todayVideoCount = todayCount // 오늘 카운트 값 3D 그래픽 파일에 전달
+                )*/
+                GraphicBackgroundView(
+                    modifier = Modifier.fillMaxSize(),
+                    todayVideoCount = todayCount // 오늘 카운트 값 2D 그래픽 파일에 전달
                 )
 
-                Column(modifier = Modifier
-                    .fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                ) {
                     TopBar(
                         title = "대시보드",
                         onClickChart = { /* TODO */ }
@@ -211,9 +185,17 @@ fun LearnScreen(
                         // 레벨업 UI에 서버 데이터 연결
                         showLevelUp = showLevelUp,
                         currentStep = dashboardData.stage, // 현재 stage 전달
-                        // [수정] 레벨업 후 텍스트를 동적으로 생성하여 전달
-                        levelUpText = "레벨${dashboardData.stage + 1}. ${getStageName(dashboardData.stage + 1)}로 성장했어요.",
-                        currentProgressFromServer = growthRate / 100f
+                        // 레벨업 후 텍스트를 동적으로 생성하여 전달
+                        levelUpText = levelUpStage?.let { newStage ->
+                            // getStageName이 1단계부터 이름을 반환한다고 가정
+                            "레벨${newStage}. ${getStageName(newStage)}로 성장했어요."
+                        } ?: "", // null일 경우 빈 문자열 (보일 일 없음)
+                        currentProgressFromServer = growthRate / 100f,
+
+                        // 애니메이션이 끝나면 ViewModel에 알려줄 콜백 전달
+                        onLevelUpAnimationDone = {
+                            viewModel.onLevelUpAnimationFinished()
+                        }
                     )
                     Spacer(Modifier.height(130.dp))
                 }
@@ -450,6 +432,7 @@ private fun BottomProgressCard(
     currentProgressFromServer: Float,
     cardMinHeight: Dp = 145.dp,
     levelUpText: String,
+    onLevelUpAnimationDone: () -> Unit
 ) {
 
     // 현재 단계 값을 받아서 다음 단계로
@@ -463,6 +446,13 @@ private fun BottomProgressCard(
             state = "levelup" // 레벨업 화면으로 전환
             delay(LEVEL_HOLD_MS.toLong()) //레벨업 화면 애니메이션 처리 후
             state = "next"    // 다음 단계 화면으로 전환
+            // 이벤트가 소비되었음을 ViewModel에 알림
+            onLevelUpAnimationDone()
+
+        } else if (state != "normal") {
+            // showLevelUp이 false가 되면(이벤트가 소비되면)
+            // state를 다시 "normal"로 리셋
+            state = "normal"
         }
     }
     // 하단 성장률 카드 Box

@@ -9,6 +9,7 @@ import com.example.nubo.data.model.CardDetailResponse
 import com.example.nubo.data.model.CardFavoriteRequest
 import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.data.repository.CardRepository
+import com.example.nubo.di.UserProgressEventHolder
 import com.example.nubo.model.card.CardDetailItem
 import com.example.nubo.ui.theme.PurpleMain500
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,6 +39,7 @@ sealed interface InfoUiState {
 class CardDetailViewModel @Inject constructor(
     private val repository: CardRepository,
     private val authRepository: AuthRepository,
+    private val eventHolder: UserProgressEventHolder,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -50,7 +52,7 @@ class CardDetailViewModel @Inject constructor(
     private val _toast = MutableStateFlow<String?>(null)
     val toast = _toast.asStateFlow()
 
-    // 레벨얼 / 누베리 수확 토스트
+    // 레벨업 / 누베리 수확 토스트
     private val _toast2 = MutableStateFlow<Pair<AnnotatedString, String>?>(null)
     val toast2 = _toast2.asStateFlow()
 
@@ -83,6 +85,9 @@ class CardDetailViewModel @Inject constructor(
                     )
                     val summary = "대시보드에서 나의 성장을 확인해보세요"
                     _toast2.value = Pair(title, summary)
+
+                    // LearnScreen 애니메이션을 위해 EventHolder에 저장
+                    eventHolder.postLevelUpEvent(ui.stage)
                 } else if (ui.berryGained) {
                     val title = buildHighlightedTitle(
                         full = "누베리 성장 완료!",
@@ -91,6 +96,9 @@ class CardDetailViewModel @Inject constructor(
                     )
                     val summary = "대시보드에서 직접 수확해보세요"
                     _toast2.value = Pair(title, summary)
+
+                    /*// LearnScreen 알림을 위해 EventHolder에 저장
+                    eventHolder.postBerryGainedEvent()*/
                 }
             }.onFailure { e ->
                 val msg = when (e) {
