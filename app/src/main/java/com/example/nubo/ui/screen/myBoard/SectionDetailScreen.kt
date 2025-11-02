@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -197,8 +198,12 @@ fun SectionDetailScreen(
                 )
 
                 if (ui.isLoading && detailState == null) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Loading...")
+                    // 로딩 인디케이터를 가운데 정렬하기 위해 Box 사용
+                    Box(
+                        modifier = Modifier.fillMaxSize(), // 1. 남은 공간을 모두 채움
+                        contentAlignment = Alignment.Center // 2. 자식을 가운데 정렬
+                    ) {
+                        CircularProgressIndicator() // 3. 로딩 인디케이터
                     }
                 } else if (detailState != null) {
                     val cardItems = detailState.cards.content.map { it.toMyCardItem() }
