@@ -79,6 +79,7 @@ import com.example.nubo.ui.screen.profile.NotificationSetScreen
 import com.example.nubo.ui.screen.profile.ProfileRoute
 import com.example.nubo.ui.theme.NuboAppTheme
 import com.example.nubo.utils.cacheToStore
+import com.example.nubo.utils.postRefreshTick
 import com.example.nubo.utils.startOnboardingForLogin
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
@@ -210,15 +211,9 @@ fun MainScreen(
                 CardUploadViewModel.UploadEvent.Started ->
                     Triple("카드 생성 중이에요", AppToastType.UPLOAD, 1200)
                 CardUploadViewModel.UploadEvent.Succeeded -> {
-                    // 카드 업로드 성공 시, MyBoardRoute에 새로고침 신호 전송
-                    try {
-                        navController.getBackStackEntry("myboard")
-                            .savedStateHandle
-                            .set("needs_refresh", true)
-                    } catch (e: Exception) {
-                        // myboard 스택이 없는 경우 (거의 없음)
-                        android.util.Log.e("MainVM", "Failed to find myboard backstack entry", e)
-                    }
+                    // MyBoard에 새로고침 신호 전송
+                    // 유틸리티 함수를 사용해 "myboard" 라우트에 신호를 보냄
+                    navController.postRefreshTick("myboard")
                     Triple("카드 생성을 완료했어요!", AppToastType.POSITIVE, 1500)
                 }
                 CardUploadViewModel.UploadEvent.AlreadyExists ->
@@ -257,6 +252,7 @@ fun MainScreen(
             navController.currentBackStackEntry
                 ?.savedStateHandle
                 ?.set("needs_refresh", true)
+            android.util.Log.d("Myboard","새로고침 신호 전송!")
 
             // 플래그를 재설정하여 중복 새로고침 방지
             createBoardViewModel.consumeCreated()

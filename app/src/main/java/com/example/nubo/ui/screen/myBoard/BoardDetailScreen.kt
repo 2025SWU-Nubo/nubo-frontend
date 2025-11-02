@@ -69,6 +69,7 @@ import com.example.nubo.model.card.CardItem
 import com.example.nubo.ui.component.randomCardHeight
 import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
 import com.example.nubo.ui.theme.AppTextStyles.b3_medium_14
+import com.example.nubo.utils.postRefreshTick
 import getDisplayDate
 import java.net.URLDecoder
 import androidx.compose.ui.draw.clip
@@ -84,6 +85,7 @@ import com.example.nubo.ui.theme.AppTextStyles.b3_regular_14
 import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.Purple50
+import com.example.nubo.utils.REFRESH_TICK_KEY
 import kotlinx.coroutines.launch
 import com.example.components.toast.AppToastType
 
@@ -154,21 +156,6 @@ fun BoardDetailScreen(
         viewModel.init(boardId)
     }
 
-    // --- SectionDetailScreen에서 돌아왔을 때 새로고침을 처리하는 로직 ---
-    LaunchedEffect(Unit) {
-        val handle = navController.currentBackStackEntry?.savedStateHandle
-        handle?.getLiveData<Boolean>("needs_refresh")?.observeForever { needsRefresh ->
-            if (needsRefresh) {
-                // init() 함수를 다시 호출하여 보드 상세 데이터를 새로고침
-                viewModel.init(boardId)
-
-                // [중요] 신호를 처리한 후에는 반드시 제거하여 중복 새로고침 방지
-                handle.remove<Boolean>("needs_refresh")
-            }
-        }
-    }
-
-
     // 1. '실행 취소'용 Snackbar 상태
     val snackbarHostState = remember { SnackbarHostState() }
     // 토스트 상태 및 코루틴 스코프 선언
@@ -230,6 +217,26 @@ fun BoardDetailScreen(
         }
     }
 
+    // 섹션 상세에서 기능 사용 시 새로고침 신호 수신
+    LaunchedEffect(Unit) {
+        // 현재 화면의 SavedStateHandle을 가져옴
+        val handle = navController.currentBackStackEntry?.savedStateHandle
+
+        // "refresh_tick" (REFRESH_TICK_KEY) 키를 구독
+        handle?.getStateFlow(REFRESH_TICK_KEY, 0L)
+            ?.collect { tick ->
+                // 0L (초기값)이 아닌 새로운 틱이 들어오면
+                if (tick != 0L) {
+
+                    // 강제 새로고침(forceRefresh = true)으로 init 호출
+                    viewModel.init(boardId, forceRefresh = true)
+
+                    // 신호를 처리한 후, 틱을 0L로 리셋하여 중복 새로고침 방지
+                    handle.set(REFRESH_TICK_KEY, 0L)
+                }
+            }
+    }
+
     // 뷰모델 상태 올바르게 구독
     val ui by viewModel.ui.collectAsState()
     val boardState = ui.board
@@ -259,7 +266,8 @@ fun BoardDetailScreen(
                         navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_id", boardId)
                         navController.previousBackStackEntry?.savedStateHandle?.set("renamed_board_name", latestName)
                         // MyBoardScreen에 새로고침이 필요하다는 신호를 보냄
-                        navController.previousBackStackEntry?.savedStateHandle?.set("needs_refresh", true)
+                        navController.postRefreshTick("myboard")
+
                         navController.popBackStack()
 
                     }, // 메뉴 버튼 클릭 시 보드 설정 바텀 시트 표시
