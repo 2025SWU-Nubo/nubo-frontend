@@ -1,6 +1,7 @@
 package com.example.nubo.ui.screen.learn
 
 import androidx.compose.animation.core.EaseInOutSine
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -18,47 +19,72 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.nubo.R // R 파일 경로는 프로젝트에 맞게 확인해주세요.
+import kotlin.math.PI
+import kotlin.math.sin
 
 /**
- * 2D PNG 이미지를 사용하여 대시보드 배경을 렌더링하는 Composable 입니다.
- * 기존 GlbBackgroundView를 대체합니다.
+ * 2D PNG 이미지를 사용하여 대시보드 배경을 렌더링하는 Composable
+ * 기존 GlbBackgroundView를 대체
  *
  * @param modifier Modifier
- * @param todayVideoCount 오늘 학습 수. 물방울 개수를 결정하는 데 사용됩니다.
+ * @param todayVideoCount 오늘 학습 수. 물방울 개수를 결정하는 데 사용
  */
 @Composable
 fun GraphicBackgroundView(
     modifier: Modifier = Modifier,
     todayVideoCount: Int
 ) {
-    // 표시할 물방울 개수 (샘플 이미지를 기준으로 최대 5개로 제한)
+    // 표시할 물방울 개수 (최대 5개로 제한)
     val dropCount = todayVideoCount.coerceAtMost(5)
 
-    // --- ✅ [추가] 애니메이션 설정 ---
+    // --- 애니메이션 설정 ---
 
-    // 1. 꽃(Flower) 애니메이션 (3D 로직: 6초 주기, 6도 각도)
+    // 1. 꽃(Flower) 애니메이션
     val flowerTransition = rememberInfiniteTransition(label = "flower-sway")
     val flowerRotation by flowerTransition.animateFloat(
-        initialValue = -2f, // -6 degrees (좌)
-        targetValue = 2f,  // +6 degrees (우)
+        initialValue = -2f, // -2 degrees (좌)
+        targetValue = 2f,  // +2 degrees (우)
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 4000, easing = EaseInOutSine), // 3초
-            repeatMode = RepeatMode.Reverse // 3초마다 방향 반전 (총 6초 주기)
+            animation = tween(durationMillis = 4000, easing = EaseInOutSine), // 4초
+            repeatMode = RepeatMode.Reverse // 4초마다 방향 반전 (총 8초)
         ),
         label = "flowerRotation"
     )
 
-    // 2. 구름(Cloud) 애니메이션 (3D 로직: 5초 주기)
+    // 2. 구름(Cloud) 애니메이션
     val cloudTransition = rememberInfiniteTransition(label = "cloud-float")
     val cloudOffsetY by cloudTransition.animateFloat(
-        initialValue = -8f, // -8 픽셀 (위)
-        targetValue = 8f,  // +8 픽셀 (아래)
+        initialValue = -9f, // -9 픽셀 (위)
+        targetValue = 9f,  // +9 픽셀 (아래)
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 2500, easing = EaseInOutSine), // 2.5초
-            repeatMode = RepeatMode.Reverse // 2.5초마다 방향 반전 (총 5초 주기)
+            repeatMode = RepeatMode.Reverse // 2.5초마다 방향 반전 (총 5초)
         ),
         label = "cloudOffsetY"
     )
+
+    // 3. 물방울 애니메이션
+    val floatCycleSeconds = 5.0
+    val floatCycleMillis = (floatCycleSeconds * 1000).toInt()
+    val bobbingAmount = 4.dp // 둥실거리는 폭
+
+    val raindropTransition = rememberInfiniteTransition(label = "RaindropTime")
+    val raindropTime by raindropTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2 * PI).toFloat(), // 1 사이클 (0 ~ 360도)
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = floatCycleMillis,
+                easing = LinearEasing // 선형 진행
+            ),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "RaindropTime"
+    )
+
+    // Y축 오프셋 계산 (sin 함수)
+    val animatedRaindropY = sin(raindropTime) * bobbingAmount.value
+
     // --- 애니메이션 설정 끝 ---
 
     Box(
@@ -74,19 +100,17 @@ fun GraphicBackgroundView(
         )
 
         // Layer 2: 오브젝트 그룹
-        // 이 Box가 모든 오브젝트(구름, 꽃 등)를 감싸고 중앙에 배치합니다.
+        // 이 Box가 모든 오브젝트(구름, 꽃 등)를 감싸고 중앙에 배치
         Box(
             modifier = Modifier
-                .align(Alignment.Center) // ✅ [변경] 그룹을 화면 중앙에 정렬
+                .align(Alignment.Center) // 그룹을 화면 중앙에 정렬
                 .fillMaxWidth()
-                // ✅ [중요] 이 padding 값으로 오브젝트 그룹 전체의 '높이'를 조절합니다.
-                // 하단 카드와 겹치는 위치를 보면서 이 값을 (e.g., 100.dp) 조절하세요.
+                // padding 값으로 오브젝트 그룹 전체의 '높이'를 조절
                 .padding(bottom = 320.dp),
             contentAlignment = Alignment.Center // 자식들을 이 Box의 중앙에 겹침
         ) {
-            // Box는 선언 순서대로 그립니다. (먼저 선언 = 맨 아래에 깔림)
-
-            // Z-Order 1: 줄기 (맨 아래)
+            // Box는 선언 순서대로 배치
+            // Z-Order 1: 줄기 (맨 아래 배경 바로 위)
             Image(
                 painter = painterResource(id = R.drawable.learn_plant),
                 contentDescription = "줄기",
@@ -100,7 +124,6 @@ fun GraphicBackgroundView(
                 painter = painterResource(id = R.drawable.learn_flower),
                 contentDescription = "꽃",
                 modifier = Modifier
-                    // Y축 오프셋 (그룹 중앙에서 +20dp 아래로, 줄기와 겹침)
                     .scale(1.7f)
                     .graphicsLayer {
                         rotationZ = flowerRotation
@@ -109,33 +132,35 @@ fun GraphicBackgroundView(
 
             // Z-Order 3: 물방울
             Box(
-                modifier = Modifier,
-                    // ✅ [추가] 물방울 그룹의 Y축 오프셋 (그룹 중앙에서 -50dp 위로)
+                modifier = Modifier
+                .scale(1.3f),
                 contentAlignment = Alignment.TopCenter
             ) {
                 // 물방울 개별 위치 로직 (이전과 동일)
-                val pos1 = Pair((-48).dp, 0.dp)
-                val pos2 = Pair((-24).dp, 8.dp)
-                val pos3 = Pair(0.dp, 12.dp)
-                val pos4 = Pair(24.dp, 8.dp)
-                val pos5 = Pair(48.dp, 0.dp)
+                val pos1 = Pair((-70).dp, 30.dp)
+                val pos2 = Pair((-35).dp, 46.dp)
+                val pos3 = Pair(0.dp, 30.dp)
+                val pos4 = Pair(35.dp, 46.dp)
+                val pos5 = Pair(70.dp, 30.dp)
 
                 val positionsToShow = when (dropCount) {
                     1 -> listOf(pos3)
-                    2 -> listOf(pos2, pos4)
+                    2 -> listOf(pos3, pos4)
                     3 -> listOf(pos2, pos3, pos4)
-                    4 -> listOf(pos1, pos2, pos4, pos5)
+                    4 -> listOf(pos3, pos2, pos4, pos5)
                     5 -> listOf(pos1, pos2, pos3, pos4, pos5)
                     else -> emptyList()
                 }
 
                 positionsToShow.forEach { (xOffset, yOffset) ->
+                    val finalY = yOffset + animatedRaindropY.dp
+
                     Image(
                         painter = painterResource(id = R.drawable.learn_waterdrop),
                         contentDescription = "물방울",
                         modifier = Modifier
                             .align(Alignment.TopCenter)
-                            .offset(x = xOffset, y = yOffset)
+                            .offset(x = xOffset, y = finalY)
                     )
                 }
             }

@@ -436,13 +436,13 @@ private fun BottomProgressCard(
 ) {
 
     // 현재 단계 값을 받아서 다음 단계로
-    var state by rememberSaveable { mutableStateOf("normal") }
+    var state by rememberSaveable { mutableStateOf("levelup") }
     val nextStep = (currentStep + 1).coerceAtMost(5)
 
     // 애니메이션 전환 (기존 UI → levelup → next)
     LaunchedEffect(showLevelUp) {
         if (showLevelUp) {
-            delay(900)        // 기존 UI 잠깐 보여주기
+            delay(700)        // 기존 UI 잠깐 보여주기
             state = "levelup" // 레벨업 화면으로 전환
             delay(LEVEL_HOLD_MS.toLong()) //레벨업 화면 애니메이션 처리 후
             state = "next"    // 다음 단계 화면으로 전환
@@ -505,9 +505,7 @@ private fun BottomProgressCard(
                                 onStepAnimDone = {
                                     // 바 이동 및 체크 애니메이션이 끝났을 때 추가 동작이 있으면 여기에
                                     // (상위 LaunchedEffect에서 LEVEL_HOLD_MS 후 state = "next"로 넘어감)
-                                },
-                                // 현재 성장률을 시작점으로 사용
-                                prevPercentFromServer = currentProgressFromServer
+                                }
                             )
                         }
 
@@ -516,7 +514,7 @@ private fun BottomProgressCard(
                             Column {
                                 Row(verticalAlignment = Alignment.Bottom) {
                                     Text(
-                                        text = "50",
+                                        text = "$percent",
                                         style = AppTextStyles.learn_percentage_54.copy(
                                             brush = Brush.linearGradient(
                                                 listOf(Color(0xFF8380FF), PurpleMain500)
@@ -531,13 +529,13 @@ private fun BottomProgressCard(
                                     )
                                 }
                                 Text(
-                                    text = "누베리 성장률",
+                                    text = "title",
                                     style = AppTextStyles.b2_semibold_16,
                                     color = Grey1000
                                 )
                                 Spacer(Modifier.height(16.dp))
                                 AnimatedProgressBar(
-                                    progress = 0.3f,
+                                    progress = progress,
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }
@@ -712,13 +710,12 @@ private fun LevelUpSection(
     totalSteps: Int,
     prevStep: Int,
     nextStep: Int,
-    prevPercentFromServer: Float? = null, // 예: 0.25f
     nextPercentFromServer: Float? = null, // 예: 0.50f (최종은 체크 지점으로 스냅)
     onStepAnimDone: () -> Unit,
     levelUpText: String,
 ) {
     // 1) 시작/목표 퍼센트 (목표는 체크 지점으로 스냅)
-    val fromFrac = (prevPercentFromServer ?: stepToFraction(prevStep, totalSteps)).coerceIn(0f, 1f)
+    val fromFrac = stepToFraction(prevStep, totalSteps).coerceIn(0f, 1f)
     val toFrac = stepToFraction(nextStep, totalSteps)
 
     // 2) 진행도는 단순 Float 상태로 관리 (프레임마다 값 갱신)
