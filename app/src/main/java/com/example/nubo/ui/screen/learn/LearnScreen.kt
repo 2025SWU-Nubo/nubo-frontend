@@ -351,7 +351,6 @@ private fun WeeklyCalendar(
                 //    아직 아무것도 선택하지 않았다면 (!hasSelection, selectedIndex가 -1일 때))
                 val visible = (selectedIndex == idx || (idx == todayIndex && selectedIndex == -1))
                     && getBubbleCount(idx) > 0
-                // --- --- ---
 
                 if (visible) {
                     SpeechBubble(count = getBubbleCount(idx))
@@ -436,7 +435,7 @@ private fun BottomProgressCard(
 ) {
 
     // 현재 단계 값을 받아서 다음 단계로
-    var state by rememberSaveable { mutableStateOf("levelup") }
+    var state by rememberSaveable { mutableStateOf("normal") }
     val nextStep = (currentStep + 1).coerceAtMost(5)
 
     // 애니메이션 전환 (기존 UI → levelup → next)
