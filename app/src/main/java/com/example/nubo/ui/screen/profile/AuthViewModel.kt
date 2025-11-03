@@ -16,7 +16,8 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,      // 로컬 정리 등에 사용
-    private val profileRepository: ProfileRepository
+    private val profileRepository: ProfileRepository,
+    
 ) : ViewModel() {
 
     // UI에서 사용할 상태

@@ -18,6 +18,12 @@ import java.time.ZoneId
 import javax.inject.Inject
 import androidx.core.content.edit
 
+
+/**
+ * 푸시 토큰 등록/삭제 + 알림 목록/읽음 처리 레포지토리
+ * - registerDeviceTokenIfNeeded(): TTL + force 기반 업서트
+ * - deleteRegisteredTokenIfAny(): 서버/로컬 상태 정리
+ */
 class NotificationRepository @Inject constructor(
     private val api: NotificationService,
     @ApplicationContext private val context: Context,
@@ -39,6 +45,11 @@ class NotificationRepository @Inject constructor(
         data class Failure(val error: Throwable) : RegisterOutcome()
     }
 
+    /**
+     * FCM 토큰 업서트(등록/갱신)
+     * - 동일 토큰을 너무 자주 보내지 않도록 TTL을 둠
+     * - force=true면 TTL/중복 무시하고 무조건 서버 호출
+     */
     suspend fun registerDeviceTokenIfNeeded(
         fcmToken: String,
         force: Boolean = false,
@@ -77,33 +88,7 @@ class NotificationRepository @Inject constructor(
         }
     }
 
-//    suspend fun registerDeviceTokenIfNeeded(fcmToken: String): RegisterOutcome {
-//        if (fcmToken.isBlank()) {
-//            android.util.Log.w("FCM_REG", "skip: blank token")
-//            return RegisterOutcome.SkippedBlank
-//        }
-//
-//        val lastInMem = lastRegistered
-//        val lastInPrefs = prefs.getString(KEY_REGISTERED_TOKEN, null)
-//
-//        if (fcmToken == lastInMem || fcmToken == lastInPrefs) {
-//            android.util.Log.d("FCM_REG", "skip: already registered (mem=${lastInMem != null}, prefs=${lastInPrefs != null})")
-//            return RegisterOutcome.SkippedAlready
-//        }
-//
-//        android.util.Log.d("FCM_REG", "try register (${fcmToken.take(12)}...)")
-//        return runCatching {
-//            api.registerDeviceToken(RegisterDeviceTokenRequest(fcmToken))
-//            lastRegistered = fcmToken
-//            prefs.edit { putString(KEY_REGISTERED_TOKEN, fcmToken) }
-//            android.util.Log.d("FCM_REG", "success 200 (${fcmToken.take(12)}...)")
-//            RegisterOutcome.Success
-//        }.getOrElse { e ->
-//            android.util.Log.w("FCM_REG","fail: ${e.message}")
-//            RegisterOutcome.Failure(e)
-//        }
-//    }
-
+    /** 특정 토큰을 서버에서 제거(로그아웃/계정전환) + 로컬 상태 초기화 */
     suspend fun deleteDeviceToken(fcmToken: String) {
         runCatching {
             api.deleteDeviceToken(DeleteDeviceTokenRequest(deviceToken = fcmToken))
@@ -117,6 +102,28 @@ class NotificationRepository @Inject constructor(
         }
     }
 
+    /** 저장된 토큰이 있으면 서버에 삭제 요청하고 로컬 플래그 초기화 */
+    suspend fun deleteRegisteredTokenIfAny() {
+        val reg = prefs.getString(KEY_REGISTERED_TOKEN, null)
+        val cachedLatest = prefs.getString("latest_fcm_token", null)
+
+        if (!reg.isNullOrBlank()) {
+            runCatching { api.deleteDeviceToken(DeleteDeviceTokenRequest(reg)) }
+                .onSuccess {
+                    prefs.edit { remove(KEY_REGISTERED_TOKEN); remove(KEY_REGISTERED_AT) }
+                    lastRegistered = null
+                    android.util.Log.d("FCM_REG", "deleted registered token (${reg.take(12)}...)")
+                }
+                .onFailure { android.util.Log.w("FCM_REG", "delete registered failed: ${it.message}") }
+        }
+
+        if (!cachedLatest.isNullOrBlank() && cachedLatest != reg) {
+            runCatching { api.deleteDeviceToken(DeleteDeviceTokenRequest(cachedLatest)) }
+                .onSuccess { android.util.Log.d("FCM_REG", "deleted cached latest (${cachedLatest.take(12)}...)") }
+                .onFailure { android.util.Log.w("FCM_REG", "delete cached latest failed: ${it.message}") }
+        }
+    }
+
     suspend fun acceptInvitation(token: String, invitationId: Int) {
         val res = api.acceptInvitation("Bearer $token", invitationId)
         if (!res.isSuccessful) throw retrofit2.HttpException(res)
@@ -126,6 +133,10 @@ class NotificationRepository @Inject constructor(
         val res = api.rejectInvitation("Bearer $token", invitationId)
         if (!res.isSuccessful) throw retrofit2.HttpException(res)
     }
+
+
+    // ------- 알림 목록/읽음 처리 -------
+
 
     // 최근 7일 알림을 서버에서 가져와 화면에서 바로 쓰는 FeedState까지 만들어 반환함
     @RequiresApi(Build.VERSION_CODES.O)
@@ -162,31 +173,6 @@ class NotificationRepository @Inject constructor(
     // 모든 알림 일괄 읽음 처리
     suspend fun markAllRead() {
         api.markAllRead()
-    }
-
-    // NotificationRepository.kt
-    suspend fun deleteRegisteredTokenIfAny() {
-        val prefs = context.getSharedPreferences("push_prefs", Context.MODE_PRIVATE)
-        val reg = prefs.getString(KEY_REGISTERED_TOKEN, null)
-        val cachedLatest = prefs.getString("latest_fcm_token", null)
-
-        // 1) 서버에 등록됐다고 기억한 토큰이 있으면 우선 삭제
-        if (!reg.isNullOrBlank()) {
-            runCatching { api.deleteDeviceToken(DeleteDeviceTokenRequest(reg)) }
-                .onSuccess {
-                    prefs.edit { remove(KEY_REGISTERED_TOKEN) }
-                    lastRegistered = null
-                    android.util.Log.d("FCM_REG", "deleted registered token (${reg.take(12)}...)")
-                }
-                .onFailure { android.util.Log.w("FCM_REG", "delete registered failed: ${it.message}") }
-        }
-
-        // 2) 캐시 최신 토큰도 다를 수 있으니 한 번 더 시도(중복이면 서버에서 idempotent 처리 가정)
-        if (!cachedLatest.isNullOrBlank() && cachedLatest != reg) {
-            runCatching { api.deleteDeviceToken(DeleteDeviceTokenRequest(cachedLatest)) }
-                .onSuccess { android.util.Log.d("FCM_REG", "deleted cached latest (${cachedLatest.take(12)}...)") }
-                .onFailure { android.util.Log.w("FCM_REG", "delete cached latest failed: ${it.message}") }
-        }
     }
 
 }

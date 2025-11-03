@@ -33,8 +33,11 @@ interface NotificationService {
         @Body body: RegisterDeviceTokenRequest
     ): Unit
 
-    // 등록된 디바이스 토큰을 삭제함 (로그아웃 또는 기기 제거)
-    // 서버 명세가 DELETE 본문 허용이면 @HTTP(hasBody=true)로 본문을 보냄
+    /**
+     * FCM 디바이스 토큰 삭제
+     * - 서버 명세가 DELETE 본문 허용 → @HTTP(hasBody=true) 사용
+     * - idempotent 가정: 중복 요청해도 안전
+     */
     @HTTP(method = "DELETE", path = "/api/push/device-token", hasBody = true)
     suspend fun deleteDeviceToken(
         @Body body: DeleteDeviceTokenRequest
