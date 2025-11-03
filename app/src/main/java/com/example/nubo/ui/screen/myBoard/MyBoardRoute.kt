@@ -53,6 +53,8 @@ fun MyBoardRoute(
     // selectedTab 상태를 MyBoardRoute에서 관리
     var selectedTab by rememberSaveable { mutableStateOf(1) } // 1 = 보드 탭
 
+    var cardtab : Boolean = false
+
     val boardDetailViewModel: BoardDetailViewModel = hiltViewModel()
     val cardViewModel: MyCardViewModel = hiltViewModel() // MyBoardScreen에 필요
     val boardViewModel: BoardViewModel = hiltViewModel() // MyBoardScreen에 필요
@@ -177,7 +179,7 @@ fun MyBoardRoute(
     }
 
 
-    // --- 삭제 이벤트 처리 로직을 하나로 통합 및 개선 ---
+    // --- 보드 상세 화면용 삭제 이벤트 수신 ---
     LaunchedEffect(boardDetailViewModel, cardViewModel) {
         boardDetailViewModel.deleteCompleteEvent.collect { count ->
             resetCardSelectionState()
@@ -190,9 +192,39 @@ fun MyBoardRoute(
             )
 
             if (result == SnackbarResult.ActionPerformed) {
-                // undoLastDeletion이 suspend 함수이므로, 이 작업이 끝날 때까지 대기
-                boardDetailViewModel.undoLastDeletion()
-                // 복구가 완료된 후, 목록을 새로고침
+                // BoardViewModel의 카드 복구 로직 호출
+                boardViewModel.undoLastDeletion()
+
+                // 복구 완료 후 카드 목록 다시 새로고침
+                cardViewModel.refresh()
+            }
+        }
+    }
+
+    // --- '나의 카드' 탭용 카드 삭제 이벤트 수신 ---
+    // 이 블록이 누락된 것으로 보입니다.
+    LaunchedEffect(boardViewModel, cardViewModel, snackbarHostState) {
+        boardViewModel.cardDeleteCompleteEvent.collect { deletedCount ->
+
+            // 1. 선택 모드 해제 (바텀바 닫기)
+            resetCardSelectionState()
+
+            // 2. 카드 목록 새로고침
+            cardViewModel.refresh()
+
+            // 3. 실행 취소 스낵바 표시
+            val result = snackbarHostState.showSnackbar(
+                message = "${deletedCount}개의 카드가 삭제되었습니다.",
+                actionLabel = "실행 취소",
+                duration = SnackbarDuration.Long
+            )
+
+            // 4. '실행 취소' 클릭 시
+            if (result == SnackbarResult.ActionPerformed) {
+                // BoardViewModel의 카드 복구 로직 호출
+                boardViewModel.undoLastDeletion()
+
+                // 복구 완료 후 카드 목록 다시 새로고침
                 cardViewModel.refresh()
             }
         }
@@ -220,58 +252,17 @@ fun MyBoardRoute(
             }
         },
         bottomBar = {
+            // --- 카드 선택 모드 바텀바 ---
             if (isCardSelectionMode) {
-                SelectionBottomBar(
-                    isVisible = true,
-                    showBoardSelector = showBoardSelector,
-                    actionsContent = {
-                        ActionsContent(
-                            selectedSectionCount = 0,
-                            selectedCardCount = selectedCardIds.size,
-                            onDeleteClick = {
-                                scope.launch {
-                                    boardDetailViewModel.deleteItems(emptySet(), selectedCardIds)
-                                }
-                            },
-                            onCopyClick = {
-                                currentAction = BoardAction.COPY
-                                showBoardSelector = true
-                                boardDetailViewModel.loadBoards()
-                            },
-                            onMoveClick = {
-                                currentAction = BoardAction.MOVE
-                                showBoardSelector = true
-                                boardDetailViewModel.loadBoards()
-                            },
-                            onCancelClick = { resetCardSelectionState() }
-                        )
+                BoardSettingsContent(
+                    onDeleteClick = {
+                        scope.launch {
+                            boardViewModel.deleteCardsFromGlobal(selectedCardIds)
+                        }
                     },
-                    boardSelectorContent = {
-                        BoardSelectionSheetContent(
-                            action = currentAction ?: BoardAction.COPY,
-                            boardsState = boardsState,
-                            onBack = { showBoardSelector = false },
-                            onConfirm = { selectedId ->
-                                selectedId?.let { targetId ->
-                                    when (currentAction) {
-                                        // --- boardViewModel의 함수를 호출 ---
-                                        BoardAction.COPY -> boardViewModel.copyCardsFromGlobal(
-                                            targetBoardId = targetId.toLong(),
-                                            selectedCardIds = selectedCardIds
-                                        )
-
-                                        BoardAction.MOVE -> boardViewModel.moveCardsFromGlobal(
-                                            targetBoardId = targetId.toLong(),
-                                            selectedCardIds = selectedCardIds
-                                        )
-
-                                        null -> {}
-                                    }
-                                }
-                                resetCardSelectionState()
-                            }
-                        )
-                    }
+                    onDismiss = { resetCardSelectionState() },
+                    selectedBoardCount = selectedBoardIds.size,
+                    selectedCardCount = selectedCardIds.size
                 )
             }
             // --- 보드 선택 모드 바텀바 ---
@@ -287,11 +278,12 @@ fun MyBoardRoute(
                                 // 바텀시트를 닫도록 명시 (이래야 onDismiss가 호출됨)
                                 boardBottomSheetType = BottomSheetType.NONE
                             },
-                            onDismiss = { resetBoardSelectionState() }
+                            onDismiss = { resetBoardSelectionState() },
+                            selectedBoardCount = selectedBoardIds.size,
+                            selectedCardCount = selectedCardIds.size
                         )
                     }
-
-                    BottomSheetType.BOARD_EDIT -> {
+                    /*BottomSheetType.BOARD_EDIT -> {
                         boardForEditing?.let { board ->
                             BoardEditSheet(
                                 modifier = Modifier.imePadding(),
@@ -301,7 +293,7 @@ fun MyBoardRoute(
                                 onDismiss = {
                                     boardBottomSheetType = BottomSheetType.NONE
                                 },
-                                onInviteClick = { /* TODO */ },
+                                onInviteClick = { *//* TODO *//* },
                                 onConfirm = { newName, isShared ->
                                     if (newName != board.title) {
                                         boardViewModel.renameBoard(board.serverBoardId, newName)
@@ -311,7 +303,7 @@ fun MyBoardRoute(
                                 }
                             )
                         }
-                    }
+                    }*/
 
                     else -> {}
                 }
