@@ -132,15 +132,23 @@ class OnBoardingViewModel @Inject constructor(
 
     private fun checkLoginStatus() {
         if (authRepository.isLoggedIn()) {
+            // ✅ AccessToken 이 존재 → 서버에 유효성 검사
             validateTokenWithServer()
         } else {
-            // 로그인되지 않은 경우에만 로고 축소 및 로그인 버튼 표시
-            _uiState.value = _uiState.value.copy(
-                logoShrinked = true,
-                isLoading = false,
-                showLoginButton = true
-            )
+            // ❌ AccessToken 없음 → 로그인 버튼 표시
+            showLoginButton()
         }
+
+//        if (authRepository.isLoggedIn()) {
+//            validateTokenWithServer()
+//        } else {
+//            // 로그인되지 않은 경우에만 로고 축소 및 로그인 버튼 표시
+//            _uiState.value = _uiState.value.copy(
+//                logoShrinked = true,
+//                isLoading = false,
+//                showLoginButton = true
+//            )
+//        }
     }
 
     /** 서버 AccessToken 유효성 검사 → 통과 시 푸시 토큰 업서트, 실패 시 로그아웃 처리 */
@@ -158,20 +166,22 @@ class OnBoardingViewModel @Inject constructor(
                         call: Call<TokenValidationResponse>,
                         response: Response<TokenValidationResponse>
                     ) {
-
                         _uiState.value = _uiState.value.copy(isLoading = false)
+
                         if (response.isSuccessful) {
-                            if (response.code() == 401 || response.code() == 403) handleTokenExpired()
-                            else showLoginButton()
-                            return
-                        }
-                        val body = response.body() ?: return showLoginButton()
-                        if (body.valid) {
-                            clearRegisteredFlag()
-                            registerPushAfterLogin() // ✅ 로그인 유지 시에도 최신 토큰 업서트
-                            checkNotificationPermissionAndNavigate()
-                        } else {
+                            val result = response.body()
+                            if (result?.valid == true) {
+                                // 토큰 유효 → 바로 메인으로 이동
+                                registerPushAfterLogin()
+                                navigateToMain()
+                            } else {
+                                // 토큰 만료 → 로그인 필요
+                                handleTokenExpired()
+                            }
+                        } else if (response.code() in listOf(401, 403)) {
                             handleTokenExpired()
+                        } else {
+                            showLoginButton()
                         }
                     }
 
