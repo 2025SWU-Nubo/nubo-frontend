@@ -68,7 +68,9 @@ class NotificationRepository @Inject constructor(
 
         // 이미 등록 + TTL 유효 + force 아님 → 스킵
         if (!force && !expired && (fcmToken == lastInMem || fcmToken == lastInPrefs)) {
-            android.util.Log.d("FCM_REG", "skip: already registered (mem=${lastInMem != null}, prefs=${lastInPrefs != null}), expired=$expired")
+            android.util.Log.d("FCM_REG",
+                "skip: already registered (mem=${lastInMem != null}, prefs=${lastInPrefs != null}), expired=$expired"
+            )
             return RegisterOutcome.SkippedAlready
         }
 
