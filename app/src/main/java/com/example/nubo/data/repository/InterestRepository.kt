@@ -4,12 +4,13 @@ import com.example.nubo.data.model.InterestSubmitRequest
 import com.example.nubo.data.network.BoardService
 import com.example.nubo.data.network.UserService
 import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * 관심사(온보딩) 도메인의 데이터 접근 계층
  * - UI 단에서는 토큰만 넘겨주면, 실제 API 호출 형식은 레포지토리가 책임짐
  */
-class InterestRepository(
+class InterestRepository @Inject constructor(
     private val userApi: UserService,
     private val boardApi: BoardService
 ) {

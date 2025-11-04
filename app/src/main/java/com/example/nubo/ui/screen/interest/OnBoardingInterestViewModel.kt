@@ -3,6 +3,7 @@ package com.example.nubo.ui.screen.interest
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.nubo.data.model.DefaultBoardItemResponse
+import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.data.repository.InterestRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,10 +33,16 @@ data class InterestUiState(
 
 @HiltViewModel
 class OnBoardingInterestViewModel @Inject constructor(
-    private val repo: InterestRepository
+    private val repo: InterestRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel(){
     private val _state = MutableStateFlow(InterestUiState())
     val state: StateFlow<InterestUiState> = _state
+
+
+    // 토큰을 외부에 노출: 화면에서 collect해서 사용
+    val accessToken: StateFlow<String?> = authRepository.accessTokenFlow
+
 
     /** 기본 보드 목록 조회 트리거 */
     fun loadBoards(accessToken: String) {

@@ -58,6 +58,7 @@ import com.example.nubo.ui.screen.cardupload.CardUploadViewModel
 import com.example.nubo.ui.screen.editCard.EditCardRoute
 import com.example.nubo.ui.screen.home.HomeScreen
 import com.example.nubo.ui.screen.home.HomeViewModel
+import com.example.nubo.ui.screen.interest.OnBoardingInterestRoute
 import com.example.nubo.ui.screen.learn.LearnScreen
 import com.example.nubo.ui.screen.myBoard.ActionsContent
 import com.example.nubo.ui.screen.myBoard.BoardAction
@@ -320,6 +321,26 @@ fun MainScreen(
                 startDestination = "home",
                 modifier = Modifier.fillMaxSize()
             ) {
+                composable("onboarding_interest") {
+                    OnBoardingInterestRoute(
+                        onBack = { navController.popBackStack() },
+                        onHome = {
+                            // 완료 후 홈으로 전환
+                            navController.navigate("home") {
+                                popUpTo("home") { inclusive = true } // 백스택 정리
+                                launchSingleTop = true
+                            }
+                        },
+                        thumbnailsRes = mapOf(
+                            // 보드ID → 이미지 리소스 매핑 (없으면 OnBoardingInterestScreen 쪽에서 placeholder 사용)
+                            59L to com.example.nubo.R.drawable.interest_education,
+                            60L to com.example.nubo.R.drawable.interest_education,
+                            61L to com.example.nubo.R.drawable.interest_education
+                            // ...필요시 추가
+                        )
+                    )
+                }
+
                 composable("home") { backStackEntry ->
                     val homeVm: HomeViewModel = hiltViewModel(backStackEntry)
 
@@ -609,6 +630,24 @@ fun MainScreen(
     LaunchedEffect(isLoggedIn) {
         if (!isLoggedIn) {
             startOnboardingForLogin(context)
+            return@LaunchedEffect
+        }
+
+        // 온보딩 로그인 액티비티에서 전달한 플래그 확인
+        val needsInterest = (context as? MainActivity)
+            ?.intent
+            ?.getBooleanExtra("EXTRA_NEEDS_INTEREST", false)
+            ?: false
+
+        if (needsInterest) {
+            // 한 번만 처리하도록 플래그 제거(선택)
+            context?.intent?.removeExtra("EXTRA_NEEDS_INTEREST")
+
+            // 관심사 설정 페이지로 이동
+            navController.navigate("onboarding_interest") {
+                popUpTo("home") { inclusive = true }
+                launchSingleTop = true
+            }
             return@LaunchedEffect
         }
 

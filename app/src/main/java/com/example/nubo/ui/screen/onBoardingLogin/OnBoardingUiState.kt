@@ -7,5 +7,6 @@ data class OnBoardingUiState(
     val showLoginButton: Boolean = false,
     val existingUser: UserInfo? = null,
     val loginResponseUser: UserInfo? = null,
-    val logoShrinked: Boolean = false
+    val logoShrinked: Boolean = false,
+    val isNewUser: Boolean = false
 )
