@@ -1,9 +1,8 @@
 package com.example.nubo.data.network
 
-import com.example.nubo.data.model.DeleteDeviceTokenRequest
-import com.example.nubo.data.model.NotificationDto
-import com.example.nubo.data.model.NotificationListResponse
-import com.example.nubo.data.model.RegisterDeviceTokenRequest
+import com.example.nubo.data.dto.DeleteDeviceTokenRequest
+import com.example.nubo.data.dto.NotificationDto
+import com.example.nubo.data.dto.RegisterDeviceTokenRequest
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.HTTP

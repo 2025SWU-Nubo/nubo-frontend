@@ -4,10 +4,9 @@ import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
 import com.example.nubo.data.model.AppNotification
-import com.example.nubo.data.model.DeleteDeviceTokenRequest
-import com.example.nubo.data.model.NotificationDto
-import com.example.nubo.data.model.NotificationListResponse
-import com.example.nubo.data.model.RegisterDeviceTokenRequest
+import com.example.nubo.data.dto.DeleteDeviceTokenRequest
+import com.example.nubo.data.dto.NotificationDto
+import com.example.nubo.data.dto.RegisterDeviceTokenRequest
 import com.example.nubo.data.network.NotificationService
 import com.example.nubo.ui.screen.notification.NotificationFeedState
 import com.example.nubo.ui.screen.notification.toFeedState

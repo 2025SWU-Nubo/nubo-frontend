@@ -75,10 +75,6 @@ class OnBoardingViewModel @Inject constructor(
     )
     val toastEvents: SharedFlow<UiToast> = _toastEvents.asSharedFlow()
 
-//    private suspend fun emitToast(toast: UiToast) {
-//        _toastEvents.emit(toast)
-//    }
-
     // 알림 권한 요청이 필요한지 상태 관리
     private var pendingAccessToken: String? = null
     private val _shouldRequestNotificationPermission = MutableStateFlow(false)
@@ -99,16 +95,6 @@ class OnBoardingViewModel @Inject constructor(
             viewModelScope.launch { _toastEvents.emit(UiToast(message, type = type, durationMillis = duration)) }
         }
     }
-
-    /** 공통: 레포로 토큰 등록 시도 (짧은 로그) */
-//    private suspend fun registerTokenIfNeeded(token: String) {
-//        when (val r = notificationRepository.registerDeviceTokenIfNeeded(token)) {
-//            is RegisterOutcome.Success -> android.util.Log.d("FCM_REG", "VM: server register OK (${token.take(12)}...)")
-//            is RegisterOutcome.SkippedAlready -> android.util.Log.d("FCM_REG", "VM: skip (already)")
-//            is RegisterOutcome.SkippedBlank -> android.util.Log.w("FCM_REG", "VM: skip (blank)")
-//            is RegisterOutcome.Failure -> android.util.Log.w("FCM_REG", "VM: server register FAIL ${r.error.message}")
-//        }
-//    }
 
     private fun initializeGoogleAuth() {
         val gso = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(
@@ -138,17 +124,6 @@ class OnBoardingViewModel @Inject constructor(
             // ❌ AccessToken 없음 → 로그인 버튼 표시
             showLoginButton()
         }
-
-//        if (authRepository.isLoggedIn()) {
-//            validateTokenWithServer()
-//        } else {
-//            // 로그인되지 않은 경우에만 로고 축소 및 로그인 버튼 표시
-//            _uiState.value = _uiState.value.copy(
-//                logoShrinked = true,
-//                isLoading = false,
-//                showLoginButton = true
-//            )
-//        }
     }
 
     /** 서버 AccessToken 유효성 검사 → 통과 시 푸시 토큰 업서트, 실패 시 로그아웃 처리 */
