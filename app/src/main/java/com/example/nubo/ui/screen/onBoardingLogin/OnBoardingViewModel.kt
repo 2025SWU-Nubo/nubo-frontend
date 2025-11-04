@@ -46,6 +46,13 @@ data class UiToast(
     @androidx.annotation.DrawableRes val iconRes: Int? = null
 )
 
+
+/**
+ * 온보딩/로그인 단계의 토큰 수명주기 중심 ViewModel
+ * - 로그인 성공 직후: FCM 토큰을 서버에 업서트(등록/갱신)
+ * - 토큰 만료/계정 전환/로그아웃: 서버 매핑 삭제 + 로컬 FCM 토큰 삭제(deleteToken)
+ * - 앱 진입 시: ensurePushTokenRegistered()로 재시도 보장
+ */
 @HiltViewModel
 class OnBoardingViewModel @Inject constructor(
     application: Application,
@@ -56,6 +63,7 @@ class OnBoardingViewModel @Inject constructor(
     @SuppressLint("StaticFieldLeak")
     private val context: Context = application.applicationContext
 
+    // FCM 토큰 캐시/등록 상태 저장용
     private val prefs = context.getSharedPreferences("push_prefs", Context.MODE_PRIVATE)
 
     private val _uiState = MutableStateFlow(OnBoardingUiState())
@@ -67,17 +75,14 @@ class OnBoardingViewModel @Inject constructor(
     )
     val toastEvents: SharedFlow<UiToast> = _toastEvents.asSharedFlow()
 
-
-    private suspend fun emitToast(toast: UiToast) {
-        _toastEvents.emit(toast)
-    }
-
-    private var pendingAccessToken: String? = null
+//    private suspend fun emitToast(toast: UiToast) {
+//        _toastEvents.emit(toast)
+//    }
 
     // 알림 권한 요청이 필요한지 상태 관리
+    private var pendingAccessToken: String? = null
     private val _shouldRequestNotificationPermission = MutableStateFlow(false)
     val shouldRequestNotificationPermission: StateFlow<Boolean> get() = _shouldRequestNotificationPermission
-
 
     private lateinit var googleSignInClient: com.google.android.gms.auth.api.signin.GoogleSignInClient
 
@@ -96,16 +101,14 @@ class OnBoardingViewModel @Inject constructor(
     }
 
     /** 공통: 레포로 토큰 등록 시도 (짧은 로그) */
-    private suspend fun registerTokenIfNeeded(token: String) {
-        when (val r = notificationRepository.registerDeviceTokenIfNeeded(token)) {
-            is RegisterOutcome.Success -> android.util.Log.d("FCM_REG", "VM: server register OK (${token.take(12)}...)")
-            is RegisterOutcome.SkippedAlready -> android.util.Log.d("FCM_REG", "VM: skip (already)")
-            is RegisterOutcome.SkippedBlank -> android.util.Log.w("FCM_REG", "VM: skip (blank)")
-            is RegisterOutcome.Failure -> android.util.Log.w("FCM_REG", "VM: server register FAIL ${r.error.message}")
-        }
-    }
-
-
+//    private suspend fun registerTokenIfNeeded(token: String) {
+//        when (val r = notificationRepository.registerDeviceTokenIfNeeded(token)) {
+//            is RegisterOutcome.Success -> android.util.Log.d("FCM_REG", "VM: server register OK (${token.take(12)}...)")
+//            is RegisterOutcome.SkippedAlready -> android.util.Log.d("FCM_REG", "VM: skip (already)")
+//            is RegisterOutcome.SkippedBlank -> android.util.Log.w("FCM_REG", "VM: skip (blank)")
+//            is RegisterOutcome.Failure -> android.util.Log.w("FCM_REG", "VM: server register FAIL ${r.error.message}")
+//        }
+//    }
 
     private fun initializeGoogleAuth() {
         val gso = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(
@@ -129,52 +132,55 @@ class OnBoardingViewModel @Inject constructor(
 
     private fun checkLoginStatus() {
         if (authRepository.isLoggedIn()) {
+            // ✅ AccessToken 이 존재 → 서버에 유효성 검사
             validateTokenWithServer()
         } else {
-            // 로그인되지 않은 경우에만 로고 축소 및 로그인 버튼 표시
-            _uiState.value = _uiState.value.copy(
-                logoShrinked = true,
-                isLoading = false,
-                showLoginButton = true
-            )
+            // ❌ AccessToken 없음 → 로그인 버튼 표시
+            showLoginButton()
         }
+
+//        if (authRepository.isLoggedIn()) {
+//            validateTokenWithServer()
+//        } else {
+//            // 로그인되지 않은 경우에만 로고 축소 및 로그인 버튼 표시
+//            _uiState.value = _uiState.value.copy(
+//                logoShrinked = true,
+//                isLoading = false,
+//                showLoginButton = true
+//            )
+//        }
     }
 
-    // 서버에 토큰 유효성 검증 요청
+    /** 서버 AccessToken 유효성 검사 → 통과 시 푸시 토큰 업서트, 실패 시 로그아웃 처리 */
     private fun validateTokenWithServer() {
         viewModelScope.launch {
             try {
-                val tokenCheckCall = authRepository.checkToken()
-                if (tokenCheckCall == null) {
+                val call = authRepository.checkToken()
+                if (call == null) {
                     // 토큰이 없으면 로그인 화면 표시
-                    showLoginButton()
-                    return@launch
+                    showLoginButton(); return@launch
                 }
 
-                tokenCheckCall.enqueue(object : Callback<TokenValidationResponse> {
-                    override fun onResponse(call: Call<TokenValidationResponse>, response: Response<TokenValidationResponse>) {
+                call.enqueue(object : Callback<TokenValidationResponse> {
+                    override fun onResponse(
+                        call: Call<TokenValidationResponse>,
+                        response: Response<TokenValidationResponse>
+                    ) {
                         _uiState.value = _uiState.value.copy(isLoading = false)
+
                         if (response.isSuccessful) {
-                            response.body()?.let { tokenResponse ->
-                                // 토큰이 유효할 경우
-                                if (tokenResponse.valid) {
-                                    clearRegisteredFlag()
-                                    registerPushAfterLogin()
-                                    // 토큰이 유효하면 알림 권한 확인 후 메인으로 이동
-                                    checkNotificationPermissionAndNavigate()
-                                } else {
-                                    // 토큰이 유효하지 않으면 로그아웃 처리
-                                    handleTokenExpired()
-                                }
-                            } ?: run {
-                                // 응답 body가 null이면 로그인 화면 표시
-                                showLoginButton()
+                            val result = response.body()
+                            if (result?.valid == true) {
+                                // 토큰 유효 → 바로 메인으로 이동
+                                registerPushAfterLogin()
+                                navigateToMain()
+                            } else {
+                                // 토큰 만료 → 로그인 필요
+                                handleTokenExpired()
                             }
-                        } else if (response.code() == 401 || response.code() == 403) {
-                            // 토큰이 만료되었으면 로그아웃 처리
+                        } else if (response.code() in listOf(401, 403)) {
                             handleTokenExpired()
                         } else {
-                            // 기타 에러는 로그인 화면 표시
                             showLoginButton()
                         }
                     }
@@ -194,19 +200,6 @@ class OnBoardingViewModel @Inject constructor(
         }
     }
 
-
-    // 토큰 만료 처리
-    private fun handleTokenExpired() {
-        Log.i("Auth", "Token expired, clearing stored data")
-        authRepository.clearAuthData()
-        viewModelScope.launch {
-            runCatching { notificationRepository.deleteRegisteredTokenIfAny() }
-        }
-        // 커스텀 토스트로 발행 (NEGATIVE)
-        toast("로그인이 만료되었습니다. 다시 로그인해주세요.", type = AppToastType.NEGATIVE)
-        showLoginButton()
-    }
-
     private fun showLoginButton() {
         _uiState.value = _uiState.value.copy(
             isLoading = false,
@@ -214,14 +207,13 @@ class OnBoardingViewModel @Inject constructor(
         )
     }
 
-    // 권한 체크 후 이동
+    /** 권한 체크 후 메인으로 이동(필요 시 권한 다이얼로그를 띄워도 됨) */
     private fun checkNotificationPermissionAndNavigate() {
 //        if (NotificationPermissionHelper.shouldRequestNotificationPermission(context)) {
 //            _shouldRequestNotificationPermission.value = true
 //        } else {
 //            navigateToMain()
 //        }
-
         navigateToMain()
     }
 
@@ -240,8 +232,9 @@ class OnBoardingViewModel @Inject constructor(
         }
     }
 
-
+    /** 로그인 API 호출 → 성공 시 사용자/토큰 저장 → 푸시 토큰 업서트 트리거 */
     private fun sendAuthCodeToServer(authCode: String, onLoginComplete: (Intent) -> Unit) {
+        // 계정 전환 대비: 서버의 기존 디바이스-토큰 매핑 제거
         viewModelScope.launch {
             runCatching { notificationRepository.deleteRegisteredTokenIfAny() }
         }
@@ -253,26 +246,19 @@ class OnBoardingViewModel @Inject constructor(
             .enqueue(object : Callback<LoginResponse> {
                 override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
                     _uiState.value = _uiState.value.copy(isLoading = false)
-                    if (response.isSuccessful) {
-                        response.body()?.let { loginResponse ->
-                            val existingUser = authRepository.getUserInfo()
-                            val newUser = loginResponse.user
+                    if (!response.isSuccessful) {
+                        Log.e("OAuth", "Response error: ${response.errorBody()?.string()}"); return
+                    }
+                    val loginRes = response.body() ?: return
+                    val existingUser = authRepository.getUserInfo()
+                    val newUser = loginRes.user
+                    pendingAccessToken = loginRes.accessToken
 
-                            pendingAccessToken = loginResponse.accessToken
-
-                            if (existingUser != null && existingUser.id != newUser.id) {
-                                _uiState.value = _uiState.value.copy(
-                                    existingUser = existingUser,
-                                    loginResponseUser = newUser
-                                )
-                            } else {
-                                saveUserAndNavigate(newUser, loginResponse.accessToken, onLoginComplete)
-                                // Clear the held token since it's already persisted
-                                pendingAccessToken = null
-                            }
-                        }
+                    if (existingUser != null && existingUser.id != newUser.id) {
+                        _uiState.value = _uiState.value.copy(existingUser = existingUser, loginResponseUser = newUser)
                     } else {
-                        Log.e("OAuth", "Response error: ${response.errorBody()?.string()}")
+                        saveUserAndNavigate(newUser, loginRes.accessToken, onLoginComplete)
+                        pendingAccessToken = null
                     }
                 }
 
@@ -283,23 +269,9 @@ class OnBoardingViewModel @Inject constructor(
             })
     }
 
-    fun confirmAccountSwitch(onLoginComplete: (Intent) -> Unit) {
-        val newUser = _uiState.value.loginResponseUser ?: return
-        val accessTokenFromLogin = pendingAccessToken
-        if (accessTokenFromLogin.isNullOrEmpty()) {
-            // Safety fallback: if somehow missing, read from repo (should not usually happen)
-            android.util.Log.w("Auth", "pendingAccessToken is null; falling back to repository token")
-            val fallback = authRepository.getAccessToken() ?: return
-            saveUserAndNavigate(newUser, fallback, onLoginComplete)
-        } else {
-            saveUserAndNavigate(newUser, accessTokenFromLogin, onLoginComplete)
-            // Once persisted, clear the held token
-            pendingAccessToken = null
-        }
 
-        viewModelScope.launch { runCatching { notificationRepository.deleteRegisteredTokenIfAny() } }
-    }
 
+    /** 로그인 성공 직후: FCM 토큰을 서버에 업서트(등록/갱신) */
     @SuppressLint("HardwareIds")
     private fun registerPushAfterLogin() {
         FirebaseMessaging.getInstance().isAutoInitEnabled = true
@@ -307,25 +279,68 @@ class OnBoardingViewModel @Inject constructor(
         FirebaseMessaging.getInstance().token
             .addOnSuccessListener { fcmToken ->
                 if (fcmToken.isNullOrBlank()) {
-                    android.util.Log.w("FCM_REG", "getToken OK but empty")
+                    Log.w("FCM_REG", "getToken OK but empty")
                     return@addOnSuccessListener
                 }
-                android.util.Log.d("FCM_REG", "getToken OK (${fcmToken}...)")
-//                viewModelScope.launch { registerTokenIfNeeded(fcmToken) }
-                prefs.edit() { putString("latest_fcm_token", fcmToken).apply() }
+                Log.d("FCM_REG", "getToken OK (${fcmToken}...)")
+
+                // 최신 토큰 로컬 캐시(중복 apply 금지: KTX가 자동 적용)
+                prefs.edit() { putString("latest_fcm_token", fcmToken)}
+
+                // 서버 업서트(force=true로 반드시 갱신)
                 viewModelScope.launch { notificationRepository.registerDeviceTokenIfNeeded(fcmToken, force = true) }
 
             }
             .addOnFailureListener { e ->
-                // ⬇ FCM이 바로 토큰 못 줄 때 캐시로 보완
+                // FCM이 바로 토큰 못 줄 때 캐시로 보완
                 val cached = prefs.getString("latest_fcm_token", null)
-                android.util.Log.w("FCM_REG", "getToken FAIL ${e.message}; cached=${cached}...")
+                Log.w("FCM_REG", "getToken FAIL ${e.message}; cached=${cached}...")
                 if (!cached.isNullOrBlank()) {
-                    viewModelScope.launch { notificationRepository.registerDeviceTokenIfNeeded(cached, force = true) }
+                    viewModelScope.launch {
+                        notificationRepository.registerDeviceTokenIfNeeded(cached, force = true)
+                    }
                 }
             }
     }
 
+    /** 토큰 만료/401/403 등 AccessToken 무효 → 로그아웃 처리 + 디바이스 토큰 정리 */
+    private fun handleTokenExpired() {
+        Log.i("Auth", "Token expired, clearing stored data")
+        authRepository.clearAuthData()
+
+        viewModelScope.launch {
+            // 서버 매핑 삭제
+            runCatching { notificationRepository.deleteRegisteredTokenIfAny() }
+
+            // 로컬 FCM 토큰 삭제 → 다음 진입 시 새 토큰 발급
+            runCatching { FirebaseMessaging.getInstance().deleteToken() }
+        }
+
+        toast("로그인이 만료되었습니다. 다시 로그인해주세요.", type = AppToastType.NEGATIVE)
+        showLoginButton()
+    }
+
+    /** 계정 전환 시: 서버/로컬 모두 토큰 정리 후 새 계정으로 저장 및 이동 */
+    fun confirmAccountSwitch(onLoginComplete: (Intent) -> Unit) {
+        val newUser = _uiState.value.loginResponseUser ?: return
+        val accessTokenFromLogin = pendingAccessToken
+
+        if (accessTokenFromLogin.isNullOrEmpty()) {
+            val fallback = authRepository.getAccessToken() ?: return
+            saveUserAndNavigate(newUser, fallback, onLoginComplete)
+        } else {
+            saveUserAndNavigate(newUser, accessTokenFromLogin, onLoginComplete)
+            pendingAccessToken = null
+        }
+
+        viewModelScope.launch {
+            // 서버 삭제 및 로컬 FCM 삭제 병행
+            runCatching { notificationRepository.deleteRegisteredTokenIfAny() }
+            runCatching { FirebaseMessaging.getInstance().deleteToken() }
+        }
+    }
+
+    /** 앱 진입 시 토큰 업서트 보장(재시도 지점) */
     fun ensurePushTokenRegistered(force: Boolean = false) {
         FirebaseMessaging.getInstance().isAutoInitEnabled = true
         FirebaseMessaging.getInstance().token
@@ -350,84 +365,14 @@ class OnBoardingViewModel @Inject constructor(
             }
     }
 
+    /** 서버 측 “이미 등록됨” 플래그를 초기화(다음 업서트 강제 트리거 목적) */
     private fun clearRegisteredFlag() {
-        prefs.edit().remove("registered_fcm_token").apply()
-        android.util.Log.d("FCM_REG", "clear flag: registered_fcm_token removed")
-    }
-
-
-    private fun saveUserAndNavigate(
-        user: UserInfo,
-        token: String,
-        onLoginComplete: (Intent) -> Unit
-    ) {
-        authRepository.saveAccessToken(token)
-        authRepository.saveUserId(user.id)
-        authRepository.saveUserInfo(user)
-
-        // ✅ '이미 등록됨' 스킵 플래그 제거해서 다음 호출이 무조건 시도되게
-        getApplication<Application>()
-            .getSharedPreferences("push_prefs", Context.MODE_PRIVATE)
-            .edit()
-            .remove("registered_fcm_token")
-            .apply()
-
-        // 로그인 성공시 푸시 토큰 등록 시도 (이제 스킵 안 됨)
-        registerPushAfterLogin()
-
-        // 이하 기존 로직 그대로
-        if (NotificationPermissionHelper.shouldRequestNotificationPermission(context)) {
-            _shouldRequestNotificationPermission.value = true
-            _pendingLoginComplete = onLoginComplete
-        } else {
-            onLoginComplete(Intent(context, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-            })
+        prefs.edit {
+            remove("registered_fcm_token")
+            remove("registered_at_epoch")
         }
+        Log.d("FCM_REG", "clear flag: registered_fcm_token removed")
     }
-
-
-
-//    @SuppressLint("HardwareIds")
-//    private fun registerPushAfterLogin() {
-//        FirebaseMessaging.getInstance().isAutoInitEnabled = true
-//
-//        FirebaseMessaging.getInstance().token
-//            .addOnSuccessListener { fcmToken ->
-//                if (fcmToken.isNullOrBlank()) {
-//                    Log.w("FCM", "getToken success but empty")
-//                    return@addOnSuccessListener
-//                }
-//                Log.d("FCM", "token = $fcmToken")
-//
-//                viewModelScope.launch {
-//                    runCatching {
-//                        notificationRepository.registerDeviceTokenIfNeeded(fcmToken)
-//                    }.onSuccess {
-//                        Log.d("FCM", "registerDeviceTokenIfNeeded success")
-//                    }.onFailure {
-//                        Log.e("FCM", "registerDeviceTokenIfNeeded failed", it)
-//                    }
-//                }
-//            }
-//            .addOnFailureListener { e ->
-//                Log.w("FCM", "getToken failed", e)
-//            }
-//    }
-
-//    fun ensurePushTokenRegistered() {
-//        FirebaseMessaging.getInstance().isAutoInitEnabled = true
-//        FirebaseMessaging.getInstance().token
-//            .addOnSuccessListener { token ->
-//                if (!token.isNullOrBlank()) {
-//                    viewModelScope.launch {
-//                        runCatching { notificationRepository.registerDeviceTokenIfNeeded(token) }
-//                    }
-//                }
-//            }
-//            .addOnFailureListener { e -> Log.w("FCM", "getToken failed", e) }
-//    }
-
 
     // 로그인 완료 콜백을 임시 저장
     private var _pendingLoginComplete: ((Intent) -> Unit)? = null
@@ -452,5 +397,37 @@ class OnBoardingViewModel @Inject constructor(
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         }
         context.startActivity(intent)
+    }
+
+    fun getGoogleSignInIntentWrapper(): Intent = googleSignInClient.signInIntent
+
+    private fun saveUserAndNavigate(
+        user: UserInfo,
+        token: String,
+        onLoginComplete: (Intent) -> Unit
+    ) {
+        authRepository.saveAccessToken(token)
+        authRepository.saveUserId(user.id)
+        authRepository.saveUserInfo(user)
+
+        // '이미 등록됨' 스킵 플래그 제거해서 다음 호출이 무조건 시도되게
+        getApplication<Application>()
+            .getSharedPreferences("push_prefs", Context.MODE_PRIVATE)
+            .edit() {
+                remove("registered_fcm_token")
+            }
+
+        // 로그인 성공시 푸시 토큰 등록 시도 (이제 스킵 안 됨)
+        registerPushAfterLogin()
+
+        // 이하 기존 로직 그대로
+        if (NotificationPermissionHelper.shouldRequestNotificationPermission(context)) {
+            _shouldRequestNotificationPermission.value = true
+            _pendingLoginComplete = onLoginComplete
+        } else {
+            onLoginComplete(Intent(context, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            })
+        }
     }
 }

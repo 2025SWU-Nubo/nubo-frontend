@@ -29,7 +29,6 @@ import androidx.core.content.edit
 
 @AndroidEntryPoint
 class NuboFcmService : FirebaseMessagingService() {
-
     @Inject lateinit var notificationRepository: NotificationRepository
     @Inject lateinit var authRepository: AuthRepository
     private val ioScope = CoroutineScope(Dispatchers.IO)

@@ -1,5 +1,6 @@
 package com.example.nubo.ui.screen.profile
 
+import android.content.Context
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -9,6 +10,7 @@ import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.data.repository.NotificationRepository
 import com.example.nubo.data.repository.ProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.collectLatest
 import javax.inject.Inject
 import kotlinx.coroutines.launch
@@ -16,7 +18,9 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,      // 로컬 정리 등에 사용
-    private val profileRepository: ProfileRepository
+    private val profileRepository: ProfileRepository,
+    private val notificationRepository: NotificationRepository,
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     // UI에서 사용할 상태
@@ -51,7 +55,17 @@ class AuthViewModel @Inject constructor(
      */
     fun logout() {
         viewModelScope.launch {
-            // 로컬 인증 정보만 삭제 (FCM 매핑 삭제가 필요하면 ProfileRepository가 아닌 별도 Repo에서 수행)
+            // 1. 저장된 최신 FCM 토큰 가져오기
+            val token = getLatestFcmToken()
+            if (!token.isNullOrBlank()) {
+                runCatching { notificationRepository.deleteDeviceToken(token) }
+                    .onSuccess { android.util.Log.d("LOGOUT", "서버 토큰 삭제 성공") }
+                    .onFailure { android.util.Log.w("LOGOUT", "서버 토큰 삭제 실패: ${it.message}") }
+            } else {
+                android.util.Log.w("LOGOUT", "삭제할 FCM 토큰이 없음")
+            }
+
+            // 2. 로컬 인증정보 초기화
             authRepository.clearAuthData()
         }
     }
@@ -68,15 +82,38 @@ class AuthViewModel @Inject constructor(
         _errorMessage.value = null
 
         viewModelScope.launch {
+            // 1. 서버의 토큰 매핑 삭제
+            val token = getLatestFcmToken()
+            if (!token.isNullOrBlank()) {
+                runCatching { notificationRepository.deleteDeviceToken(token) }
+                    .onSuccess { android.util.Log.d("WITHDRAW", "서버 토큰 삭제 성공") }
+                    .onFailure { android.util.Log.w("WITHDRAW", "서버 토큰 삭제 실패: ${it.message}") }
+            }
+
+            // 2. 회원 탈퇴 API 요청
             profileRepository.withdraw()
                 .onSuccess {
+                    // 3. 로컬 인증 정보 삭제
+                    authRepository.clearAuthData()
+
                     _isLoading.value = false
                     _withdrawSuccess.value = Unit
+                    android.util.Log.d("WITHDRAW", "회원 탈퇴 성공 및 로컬 초기화 완료")
                 }
                 .onFailure { e ->
                     _isLoading.value = false
                     _errorMessage.value = e.message ?: "회원 탈퇴에 실패했어요."
+                    android.util.Log.e("WITHDRAW", "회원 탈퇴 실패: ${e.message}")
                 }
         }
+    }
+
+    /**
+     * SharedPreferences에 저장된 최신 FCM 토큰을 가져오는 헬퍼 함수
+     * - logout / withdraw 시 서버 매핑 삭제용
+     */
+    private fun getLatestFcmToken(): String? {
+        val prefs = context.getSharedPreferences("push_prefs", Context.MODE_PRIVATE)
+        return prefs.getString("latest_fcm_token", null)
     }
 }

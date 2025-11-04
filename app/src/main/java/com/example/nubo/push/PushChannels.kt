@@ -5,11 +5,13 @@ import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
 
+
 object PushChannels {
     const val CH_CREATED = "nubo_card_created"          // 카드 생성 알림용 채널 ID
     const val CH_UNREAD  = "nubo_unread_recommend"      // 미시청 추천 알림용 채널 ID
     const val CH_INVITE  = "nubo_board_invite"          // 초대 및 결과 알림용 채널 ID
 
+    // 앱/서비스 시작 시 반드시 호출되어야 함
     fun ensure(context: Context) {
         // 안드로이드 8.0 이상에서만 채널 생성이 필요함
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
