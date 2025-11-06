@@ -39,10 +39,8 @@ class OnBoardingInterestViewModel @Inject constructor(
     private val _state = MutableStateFlow(InterestUiState())
     val state: StateFlow<InterestUiState> = _state
 
-
     // 토큰을 외부에 노출: 화면에서 collect해서 사용
     val accessToken: StateFlow<String?> = authRepository.accessTokenFlow
-
 
     /** 기본 보드 목록 조회 트리거 */
     fun loadBoards(accessToken: String) {
@@ -94,7 +92,6 @@ class OnBoardingInterestViewModel @Inject constructor(
         }
     }
 
-
     /**
     * '건너뛰기' 제출
     * - 서버가 idempotent 처리 → 이미 완료된 유저도 completed=true 반환
@@ -119,5 +116,9 @@ class OnBoardingInterestViewModel @Inject constructor(
                     onError(e.message ?: "네트워크 오류가 발생했어요")
                 }
         }
+    }
+
+    fun updateSelected(next: Set<Long>) {
+        _state.update { it.copy(selectedIds = next) }
     }
 }

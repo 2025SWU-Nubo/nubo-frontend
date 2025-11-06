@@ -62,7 +62,8 @@ class OnBoardingViewModel @Inject constructor(
     private var notificationRepository: NotificationRepository
 ) : AndroidViewModel(application) {
     companion object{
-        private const val FORCE_SHOW_INTEREST = true
+        // 무조건 newuser = true로 (테스트 버전)
+//        private const val FORCE_SHOW_INTEREST = true
     }
 
     @SuppressLint("StaticFieldLeak")
@@ -249,7 +250,7 @@ class OnBoardingViewModel @Inject constructor(
                     pendingAccessToken = loginRes.accessToken
 
                     // isNewUser 저장
-                    _uiState.value = _uiState.value.copy(isNewUser = loginRes.isNewUser)
+                    _uiState.value = _uiState.value.copy(isNewUser = loginRes.newUser)
 
                     if (existingUser != null && existingUser.id != newUser.id) {
                         _uiState.value = _uiState.value.copy(existingUser = existingUser, loginResponseUser = newUser)
@@ -423,7 +424,10 @@ class OnBoardingViewModel @Inject constructor(
 
         // UiState에서 isNewUser 가져오기
         val realIsNewUser = _uiState.value.isNewUser
-        val isNewUser = if (FORCE_SHOW_INTEREST) true else realIsNewUser
+        val isNewUser = realIsNewUser
+
+        // 무조건 newuser = true로 (테스트 버전)
+//        val isNewUser = if (FORCE_SHOW_INTEREST) true else realIsNewUser
 
         // 이하 기존 로직 그대로
         if (NotificationPermissionHelper.shouldRequestNotificationPermission(context)) {

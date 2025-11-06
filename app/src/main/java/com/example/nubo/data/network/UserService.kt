@@ -15,7 +15,7 @@ interface UserService {
     suspend fun searchUsers(@Query("email") emailKeyword: String): List<UserSearchDto>
 
     // 관심사 설정: POST /api/interests
-    @POST("/api/interests")
+    @POST("/api/interest")
     suspend fun submitInterests(
         @Header("Authorization") auth: String,
         @Header("Accept") accept: String = "application/json",

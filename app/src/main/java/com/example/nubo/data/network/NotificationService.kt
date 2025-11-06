@@ -30,7 +30,7 @@ interface NotificationService {
     @POST("/api/push/device-token")
     suspend fun registerDeviceToken(
         @Body body: RegisterDeviceTokenRequest
-    ): Unit
+    ): retrofit2.Response<Unit>
 
     /**
      * FCM 디바이스 토큰 삭제
@@ -40,7 +40,7 @@ interface NotificationService {
     @HTTP(method = "DELETE", path = "/api/push/device-token", hasBody = true)
     suspend fun deleteDeviceToken(
         @Body body: DeleteDeviceTokenRequest
-    ): Unit
+    ): retrofit2.Response<Unit>
 
     @POST("/api/board/invitation/{invitationId}/accept")
     suspend fun acceptInvitation(

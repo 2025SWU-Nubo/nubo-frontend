@@ -1,32 +1,25 @@
 package com.example.nubo.ui.screen.interest
 
-import android.R.attr.scaleX
-import android.R.attr.scaleY
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items // ← 반드시 필요
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -38,49 +31,58 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.nubo.R
 import com.example.nubo.data.model.DefaultBoardItemResponse
 import com.example.nubo.ui.theme.AppTextStyles
+import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Grey500
-import com.example.nubo.ui.theme.Purple300
+import com.example.nubo.ui.theme.GreyMain300
+import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.PurpleMain500
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OnBoardingInterestScreen(
-    accessToken: String,
+    accessToken: String, // 현재는 ViewModel에서 토큰을 다시 수집함. 남겨두되 사용은 안 함.
     onBack: () -> Unit,
     onHome: () -> Unit,
-    thumbnailsRes: Map<Long, Int> = emptyMap(), // ← 보드ID → drawable 리소스 매핑
+    thumbnailsRes: Map<Long, Int> = emptyMap(),
     viewModel: OnBoardingInterestViewModel = hiltViewModel()
 ) {
     val focusManager = LocalFocusManager.current
+
+    // 스낵바 / snackbar
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
+    val maxSelect = 5
+    val selectedIds = state.selectedIds
+    val limitReached = selectedIds.size >= maxSelect
 
-    // ViewModel에서 accessToken을 가져옴
-    val accessToken by viewModel.accessToken.collectAsStateWithLifecycle()
+    // ViewModel에서 accessToken 수집 / collect accessToken from VM
+    val tokenFromVm by viewModel.accessToken.collectAsStateWithLifecycle()
 
-    // accessToken이 준비되면 보드 목록 로드
-    LaunchedEffect(accessToken) {
-        accessToken?.let { token ->
-            viewModel.loadBoards(token)
-        }
+    // 토큰 준비 시 보드 목록 조회 / load boards once token is ready
+    LaunchedEffect(tokenFromVm) {
+        tokenFromVm?.let { viewModel.loadBoards(it) }
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
                 title = {},
                 navigationIcon = {
-                    IconButton(onClick = {
-                        focusManager.clearFocus(force = true)
-                        onBack()
-                    }) {
-                        Icon(painterResource(R.drawable.arrow_back), contentDescription = "뒤로가기")
-                    }
+//                    IconButton(onClick = {
+//                        focusManager.clearFocus(force = true)
+//                        onBack()
+//                    }) {
+//                        Icon(painterResource(R.drawable.arrow_back), contentDescription = "뒤로가기")
+//                    }
                 },
                 actions = {
                     TextButton(onClick = {
-                        accessToken?.let { token ->
+                        tokenFromVm?.let { token ->
                             viewModel.submitSkip(
                                 accessToken = token,
                                 onCompleted = { _ -> onHome() },
@@ -88,11 +90,11 @@ fun OnBoardingInterestScreen(
                             )
                         }
                     }) {
-                        Text("건너뛰기", color = Grey500, style = AppTextStyles.b2_semibold_16)
+                        Text("건너뛰기", color = Grey200, style = AppTextStyles.b2_semibold_16)
                     }
                 },
                 modifier = Modifier.drawBehind {
-                    // 상단바 하단 1dp 구분선
+                    // 하단 1dp 구분선 / 1dp divider below the app bar
                     val y = size.height
                     drawLine(
                         color = Grey50,
@@ -104,7 +106,6 @@ fun OnBoardingInterestScreen(
             )
         },
         bottomBar = {
-            // 하단 고정 '시작하기' 버튼 — 1개 이상 선택 시 활성화
             Box(
                 modifier = Modifier
                     .navigationBarsPadding()
@@ -113,7 +114,7 @@ fun OnBoardingInterestScreen(
             ) {
                 Button(
                     onClick = {
-                        accessToken?.let { token ->
+                        tokenFromVm?.let { token ->
                             viewModel.submitSelected(
                                 accessToken = token,
                                 onCompleted = { _ -> onHome() },
@@ -121,13 +122,21 @@ fun OnBoardingInterestScreen(
                             )
                         }
                     },
-                    enabled = state.selectedIds.isNotEmpty(), // ← ViewModel 상태와 연동
+                    enabled = selectedIds.isNotEmpty(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp),
-                    shape = MaterialTheme.shapes.large
+                    shape = MaterialTheme.shapes.large,
+                    colors = ButtonDefaults.buttonColors(
+                        // 활성화 상태
+                        containerColor = PurpleMain500,
+                        contentColor = Color.White,
+                        // 비활성화 상태
+                        disabledContainerColor = PurpleMain500.copy(alpha = 0.4f),
+                        disabledContentColor = Color.White
+                    ),
                 ) {
-                    Text("시작하기", style = AppTextStyles.b2_semibold_16)
+                    Text("시작하기", style = AppTextStyles.b1_bold_18)
                 }
             }
         }
@@ -138,13 +147,14 @@ fun OnBoardingInterestScreen(
                 .padding(inner)
                 .padding(horizontal = 20.dp)
         ) {
-            Spacer(Modifier.height(12.dp))
-            Text("어떤 영상을 자주 보시나요?", style = AppTextStyles.headline_bold_28)
+            Spacer(Modifier.height(50.dp))
+            Text("어떤 영상을 자주 보시나요?", style = AppTextStyles.headline_bold_28, modifier = Modifier.align(Alignment.CenterHorizontally))
             Spacer(Modifier.height(8.dp))
             Text(
                 "선택한 관심사를 기반으로 추천 카드를 보여드려요.",
                 style = AppTextStyles.b1_semibold_18,
-                color = MaterialTheme.colorScheme.primary
+                color = PurpleMain500,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
             )
             Spacer(Modifier.height(20.dp))
 
@@ -156,235 +166,157 @@ fun OnBoardingInterestScreen(
                 }
                 state.error != null -> {
                     Column(
-                        Modifier.fillMaxWidth().padding(top = 40.dp),
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = 40.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(state.error ?: "오류", style = AppTextStyles.b3_regular_14, color = Color.Red)
                         Spacer(Modifier.height(8.dp))
-                        OutlinedButton(onClick = {
-                            accessToken?.let { viewModel.loadBoards(it) }
-                        }) {
+                        OutlinedButton(onClick = { tokenFromVm?.let { viewModel.loadBoards(it) } }) {
                             Text("다시 시도")
                         }
                     }
                 }
                 else -> {
-                    // 3열 원형 카드 그리드
+                    // 3열 원형 그리드 / 3-column circular grid
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
-                        contentPadding = PaddingValues(vertical = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(24.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
+
                         items(state.boards, key = { it.boardId }) { item ->
-                            // ▼ 여기서 보드ID → drawable 리소스 ID를 찾아서 imageRes 로 전달해야 함
-                            val imageRes = thumbnailsRes[item.boardId] ?: R.drawable.education
+                            // 각 보드 이름으로 이미지 연결하여 칩 배경으로 사용
+                            val imageRes = thumbnailsRes[item.boardId] ?: InterestAssets.of(item.boardId, item.boardName)
+                            val isSelected = item.boardId in state.selectedIds
+                            val enabled = isSelected || !limitReached // 선택 해제는 항상 가능 / allow deselect anytime
+
                             InterestCircleChip(
                                 item = item,
-                                imageRes = imageRes,                     // ← 누락됐던 파라미터
-                                selected = item.boardId in state.selectedIds,
-                                onClick = { viewModel.toggle(item.boardId) }
+                                imageRes = imageRes,
+                                enabled = enabled,
+                                selected = isSelected,
+                                onClick = {
+                                    if (!isSelected && limitReached) {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("최대 5개까지 선택할 수 있어요")
+                                        }
+                                    } else {
+                                        val next = if (isSelected) selectedIds - item.boardId else selectedIds + item.boardId
+                                        viewModel.updateSelected(next)
+                                    }
+                                }
                             )
                         }
                     }
                 }
             }
+
+            Spacer(Modifier.height(20.dp))
+            Text(
+                "최대 5개까지 선택 가능  •  현재 ${selectedIds.size}개 선택",
+                style = AppTextStyles.label_medium_14,
+                color = GreyMain300,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
         }
     }
 }
 
 /**
- * 관심 보드 원형 카드(버튼)
- * - 배경: PNG/VectorDrawable 이미지를 꽉 차게 표시(ContentScale.Crop)
- * - 오버레이: 미선택(검정 35%), 선택(보라 25%) + 보라 외곽선 + 체크 배지
+ * 관심사 원형 칩
+ * - 이미지가 원형 내부를 빈틈 없이 채우도록 Clip + Crop 조합
+ * - 선택 시 보랏빛 틴트와 체크 배지 표시
+ * - 선택 불가 상태일 때 반투명 처리
+ *
+ * Circular interest chip
+ * - Clip + ContentScale.Crop to fill circle without gaps
+ * - Purple tint & check badge when selected
+ * - Dim when disabled (over selection cap)
  */
-//@Composable
-//private fun InterestCircleChip(
-//    item: DefaultBoardItemResponse,
-//    @DrawableRes imageRes: Int,   // ← 호출부에서 반드시 넘겨줘야 함
-//    selected: Boolean,
-//    onClick: () -> Unit
-//) {
-//    val chipSize = 100.dp
-//
-//    Box(
-//        modifier = Modifier
-//            .size(chipSize)
-//            .aspectRatio(1f) // 가로세로 비율 1:1 유지 (동그라미 형태 유지)
-//            .clip(CircleShape)
-//            .clickable { onClick() },
-//        contentAlignment = Alignment.Center
-//    ) {
-//        // 2) Inner circle: clip content to circle
-//        Box(
-//            modifier = Modifier
-//                .matchParentSize()
-//                .clip(CircleShape)
-//        ) {
-//            // 배경 이미지
-//            Image(
-//                painter = painterResource(imageRes),
-//                contentDescription = item.boardName,
-//                contentScale = ContentScale.Crop,
-//                modifier = Modifier
-//                    .fillMaxSize()
-//            )
-//
-//            if (selected) {
-//                // soft purple tint
-//                Box(
-//                    modifier = Modifier
-//                        .matchParentSize()
-//                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f))
-//                )
-//                // purple ring
-//                Box(
-//                    modifier = Modifier
-//                        .matchParentSize()
-//                        .border(1.dp, Purple300, CircleShape)
-//                )
-//            }
-//
-//            Text(
-//                text = item.boardName,
-//                style = AppTextStyles.b1_semibold_18.copy(
-//                    // subtle shadow to keep contrast on any background
-//                    shadow = Shadow(
-//                        color = Color(0x66000000),
-//                        offset = androidx.compose.ui.geometry.Offset(0f, 2f),
-//                        blurRadius = 4f
-//                    )
-//                ),
-//                color = Color.White,
-//                textAlign = TextAlign.Center,
-//                modifier = Modifier
-//                    .align(Alignment.Center)
-//                    .padding(horizontal = 8.dp)
-//            )
-//
-//            if (selected) {
-//                Box(
-//                    modifier = Modifier
-//                        .align(Alignment.TopStart)
-//                        .offset(x = (-8).dp, y = (-8).dp) // outside a bit
-//                        .size(24.dp)
-//                        .clip(CircleShape)
-//                        .background(Color.White),          // white badge background
-//                    contentAlignment = Alignment.Center
-//                ) {
-//                    // inner colored circle with check
-//                    Box(
-//                        modifier = Modifier
-//                            .size(20.dp)
-//                            .clip(CircleShape)
-//                            .background(MaterialTheme.colorScheme.primary),
-//                        contentAlignment = Alignment.Center
-//                    ) {
-//                        Icon(
-//                            painter = painterResource(R.drawable.check),
-//                            contentDescription = "선택됨",
-//                            tint = Color.White,
-//                            modifier = Modifier.size(14.dp)
-//                        )
-//                    }
-//                }
-//            }
-//        }
-//
-//        // 중앙 보드 이름
-//        Text(
-//            text = item.boardName,
-//            style = AppTextStyles.b1_semibold_18,
-//            color = Color.White,
-//            textAlign = TextAlign.Center,
-//            modifier = Modifier
-//                .align(Alignment.Center)
-//                .padding(horizontal = 8.dp)
-//        )
-//    }
-//}
-
 @Composable
 private fun InterestCircleChip(
     item: DefaultBoardItemResponse,
     @DrawableRes imageRes: Int,
+    enabled: Boolean,
     selected: Boolean,
     onClick: () -> Unit
 ) {
     val chipSize = 105.dp
-    val imageScale = 1.08f
 
-    // Outer container: no clip (badge can protrude)
+    // 바깥 컨테이너는 clip 하지 않음(배지가 살짝 밖으로 나가도록)
+    // Do not clip the outer box so the badge can protrude slightly
     Box(
         modifier = Modifier
             .size(chipSize)
-            .clickable { onClick() },
+            .alpha(if (enabled || selected) 1f else 0.5f)
+            .clickable(enabled = enabled || selected) { onClick() },
         contentAlignment = Alignment.Center
     ) {
-        // Inner circle: clip only the circle content
+        // 내부 원형 컨테이너 / inner circular container
         Box(
             modifier = Modifier
-                .matchParentSize()
-                .aspectRatio(1f)
+                .fillMaxSize()
                 .clip(CircleShape)
         ) {
-            // Background image
+            // 배경 이미지(원형을 꽉 채움) / background image fills the circle
             Image(
                 painter = painterResource(imageRes),
                 contentDescription = item.boardName,
-                contentScale = ContentScale.FillBounds,
-                modifier = Modifier.matchParentSize()
-                .graphicsLayer {
-                scaleX = imageScale
-                scaleY = imageScale
-            },
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
                 colorFilter = if (selected)
-                    ColorFilter.tint(PurpleMain500.copy(alpha = 0.8f), BlendMode.SrcAtop)
+                    ColorFilter.tint(
+                        PurpleMain500.copy(alpha = 0.6f),
+                        BlendMode.SrcAtop // 이미지 위에 색상을 얹음 / tint above image
+                    )
                 else null
             )
 
-            // Title on top
+            // 타이틀(가독성 향상을 위한 얕은 그림자) / title with subtle shadow
             Text(
                 text = item.boardName,
                 style = AppTextStyles.b2_bold_16.copy(
                     shadow = Shadow(
-                        color = Color(0x66000000),
-                        offset = androidx.compose.ui.geometry.Offset(0f, 2f),
-                        blurRadius = 4f
+                        color = Color.Black,
+                        offset = androidx.compose.ui.geometry.Offset(0f, 3f),
+                        blurRadius = 12f
                     )
                 ),
                 color = Color.White,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .padding(horizontal = 8.dp)
+                    .padding(horizontal = 16.dp)
             )
         }
 
-        // Check badge: place on OUTER box so it's not clipped
+        // 선택 배지(좌상단, 살짝 바깥) / selection badge at top-left slightly outside
         if (selected) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .offset(x = (3).dp, y = (1).dp) // slightly outside
-                    .size(26.dp)
+                    .offset(x = (8).dp, y = (3).dp) // 살짝 밖으로 / slightly outside
+                    .size(28.dp)
                     .clip(CircleShape)
                     .background(Color.White),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
-                        .size(26.dp)
+                        .size(28.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary),
+                        .background(PurpleMain500),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.check),
                         contentDescription = "선택됨",
                         tint = Color.White,
-                        modifier = Modifier.size(23.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -393,44 +325,139 @@ private fun InterestCircleChip(
 }
 
 
-// ----------------------------
-// ✅ CHIP 단일 프리뷰 2종 (미선택/선택)
-// ----------------------------
-@Preview(name = "Chip - Unselected", showBackground = true)
+// ===============================
+// Interactive Preview (최대 5개 선택 테스트용)
+// - ViewModel/Hilt 없이 로컬 상태로 동작
+// - 선택 5개 초과 시 스낵바 안내
+// ===============================
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(name = "Interest Screen – Interactive", showBackground = true, widthDp = 360, heightDp = 760)
 @Composable
-private fun Preview_InterestCircleChip_Unselected() {
-    // 프리뷰용 더미 데이터(실제 서버 응답 모델과 동일 필드 사용 가정)
-    val dummy = DefaultBoardItemResponse(
-        boardId = 60L,
-        boardName = "테크 & 프로그래밍"
+private fun Preview_InterestScreen_Interactive() {
+    // 더미 보드 데이터(12개)
+    val dummyBoards = listOf(
+        DefaultBoardItemResponse(1,  "교육"),
+        DefaultBoardItemResponse(2,  "테크 & 프로그래밍"),
+        DefaultBoardItemResponse(3,  "비즈니스 & 생산성"),
+        DefaultBoardItemResponse(4,  "뷰티 패션"),
+        DefaultBoardItemResponse(5,  "요리 라이프스타일"),
+        DefaultBoardItemResponse(6,  "운동 건강"),
+        DefaultBoardItemResponse(7,  "여행 브이로그"),
+        DefaultBoardItemResponse(8,  "게임"),
+        DefaultBoardItemResponse(9,  "취미 공예"),
+        DefaultBoardItemResponse(10, "음악"),
+        DefaultBoardItemResponse(11, "예술 디자인"),
+        DefaultBoardItemResponse(12, "엔터테인먼트"),
     )
+
+    // 썸네일 리소스 매핑(없으면 공통 이미지로)
+    val thumbnailsRes = remember {
+        dummyBoards.associate { it.boardId to R.drawable.education }
+    }
+
+    // 선택 상태(프리뷰 전용 로컬 상태)
+    var selectedIds by remember { mutableStateOf(setOf<Long>()) }
+    val maxSelect = 5
+    val limitReached = selectedIds.size >= maxSelect
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
     MaterialTheme {
-        Box(Modifier.size(120.dp), contentAlignment = Alignment.Center) {
-            InterestCircleChip(
-                item = dummy,
-                imageRes = R.drawable.basic_profile_image, // PNG/SVG Vector 사용 가능
-                selected = false, // 미선택 상태
-                onClick = {}
-            )
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            topBar = {
+                CenterAlignedTopAppBar(title = { /* 프리뷰라 타이틀 생략 */ })
+            },
+            bottomBar = {
+                Box(
+                    modifier = Modifier
+                        .navigationBarsPadding()
+                        .imePadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Button(
+                        onClick = { /* 프리뷰라 내비게이션 생략 */ },
+                        enabled = selectedIds.isNotEmpty(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(
+                            // 활성화 상태
+                            containerColor = PurpleMain500,
+                            contentColor = Color.White,
+                            // 비활성화 상태
+                            disabledContainerColor = PurpleMain500.copy(alpha = 0.4f), // 원하는 색으로
+                            disabledContentColor = Color.White // 원하는 색으로
+                        )
+                    ) {
+                        Text("시작하기", style = AppTextStyles.b1_bold_18)
+                    }
+                }
+            }
+        ) { inner ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(inner)
+                    .padding(horizontal = 20.dp)
+            ) {
+                Spacer(Modifier.height(12.dp))
+                Text("어떤 영상을 자주 보시나요?", style = AppTextStyles.headline_bold_28, modifier = Modifier.align(Alignment.CenterHorizontally))
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "선택한 관심사를 기반으로 추천 카드를 보여드려요.",
+                    style = AppTextStyles.b1_semibold_18,
+                    color = PurpleMain500,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
+                Spacer(Modifier.height(20.dp))
+
+                // 3열 원형 그리드
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    contentPadding = PaddingValues(vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(dummyBoards, key = { it.boardId }) { item ->
+                        val imageRes = thumbnailsRes[item.boardId] ?: R.drawable.interest_education
+                        val isSelected = item.boardId in selectedIds
+                        val enabled = isSelected || !limitReached
+
+                        InterestCircleChip(
+                            item = item,
+                            imageRes = imageRes,
+                            enabled = enabled,
+                            selected = isSelected,
+                            onClick = {
+                                if (!isSelected && limitReached) {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("최대 5개까지 선택할 수 있어요")
+                                    }
+                                } else {
+                                    selectedIds = if (isSelected) {
+                                        selectedIds - item.boardId
+                                    } else {
+                                        selectedIds + item.boardId
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(20.dp))
+                Text(
+                    "최대 5개까지 선택 가능  •  현재 ${selectedIds.size}개 선택",
+                    style = AppTextStyles.label_medium_14,
+                    color = GreyMain300,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
+            }
         }
     }
 }
 
-@Preview(name = "Chip - Selected", showBackground = true)
-@Composable
-private fun Preview_InterestCircleChip_Selected() {
-    val dummy = DefaultBoardItemResponse(
-        boardId = 61L,
-        boardName = "비즈니스 & 생산성"
-    )
-    MaterialTheme {
-        Box(Modifier.size(120.dp), contentAlignment = Alignment.Center) {
-            InterestCircleChip(
-                item = dummy,
-                imageRes = R.drawable.interest_education,
-                selected = true, // 선택 상태
-                onClick = {}
-            )
-        }
-    }
-}
