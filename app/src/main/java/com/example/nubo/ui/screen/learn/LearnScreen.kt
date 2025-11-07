@@ -105,10 +105,15 @@ fun LearnScreen(
             }
 
             is DashboardUiState.Error -> {
-                Text(
-                    text = state.message,
+               /* Text(
+                    text = "시스템 오류가 발생했습니다.",
                     modifier = Modifier.align(Alignment.Center),
                     color = Color.Black
+                )*/
+                GraphicBackgroundView(
+                    modifier = Modifier.fillMaxSize(),
+                    todayVideoCount = 3, // 오늘 카운트 값 2D 그래픽 파일에 전달
+                    level = 4
                 )
             }
 
@@ -143,7 +148,7 @@ fun LearnScreen(
                 )*/
                 GraphicBackgroundView(
                     modifier = Modifier.fillMaxSize(),
-                    todayVideoCount = todayCount, // 오늘 카운트 값 2D 그래픽 파일에 전달
+                    todayVideoCount = 3, // 오늘 카운트 값 2D 그래픽 파일에 전달
                     level = currentStage
                 )
 

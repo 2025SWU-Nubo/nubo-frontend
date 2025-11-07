@@ -1,5 +1,6 @@
 package com.example.nubo.ui.screen.learn
 
+import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.EaseInOutSine
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -14,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -34,7 +36,7 @@ import kotlin.math.sin
 fun GraphicBackgroundView(
     modifier: Modifier = Modifier,
     todayVideoCount: Int,
-    level: Int = 0,
+    level: Int,
 ) {
     // 표시할 물방울 개수 (최대 5개로 제한)
     val dropCount = todayVideoCount.coerceAtMost(5)
@@ -45,7 +47,7 @@ fun GraphicBackgroundView(
     val cloudTransition = rememberInfiniteTransition(label = "cloud-float")
     val cloudOffsetY by cloudTransition.animateFloat(
         initialValue = -9f, // -9 픽셀 (위)
-        targetValue = 9f,  // +9 픽셀 (아래)
+        targetValue = 8f,  // +9 픽셀 (아래)
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 2500, easing = EaseInOutSine), // 2.5초
             repeatMode = RepeatMode.Reverse // 2.5초마다 방향 반전 (총 5초)
@@ -56,7 +58,7 @@ fun GraphicBackgroundView(
     // 2. 물방울 애니메이션
     val floatCycleSeconds = 5.0
     val floatCycleMillis = (floatCycleSeconds * 1000).toInt()
-    val bobbingAmount = 4.dp // 둥실거리는 폭
+    val bobbingAmount = 20.dp // 둥실거리는 폭
 
     val raindropTransition = rememberInfiniteTransition(label = "RaindropTime")
     val raindropTime by raindropTransition.animateFloat(
@@ -92,23 +94,32 @@ fun GraphicBackgroundView(
         Box(
             modifier = Modifier
                 .align(Alignment.Center) // 그룹을 화면 중앙에 정렬
-                .fillMaxWidth()
-                // padding 값으로 오브젝트 그룹 전체의 '높이'를 조절
-                .padding(bottom = 200.dp),
+                .fillMaxWidth(),
+            // padding 값으로 오브젝트 그룹 전체의 '높이'를 조절
             contentAlignment = Alignment.Center // 자식들을 이 Box의 중앙에 겹침
         ) {
             when (level) {
                 0 -> {// 레벨 0 새싹
 
                     // --- 애니메이션 설정 ---
-
+                    val transition = rememberInfiniteTransition(label = "leaf-wave-L1")
+                    val leafWaveRotation by transition.animateFloat(
+                        initialValue = -9f,
+                        targetValue = 8f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(durationMillis = 3000, easing = EaseInOutSine), // 3초
+                            repeatMode = RepeatMode.Reverse // 부드럽게 왕복
+                        ),
+                        label = "leafWave"
+                    )
                     // --- 이미지 파일 설정 ---
                     // 1. 새싹 줄기
                     Image(
                         painter = painterResource(id = R.drawable.learn_0_plant),
                         contentDescription = "새싹 줄기",
                         modifier = Modifier
-                            .scale(1.7f)
+                            .scale(0.9f)
+                            .offset(y = 55.dp)
                     )
 
                     // 2. 새싹 머리
@@ -116,9 +127,11 @@ fun GraphicBackgroundView(
                         painter = painterResource(id = R.drawable.learn_0_head),
                         contentDescription = "새싹 머리",
                         modifier = Modifier
-                            .scale(1.7f)
+                            .scale(0.8f)
+                            .offset(y = 69.dp, x = 2.dp)
                             .graphicsLayer {
-
+                                transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 1.0f)
+                                rotationY = leafWaveRotation
                             }
                     )
                 }
@@ -126,6 +139,16 @@ fun GraphicBackgroundView(
                 1 -> {// 레벨 1 묘목
 
                     // --- 애니메이션 설정 ---
+                    val transition = rememberInfiniteTransition(label = "leaf-wave-L1")
+                    val leafWaveRotation by transition.animateFloat(
+                        initialValue = -9f, // -8도 (왼쪽)
+                        targetValue = 9f,  // +8도 (오른쪽)
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(durationMillis = 2700, easing = EaseInOutSine), // 2.7초
+                            repeatMode = RepeatMode.Reverse // 부드럽게 왕복
+                        ),
+                        label = "leafWave"
+                    )
 
                     // --- 이미지 파일 설정 ---
                     // 1. 묘목 줄기
@@ -133,7 +156,8 @@ fun GraphicBackgroundView(
                         painter = painterResource(id = R.drawable.learn_1_plant),
                         contentDescription = "묘목 줄기",
                         modifier = Modifier
-                            .scale(1.7f)
+                            .scale(2.3f)
+                            .offset(y = -15.dp)
                     )
 
                     // 2. 묘목 왼쪽 잎
@@ -141,9 +165,11 @@ fun GraphicBackgroundView(
                         painter = painterResource(id = R.drawable.learn_1_leafl),
                         contentDescription = "묘목 왼쪽 잎",
                         modifier = Modifier
-                            .scale(1.7f)
+                            .scale(2.3f)
+                            .offset(y = -13.dp)
                             .graphicsLayer {
-
+                                transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 1.1f)
+                                rotationY = leafWaveRotation
                             }
                     )
 
@@ -152,9 +178,11 @@ fun GraphicBackgroundView(
                         painter = painterResource(id = R.drawable.learn_1_leafr),
                         contentDescription = "묘목 오른쪽 잎",
                         modifier = Modifier
-                            .scale(1.7f)
+                            .scale(2.3f)
+                            .offset(y = -13.dp)
                             .graphicsLayer {
-
+                                transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 1.1f)
+                                rotationY = -leafWaveRotation
                             }
                     )
 
@@ -163,9 +191,11 @@ fun GraphicBackgroundView(
                         painter = painterResource(id = R.drawable.learn_1_leaf3),
                         contentDescription = "묘목 3번째 잎",
                         modifier = Modifier
-                            .scale(1.7f)
+                            .scale(2.3f)
+                            .offset(y = -13.dp, x = (-0.5).dp)
                             .graphicsLayer {
-
+                                transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 1.1f)
+                                rotationY = -leafWaveRotation
                             }
                     )
                 }
@@ -173,6 +203,35 @@ fun GraphicBackgroundView(
                 2 -> {// 레벨 2 꽃봉오리
 
                     // --- 애니메이션 설정 ---
+                    val transition = rememberInfiniteTransition(label = "leaf-wave-L1")
+                    val leafWaveRotation by transition.animateFloat(
+                        initialValue = -7f, //
+                        targetValue = 7f,  //
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(durationMillis = 2700, easing = EaseInOutSine), // 2.7초
+                            repeatMode = RepeatMode.Reverse // 부드럽게 왕복
+                        ),
+                        label = "leafWave"
+                    )
+
+                    // 1. 무한 반복 애니메이션 트랜지션 생성
+                    val infiniteTransition = rememberInfiniteTransition(label = "flower_bob_transition")
+
+                    // 2. Y축(위아래) 값을 애니메이션으로 정의
+                    val translationY by infiniteTransition.animateFloat(
+                        initialValue = -6f,
+                        targetValue = 6f,
+                        animationSpec = infiniteRepeatable(
+                            // 1.5초(1500ms) 동안
+                            animation = tween(
+                                durationMillis = 2300,
+                                easing = EaseInOut // 부드럽게 시작하고 끝나도록
+                            ),
+                            // RepeatMode.Reverse: -8 -> 8로 갔다가 8 -> -8로 돌아옵니다. (왕복)
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "flower_y_translation"
+                    )
 
                     // --- 이미지 파일 설정 ---
                     // 1. 줄기
@@ -180,7 +239,8 @@ fun GraphicBackgroundView(
                         painter = painterResource(id = R.drawable.learn_2_plant),
                         contentDescription = "줄기",
                         modifier = Modifier
-                            .scale(1.7f)
+                            .scale(scaleX = 0.9f, scaleY = 1.1f)
+                            .offset(y = -25.dp)
                     )
 
                     // 2. 꽃봉오리
@@ -188,9 +248,10 @@ fun GraphicBackgroundView(
                         painter = painterResource(id = R.drawable.learn_2_flower),
                         contentDescription = "꽃봉오리",
                         modifier = Modifier
-                            .scale(1.7f)
+                            .scale(0.8f)
+                            .offset(y = 13.dp)
                             .graphicsLayer {
-
+                                this.translationY = translationY
                             }
                     )
                     // 3. 잎 왼쪽
@@ -198,9 +259,11 @@ fun GraphicBackgroundView(
                         painter = painterResource(id = R.drawable.learn_2_leafl),
                         contentDescription = "왼쪽 잎",
                         modifier = Modifier
-                            .scale(1.7f)
+                            .scale(0.9f)
+                            .offset(y = 20.dp)
                             .graphicsLayer {
-
+                                transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 1f)
+                                rotationY = leafWaveRotation
                             }
                     )
 
@@ -209,9 +272,11 @@ fun GraphicBackgroundView(
                         painter = painterResource(id = R.drawable.learn_2_leafr),
                         contentDescription = "오른쪽 잎",
                         modifier = Modifier
-                            .scale(1.7f)
+                            .scale(0.9f)
+                            .offset(y = 20.dp)
                             .graphicsLayer {
-
+                                transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 1f)
+                                rotationY = -leafWaveRotation
                             }
                     )
                 }
@@ -219,13 +284,24 @@ fun GraphicBackgroundView(
                 3 -> { // 레벨 3 꽃
 
                     // --- 애니메이션 설정 ---
+                    val transition = rememberInfiniteTransition(label = "leaf-wave-L1")
+                    val leafWaveRotation by transition.animateFloat(
+                        initialValue = -4f, //
+                        targetValue = 4f,  //
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(durationMillis = 2700, easing = EaseInOutSine), // 2.7초
+                            repeatMode = RepeatMode.Reverse // 부드럽게 왕복
+                        ),
+                        label = "leafWave"
+                    )
+
                     // 1. 꽃(Flower) 애니메이션
                     val flowerTransition = rememberInfiniteTransition(label = "flower-sway")
                     val flowerRotation by flowerTransition.animateFloat(
-                        initialValue = -2f, // -2 degrees (좌)
-                        targetValue = 2f,  // +2 degrees (우)
+                        initialValue = -3f, // -2 degrees (좌)
+                        targetValue = 3f,  // +2 degrees (우)
                         animationSpec = infiniteRepeatable(
-                            animation = tween(durationMillis = 4000, easing = EaseInOutSine), // 4초
+                            animation = tween(durationMillis = 2500, easing = EaseInOutSine), // 4초
                             repeatMode = RepeatMode.Reverse // 4초마다 방향 반전 (총 8초)
                         ),
                         label = "flowerRotation"
@@ -237,9 +313,8 @@ fun GraphicBackgroundView(
                         painter = painterResource(id = R.drawable.learn_3_plant),
                         contentDescription = "줄기",
                         modifier = Modifier
-                            //  Y축 오프셋으로 위치 조정 (그룹 중앙에서 +50dp 아래로)
-                            .scale(1.7f)
-                            .offset(y = 50.dp)
+                            .scale(0.9f)
+                            .offset(y = 20.dp)
                     )
 
                     // 2. 꽃
@@ -247,9 +322,16 @@ fun GraphicBackgroundView(
                         painter = painterResource(id = R.drawable.learn_3_flower),
                         contentDescription = "꽃",
                         modifier = Modifier
-                            .scale(1.7f)
+                            .scale(0.9f)
+                            .offset(y = 22.dp)
                             .graphicsLayer {
+                                // rotationZ를 사용하여 Z축(화면을 뚫는 축) 기준으로 회전시킵니다.
                                 rotationZ = flowerRotation
+
+                                // [전문가 팁]
+                                // 꽃이 줄기 끝(하단 중앙)을 기준으로 흔들리게 하려면
+                                // 회전 중심(transformOrigin)을 변경하세요.
+                                // 기본값은 (0.5f, 0.5f) - 중앙입니다.
                             }
                     )
 
@@ -258,9 +340,11 @@ fun GraphicBackgroundView(
                         painter = painterResource(id = R.drawable.learn_3_leafl),
                         contentDescription = "왼쪽 잎",
                         modifier = Modifier
-                            .scale(1.7f)
+                            .scale(0.8f)
+                            .offset(y = 42.dp)
                             .graphicsLayer {
-
+                                transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 1f)
+                                rotationY = leafWaveRotation
                             }
                     )
 
@@ -269,9 +353,11 @@ fun GraphicBackgroundView(
                         painter = painterResource(id = R.drawable.learn_3_leafr),
                         contentDescription = "오른쪽 잎",
                         modifier = Modifier
-                            .scale(1.7f)
+                            .scale(0.8f)
+                            .offset(y = 42.dp)
                             .graphicsLayer {
-
+                                transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 1f)
+                                rotationY = -leafWaveRotation
                             }
                     )
                 }
@@ -279,6 +365,16 @@ fun GraphicBackgroundView(
                 4 -> {// 레벨 4 열매
 
                     // --- 애니메이션 설정 ---
+                    val transition = rememberInfiniteTransition(label = "leaf-wave-L1")
+                    val leafWaveRotation by transition.animateFloat(
+                        initialValue = -4f, //
+                        targetValue = 4f,  //
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(durationMillis = 2700, easing = EaseInOutSine), // 2.7초
+                            repeatMode = RepeatMode.Reverse // 부드럽게 왕복
+                        ),
+                        label = "leafWave"
+                    )
 
                     // --- 이미지 파일 설정 ---
                     // 1. 줄기
@@ -286,10 +382,8 @@ fun GraphicBackgroundView(
                         painter = painterResource(id = R.drawable.learn_4_plant),
                         contentDescription = "줄기",
                         modifier = Modifier
-                            .scale(1.7f)
-                            .graphicsLayer {
-
-                            }
+                            .scale(0.82f)
+                            .offset(y = 55.dp)
                     )
 
                     // 2. 베리1
@@ -297,9 +391,11 @@ fun GraphicBackgroundView(
                         painter = painterResource(id = R.drawable.learn_4_berry),
                         contentDescription = "베리1",
                         modifier = Modifier
-                            .scale(1.7f)
+                            .scale(0.82f)
+                            .offset(y = 15.dp)
                             .graphicsLayer {
-
+                                transformOrigin = TransformOrigin(pivotFractionX = 0.6f, pivotFractionY = 1f)
+                                rotationY = leafWaveRotation
                             }
                     )
                     // 3. 베리2
@@ -307,9 +403,11 @@ fun GraphicBackgroundView(
                         painter = painterResource(id = R.drawable.learn_4_berry2),
                         contentDescription = "베리2",
                         modifier = Modifier
-                            .scale(1.7f)
+                            .scale(0.82f)
+                            .offset(y = 50.dp, x=(-3).dp)
                             .graphicsLayer {
-
+                                transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 1f)
+                                rotationY = leafWaveRotation
                             }
                     )
                     // 4. 베리3
@@ -317,9 +415,11 @@ fun GraphicBackgroundView(
                         painter = painterResource(id = R.drawable.learn_4_berry3),
                         contentDescription = "베리3",
                         modifier = Modifier
-                            .scale(1.7f)
+                            .scale(0.82f)
+                            .offset(y = 50.dp, x =(-4).dp)
                             .graphicsLayer {
-
+                                transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 1f)
+                                rotationY = -leafWaveRotation
                             }
                     )
                 }
@@ -334,15 +434,15 @@ fun GraphicBackgroundView(
             // Z-Order 3: 물방울
             Box(
                 modifier = Modifier
-                    .scale(1.3f),
+                    .scale(0.13f),
                 contentAlignment = Alignment.TopCenter
             ) {
                 // 물방울 개별 위치 로직 (이전과 동일)
-                val pos1 = Pair((-70).dp, (-10).dp)
-                val pos2 = Pair((-35).dp, (-26).dp)
-                val pos3 = Pair(0.dp, (-10).dp)
-                val pos4 = Pair(35.dp, (-26).dp)
-                val pos5 = Pair(70.dp, (-10).dp)
+                val pos1 = Pair((-700).dp, (-300).dp)
+                val pos2 = Pair((-350).dp, (-380).dp)
+                val pos3 = Pair(0.dp, (-300).dp)
+                val pos4 = Pair(350.dp, (-380).dp)
+                val pos5 = Pair(700.dp, (-300).dp)
 
                 val positionsToShow = when (dropCount) {
                     1 -> listOf(pos3)
@@ -357,9 +457,10 @@ fun GraphicBackgroundView(
                     val finalY = yOffset + animatedRaindropY.dp
 
                     Image(
-                        painter = painterResource(id = R.drawable.learn_waterdrop),
+                        painter = painterResource(id = R.drawable.learn_waterdrop3),
                         contentDescription = "물방울",
                         modifier = Modifier
+                            .scale(scaleX = 0.9f, scaleY = 1f)
                             .align(Alignment.TopCenter)
                             .offset(x = xOffset, y = finalY)
                     )
@@ -371,8 +472,8 @@ fun GraphicBackgroundView(
                 painter = painterResource(id = R.drawable.learn_cloud),
                 contentDescription = "구름",
                 modifier = Modifier
-                    .offset(y = -50.dp)
-                    .scale(scaleX = 1.9f, scaleY = 1.8f)
+                    .offset(y = -80.dp)
+                    .scale(scaleX = 1.9f, scaleY = 1.9f)
                     .graphicsLayer {
                         translationY = cloudOffsetY
                     }
