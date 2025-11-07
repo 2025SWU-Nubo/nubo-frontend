@@ -37,6 +37,7 @@ import retrofit2.Callback
 import retrofit2.Response
 import javax.inject.Inject
 import androidx.core.content.edit
+import com.google.gson.Gson
 
 data class UiToast(
     val message: String,
@@ -45,6 +46,7 @@ data class UiToast(
     val durationMillis: Int = 2000,
     @androidx.annotation.DrawableRes val iconRes: Int? = null
 )
+
 
 
 /**
@@ -59,9 +61,17 @@ class OnBoardingViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private var notificationRepository: NotificationRepository
 ) : AndroidViewModel(application) {
+    companion object{
+        // 무조건 newuser = true로 (테스트 버전)
+//        private const val FORCE_SHOW_INTEREST = true
+    }
 
     @SuppressLint("StaticFieldLeak")
     private val context: Context = application.applicationContext
+
+    // 새 사용자 여부를 저장할 변수 추가
+    private var _pendingIsNewUser: Boolean = false
+
 
     // FCM 토큰 캐시/등록 상태 저장용
     private val prefs = context.getSharedPreferences("push_prefs", Context.MODE_PRIVATE)
@@ -74,10 +84,6 @@ class OnBoardingViewModel @Inject constructor(
         extraBufferCapacity = 1
     )
     val toastEvents: SharedFlow<UiToast> = _toastEvents.asSharedFlow()
-
-//    private suspend fun emitToast(toast: UiToast) {
-//        _toastEvents.emit(toast)
-//    }
 
     // 알림 권한 요청이 필요한지 상태 관리
     private var pendingAccessToken: String? = null
@@ -99,16 +105,6 @@ class OnBoardingViewModel @Inject constructor(
             viewModelScope.launch { _toastEvents.emit(UiToast(message, type = type, durationMillis = duration)) }
         }
     }
-
-    /** 공통: 레포로 토큰 등록 시도 (짧은 로그) */
-//    private suspend fun registerTokenIfNeeded(token: String) {
-//        when (val r = notificationRepository.registerDeviceTokenIfNeeded(token)) {
-//            is RegisterOutcome.Success -> android.util.Log.d("FCM_REG", "VM: server register OK (${token.take(12)}...)")
-//            is RegisterOutcome.SkippedAlready -> android.util.Log.d("FCM_REG", "VM: skip (already)")
-//            is RegisterOutcome.SkippedBlank -> android.util.Log.w("FCM_REG", "VM: skip (blank)")
-//            is RegisterOutcome.Failure -> android.util.Log.w("FCM_REG", "VM: server register FAIL ${r.error.message}")
-//        }
-//    }
 
     private fun initializeGoogleAuth() {
         val gso = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(
@@ -138,17 +134,6 @@ class OnBoardingViewModel @Inject constructor(
             // ❌ AccessToken 없음 → 로그인 버튼 표시
             showLoginButton()
         }
-
-//        if (authRepository.isLoggedIn()) {
-//            validateTokenWithServer()
-//        } else {
-//            // 로그인되지 않은 경우에만 로고 축소 및 로그인 버튼 표시
-//            _uiState.value = _uiState.value.copy(
-//                logoShrinked = true,
-//                isLoading = false,
-//                showLoginButton = true
-//            )
-//        }
     }
 
     /** 서버 AccessToken 유효성 검사 → 통과 시 푸시 토큰 업서트, 실패 시 로그아웃 처리 */
@@ -167,6 +152,10 @@ class OnBoardingViewModel @Inject constructor(
                         response: Response<TokenValidationResponse>
                     ) {
                         _uiState.value = _uiState.value.copy(isLoading = false)
+
+                        Log.d("TokenCheck", "code=${response.code()}")
+                        Log.d("TokenCheck", "body=${Gson().toJson(response.body())}")
+                        Log.d("TokenCheck", "error=${response.errorBody()?.string()}")
 
                         if (response.isSuccessful) {
                             val result = response.body()
@@ -246,6 +235,12 @@ class OnBoardingViewModel @Inject constructor(
             .enqueue(object : Callback<LoginResponse> {
                 override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
                     _uiState.value = _uiState.value.copy(isLoading = false)
+
+                    Log.d("LoginResp", "code=${response.code()}")                    // HTTP status
+                    Log.d("LoginResp", "body=${Gson().toJson(response.body())}")     // 성공 바디(JSON)
+                    Log.d("LoginResp", "error=${response.errorBody()?.string()}")    // 실패 바디(raw)
+
+
                     if (!response.isSuccessful) {
                         Log.e("OAuth", "Response error: ${response.errorBody()?.string()}"); return
                     }
@@ -253,6 +248,9 @@ class OnBoardingViewModel @Inject constructor(
                     val existingUser = authRepository.getUserInfo()
                     val newUser = loginRes.user
                     pendingAccessToken = loginRes.accessToken
+
+                    // isNewUser 저장
+                    _uiState.value = _uiState.value.copy(isNewUser = loginRes.newUser)
 
                     if (existingUser != null && existingUser.id != newUser.id) {
                         _uiState.value = _uiState.value.copy(existingUser = existingUser, loginResponseUser = newUser)
@@ -383,6 +381,10 @@ class OnBoardingViewModel @Inject constructor(
         _pendingLoginComplete?.let { complete ->
             complete(Intent(context, MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                // 새 사용자면 관심사 설정 플래그 추가
+                if (_pendingIsNewUser) {
+                    putExtra("EXTRA_NEEDS_INTEREST", true)
+                }
             })
             _pendingLoginComplete = null
             return
@@ -420,14 +422,25 @@ class OnBoardingViewModel @Inject constructor(
         // 로그인 성공시 푸시 토큰 등록 시도 (이제 스킵 안 됨)
         registerPushAfterLogin()
 
+        // UiState에서 isNewUser 가져오기
+        val realIsNewUser = _uiState.value.isNewUser
+        val isNewUser = realIsNewUser
+
+        // 무조건 newuser = true로 (테스트 버전)
+//        val isNewUser = if (FORCE_SHOW_INTEREST) true else realIsNewUser
+
         // 이하 기존 로직 그대로
         if (NotificationPermissionHelper.shouldRequestNotificationPermission(context)) {
             _shouldRequestNotificationPermission.value = true
             _pendingLoginComplete = onLoginComplete
+            _pendingIsNewUser = isNewUser
         } else {
-            onLoginComplete(Intent(context, MainActivity::class.java).apply {
+            // 권한 요청이 필요없을 때도 isNewUser 체크
+            val intent = Intent(context, MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-            })
+                if (isNewUser) putExtra("EXTRA_NEEDS_INTEREST", true)
+            }
+            onLoginComplete(intent)
         }
     }
 }

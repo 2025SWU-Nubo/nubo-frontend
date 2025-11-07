@@ -2,16 +2,10 @@ package com.example.nubo.ui.screen.notification
 
 import android.os.Build
 import android.util.Log
-import android.util.Log.e
-import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.nubo.data.model.AppNotification
-import com.example.nubo.data.model.AppNotificationType
-import com.example.nubo.data.model.NotificationDto
 import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.data.repository.NotificationRepository
-import com.google.android.material.datepicker.DateValidatorPointBackward.before
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -21,9 +15,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.Duration
-import java.time.Instant
-import java.time.temporal.TemporalAdjusters.next
 import javax.inject.Inject
 
 sealed class NotiEvent {

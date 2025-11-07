@@ -292,12 +292,12 @@ private fun UserRow(
 
         OutlinedButton(
             onClick = onInviteToggle,
-            shape = RoundedCornerShape(10.dp),
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+            shape = RoundedCornerShape(15.dp),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 5.dp),
             colors = if (invited) {
                 ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color(0xFFEEEFFF),
-                    contentColor = MaterialTheme.colorScheme.onSurface
+                    containerColor = PurpleMain500,
+                    contentColor = Color.White
                 )
             } else {
                 ButtonDefaults.outlinedButtonColors(
@@ -308,7 +308,7 @@ private fun UserRow(
             border = if (invited) null else ButtonDefaults.outlinedButtonBorder,
             modifier = Modifier.height(32.dp)
         ) {
-            Text(if (invited) "선택됨" else "초대")
+            Text(if (invited) "초대됨" else "초대")
         }
     }
 }

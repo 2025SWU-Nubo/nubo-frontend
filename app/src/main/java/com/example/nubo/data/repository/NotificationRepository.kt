@@ -4,10 +4,9 @@ import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
 import com.example.nubo.data.model.AppNotification
-import com.example.nubo.data.model.DeleteDeviceTokenRequest
-import com.example.nubo.data.model.NotificationDto
-import com.example.nubo.data.model.NotificationListResponse
-import com.example.nubo.data.model.RegisterDeviceTokenRequest
+import com.example.nubo.data.dto.DeleteDeviceTokenRequest
+import com.example.nubo.data.dto.NotificationDto
+import com.example.nubo.data.dto.RegisterDeviceTokenRequest
 import com.example.nubo.data.network.NotificationService
 import com.example.nubo.ui.screen.notification.NotificationFeedState
 import com.example.nubo.ui.screen.notification.toFeedState
@@ -76,14 +75,19 @@ class NotificationRepository @Inject constructor(
 
         android.util.Log.d("FCM_REG", "try register (force=$force, expired=$expired, ${fcmToken.take(12)}...)")
         return runCatching {
-            api.registerDeviceToken(RegisterDeviceTokenRequest(fcmToken)) // 서버 upsert 전제
-            lastRegistered = fcmToken
-            prefs.edit {
-                putString(KEY_REGISTERED_TOKEN, fcmToken)
-                putLong(KEY_REGISTERED_AT, now)
+            val res = api.registerDeviceToken(RegisterDeviceTokenRequest(fcmToken))
+            if (res.isSuccessful) {
+                lastRegistered = fcmToken
+                prefs.edit {
+                    putString(KEY_REGISTERED_TOKEN, fcmToken)
+                    putLong(KEY_REGISTERED_AT, now)
+                }
+                android.util.Log.d("FCM_REG", "success 200 (${fcmToken.take(12)}...)")
+                RegisterOutcome.Success
+            } else {
+                android.util.Log.w("FCM_REG", "fail HTTP ${res.code()}")
+                RegisterOutcome.Failure(IllegalStateException("HTTP ${res.code()}"))
             }
-            android.util.Log.d("FCM_REG", "success 200 (${fcmToken.take(12)}...)")
-            RegisterOutcome.Success
         }.getOrElse { e ->
             android.util.Log.w("FCM_REG","fail: ${e.message}")
             RegisterOutcome.Failure(e)

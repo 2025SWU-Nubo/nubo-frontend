@@ -2,9 +2,8 @@ package com.example.nubo.utils
 
 import com.example.nubo.data.model.AppNotification
 import com.example.nubo.data.model.AppNotificationType
-import com.example.nubo.data.model.NotificationDto
-import com.example.nubo.data.model.ServerNotificationType
-import com.example.nubo.ui.screen.notification.NotificationFeedState
+import com.example.nubo.data.dto.NotificationDto
+import com.example.nubo.data.dto.ServerNotificationType
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.OffsetDateTime

@@ -15,6 +15,7 @@ import com.example.nubo.data.model.BulkCopyResponse
 import com.example.nubo.data.model.BulkMoveRequest
 import com.example.nubo.data.model.BulkMoveResponse
 import com.example.nubo.data.model.CardSearchItemResponse
+import com.example.nubo.data.model.DefaultBoardItemResponse
 import com.example.nubo.data.model.FavoriteRequest
 import com.example.nubo.data.model.FavoriteResponse
 import com.example.nubo.data.model.HomeBoardResponse
@@ -169,4 +170,12 @@ interface BoardService {
         @Header("Authorization") authHeader: String,
         @Body body: BoardRestoreRequest
     ): Response<BoardRestoreResponse>
+
+
+    // 기본 보드 목록 조회: GET /api/board/defaults
+    @GET("/api/board/defaults")
+    suspend fun getDefaultBoards(
+        @Header("Authorization") auth: String,
+        @Header("Accept") accept: String = "application/json"
+    ): List<DefaultBoardItemResponse>
 }

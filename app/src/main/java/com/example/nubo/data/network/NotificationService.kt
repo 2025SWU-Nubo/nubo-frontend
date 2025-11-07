@@ -1,9 +1,8 @@
 package com.example.nubo.data.network
 
-import com.example.nubo.data.model.DeleteDeviceTokenRequest
-import com.example.nubo.data.model.NotificationDto
-import com.example.nubo.data.model.NotificationListResponse
-import com.example.nubo.data.model.RegisterDeviceTokenRequest
+import com.example.nubo.data.dto.DeleteDeviceTokenRequest
+import com.example.nubo.data.dto.NotificationDto
+import com.example.nubo.data.dto.RegisterDeviceTokenRequest
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.HTTP
@@ -31,7 +30,7 @@ interface NotificationService {
     @POST("/api/push/device-token")
     suspend fun registerDeviceToken(
         @Body body: RegisterDeviceTokenRequest
-    ): Unit
+    ): retrofit2.Response<Unit>
 
     /**
      * FCM 디바이스 토큰 삭제
@@ -41,7 +40,7 @@ interface NotificationService {
     @HTTP(method = "DELETE", path = "/api/push/device-token", hasBody = true)
     suspend fun deleteDeviceToken(
         @Body body: DeleteDeviceTokenRequest
-    ): Unit
+    ): retrofit2.Response<Unit>
 
     @POST("/api/board/invitation/{invitationId}/accept")
     suspend fun acceptInvitation(
