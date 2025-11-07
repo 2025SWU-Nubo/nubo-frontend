@@ -41,7 +41,7 @@ class LearnViewModel @Inject constructor(
 
     init {
         fetchDashboardData()
-        observePendingEvents() // [추가] 앱 전역 이벤트 관찰 시작
+        observePendingEvents() // 앱 전역 이벤트 관찰 시작
     }
 
     private fun fetchDashboardData() {
@@ -75,14 +75,14 @@ class LearnViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
-        /*// 2. 누베리 획득 이벤트 구독
+        // 2. 누베리 획득 이벤트 구독
         eventHolder.pendingBerryGained
             .onEach { gained ->
                 if (gained) {
                     _berryGainedEvent.value = true
                 }
             }
-            .launchIn(viewModelScope)*/
+            .launchIn(viewModelScope)
     }
     /**
      * LearnScreen에서 레벨업 애니메이션이 끝난 후 호출할 함수
@@ -96,11 +96,11 @@ class LearnViewModel @Inject constructor(
 
     /**
      * LearnScreen에서 누베리 획득 토스트를 보여준 후 호출할 함수
-     *//*
-    fun onBerryGainedToastShown() {
+     */
+    fun onBerryAnimationFinished() {
         // 1. UI 상태를 false로 되돌림
         _berryGainedEvent.value = false
         // 2. 전역 홀더의 이벤트를 '소비' 처리
         eventHolder.consumeBerryGainedEvent()
-    }*/
+    }
 }

@@ -27,7 +27,7 @@ class UserProgressEventHolder @Inject constructor() {
         _pendingLevelUp.value = null
     }
 
-    /*// --- 누베리 획득 이벤트 (보여줄 게 있는지 여부만 저장) ---
+    // --- 누베리 획득 이벤트 (보여줄 게 있는지 여부만 저장) ---
     private val _pendingBerryGained = MutableStateFlow<Boolean>(false)
     val pendingBerryGained = _pendingBerryGained.asStateFlow()
 
@@ -38,5 +38,5 @@ class UserProgressEventHolder @Inject constructor() {
 
     fun consumeBerryGainedEvent() {
         _pendingBerryGained.value = false
-    }*/
+    }
 }
