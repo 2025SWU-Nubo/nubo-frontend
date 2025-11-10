@@ -174,8 +174,7 @@ private fun CardDetailResponse.toUi(): CardDetailItem {
         videoThumbnailUrl = videoThumbnailUrl.orEmpty(),
         videoUrl = videoUrl.orEmpty(),
         title = title ?: "제목 없음",
-        boardName = boardName ?: "라이프스타일",
-        boardSource = boardSource.orEmpty(),
+        boardName = aiCategoryName ?: "카테고리 없음",
         summary = summary ?: "설명 없음",
         videoPlatform = videoPlatform ?: "알 수 없음",
         createdAt = formatIsoDateToDisplayLegacy(createdAt), // 기존 유틸 재사용
