@@ -12,6 +12,7 @@ import com.example.nubo.data.model.BoardRestoreRequest
 import com.example.nubo.data.model.BoardSearchItemResponse
 import com.example.nubo.data.model.BulkCopyRequest
 import com.example.nubo.data.model.BulkMoveRequest
+import com.example.nubo.data.model.CardDeleteRequest
 import com.example.nubo.data.model.CardRestoreInfo
 import com.example.nubo.data.model.CardRestoreRequest
 import com.example.nubo.data.model.FavoriteRequest
@@ -30,6 +31,9 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 
+data class CardDeleteEvent(
+    val count: Int
+)
 
 @HiltViewModel
 class BoardViewModel @Inject constructor(
@@ -70,12 +74,17 @@ class BoardViewModel @Inject constructor(
     private var lastDeletedSectionIdsForUndo: Set<Long> = emptySet()
     private var lastDeletedCardRestoresForUndo: List<CardRestoreInfo> = emptyList()
 
-    // 다른 화면에서 카드만 삭제/복구할 때 사용되는 변수
+    // 보드 삭제 시 사용된 옵션(deleteMode)을 저장할 변수
+    private var lastDeletedBoardDeleteModeForUndo: String = ""
+
+    // 최근 삭제 카드 ID 기억 (실행취소용)
     private var lastDeletedCardIds: Set<Int> = emptySet()
     private var lastCardDeleteMode: String = ""
 
-    // 보드 삭제 시 사용된 옵션(deleteMode)을 저장할 변수
-    private var lastDeletedBoardDeleteModeForUndo: String = ""
+    // "카드 삭제 완료" 이벤트 (스낵바/리스트 갱신 트리거)
+    private val _cardDeleteCompleteEvent = MutableSharedFlow<Int>() // 삭제 개수 전달
+    val cardDeleteCompleteEvent = _cardDeleteCompleteEvent.asSharedFlow()
+
 
 
     init {
@@ -238,79 +247,6 @@ class BoardViewModel @Inject constructor(
         _searchResults.value = emptyList()
     }
 
-    // --- '나의 카드' 탭 전용 복제 함수 ---
-    fun copyCardsFromGlobal(targetBoardId: Long, selectedCardIds: Set<Int>) {
-        viewModelScope.launch {
-            try {
-                val token = "Bearer ${authRepository.getAccessToken()}"
-                val request = BulkCopyRequest(
-                    targetBoardId = targetBoardId,
-                    boardIds = null,
-                    cardIds = selectedCardIds.map { it.toLong() }
-                )
-                val response = boardService.bulkCopyFromRoot(
-                    authHeader = token,
-                    body = request
-                )
-                if (response.isSuccessful) {
-                    _toastMessage.value = "${selectedCardIds.size}개의 카드가 복제되었습니다."
-                } else {
-                    Log.e("BoardViewModel", "Global Card Copy failed: ${response.code()}")
-                    _toastMessage.value = "카드 복제에 실패했습니다."
-                }
-            } catch (e: Exception) {
-                Log.e("BoardViewModel", "Global Card Copy network error", e)
-                _toastMessage.value = "카드 복제 중 오류가 발생했습니다."
-            }
-        }
-    }
-
-    // --- '나의 카드' 탭 전용 이동 함수 ---
-    fun moveCardsFromGlobal(targetBoardId: Long, selectedCardIds: Set<Int>) {
-        viewModelScope.launch {
-            try {
-                val token = "Bearer ${authRepository.getAccessToken()}"
-                val request = BulkMoveRequest(
-                    targetBoardId = targetBoardId,
-                    boardIds = null,
-                    cardIds = selectedCardIds.map { it.toLong() }
-                )
-                val response = boardService.bulkMoveFromRoot(
-                    authHeader = token,
-                    body = request
-                )
-                if (response.isSuccessful) {
-                    _toastMessage.value = "${selectedCardIds.size}개의 카드가 이동되었습니다."
-                } else {
-                    Log.e("BoardViewModel", "Global Card Move failed: ${response.code()}")
-                    _toastMessage.value = "카드 이동에 실패했습니다."
-                }
-            } catch (e: Exception) {
-                Log.e("BoardViewModel", "Global Card Move network error", e)
-                _toastMessage.value = "카드 이동 중 오류가 발생했습니다."
-            }
-        }
-    }
-
-    // --- 보드 이름 변경 API 호출 함수 ---
-    fun renameBoard(boardId: Int, newName: String) {
-        // applyRename으로 UI는 즉시 변경되었으므로, 여기서는 API 호출만 수행
-        viewModelScope.launch {
-            try {
-                val token = "Bearer ${authRepository.getAccessToken()}"
-                boardService.renameBoardOrSection(
-                    authHeader = token,
-                    boardId = boardId.toLong(),
-                    body = com.example.nubo.data.model.BoardRenameRequest(name = newName) // BoardRenameRequest 임포트 필요
-                )
-            } catch (t: Throwable) {
-                // 실패 시 UI 롤백이 필요하다면 여기에 로직 추가 (현재는 생략)
-                Log.e("BoardViewModel", "renameBoard failed", t)
-                _toastMessage.value = "이름 변경에 실패했습니다."
-            }
-        }
-    }
-
     // --- 보드 전체 삭제 공통 로직 ---
     suspend fun deleteBoards(boardIds: Set<Int>): Int? {
         try {
@@ -412,4 +348,43 @@ class BoardViewModel @Inject constructor(
             }
         }
     }
+
+    // 전역(나의 카드)에서 카드만 삭제하는 함수 (boardId=null 로 요청)
+    suspend fun deleteCardsFromGlobal(
+        selectedCardIds: Set<Int>,
+        deleteMode: String = "SOFT_DELETE"
+    ): Boolean { // 2. Boolean 반환
+        return try { // 3. try/catch가 함수 본체를 감싸도록
+            // 액세스 토큰 준비
+            val token = "Bearer ${authRepository.getAccessToken()}"
+
+            // 카드 삭제 요청 바디 (boardId=null 이 핵심)
+            val req = CardDeleteRequest(
+                cardIds = selectedCardIds.map { it.toLong() },
+                deleteMode = deleteMode
+            )
+
+            // 카드 삭제 API 호출
+            val res = cardService.deleteCards(token, req)
+
+            if (res.isSuccessful) {
+                // 마지막 삭제 카드 기억 (실행취소 대응)
+                lastDeletedCardIds = selectedCardIds
+                lastCardDeleteMode = deleteMode
+
+                // UI 에게 "N개 삭제됨" 알림
+                _cardDeleteCompleteEvent.emit(selectedCardIds.size)
+                true // 4. 성공 시 true 반환
+            } else {
+                _toastMessage.value = "카드 삭제에 실패했습니다 (${res.code()})"
+                false // 5. 실패 시 false 반환
+            }
+        } catch (t: Throwable) {
+            _toastMessage.value = "카드 삭제 중 오류가 발생했습니다"
+            Log.e("BoardViewModel", "deleteCardsFromGlobal error", t)
+            false // 6. 예외 시 false 반환
+        }
+    }
 }
+
+

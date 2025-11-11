@@ -216,6 +216,7 @@ fun ActionsContent(
                 onClick = onMoveClick
             )
         }
+
     }
 }
 
@@ -272,7 +273,9 @@ private fun SelectionButton(
 @Composable
 fun BoardSettingsContent(
     onDeleteClick: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    selectedCardCount: Int,
+    selectedBoardCount: Int
 ) {
 
     Surface(
@@ -282,6 +285,12 @@ fun BoardSettingsContent(
         shadowElevation = 8.dp, // 입체 효과
         color = Color.White
     ) {
+        val title = when {
+            selectedBoardCount > 0 -> "${selectedBoardCount}개의 보드 선택됨"
+            selectedCardCount > 0 -> "${selectedCardCount}개의 카드 선택됨"
+            else -> "항목 선택"
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -297,6 +306,7 @@ fun BoardSettingsContent(
                 )
             }
             Spacer(modifier = Modifier.height(10.dp))
+            val isEnabled = selectedBoardCount > 0 || selectedCardCount > 0
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -304,14 +314,15 @@ fun BoardSettingsContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "보드 옵션",
+                    text = title,
                     style = b1_semibold_18
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 OptionButton(
                     text = "삭제",
                     iconRes = R.drawable.ic_board_delete,
-                    onClick = onDeleteClick
+                    onClick = onDeleteClick,
+                    enabled = isEnabled
                 )
             }
         }
@@ -457,15 +468,22 @@ fun SectionSettingsContent(
 private fun OptionButton(
     text: String,
     iconRes: Int,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    enabled:Boolean
 ) {
+    val backgroundColor = if (enabled) Purple100 else Grey20
+    val contentColor = if (enabled) PurpleMain500 else GreyMain300
+
     Button(
+        enabled = enabled,
         onClick = onClick,
         modifier = Modifier.height(40.dp), // 고정 높이
         shape = RoundedCornerShape(4.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = Purple100, // 항상 활성화된 색상
-            contentColor = PurpleMain500
+            containerColor = backgroundColor,
+            contentColor = contentColor,
+            disabledContainerColor = backgroundColor,
+            disabledContentColor = contentColor
         ),
         contentPadding = PaddingValues(horizontal = 12.dp) // 내부 여백
     ) {
@@ -533,9 +551,9 @@ fun DeleteConfirmationDialog(
                             onClick = {}
                         ),
                     horizontalAlignment = Alignment.CenterHorizontally
-                )  {
+                ) {
                     val title = when {
-                        selectedSectionCount > 0 && selectedCardCount > 0 -> "삭제를 클릭하면 선택한 모든 콘텐츠(섹션 내부 카드 포함)가 삭제됩니다."
+                        selectedSectionCount > 0 && selectedCardCount > 0 -> "삭제를 클릭하면 선택한 모든 콘텐츠가 삭제됩니다.\n(❗️섹션 내부 카드 포함)"
                         selectedSectionCount > 0 -> "삭제를 클릭하면 섹션 내 모든 콘텐츠가 삭제됩니다."
                         else -> "삭제를 클릭하면 선택한 모든 카드가 삭제됩니다."
                     }

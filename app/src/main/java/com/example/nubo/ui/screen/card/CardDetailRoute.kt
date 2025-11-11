@@ -49,21 +49,7 @@ fun CardDetailRoute(
     // 상태 수집
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
 
-    // 뒤로가기 시 LearnScreen에 데이터를 전달하는 로직
-    val handleOnBack = {
-        if (state is CardDetailUiState.Success) {
-            val item = state.item
-            val handle = navController.previousBackStackEntry?.savedStateHandle
 
-            if (item.stageUp) {
-                handle?.set("show_levelup_stage", item.stage)
-            }
-            if (item.berryGained) {
-                handle?.set("show_berry_gained", true)
-            }
-        }
-        onBack() // 원래의 뒤로가기 동작 실행
-    }
 
     when (state) {
         is CardDetailUiState.Loading -> {
@@ -102,7 +88,7 @@ fun CardDetailRoute(
             CardDetailScreen(
                 item = state.item,
                 onEdit = onEdit,
-                onBack = handleOnBack,
+                onBack =onBack,
                 onInfoClick = onInfoClick,
                 onToggleFavorite = { viewModel.toggleFavorite() },
                 toastMessage = mergedToast,               // 합쳐진 토스트와 소비 콜백 전달

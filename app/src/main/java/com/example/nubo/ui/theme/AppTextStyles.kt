@@ -14,7 +14,7 @@ object AppTextStyles {
     )
 
     //Learn Screen
-    val learn_percentage_54 = style(54.sp, FontWeight.Bold)
+    val learn_percentage_46 = style(46.sp, FontWeight.Bold)
     val learn_percentage_30 = style(30.sp, FontWeight.Bold)
 
     // HeadLine

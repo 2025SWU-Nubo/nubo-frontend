@@ -1,8 +1,8 @@
 package com.example.nubo.ui.screen.learn
 
 import com.example.nubo.ui.screen.learn.GlbBackgroundView
+import com.example.nubo.ui.screen.learn.GraphicBackgroundView
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -46,9 +46,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -67,9 +65,6 @@ import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.viewinterop.AndroidView
 
 
 // BottomProgressCard 애니메이션 시간 조절
@@ -91,45 +86,18 @@ fun LearnScreen(
     val uiState by viewModel.uiState.collectAsState()
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
 
-    // CardDetailScreen으로부터 레벨업/열매 신호 수신 ---
-    val handle = navController.currentBackStackEntry?.savedStateHandle
-    val levelUpStage by handle?.getLiveData<Int>("show_levelup_stage")?.observeAsState() ?: remember {
-        mutableStateOf(
-            null
-        )
-    }
-    val berryGained by handle?.getLiveData<Boolean>("show_berry_gained")?.observeAsState() ?: remember {
-        mutableStateOf(
-            false
-        )
-    }
+    // --- ViewModel로부터 이벤트 직접 구독 ---
+    val levelUpStage: Int? by viewModel.levelUpEvent.collectAsState()
+    val berryGained: Boolean by viewModel.berryGainedEvent.collectAsState()
 
-    // 레벨업 애니메이션 트리거 상태
-    var showLevelUp by remember { mutableStateOf(false) }
-
-
-
-    LaunchedEffect(levelUpStage) {
-        levelUpStage?.let {
-            showLevelUp = true
-            // handle이 null일 수 있으므로 안전 호출(?.) 사용
-            handle?.remove<Int>("show_levelup_stage")
-        }
-    }
-
-    LaunchedEffect(berryGained) {
-        if (berryGained == true) {
-            // TODO: 열매 수확 토스트 띄우기 로직
-            // handle이 null일 수 있으므로 안전 호출(?.) 사용
-            handle?.remove<Boolean>("show_berry_gained")
-        }
-    }
+    // levelUpStage가 null이 아닌지 여부로 애니메이션 트리거 결정
+    val showLevelUp = levelUpStage != null
 
 //================= 화면 UI 시작 =================
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(color =Color(0xFF96C1D2))
+            .background(color = Color(0xFF96C1D2))
     ) {
         when (val state = uiState) {
             is DashboardUiState.Loading -> {
@@ -137,11 +105,15 @@ fun LearnScreen(
             }
 
             is DashboardUiState.Error -> {
-                Text(
-                    text = state.message,
-                    modifier = Modifier.align(Alignment.Center),
-                    color = Color.Black
+                GraphicBackgroundView(
+                    modifier = Modifier.fillMaxSize(),
+                    todayVideoCount = 3, // 오늘 카운트 값 2D 그래픽 파일에 전달
+                    level = 4
                 )
+                Text(
+                    text = "시스템 오류가 발생했습니다.",
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    color = Color.Black)
             }
 
             is DashboardUiState.Success -> {
@@ -168,14 +140,21 @@ fun LearnScreen(
                 // 오늘 학습 카운트 계산 (물방울 개수 적용)
                 val todayCount = bubbleCounts.getOrNull(todayIndex) ?: 0
 
-                GlbBackgroundView(
+                /*GlbBackgroundView(
                     modifier = Modifier.fillMaxSize(),
                     glbUrl = dashboardData.dashboardBackground,
                     todayVideoCount = todayCount // 오늘 카운트 값 3D 그래픽 파일에 전달
+                )*/
+                GraphicBackgroundView(
+                    modifier = Modifier.fillMaxSize(),
+                    todayVideoCount = 3, // 오늘 카운트 값 2D 그래픽 파일에 전달
+                    level = currentStage
                 )
 
-                Column(modifier = Modifier
-                    .fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                ) {
                     TopBar(
                         title = "대시보드",
                         onClickChart = { /* TODO */ }
@@ -210,10 +189,23 @@ fun LearnScreen(
                         topBadgeCount = berryCount,
                         // 레벨업 UI에 서버 데이터 연결
                         showLevelUp = showLevelUp,
+                        showBerry = berryGained,
                         currentStep = dashboardData.stage, // 현재 stage 전달
-                        // [수정] 레벨업 후 텍스트를 동적으로 생성하여 전달
-                        levelUpText = "레벨${dashboardData.stage + 1}. ${getStageName(dashboardData.stage + 1)}로 성장했어요.",
-                        currentProgressFromServer = growthRate / 100f
+                        // 레벨업 후 텍스트를 동적으로 생성하여 전달
+                        levelUpText = levelUpStage?.let { newStage ->
+                            // getStageName이 1단계부터 이름을 반환한다고 가정
+                            "레벨${newStage}. ${getStageName(newStage)}로 성장했어요."
+                        } ?: "", // null일 경우 빈 문자열 (보일 일 없음)
+                        currentProgressFromServer = growthRate / 100f,
+
+                        // 애니메이션이 끝나면 ViewModel에 알려줄 콜백 전달
+                        onLevelUpAnimationDone = {
+                            viewModel.onLevelUpAnimationFinished()
+                        },
+                        onBerryAnimationDone = {
+                            // ViewModel에 이 함수를 추가해야 합니다.
+                            viewModel.onBerryAnimationFinished()
+                        }
                     )
                     Spacer(Modifier.height(130.dp))
                 }
@@ -369,7 +361,6 @@ private fun WeeklyCalendar(
                 //    아직 아무것도 선택하지 않았다면 (!hasSelection, selectedIndex가 -1일 때))
                 val visible = (selectedIndex == idx || (idx == todayIndex && selectedIndex == -1))
                     && getBubbleCount(idx) > 0
-                // --- --- ---
 
                 if (visible) {
                     SpeechBubble(count = getBubbleCount(idx))
@@ -446,10 +437,13 @@ private fun BottomProgressCard(
     progress: Float,
     topBadgeCount: Int,
     showLevelUp: Boolean,
+    showBerry: Boolean,
     currentStep: Int,
     currentProgressFromServer: Float,
-    cardMinHeight: Dp = 145.dp,
+    cardMinHeight: Dp = 137.dp,
     levelUpText: String,
+    onLevelUpAnimationDone: () -> Unit,
+    onBerryAnimationDone: () -> Unit
 ) {
 
     // 현재 단계 값을 받아서 다음 단계로
@@ -459,10 +453,27 @@ private fun BottomProgressCard(
     // 애니메이션 전환 (기존 UI → levelup → next)
     LaunchedEffect(showLevelUp) {
         if (showLevelUp) {
-            delay(900)        // 기존 UI 잠깐 보여주기
+            delay(700)        // 기존 UI 잠깐 보여주기
             state = "levelup" // 레벨업 화면으로 전환
             delay(LEVEL_HOLD_MS.toLong()) //레벨업 화면 애니메이션 처리 후
             state = "next"    // 다음 단계 화면으로 전환
+            // 이벤트가 소비되었음을 ViewModel에 알림
+            onLevelUpAnimationDone()
+
+        }
+        else if (showBerry) {
+            // 레벨업이 아닐 때만 베리 획득 화면 표시
+            delay(700)
+            state = "berry" // 베리 획득 화면으로 전환
+            delay(LEVEL_HOLD_MS.toLong()) // 레벨업과 동일한 시간 유지
+            state = "normal" // 베리 획득 후에는 '다음' 상태 없이 바로 'normal'로 복귀
+            onBerryAnimationDone() // 이벤트 소비 알림
+
+        }
+        else if (state != "normal") {
+            // showLevelUp이 false가 되면(이벤트가 소비되면)
+            // state를 다시 "normal"로 리셋
+            state = "normal"
         }
     }
     // 하단 성장률 카드 Box
@@ -515,19 +526,26 @@ private fun BottomProgressCard(
                                 onStepAnimDone = {
                                     // 바 이동 및 체크 애니메이션이 끝났을 때 추가 동작이 있으면 여기에
                                     // (상위 LaunchedEffect에서 LEVEL_HOLD_MS 후 state = "next"로 넘어감)
-                                },
-                                // 현재 성장률을 시작점으로 사용
-                                prevPercentFromServer = currentProgressFromServer
+                                }
                             )
                         }
-
+                        "berry" -> {
+                            // 누베리 획득 화면 (StepBar 애니메이션 포함)
+                            NuberrySection(
+                                totalSteps = 5,
+                                prevStep = currentStep, // 베리 획득은 단계 변화 없음
+                                nextStep = currentStep, // 따라서 prev/next 동일
+                                levelUpText = "성장의 누베리를 수확했어요. 다음 성장을 향해 나아가요!", // 임시 텍스트
+                                onStepAnimDone = { /* no-op */ }
+                            )
+                        }
                         "next" -> {
                             // 다음 성장률 UI
                             Column {
                                 Row(verticalAlignment = Alignment.Bottom) {
                                     Text(
-                                        text = "50",
-                                        style = AppTextStyles.learn_percentage_54.copy(
+                                        text = "$percent",
+                                        style = AppTextStyles.learn_percentage_46.copy(
                                             brush = Brush.linearGradient(
                                                 listOf(Color(0xFF8380FF), PurpleMain500)
                                             )
@@ -541,13 +559,13 @@ private fun BottomProgressCard(
                                     )
                                 }
                                 Text(
-                                    text = "누베리 성장률",
+                                    text = "title",
                                     style = AppTextStyles.b2_semibold_16,
                                     color = Grey1000
                                 )
                                 Spacer(Modifier.height(16.dp))
                                 AnimatedProgressBar(
-                                    progress = 0.3f,
+                                    progress = progress,
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }
@@ -559,7 +577,7 @@ private fun BottomProgressCard(
                                 Row(verticalAlignment = Alignment.Bottom) {
                                     Text(
                                         text = "$percent",
-                                        style = AppTextStyles.learn_percentage_54.copy(
+                                        style = AppTextStyles.learn_percentage_46.copy(
                                             brush = Brush.linearGradient(
                                                 colors = listOf(Color(0xFF8380FF), PurpleMain500)
                                             )
@@ -593,7 +611,7 @@ private fun BottomProgressCard(
         Row(
             modifier = Modifier
                 .align(Alignment.TopEnd) // 부모(Box) 기준
-                .offset(y = (-53).dp)    // 스크린샷과 같은 시각적 위치
+                .offset(y = (-45).dp)    // 스크린샷과 같은 시각적 위치
                 .shadow(6.dp, RoundedCornerShape(999.dp), clip = true)
                 .clip(RoundedCornerShape(999.dp))
                 .background(Color.White.copy(alpha = 0.80f))
@@ -722,13 +740,12 @@ private fun LevelUpSection(
     totalSteps: Int,
     prevStep: Int,
     nextStep: Int,
-    prevPercentFromServer: Float? = null, // 예: 0.25f
     nextPercentFromServer: Float? = null, // 예: 0.50f (최종은 체크 지점으로 스냅)
     onStepAnimDone: () -> Unit,
     levelUpText: String,
 ) {
     // 1) 시작/목표 퍼센트 (목표는 체크 지점으로 스냅)
-    val fromFrac = (prevPercentFromServer ?: stepToFraction(prevStep, totalSteps)).coerceIn(0f, 1f)
+    val fromFrac = stepToFraction(prevStep, totalSteps).coerceIn(0f, 1f)
     val toFrac = stepToFraction(nextStep, totalSteps)
 
     // 2) 진행도는 단순 Float 상태로 관리 (프레임마다 값 갱신)
@@ -779,7 +796,91 @@ private fun LevelUpSection(
     Column {
         Text(
             text = "LEVEL UP!",
-            style = AppTextStyles.learn_percentage_54.copy(
+            style = AppTextStyles.learn_percentage_46.copy(
+                brush = Brush.linearGradient(listOf(Color(0xFF8380FF), PurpleMain500))
+            )
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = levelUpText,
+            style = AppTextStyles.b2_semibold_16,
+            color = Grey1000
+        )
+        Spacer(Modifier.height(30.dp))
+
+        StepBar(
+            total = totalSteps,
+            progress = barProgress,      // 진행 중 값
+            checkedCount = checkedCount, // 트리거 순간 증가
+            showBounceOnLast = showCheck,
+            lastCheckScale = checkScale,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun NuberrySection(
+    totalSteps: Int,
+    prevStep: Int,
+    nextStep: Int,
+    nextPercentFromServer: Float? = null, // 예: 0.50f (최종은 체크 지점으로 스냅)
+    onStepAnimDone: () -> Unit,
+    levelUpText: String,
+) {
+    // 1) 시작/목표 퍼센트 (목표는 체크 지점으로 스냅)
+    val fromFrac = stepToFraction(prevStep, totalSteps).coerceIn(0f, 1f)
+    val toFrac = stepToFraction(nextStep, totalSteps)
+
+    // 2) 진행도는 단순 Float 상태로 관리 (프레임마다 값 갱신)
+    var barProgress by remember { mutableFloatStateOf(fromFrac) }
+
+    // 3) 체크 개수/튀는 효과
+    var checkedCount by remember { mutableStateOf(prevStep) }
+    var showCheck by remember { mutableStateOf(false) }
+    val checkScale by animateFloatAsState(
+        targetValue = if (showCheck) 1f else 0.6f,
+        animationSpec = tween(durationMillis = CHECK_BOUNCE_MS),
+        label = "checkScale"
+    )
+
+    // 4) 애니메이션: 진행 중 스냅 지점 통과 시 체크 생성
+    LaunchedEffect(prevStep, nextStep) {
+        barProgress = fromFrac
+        val trigger = toFrac - 0.0005f // 부동소수 안전 마진
+
+        delay(600) // 타이틀 감상 시간
+
+        var spawned = false
+        animate(
+            initialValue = fromFrac,
+            targetValue = toFrac,
+            animationSpec = tween(durationMillis = STEP_ANIM_MS, easing = LinearEasing)
+        ) { value, _ ->
+            // 프레임마다 진행도 업데이트
+            barProgress = value
+
+            // 스냅 지점 도달 순간 체크 생성
+            if (!spawned && value >= trigger) {
+                spawned = true
+                checkedCount = nextStep
+                showCheck = true
+                // 체크 "톡" 효과 잠깐 보여주고 해제
+                launch {
+                    delay(220)
+                    showCheck = false
+                }
+            }
+        }
+
+        onStepAnimDone()
+    }
+
+    // ---- UI ----
+    Column {
+        Text(
+            text = "누베리 수확!",
+            style = AppTextStyles.learn_percentage_46.copy(
                 brush = Brush.linearGradient(listOf(Color(0xFF8380FF), PurpleMain500))
             )
         )

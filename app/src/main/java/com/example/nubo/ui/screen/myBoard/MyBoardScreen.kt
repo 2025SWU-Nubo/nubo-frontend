@@ -126,8 +126,6 @@ fun MyBoardScreen(
 
     // 아이콘 리소스를 변수로 정의합니다.
     val noResultsIcon = R.drawable.error_face
-    // 검색 중 아이콘
-    val searchingIcon = R.drawable.ic_board_search // 임시로 검색 아이콘 사용
 
     // 검색 기능 변수들
     // MyBoardScreen() 내부 remember
