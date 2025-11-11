@@ -1,6 +1,7 @@
 package com.example.nubo.utils
 
 import android.util.Log
+import android.view.Choreographer
 import androidx.compose.ui.text.TextRange
 import com.mohamedrejeb.richeditor.model.RichTextState
 import kotlin.math.max
@@ -11,7 +12,7 @@ import kotlin.math.min
  * ========================================= */
 
 private const val TAG = "MarkdownUtils"
-private const val INDENT_UNIT = 2 // 들여쓰기 2칸 고정
+private const val INDENT_UNIT = 3 // 들여쓰기 3칸 고정
 
 // 인덱스를 문자열 길이 범위 내로 제한
 private fun clamp(i: Int, len: Int) = i.coerceIn(0, len)
@@ -22,17 +23,16 @@ private fun normalizeNewLines(s: String) = s.replace("\r\n", "\n").replace("\r",
 // 탭 → 공백 2칸
 private fun tabsToSpaces(s: String) = s.replace("\t", "  ")
 
+// **텍스트** 만 있는(앞뒤 공백 제외) 라인을 감지
+private fun isStrongOnlyLine(line: String): Boolean {
+    val t = line.trim()
+    // **...** 패턴만 있고, 앞뒤가 ** 로 감싸진 순수 굵은 텍스트
+    return Regex("^\\*\\*[^*].*[^*]\\*\\*\$").matches(t)
+}
+
 /* =========================================
  * 디스플레이 텍스트(annotatedString.text) 라인 탐색
  * ========================================= */
-
-// 디스플레이 텍스트에서 현재 커서가 포함된 라인의 시작 인덱스
-private fun lineStartInAnnotated(text: String, index: Int): Int {
-    if (text.isEmpty()) return 0
-    val i = clamp(index, text.length)
-    val prev = text.lastIndexOf('\n', (i - 1).coerceAtLeast(0))
-    return if (prev == -1) 0 else prev + 1
-}
 
 // 디스플레이 텍스트에서 현재 커서가 포함된 라인의 끝 인덱스
 private fun lineEndInAnnotated(text: String, index: Int): Int {
@@ -216,19 +216,31 @@ private fun mapCursorToMarkdownLine(state: RichTextState): LineMapping {
     var bestMatchIndex = -1
     var bestMatchScore = 0.0
 
-    mdLines.forEachIndexed { index, mdLine ->
+    for (index in mdLines.indices) {
+        val mdLine = mdLines[index]
         val normalizedMd = normalizeText(mdLine)
-        if (normalizedMd.isNotEmpty() && normalizedSegment.isNotEmpty()) {
-            val score = when {
-                normalizedMd == normalizedSegment -> 1.0
-                normalizedSegment.startsWith(normalizedMd) -> 0.9
-                normalizedMd.startsWith(normalizedSegment) -> 0.8
-                else -> {
-                    val n = minOf(30, normalizedMd.length, normalizedSegment.length)
-                    if (normalizedMd.take(n) == normalizedSegment.take(n)) 0.85 else 0.0
-                }
+        if (normalizedMd.isEmpty() || normalizedSegment.isEmpty()) continue
+
+        // 1) 정확 일치 → 즉시 확정하고 루프 종료
+        if (normalizedMd == normalizedSegment) {
+            bestMatchIndex = index
+            bestMatchScore = 1.0
+            break
+        }
+
+        // 2) 근사 매칭
+        val score = when {
+            normalizedSegment.startsWith(normalizedMd) -> 0.9
+            normalizedMd.startsWith(normalizedSegment) -> 0.8
+            else -> {
+                val n = minOf(30, normalizedMd.length, normalizedSegment.length)
+                if (normalizedMd.take(n) == normalizedSegment.take(n)) 0.85 else 0.0
             }
-            if (score > bestMatchScore) { bestMatchScore = score; bestMatchIndex = index }
+        }
+
+        if (score > bestMatchScore) {
+            bestMatchScore = score
+            bestMatchIndex = index
         }
     }
 
@@ -273,6 +285,17 @@ fun detectLineMarkdown(state: RichTextState): LineMarkdownState {
         val mapping = mapCursorToMarkdownLine(state)
         val mdLine = mapping.mdLine
 
+        // ── 추가: 굵게만 있는 라인은 리스트 아님 ──
+        if (isStrongOnlyLine(mdLine)) {
+            val headingLevel = when {
+                mdLine.trimStart().startsWith("## ") -> 2
+                mdLine.trimStart().startsWith("### ") -> 3
+                mdLine.trimStart().startsWith("# ") -> 2
+                else -> null
+            }
+            return LineMarkdownState(headingLevel = headingLevel, listType = null)
+        }
+
         val headingLevel = when {
             mdLine.startsWith("## ") -> 2
             mdLine.startsWith("### ") -> 3
@@ -282,8 +305,8 @@ fun detectLineMarkdown(state: RichTextState): LineMarkdownState {
         }
 
         val listType = when {
-            mdLine.matches(Regex("^\\s*\\d+\\.\\s+.*")) -> ListType.ORDERED
-            mdLine.matches(Regex("^\\s*[-*+]\\s+.*")) -> ListType.UNORDERED
+            mdLine.matches(Regex("^\\s*\\d+\\.\\s+.+$")) -> ListType.ORDERED
+            mdLine.matches(Regex("^\\s*[-*+]\\s+.+$")) -> ListType.UNORDERED
             else -> null
         }
 
@@ -361,67 +384,87 @@ fun clearHeadingMarkdown(state: RichTextState): Int {
 /* =========================================
  * 리스트 토글 — 들여쓰기 유지 / 접두사 표준화 / 커서 정확 복원
  * ========================================= */
-
 fun toggleListForSelection(state: RichTextState, ordered: Boolean) {
-    val mapping = mapCursorToMarkdownLine(state)
-    val mdBefore = state.toMarkdown()
+    // 1) 현재 상태 저장
+    val beforeMd = state.toMarkdown()
+    val beforeDisplayText = state.annotatedString.text
+    val beforeCursor = state.selection.end
 
-    // 현재 라인 들여쓰기 보존
+    Log.d("CursorDebug", "Before: cursor=$beforeCursor, displayLen=${beforeDisplayText.length}, mdLen=${beforeMd.length}")
+
+    // 2) 라인 매핑
+    val mapping = mapCursorToMarkdownLine(state)
+
+    // 3) 들여쓰기 보존 및 새 라인 생성
     val indent = Regex("^\\s*").find(mapping.mdLine)?.value ?: ""
     val lineNoIndent = mapping.mdLine.removePrefix(indent)
 
     val isOrdered = lineNoIndent.matches(Regex("^\\d+\\.\\s+.*"))
     val isUnordered = lineNoIndent.matches(Regex("^[-*+]\\s+.*"))
 
-    // 순수 콘텐츠 추출
     val pureContent = lineNoIndent
         .replace(Regex("^#{1,6}\\s+"), "")
         .replace(Regex("^\\d+\\.\\s+"), "")
         .replace(Regex("^[-*+]\\s+"), "")
 
+    // 토글 로직
     val newPrefix = when {
-        ordered && isOrdered -> ""            // 해제
-        ordered && !isOrdered -> "1. "        // 서버 규칙: 숫자는 항상 1.
-        !ordered && isUnordered -> ""         // 해제
-        else -> "- "                          // 서버 규칙: 불릿은 항상 -
+        ordered && isOrdered -> ""
+        ordered && !isOrdered -> "1. "
+        !ordered && isUnordered -> ""
+        else -> "- "
     }
 
     val newLine = indent + newPrefix + pureContent
-    val mdAfter = replaceRangeSafe(mdBefore, mapping.mdLineStart, mapping.mdLineEnd, newLine)
+
+    // 4) 마크다운 업데이트
+    val mdAfter = replaceRangeSafe(beforeMd, mapping.mdLineStart, mapping.mdLineEnd, newLine)
+
+    // 5) **핵심 개선**: 커서 위치를 상대적으로 계산
+    // 디스플레이 라인 시작점 기준으로 오프셋 계산
+    val displayLineStart = mapping.displayLineStart
+    val cursorOffsetInLine = beforeCursor - displayLineStart
+
+    // 접두사 길이 변화 계산
+    val oldPrefixLen = when {
+        isOrdered -> Regex("^\\d+\\.\\s+").find(lineNoIndent)?.value?.length ?: 0
+        isUnordered -> 2 // "- "
+        else -> 0
+    }
+
+    val newPrefixLen = when {
+        newPrefix == "1. " -> 3
+        newPrefix == "- " -> 2
+        else -> 0
+    }
+
+    val prefixDelta = newPrefixLen - oldPrefixLen
+
+    // 6) 마크다운 설정 (한 번만!)
     state.setMarkdown(mdAfter)
 
-    // 커서 복원
+    // 7) **개선된 커서 계산**: 새 텍스트 기준으로 다시 계산
     val newDisplayText = state.annotatedString.text
-    val oldSegmentGlobalStart =
-        mapping.displayLineStart + mapping.segmentOffsetInDisplayLine + mapping.segmentContentStartInSegment
-    val desiredOffsetInSegment = mapping.cursorOffsetInDisplayedContent
 
-    val occurrences = mutableListOf<Int>()
-    var searchFrom = 0
-    while (true) {
-        val idx = newDisplayText.indexOf(pureContent, startIndex = searchFrom)
-        if (idx == -1) break
-        occurrences += idx
-        searchFrom = idx + pureContent.length
-    }
+    // 새 디스플레이에서 같은 라인의 시작점 찾기
+    val newLineStart = lineStartInAnnotated(newDisplayText, beforeCursor.coerceAtMost(newDisplayText.length))
 
-    if (occurrences.isEmpty()) {
-        // 폴백
-        val newMap = mapCursorToMarkdownLine(state)
-        val lineStart = lineStartInAnnotated(newDisplayText, state.selection.end)
-        val fallback = clamp(lineStart + newMap.cursorOffsetInDisplayedContent, newDisplayText.length)
-        state.selection = TextRange(fallback)
-        return
-    }
+    // 커서를 상대 위치 + 접두사 변화량으로 조정
+    val newCursor = (newLineStart + cursorOffsetInLine + prefixDelta)
+        .coerceIn(0, newDisplayText.length)
 
-    val bestOccurrence = occurrences.minByOrNull { kotlin.math.abs(it - oldSegmentGlobalStart) }!!
-    val renderedPrefixLen = measureRenderedPrefixLengthAround(newDisplayText, bestOccurrence)
+    // 8) 커서 설정 (한 번만!)
+    state.selection = TextRange(newCursor)
 
-    val finalCursor = clamp(
-        bestOccurrence + renderedPrefixLen + desiredOffsetInSegment,
-        newDisplayText.length
-    )
-    state.selection = TextRange(finalCursor)
+    Log.d("CursorDebug", "After: cursor=$newCursor, displayLen=${newDisplayText.length}, mdLen=${mdAfter.length}, prefixDelta=$prefixDelta")
+}
+
+// lineStartInAnnotated 함수 (이미 존재하지만 필요시 추가)
+private fun lineStartInAnnotated(text: String, index: Int): Int {
+    if (text.isEmpty()) return 0
+    val i = index.coerceIn(0, text.length)
+    val prev = text.lastIndexOf('\n', (i - 1).coerceAtLeast(0))
+    return if (prev == -1) 0 else prev + 1
 }
 
 /* =========================================
@@ -430,59 +473,6 @@ fun toggleListForSelection(state: RichTextState, ordered: Boolean) {
  *  - 허용 외 문법 제거
  * ========================================= */
 
-fun sanitizeAndNormalizeForServer(original: String): String {
-    val nl = normalizeNewLines(tabsToSpaces(original))
-
-    val normalizedLines = nl.split('\n').map { raw ->
-        val line = raw.rstrip()
-        // 선행 공백 개수 → 2의 배수로 내림 정규화
-        val leadingSpaces = line.takeWhile { it == ' ' }.length
-        val normalizedIndent = " ".repeat(leadingSpaces - (leadingSpaces % INDENT_UNIT))
-        val body = line.drop(leadingSpaces)
-
-        // 헤딩 표준화: # → ##, ####+ 제거
-        if (body.startsWith("#")) {
-            return@map when {
-                body.startsWith("### ") -> normalizedIndent + "### " + body.removePrefix("### ").trimStart()
-                body.startsWith("## ")  -> normalizedIndent + "## "  + body.removePrefix("## ").trimStart()
-                body.startsWith("# ")   -> normalizedIndent + "## "  + body.removePrefix("# ").trimStart()
-                body.startsWith("####") -> normalizedIndent + body.replace(Regex("^#{4,}\\s*"), "").trimStart()
-                else -> normalizedIndent + body // 방어
-            }
-        }
-
-        // 리스트 표준화
-        // 1) 번호 목록 → "1. "
-        if (Regex("^\\d+\\.\\s+").containsMatchIn(body)) {
-            val content = body.replace(Regex("^\\d+\\.\\s+"), "")
-            return@map normalizedIndent + "1. " + content
-        }
-        // 2) 불릿 목록 → "- "
-        if (Regex("^[-*+•●○◦▪▫]\\s+").containsMatchIn(body)) {
-            val content = body.replace(Regex("^[-*+•●○◦▪▫]\\s+"), "")
-            return@map normalizedIndent + "- " + content
-        }
-
-        // 일반 문장
-        normalizedIndent + body
-    }
-
-    // 허용 외 문법/인라인 장식 제거
-    val joined = normalizedLines.joinToString("\n")
-        .replace(Regex("(?m)^>\\s+"), "")                  // 인용 제거
-        .replace(Regex("(?s)```.*?```"), "")               // 코드블록 제거
-        .replace(Regex("!\\[[^\\]]*]\\([^)]*\\)"), "")     // 이미지 제거
-        .replace(Regex("\\[([^\\]]+)]\\([^)]*\\)"), "$1")  // 링크 텍스트만
-        .replace(Regex("`([^`]*)`"), "$1")                 // 인라인 코드 제거
-        .replace(Regex("(?<!\\*)\\*(?!\\*)([^*]+)(?<!\\*)\\*(?!\\*)"), "$1") // *italic*
-        .replace(Regex("_(.+?)_"), "$1")                   // _underline_
-
-    // 연속 공백 라인 2개 이상 → 최대 2개
-    return joined
-        .replace(Regex("\n{3,}"), "\n\n")
-        .trim()
-}
-
 // 우측 공백 제거
 private fun String.rstrip(): String {
     var end = this.length
@@ -490,110 +480,70 @@ private fun String.rstrip(): String {
     return this.substring(0, end)
 }
 
-/**
- * 저장/표시 공용 정규화 엔트리
- * - 1단계: 허용 마크다운만 남김 (코드, 인라인코드, 링크 등 제거/평문화)
- * - 2단계: 리스트 블록 정규화(들여쓰기 제거, 빈줄 제거, 기호 통일, ordered는 1. 고정)
- * - 3단계: 여분 공백/빈줄 정리
- */
-fun canonicalizeMarkdown(md: String): String {
-    val sanitized = sanitizeToAllowedMarkdown(md)
-    val listFixed = normalizeListBlocks(sanitized)
-    return cleanupSpaces(listFixed)
-}
-
 /* =========================================
  * 리스트 블록 정규화
- * - 목표:
- *   1) 최상위(열 0)에서만 시작하도록 들여쓰기 제거
- *   2) ordered는 모두 "1. " 로 저장 (렌더러가 자동 번호)
- *   3) unordered는 "-" 하나로 통일
- *   4) 아이템 사이 빈 줄 제거 → 연속 블록 유지 (자동 번호 끊김 방지)
- *   5) 블록 앞뒤로는 필요 시 1줄만 남김
+ * - 들여쓰기를 캡처하여 그대로 보존
+ * - ordered는 "1. "로 통일 (렌더러 자동 번호)
+ * - unordered는 "- "로 통일
  * ========================================= */
 
-private val rxOrdered = Regex("^\\s*(\\d+)\\.\\s+(.*)$")
-private val rxUnordered = Regex("^\\s*([\\-*•])\\s+(.*)$")
+private val rxOrdered   = Regex("^(\\s*)(\\d+)\\.\\s+(.*)$")   // ← indent 그룹 포함
+private val rxUnordered = Regex("^(\\s*)([\\-*•])\\s+(.*)$")
 private val rxOnlySpaces = Regex("^\\s*$")
 
 private fun normalizeListBlocks(src: String): String {
     val lines = src.split('\n')
     val out = StringBuilder(src.length)
 
+    fun snapIndent(indent: String): String {
+        if (indent.isEmpty()) return ""
+        // Snap to 3-space grid (server/renderer rule)
+        val snapped = maxOf(INDENT_UNIT, (indent.length / INDENT_UNIT) * INDENT_UNIT)
+        return " ".repeat(snapped)
+    }
+
     var i = 0
     while (i < lines.size) {
         val line = lines[i]
 
-        // 1) 리스트 블록 시작인지 감지
-        val isOrderedStart = rxOrdered.matches(line)
-        val isUnorderedStart = rxUnordered.matches(line)
+        val mOrdStart = rxOrdered.matchEntire(line)
+        val mUnStart  = rxUnordered.matchEntire(line)
 
-        if (!isOrderedStart && !isUnorderedStart) {
-            // 리스트 블록이 아니면 있는 그대로(단, 뒤 공백 제거)
+        if (mOrdStart == null && mUnStart == null) {
             out.append(line.trimEnd())
             if (i != lines.lastIndex) out.append('\n')
             i++
             continue
         }
 
-        // 2) 리스트 블록 수집
-        val blockStart = i
-        val blockItems = mutableListOf<Pair<Boolean, String>>() // (isOrdered, content)
+        // 블록 앞쪽 공백 1줄 확보
+        if (out.isNotEmpty() && out.last() != '\n') out.append('\n')
+
+        val items = mutableListOf<Triple<String, Boolean, String>>() // (indent, isOrdered, content)
         while (i < lines.size) {
             val L = lines[i]
-            // 빈 줄이면 "블록 내부"에서는 스킵 (연속성 유지)
-            if (rxOnlySpaces.matches(L)) {
-                // 내부 빈 줄은 건너뜀
-                i++
-                continue
-            }
-            val mOrd = rxOrdered.matchEntire(L)
-            val mUn  = rxUnordered.matchEntire(L)
-            if (mOrd != null) {
-                blockItems += true to mOrd.groupValues[2].trimEnd()
-            } else if (mUn != null) {
-                blockItems += false to mUn.groupValues[2].trimEnd()
-            } else {
-                // 리스트가 아닌 라인을 만나면 블록 종료
-                break
-            }
+            if (rxOnlySpaces.matches(L)) { i++; continue } // 내부 빈 줄 제거
+
+            val a = rxOrdered.matchEntire(L)
+            val b = rxUnordered.matchEntire(L)
+            if (a != null) {
+                items += Triple(a.groupValues[1], true,  a.groupValues[3].trimEnd())
+            } else if (b != null) {
+                items += Triple(b.groupValues[1], false, b.groupValues[3].trimEnd())
+            } else break
             i++
         }
-        val blockEnd = i - 1
 
-        // 3) 블록을 정규화 출력
-        //    - ordered → "1. <content>"
-        //    - unordered → "- <content>"
-        //    - 아이템 사이에 빈 줄 넣지 않음
-        val isOrderedBlock = blockItems.firstOrNull()?.first == true
-        blockItems.forEachIndexed { idx, (isOrd, content) ->
-            if (isOrd) {
-                out.append("1. ").append(content.trim())
-            } else {
-                out.append("- ").append(content.trim())
-            }
-            if (idx != blockItems.lastIndex) out.append('\n')
+        items.forEachIndexed { idx, (indent, isOrd, content) ->
+            out.append(snapIndent(indent))
+            out.append(if (isOrd) "1. " else "- ")
+            out.append(content.trim())
+            if (idx != items.lastIndex) out.append('\n')
         }
 
-        // 4) 블록 뒤쪽 처리
-        // 다음 라인이 존재하고, 그 다음 내용이 비문장/문단이면 블록과 분리용 공백 1줄만 유지
-        val hasNext = (blockEnd + 1) < lines.lastIndex
-        val nextLine = lines.getOrNull(blockEnd + 1)
-        if (nextLine != null) {
-            // 다음 라인이 리스트가 아니고 빈 줄이 아니라면, 구분용 빈 줄 1개 추가
-            val nextIsList = rxOrdered.matches(nextLine) || rxUnordered.matches(nextLine)
-            if (!rxOnlySpaces.matches(nextLine) && !nextIsList) {
-                out.append('\n')
-            }
-            // 원본에 빈 줄이 여러 개 있었다면 하나로 축약 (cleanupSpaces에서도 한 번 더 정리됨)
-            if (!nextIsList) out.append('\n')
-        } else if (i <= lines.lastIndex) {
-            // 범위 보호: 보통 여기 안 들어옴
-            out.append('\n')
-        }
+        // 블록 뒤쪽 구분 한 줄
+        if (i < lines.size) out.append('\n')
     }
-
-    // 마지막 여분 빈 줄 제거
     return out.toString().trimEnd()
 }
 
@@ -614,8 +564,8 @@ private fun cleanupSpaces(src: String): String {
 }
 
 /* =========================================
- * 기존: sanitizeToAllowedMarkdown() 유지
- * (필요 추가: 리스트 앞 들여쓰기 제거 & 불릿 기호 통일)
+ * 허용 마크다운만 유지 (인라인/블록 장식 평문화) + 불릿 기호 통일
+ *  - 들여쓰기는 보존
  * ========================================= */
 
 fun sanitizeToAllowedMarkdown(md: String): String {
@@ -632,10 +582,55 @@ fun sanitizeToAllowedMarkdown(md: String): String {
         // 이탤릭 기호 제거 (굵게는 ** 그대로 두되, 렌더러가 무시해도 텍스트 보존)
         .replace(Regex("(?<!\\*)\\*(?!\\*)([^*]+)(?<!\\*)\\*(?!\\*)"), "$1")
         .replace(Regex("_(.+?)_"), "$1")
-        // 리스트 앞 불필요한 들여쓰기 제거 (열 0 정렬)
-        .replace(Regex("(?m)^\\s+(\\d+\\.\\s+)"), "$1")
-        .replace(Regex("(?m)^\\s*([\\-*•])\\s+"), "$1 ") // 기호 뒤 공백 1개로 통일
-        // 불릿 기호 통일 (• 등 → -)
-        .replace(Regex("(?m)^[•]\\s+"), "- ")
+        // 불릿 기호 통일 (• 등 → -), 들여쓰기는 그대로 둠
+        .replace(Regex("(?m)^(\\s*)[•●○◦▪▫](\\s+)"), "$1- ")
         .trim()
+}
+
+/* =========================================
+ * 서버 저장용: 리스트 들여쓰기 최소 3칸으로 보정
+ * ========================================= */
+
+private fun bumpIndentIfList(line: String): String {
+    val leadingSpaces = line.takeWhile { it == ' ' }.length
+    val body = line.drop(leadingSpaces)
+    val isList = Regex("^((\\d+)\\.\\s+)|([-*+•●○◦▪▫]\\s+)").containsMatchIn(body)
+    if (!isList) return line // 리스트가 아니면 그대로
+
+    // 최소 단위 3칸 보장
+    val fixed = if (leadingSpaces in 1..2) 3 else leadingSpaces
+    return " ".repeat(fixed) + body
+}
+
+fun sanitizeAndNormalizeForServer(md: String): String {
+    val nl = normalizeNewLines(tabsToSpaces(md))
+    return nl
+        .lines()
+        .joinToString("\n") { raw -> bumpIndentIfList(raw.rstrip()) }
+        // 이하 기존 치환은 유지 (헤딩/H4~H6/링크/코드/이미지 등 평문화)
+        .replace(Regex("(?m)^#\\s+"), "")
+        .replace(Regex("(?m)^#{4,6}\\s+"), "")
+        .replace(Regex("(?m)^>\\s+"), "")
+        .replace(Regex("(?s)```.*?```"), "")
+        .replace(Regex("!\\[[^\\]]*]\\([^)]*\\)"), "")
+        .replace(Regex("\\[([^\\]]+)]\\([^)]*\\)"), "$1")
+        .replace(Regex("`([^`]*)`"), "$1")
+        .replace(Regex("(?<!\\*)\\*(?!\\*)([^*]+)(?<!\\*)\\*(?!\\*)"), "$1")
+        .replace(Regex("_(.+?)_"), "$1")
+        // 불릿 기호 통일만 수행 (들여쓰기는 위에서 보존/보정)
+        .replace(Regex("(?m)^(\\s*)[•●○◦▪▫](\\s+)"), "$1- ")
+        .replace(Regex("\n{3,}"), "\n\n")
+        .trim()
+}
+
+/**
+ * 저장/표시 공용 정규화 엔트리
+ * - 1단계: 허용 마크다운만 남김 (코드, 인라인코드, 링크 등 제거/평문화)
+ * - 2단계: 리스트 블록 정규화(들여쓰기 보존, 기호 통일, ordered는 1. 고정)
+ * - 3단계: 여분 공백/빈줄 정리
+ */
+fun canonicalizeMarkdown(md: String): String {
+    val sanitized = sanitizeToAllowedMarkdown(md)
+    val listFixed = normalizeListBlocks(sanitized)
+    return cleanupSpaces(listFixed)
 }

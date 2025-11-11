@@ -137,7 +137,16 @@ fun MarkdownToolbar(
             FilledTonalIconButton(
                 onClick = {
                     editorFocusRequester.requestFocus()
+
+                    val before = rtState.selection
+                    val beforeMd = rtState.toMarkdown()
+                    Log.d("CursorDebug", "Before toggle list (ordered=false): start=${before.start}, end=${before.end}, len=${beforeMd.length}")
+
                     toggleListForSelection(rtState, ordered = false)
+
+                    val after = rtState.selection
+                    val afterMd = rtState.toMarkdown()
+                    Log.d("CursorDebug", "After toggle list: start=${after.start}, end=${after.end}, len=${afterMd.length}")
                 },
                 modifier = Modifier.height(CHIP_HEIGHT).width(CHIP_SHORT_WIDTH),
                 shape = RoundedCornerShape(8.dp),
@@ -156,7 +165,15 @@ fun MarkdownToolbar(
             FilledTonalIconButton(
                 onClick = {
                     editorFocusRequester.requestFocus()
+                    val before = rtState.selection
+                    val beforeMd = rtState.toMarkdown()
+                    Log.d("CursorDebug", "Before toggle list (ordered=true): start=${before.start}, end=${before.end}, len=${beforeMd.length}")
+
                     toggleListForSelection(rtState, ordered = true)
+
+                    val after = rtState.selection
+                    val afterMd = rtState.toMarkdown()
+                    Log.d("CursorDebug", "After toggle list: start=${after.start}, end=${after.end}, len=${afterMd.length}")
                 },
                 modifier = Modifier.height(CHIP_HEIGHT).width(CHIP_SHORT_WIDTH),
                 shape = RoundedCornerShape(8.dp),
