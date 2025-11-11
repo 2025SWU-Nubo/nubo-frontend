@@ -1,6 +1,7 @@
 
 package com.example.nubo.ui.screen.editCard
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
@@ -42,7 +43,6 @@ import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey5
 import com.example.nubo.ui.theme.PurpleMain500
-import com.example.nubo.utils.sanitizeToAllowedMarkdown
 import com.mohamedrejeb.richeditor.model.rememberRichTextState
 import com.mohamedrejeb.richeditor.ui.material3.RichTextEditor
 import kotlinx.coroutines.flow.collectLatest
@@ -64,6 +64,7 @@ import com.example.nubo.ui.screen.editCard.widgets.MarkdownToolbar
 import com.example.nubo.ui.screen.editCard.widgets.NoSelectionToolbar
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Grey700
+import com.example.nubo.utils.sanitizeAndNormalizeForServer
 import com.mohamedrejeb.richeditor.ui.material3.RichTextEditorDefaults
 import kotlinx.coroutines.launch
 
@@ -113,7 +114,7 @@ fun EditCardScreen(
 
                     // 마크다운 적용
                     rtState.setMarkdown(event.markdown)
-                    currentMarkdown = sanitizeToAllowedMarkdown(rtState.toMarkdown())
+                    currentMarkdown = sanitizeAndNormalizeForServer(rtState.toMarkdown())
 
                     // 커서 위치 복원 (새 마크다운 길이 범위 내로 제한)
                     val newLength = rtState.toMarkdown().length
@@ -183,12 +184,12 @@ fun EditCardScreen(
 
     LaunchedEffect(uiState, didInit) {
         val ready = uiState as? EditCardUiState.Ready ?: return@LaunchedEffect
-        val target = sanitizeToAllowedMarkdown(ready.summary)
+        val target = sanitizeAndNormalizeForServer(ready.summary)
 
         if (!didInit) {
             if (rtState.toMarkdown() != target) rtState.setMarkdown(target)
 
-            val canonical = sanitizeToAllowedMarkdown(rtState.toMarkdown())
+            val canonical = sanitizeAndNormalizeForServer(rtState.toMarkdown())
             initialMarkdown = canonical
             currentMarkdown = canonical
 
@@ -198,29 +199,46 @@ fun EditCardScreen(
 
 
     // 에디터 → 뷰모델 동기화 개선
+//    LaunchedEffect(rtState) {
+//        snapshotFlow {
+//            // 마크다운과 커서 위치를 함께 관찰
+//            Triple(
+//                sanitizeToAllowedMarkdown(rtState.toMarkdown()),
+//                rtState.selection,
+//                rtState.annotatedString.text
+//            )
+//        }
+//            .collectLatest { (md, selection, displayText) ->
+//                currentMarkdown = md
+//
+//                // VM 동기화 시 현재 커서 위치 로깅 (디버깅용)
+//                // Log.d("EditCard", "Cursor at: ${selection.end}, Display length: ${displayText.length}, MD length: ${md.length}")
+//
+//                if (!suppressVmSync) {
+//                    (uiState as? EditCardUiState.Ready)?.let {
+//                        if (it.summary != md) {
+//                            viewModel.updateSummary(md)
+//                        }
+//                    }
+//                }
+//            }
+//    }
+
+    // 에디터 → 뷰모델 동기화 블록 교체
     LaunchedEffect(rtState) {
         snapshotFlow {
-            // 마크다운과 커서 위치를 함께 관찰
-            Triple(
-                sanitizeToAllowedMarkdown(rtState.toMarkdown()),
-                rtState.selection,
-                rtState.annotatedString.text
-            )
-        }
-            .collectLatest { (md, selection, displayText) ->
-                currentMarkdown = md
-
-                // VM 동기화 시 현재 커서 위치 로깅 (디버깅용)
-                // Log.d("EditCard", "Cursor at: ${selection.end}, Display length: ${displayText.length}, MD length: ${md.length}")
-
-                if (!suppressVmSync) {
-                    (uiState as? EditCardUiState.Ready)?.let {
-                        if (it.summary != md) {
-                            viewModel.updateSummary(md)
-                        }
+            Pair(rtState.toMarkdown(), rtState.selection)
+        }.collectLatest { (rawMd, selection) ->
+            Log.d("EditSync", "len=${rawMd.length}, caret=${selection.end}")
+            currentMarkdown = rawMd
+            if (!suppressVmSync) {
+                (uiState as? EditCardUiState.Ready)?.let {
+                    if (it.summary != rawMd) {
+                        viewModel.updateSummary(rawMd)
                     }
                 }
             }
+        }
     }
 
     // 키보드 내려가면 AI 바 닫기
@@ -289,7 +307,7 @@ fun EditCardScreen(
                 actions = {
                     TextButton(onClick = {
                         // 현재 수정 내용 뷰모델에 동기화
-                        val markdown = sanitizeToAllowedMarkdown(rtState.toMarkdown())
+                        val markdown = sanitizeAndNormalizeForServer(rtState.toMarkdown())
                         viewModel.updateSummary(markdown)
                         initialMarkdown = markdown
                         currentMarkdown = markdown
@@ -526,7 +544,7 @@ fun EditCardScreen(
                     onValueChange = viewModel::onAiQueryChange,
                     onClose = { if (!aiLoading) viewModel.toggleAiBar(false) },
                     onSubmit = {
-                        val md = sanitizeToAllowedMarkdown(rtState.toMarkdown())
+                        val md = sanitizeAndNormalizeForServer(rtState.toMarkdown())
                         viewModel.updateSummary(md)
                         viewModel.requestAiEdit()
                     },
