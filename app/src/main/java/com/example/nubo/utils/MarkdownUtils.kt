@@ -489,3 +489,153 @@ private fun String.rstrip(): String {
     while (end > 0 && this[end - 1].isWhitespace() && this[end - 1] != '\n') end--
     return this.substring(0, end)
 }
+
+/**
+ * 저장/표시 공용 정규화 엔트리
+ * - 1단계: 허용 마크다운만 남김 (코드, 인라인코드, 링크 등 제거/평문화)
+ * - 2단계: 리스트 블록 정규화(들여쓰기 제거, 빈줄 제거, 기호 통일, ordered는 1. 고정)
+ * - 3단계: 여분 공백/빈줄 정리
+ */
+fun canonicalizeMarkdown(md: String): String {
+    val sanitized = sanitizeToAllowedMarkdown(md)
+    val listFixed = normalizeListBlocks(sanitized)
+    return cleanupSpaces(listFixed)
+}
+
+/* =========================================
+ * 리스트 블록 정규화
+ * - 목표:
+ *   1) 최상위(열 0)에서만 시작하도록 들여쓰기 제거
+ *   2) ordered는 모두 "1. " 로 저장 (렌더러가 자동 번호)
+ *   3) unordered는 "-" 하나로 통일
+ *   4) 아이템 사이 빈 줄 제거 → 연속 블록 유지 (자동 번호 끊김 방지)
+ *   5) 블록 앞뒤로는 필요 시 1줄만 남김
+ * ========================================= */
+
+private val rxOrdered = Regex("^\\s*(\\d+)\\.\\s+(.*)$")
+private val rxUnordered = Regex("^\\s*([\\-*•])\\s+(.*)$")
+private val rxOnlySpaces = Regex("^\\s*$")
+
+private fun normalizeListBlocks(src: String): String {
+    val lines = src.split('\n')
+    val out = StringBuilder(src.length)
+
+    var i = 0
+    while (i < lines.size) {
+        val line = lines[i]
+
+        // 1) 리스트 블록 시작인지 감지
+        val isOrderedStart = rxOrdered.matches(line)
+        val isUnorderedStart = rxUnordered.matches(line)
+
+        if (!isOrderedStart && !isUnorderedStart) {
+            // 리스트 블록이 아니면 있는 그대로(단, 뒤 공백 제거)
+            out.append(line.trimEnd())
+            if (i != lines.lastIndex) out.append('\n')
+            i++
+            continue
+        }
+
+        // 2) 리스트 블록 수집
+        val blockStart = i
+        val blockItems = mutableListOf<Pair<Boolean, String>>() // (isOrdered, content)
+        while (i < lines.size) {
+            val L = lines[i]
+            // 빈 줄이면 "블록 내부"에서는 스킵 (연속성 유지)
+            if (rxOnlySpaces.matches(L)) {
+                // 내부 빈 줄은 건너뜀
+                i++
+                continue
+            }
+            val mOrd = rxOrdered.matchEntire(L)
+            val mUn  = rxUnordered.matchEntire(L)
+            if (mOrd != null) {
+                blockItems += true to mOrd.groupValues[2].trimEnd()
+            } else if (mUn != null) {
+                blockItems += false to mUn.groupValues[2].trimEnd()
+            } else {
+                // 리스트가 아닌 라인을 만나면 블록 종료
+                break
+            }
+            i++
+        }
+        val blockEnd = i - 1
+
+        // 3) 블록을 정규화 출력
+        //    - ordered → "1. <content>"
+        //    - unordered → "- <content>"
+        //    - 아이템 사이에 빈 줄 넣지 않음
+        val isOrderedBlock = blockItems.firstOrNull()?.first == true
+        blockItems.forEachIndexed { idx, (isOrd, content) ->
+            if (isOrd) {
+                out.append("1. ").append(content.trim())
+            } else {
+                out.append("- ").append(content.trim())
+            }
+            if (idx != blockItems.lastIndex) out.append('\n')
+        }
+
+        // 4) 블록 뒤쪽 처리
+        // 다음 라인이 존재하고, 그 다음 내용이 비문장/문단이면 블록과 분리용 공백 1줄만 유지
+        val hasNext = (blockEnd + 1) < lines.lastIndex
+        val nextLine = lines.getOrNull(blockEnd + 1)
+        if (nextLine != null) {
+            // 다음 라인이 리스트가 아니고 빈 줄이 아니라면, 구분용 빈 줄 1개 추가
+            val nextIsList = rxOrdered.matches(nextLine) || rxUnordered.matches(nextLine)
+            if (!rxOnlySpaces.matches(nextLine) && !nextIsList) {
+                out.append('\n')
+            }
+            // 원본에 빈 줄이 여러 개 있었다면 하나로 축약 (cleanupSpaces에서도 한 번 더 정리됨)
+            if (!nextIsList) out.append('\n')
+        } else if (i <= lines.lastIndex) {
+            // 범위 보호: 보통 여기 안 들어옴
+            out.append('\n')
+        }
+    }
+
+    // 마지막 여분 빈 줄 제거
+    return out.toString().trimEnd()
+}
+
+/* =========================================
+ * 여분 공백 정리
+ * - 문단 사이 3줄 이상 → 1줄
+ * - 트레일링 스페이스 제거
+ * ========================================= */
+
+private val rxMultiBlank = Regex("\n{3,}")
+
+private fun cleanupSpaces(src: String): String {
+    return src
+        .lines()
+        .joinToString("\n") { it.trimEnd() }
+        .replace(rxMultiBlank, "\n\n")
+        .trimEnd()
+}
+
+/* =========================================
+ * 기존: sanitizeToAllowedMarkdown() 유지
+ * (필요 추가: 리스트 앞 들여쓰기 제거 & 불릿 기호 통일)
+ * ========================================= */
+
+fun sanitizeToAllowedMarkdown(md: String): String {
+    return md
+        // 헤딩 정리: H1 제거, H4~H6 제거 (H2/H3만 허용)
+        .replace(Regex("(?m)^#\\s+"), "")
+        .replace(Regex("(?m)^#{4,6}\\s+"), "")
+        // 인용/코드/이미지/링크/인라인코드 제거 → 평문화
+        .replace(Regex("(?m)^>\\s+"), "")
+        .replace(Regex("(?s)```.*?```"), "")
+        .replace(Regex("!\\[[^\\]]*]\\([^)]*\\)"), "")
+        .replace(Regex("\\[([^\\]]+)]\\([^)]*\\)"), "$1")
+        .replace(Regex("`([^`]*)`"), "$1")
+        // 이탤릭 기호 제거 (굵게는 ** 그대로 두되, 렌더러가 무시해도 텍스트 보존)
+        .replace(Regex("(?<!\\*)\\*(?!\\*)([^*]+)(?<!\\*)\\*(?!\\*)"), "$1")
+        .replace(Regex("_(.+?)_"), "$1")
+        // 리스트 앞 불필요한 들여쓰기 제거 (열 0 정렬)
+        .replace(Regex("(?m)^\\s+(\\d+\\.\\s+)"), "$1")
+        .replace(Regex("(?m)^\\s*([\\-*•])\\s+"), "$1 ") // 기호 뒤 공백 1개로 통일
+        // 불릿 기호 통일 (• 등 → -)
+        .replace(Regex("(?m)^[•]\\s+"), "- ")
+        .trim()
+}

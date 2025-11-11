@@ -64,8 +64,11 @@ import com.example.nubo.ui.screen.editCard.widgets.MarkdownToolbar
 import com.example.nubo.ui.screen.editCard.widgets.NoSelectionToolbar
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Grey700
-import com.example.nubo.utils.sanitizeAndNormalizeForServer
+import com.example.nubo.utils.canonicalizeMarkdown
+import com.example.nubo.utils.sanitizeToAllowedMarkdown
 import com.mohamedrejeb.richeditor.ui.material3.RichTextEditorDefaults
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 
@@ -108,15 +111,14 @@ fun EditCardScreen(
             when (event) {
                 is EditCardUiEvent.ApplyAiEdit -> {
                     suppressVmSync = true
-
-                    // 현재 커서 위치 저장
                     val currentSelection = rtState.selection
 
-                    // 마크다운 적용
-                    rtState.setMarkdown(event.markdown)
-                    currentMarkdown = sanitizeAndNormalizeForServer(rtState.toMarkdown())
+                    // 1) AI 응답 마크다운을 정규화 후 세팅
+                    val canon = canonicalizeMarkdown(event.markdown)
+                    rtState.setMarkdown(canon)
+                    currentMarkdown = canon
 
-                    // 커서 위치 복원 (새 마크다운 길이 범위 내로 제한)
+                    // 2) 커서 복원
                     val newLength = rtState.toMarkdown().length
                     val restoredCursor = currentSelection.end.coerceIn(0, newLength)
                     rtState.selection = TextRange(restoredCursor)
@@ -184,12 +186,12 @@ fun EditCardScreen(
 
     LaunchedEffect(uiState, didInit) {
         val ready = uiState as? EditCardUiState.Ready ?: return@LaunchedEffect
-        val target = sanitizeAndNormalizeForServer(ready.summary)
+        val target = canonicalizeMarkdown(ready.summary)
 
         if (!didInit) {
             if (rtState.toMarkdown() != target) rtState.setMarkdown(target)
 
-            val canonical = sanitizeAndNormalizeForServer(rtState.toMarkdown())
+            val canonical = canonicalizeMarkdown(rtState.toMarkdown())
             initialMarkdown = canonical
             currentMarkdown = canonical
 
@@ -226,20 +228,21 @@ fun EditCardScreen(
 
     // 에디터 → 뷰모델 동기화 블록 교체
     LaunchedEffect(rtState) {
-        snapshotFlow {
-            Pair(rtState.toMarkdown(), rtState.selection)
-        }.collectLatest { (rawMd, selection) ->
-            Log.d("EditSync", "len=${rawMd.length}, caret=${selection.end}")
-            currentMarkdown = rawMd
-            if (!suppressVmSync) {
-                (uiState as? EditCardUiState.Ready)?.let {
-                    if (it.summary != rawMd) {
-                        viewModel.updateSummary(rawMd)
+        snapshotFlow { rtState.toMarkdown() }
+            .map { raw -> canonicalizeMarkdown(raw) }
+            .distinctUntilChanged()                 // ← 추가
+            .collectLatest { canon ->
+                currentMarkdown = canon
+                if (!suppressVmSync) {
+                    (uiState as? EditCardUiState.Ready)?.let {
+                        if (it.summary != canon) {
+                            viewModel.updateSummary(canon)
+                        }
                     }
                 }
             }
-        }
     }
+
 
     // 키보드 내려가면 AI 바 닫기
     LaunchedEffect(keyboardVisible) {
@@ -307,18 +310,14 @@ fun EditCardScreen(
                 actions = {
                     TextButton(onClick = {
                         // 현재 수정 내용 뷰모델에 동기화
-                        val markdown = sanitizeAndNormalizeForServer(rtState.toMarkdown())
+                        val markdown = canonicalizeMarkdown(rtState.toMarkdown()) // ← 여기만 변경
                         viewModel.updateSummary(markdown)
                         initialMarkdown = markdown
                         currentMarkdown = markdown
 
-                        // 저장 요청. 성공 시 카드 상세에서 토스트를 띄우도록 콜백 메세지 넘김
+                        // 저장 요청
                         focusManager.clearFocus(force = true)
-                        viewModel.save(
-                            onSuccess = {
-                                onSaveWithToast("요약 노트 수정 완료되었어요.")
-                            }
-                        )
+                        viewModel.save(onSuccess = { onSaveWithToast("요약 노트 수정 완료되었어요.") })
                         onSave()
                     },
                         enabled = !aiLoading
@@ -544,7 +543,10 @@ fun EditCardScreen(
                     onValueChange = viewModel::onAiQueryChange,
                     onClose = { if (!aiLoading) viewModel.toggleAiBar(false) },
                     onSubmit = {
-                        val md = sanitizeAndNormalizeForServer(rtState.toMarkdown())
+//                        val md = sanitizeAndNormalizeForServer(rtState.toMarkdown())
+//                        viewModel.updateSummary(md)
+//                        viewModel.requestAiEdit()
+                        val md = canonicalizeMarkdown(rtState.toMarkdown())
                         viewModel.updateSummary(md)
                         viewModel.requestAiEdit()
                     },
