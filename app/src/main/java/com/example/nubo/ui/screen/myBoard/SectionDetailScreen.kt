@@ -232,6 +232,9 @@ fun SectionDetailScreen(
                             }},
                         isSelectionMode = isSelectionMode,
                         selectedCardIds = selectedCards,
+                        onLoadMore = { viewModel.loadNextPage() },
+                        isLoading = ui.isLoading,
+                        isLastPage = ui.isLast
 
                     )
                 }

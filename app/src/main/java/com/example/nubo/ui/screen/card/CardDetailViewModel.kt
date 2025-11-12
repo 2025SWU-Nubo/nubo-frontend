@@ -97,8 +97,8 @@ class CardDetailViewModel @Inject constructor(
                     val summary = "대시보드에서 직접 수확해보세요"
                     _toast2.value = Pair(title, summary)
 
-                    /*// LearnScreen 알림을 위해 EventHolder에 저장
-                    eventHolder.postBerryGainedEvent()*/
+                    // LearnScreen 알림을 위해 EventHolder에 저장
+                    eventHolder.postBerryGainedEvent()
                 }
             }.onFailure { e ->
                 val msg = when (e) {

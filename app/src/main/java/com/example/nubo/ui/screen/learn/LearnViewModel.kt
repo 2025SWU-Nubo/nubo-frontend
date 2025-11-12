@@ -92,6 +92,7 @@ class LearnViewModel @Inject constructor(
         _levelUpEvent.value = null
         // 2. 전역 홀더의 이벤트를 '소비' 처리 (중복 방지)
         eventHolder.consumeLevelUpEvent()
+
     }
 
     /**
@@ -102,5 +103,6 @@ class LearnViewModel @Inject constructor(
         _berryGainedEvent.value = false
         // 2. 전역 홀더의 이벤트를 '소비' 처리
         eventHolder.consumeBerryGainedEvent()
+
     }
 }

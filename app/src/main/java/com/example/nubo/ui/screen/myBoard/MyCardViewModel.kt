@@ -47,7 +47,8 @@ class MyCardViewModel @Inject constructor(
     // --- Paging states for "my cards" ---
     private var page: Int = 0               // current page index
     private var size: Int = 20              // page size
-    private var isLast: Boolean = false     // from server 'last' flag
+    private val _isLast = mutableStateOf(false)
+    val isLast: State<Boolean> get() = _isLast
 
     // 검색 결과 상태
     private val _searchResults = mutableStateOf<List<MyCardItem>>(emptyList())
@@ -67,7 +68,7 @@ class MyCardViewModel @Inject constructor(
 
     /** Load next page if available (for infinite scroll) */
     fun loadMore() {
-        if (isLast || _isLoading.value) return
+        if (_isLast.value || _isLoading.value) return
         loadCards(reset = false)
     }
 
@@ -143,12 +144,12 @@ class MyCardViewModel @Inject constructor(
             // no token, clear states
             _cards.value = emptyList()
             _isLoading.value = false
-            isLast = true
+            _isLast.value = true
             return
         }
 
         // if appending and already last, do nothing
-        if (!reset && isLast) return
+        if (!reset && _isLast.value) return
 
         _isLoading.value = true
         viewModelScope.launch {
@@ -178,7 +179,7 @@ class MyCardViewModel @Inject constructor(
                 // update paging flags
                 page = pageRes.number
                 size = pageRes.size
-                isLast = pageRes.last
+                _isLast.value = pageRes.last
             } catch (e: Exception) {
                 // on error, keep previous list; if reset, clear
                 if (reset) _cards.value = emptyList()
