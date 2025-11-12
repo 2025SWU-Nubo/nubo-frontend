@@ -459,7 +459,7 @@ private fun BottomProgressCard(
     // 애니메이션 전환 (기존 UI → levelup → next)
     LaunchedEffect(showLevelUp) {
         if (showLevelUp) {
-            delay(500)        // 기존 UI 잠깐 보여주기
+            delay(300)        // 기존 UI 잠깐 보여주기
             state = "levelup" // 레벨업 화면으로 전환
             delay(LEVEL_HOLD_MS.toLong()) //레벨업 화면 애니메이션 처리 후
             state = "next"    // 다음 단계 화면으로 전환
