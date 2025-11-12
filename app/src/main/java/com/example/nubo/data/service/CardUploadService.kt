@@ -37,12 +37,6 @@ class CardUploadService: Service() {
 
     companion object {
         private const val PROGRESS_NOTIFICATION_ID = 1001
-//        private const val RESULT_NOTIFICATION_ID = 1002
-
-
-        private const val PROGRESS_CHANNEL_ID = "card_upload_progress_v2" // progress channel (DEFAULT)
-//        private const val RESULT_CHANNEL_ID = "card_upload_result_v2"     // result channel (HIGH)
-
 
         const val EXTRA_ACCESS_TOKEN = "access_token" // Intent에서 토큰을 전달받기 위한 키
         const val EXTRA_VIDEO_URL = "video_url" // Intent에서 비디오 URL을 전달받기 위한 키
@@ -67,7 +61,7 @@ class CardUploadService: Service() {
 
     override fun onCreate() {
         super.onCreate()
-        createNotificationChannel() // 알림 채널 생성 (Android O 이상 필수)
+        com.example.nubo.push.PushChannels.ensure(this)// 알림 채널 생성 (Android O 이상 필수)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -105,65 +99,22 @@ class CardUploadService: Service() {
         }
     }
 
-    // 알림 채널 생성
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
-            val progress = NotificationChannel(
-                PROGRESS_CHANNEL_ID,
-                "카드 업로드 진행",
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = "카드 업로드 진행 상황을 표시합니다."
-            }
-
-//            val result = NotificationChannel(
-//                RESULT_CHANNEL_ID,
-//                "카드 업로드 결과",
-//                NotificationManager.IMPORTANCE_HIGH
-//            ).apply {
-//                description = "업로드 완료/실패 결과를 표시합니다."
-//            }
-
-            notificationManager.createNotificationChannel(progress)
-//            notificationManager.createNotificationChannel(result)
-        }
-    }
-
     // 진행 중 알림 생성
     private fun createProgressNotification(): Notification {
-        val builder = NotificationCompat.Builder(this,PROGRESS_CHANNEL_ID)
+        val builder = NotificationCompat.Builder(this, com.example.nubo.push.PushChannels.CH_UPLOAD_PROGRESS)
             .setContentTitle("카드 생성 중")
             .setContentText("영상을 업로드하고 있습니다..")
             .setSmallIcon(R.drawable.nubo_symbol)
-            .setProgress(0, 0, true) // 무한 진행바 표시
-            .setOngoing(true) // 사용자가 스와이프로 제거할 수 없도록 설정
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setProgress(0, 0, true)
+            .setOngoing(true)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
 
-
-        // Show immediately on Android 12L+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            builder.setForegroundServiceBehavior(
-                NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE
-            )
+            builder.setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
         }
         return builder.build()
     }
-
-//    private fun showResultNotification(success: Boolean, message: String) {
-//        // Build result notification on separate channel/ID
-//        val builder = NotificationCompat.Builder(this, RESULT_CHANNEL_ID)
-//            .setContentTitle(if (success) "카드 생성 완료" else "카드 생성 실패")
-//            .setContentText(message)
-//            .setSmallIcon(R.drawable.basic_profile_image)
-//            .setAutoCancel(true)
-//            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-//
-//        notificationManager.notify(RESULT_NOTIFICATION_ID, builder.build())
-//    }
 
     private fun uploadCard(accessToken: String,videoUrl: String,boardId: Long?) {
         //업로드 요청 객체 생성
@@ -190,7 +141,6 @@ class CardUploadService: Service() {
                 } else {
                     Log.e("CardUploadService", "카드 업로드 실패: ${response.code()} ${response.message()}")
                     stopForeground(true)
-//                    showResultNotification(false,  "다시 시도해주세요.")
                 }
                 stopSelf()
             }
@@ -198,8 +148,6 @@ class CardUploadService: Service() {
             override fun onFailure(call: Call<CardUploadResponse?>, t: Throwable) {
                 Log.e("CardUploadService", "카드 업로드 네트워크 에러", t)
                 stopForeground(true)
-                // Show failure promptly
-//                showResultNotification(false, "네트워크 오류로 업로드에 실패했습니다.")
                 stopSelf()
             }
         })

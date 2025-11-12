@@ -1,18 +1,9 @@
 package com.example.nubo.ui.screen.editCard.widgets
 
+import android.util.Log
 import androidx.compose.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.runtime.Composable
-import com.mohamedrejeb.richeditor.model.RichTextState
-import com.example.nubo.utils.toggleHeadingMarkdown
-import com.example.nubo.utils.clearHeadingMarkdown
-import com.example.nubo.utils.detectLineMarkdown
-import com.example.nubo.utils.ListType
-import com.example.nubo.ui.theme.Grey5
-import androidx.compose.material3.Surface
-import androidx.compose.ui.unit.dp
-import com.example.nubo.ui.theme.*
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -26,11 +17,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.example.nubo.R
-import com.example.nubo.utils.toggleListForSelection
-import androidx.compose.ui.text.TextRange
+import com.example.nubo.ui.theme.*
+import com.mohamedrejeb.richeditor.model.RichTextState
+import com.example.nubo.utils.*
 import kotlinx.coroutines.delay
 
 private val CHIP_HEIGHT = 45.dp
@@ -43,44 +37,17 @@ fun MarkdownToolbar(
     editorFocusRequester: FocusRequester,
     modifier: Modifier = Modifier
 ) {
-    // 현재 라인의 마크다운 상태 추적
     var currentHeadingLevel by remember { mutableStateOf<Int?>(null) }
     var currentListType by remember { mutableStateOf<ListType?>(null) }
     var isBoldSelected by remember { mutableStateOf(false) }
     var hasSelection by remember { mutableStateOf(false) }
 
-    // 커서 위치를 저장할 변수
-    var pendingCursorPosition by remember { mutableStateOf<Int?>(null) }
-
-    val coroutineScope = rememberCoroutineScope()
-
-    // 포커스 이동 후 액션 실행 헬퍼 함수
-    fun focusThen(action: () -> Unit) {
-        editorFocusRequester.requestFocus()
-        action()
-    }
-
-    // 커서 위치나 텍스트 변경 시 현재 마크다운 상태 감지
     LaunchedEffect(rtState.annotatedString, rtState.selection) {
         val state = detectLineMarkdown(rtState)
         currentHeadingLevel = state.headingLevel
         currentListType = state.listType
-
-        // 텍스트 선택 여부 확인
         hasSelection = rtState.selection.start != rtState.selection.end
-
-        // Bold 상태 감지
         isBoldSelected = (rtState.currentSpanStyle.fontWeight == FontWeight.Bold)
-    }
-
-    // pendingCursorPosition이 설정되면 다음 프레임에 커서 적용
-    LaunchedEffect(pendingCursorPosition) {
-        pendingCursorPosition?.let { pos ->
-            // 약간의 딜레이 후 커서 설정 (setMarkdown이 완료될 시간 확보)
-            delay(50)
-            rtState.selection = TextRange(pos)
-            pendingCursorPosition = null
-        }
     }
 
     Surface(
@@ -97,67 +64,57 @@ fun MarkdownToolbar(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 제목 버튼 (H2)
+            // 제목(H2)
             HeadingButton(
                 text = "제목",
                 isSelected = currentHeadingLevel == 2,
                 onClick = {
-                    focusThen {
-                        pendingCursorPosition = toggleHeadingMarkdown(rtState, 2)
-                    }
+                    editorFocusRequester.requestFocus()
+                    val pos = toggleHeadingMarkdown(rtState, 2)
+                    rtState.selection = TextRange(pos)
+                    Log.d("Toolbar", "H2 clicked caret=$pos")
                 },
                 textSize = AppTextStyles.title_semibold_24
             )
 
-            // 부제목 버튼 (H3)
+            // 부제목(H3)
             HeadingButton(
                 text = "부제목",
                 isSelected = currentHeadingLevel == 3,
                 onClick = {
-                    focusThen {
-                        pendingCursorPosition = toggleHeadingMarkdown(rtState, 3)
-                    }
+                    editorFocusRequester.requestFocus()
+                    val pos = toggleHeadingMarkdown(rtState, 3)
+                    rtState.selection = TextRange(pos)
+                    Log.d("Toolbar", "H3 clicked caret=$pos")
                 },
                 textSize = AppTextStyles.subtitle_semibold_20
             )
 
-            // 본문 버튼
+            // 본문
             HeadingButton(
                 text = "본문",
                 isSelected = currentHeadingLevel == null && currentListType == null,
                 onClick = {
-                    focusThen {
-                        val newCursor = clearHeadingMarkdown(rtState)
-                        pendingCursorPosition = newCursor
-                    }
+                    editorFocusRequester.requestFocus()
+                    val pos = clearHeadingMarkdown(rtState)
+                    rtState.selection = TextRange(pos)
+                    Log.d("Toolbar", "Clear heading caret=$pos")
                 },
                 textSize = AppTextStyles.b2_medium_16
             )
 
+            // 굵게(B) — 표시상 허용, 저장 시 서버 정규화에서 제거됨(텍스트만 남음)
             val BOLD_STYLE = remember { SpanStyle(fontWeight = FontWeight.Bold) }
-
-            // 굵게 버튼 (Bold) - 선택 여부에 따라 다르게 동작
             FilterChip(
                 modifier = Modifier.height(CHIP_HEIGHT),
                 selected = isBoldSelected,
                 onClick = {
-                    focusThen {
-                        if (hasSelection) {
-                            // 텍스트가 선택되어 있으면 선택된 텍스트만 굵게
-                            rtState.toggleSpanStyle(BOLD_STYLE)
-                        } else {
-                            // 선택이 없으면 현재 커서 위치부터 입력되는 텍스트에 적용
-                            rtState.toggleSpanStyle(BOLD_STYLE)
-                        }
-                        // 즉시 UI 반영
-                        isBoldSelected = !isBoldSelected
-                    }
+                    editorFocusRequester.requestFocus()
+                    rtState.toggleSpanStyle(BOLD_STYLE)
+                    isBoldSelected = !isBoldSelected
                 },
                 label = {
-                    Text(
-                        "B",
-                        style = AppTextStyles.title_semibold_24
-                    )
+                    Text("B", style = AppTextStyles.title_semibold_24)
                 },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = PurpleMain500,
@@ -176,20 +133,26 @@ fun MarkdownToolbar(
                 )
             )
 
-            // 순서 없는 리스트 버튼
+            // 순서 없는 리스트 (- )
             FilledTonalIconButton(
                 onClick = {
-                    focusThen {
-                        toggleListForSelection(rtState, ordered = false)
-                    }
+                    editorFocusRequester.requestFocus()
+
+                    val before = rtState.selection
+                    val beforeMd = rtState.toMarkdown()
+                    Log.d("CursorDebug", "Before toggle list (ordered=false): start=${before.start}, end=${before.end}, len=${beforeMd.length}")
+
+                    toggleListForSelection(rtState, ordered = false)
+
+                    val after = rtState.selection
+                    val afterMd = rtState.toMarkdown()
+                    Log.d("CursorDebug", "After toggle list: start=${after.start}, end=${after.end}, len=${afterMd.length}")
                 },
                 modifier = Modifier.height(CHIP_HEIGHT).width(CHIP_SHORT_WIDTH),
                 shape = RoundedCornerShape(8.dp),
                 colors = IconButtonDefaults.filledTonalIconButtonColors(
-                    containerColor = if (currentListType == ListType.UNORDERED)
-                        PurpleMain500 else Purple50,
-                    contentColor = if (currentListType == ListType.UNORDERED)
-                        Color.White else GreyMain300
+                    containerColor = if (currentListType == ListType.UNORDERED) PurpleMain500 else Purple50,
+                    contentColor = if (currentListType == ListType.UNORDERED) Color.White else GreyMain300
                 )
             ) {
                 Icon(
@@ -198,20 +161,25 @@ fun MarkdownToolbar(
                 )
             }
 
-            // 순서 있는 리스트 버튼
+            // 순서 있는 리스트 (1. )
             FilledTonalIconButton(
                 onClick = {
-                    focusThen {
-                        toggleListForSelection(rtState, ordered = true)
-                    }
+                    editorFocusRequester.requestFocus()
+                    val before = rtState.selection
+                    val beforeMd = rtState.toMarkdown()
+                    Log.d("CursorDebug", "Before toggle list (ordered=true): start=${before.start}, end=${before.end}, len=${beforeMd.length}")
+
+                    toggleListForSelection(rtState, ordered = true)
+
+                    val after = rtState.selection
+                    val afterMd = rtState.toMarkdown()
+                    Log.d("CursorDebug", "After toggle list: start=${after.start}, end=${after.end}, len=${afterMd.length}")
                 },
                 modifier = Modifier.height(CHIP_HEIGHT).width(CHIP_SHORT_WIDTH),
                 shape = RoundedCornerShape(8.dp),
                 colors = IconButtonDefaults.filledTonalIconButtonColors(
-                    containerColor = if (currentListType == ListType.ORDERED)
-                        PurpleMain500 else Purple50,
-                    contentColor = if (currentListType == ListType.ORDERED)
-                        Color.White else GreyMain300
+                    containerColor = if (currentListType == ListType.ORDERED) PurpleMain500 else Purple50,
+                    contentColor = if (currentListType == ListType.ORDERED) Color.White else GreyMain300
                 )
             ) {
                 Icon(
@@ -223,9 +191,6 @@ fun MarkdownToolbar(
     }
 }
 
-/**
- * 헤딩 버튼 컴포저블
- */
 @Composable
 private fun HeadingButton(
     text: String,
@@ -238,9 +203,7 @@ private fun HeadingButton(
         modifier = modifier
             .size(CHIP_LONG_WIDTH, CHIP_HEIGHT)
             .clip(RoundedCornerShape(8.dp))
-            .background(
-                if (isSelected) PurpleMain500 else Grey10
-            )
+            .background(if (isSelected) PurpleMain500 else Grey10)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {

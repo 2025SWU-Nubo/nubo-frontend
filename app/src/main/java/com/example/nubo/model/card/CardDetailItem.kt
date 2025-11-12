@@ -8,7 +8,6 @@ data class CardDetailItem(
     val summary: String,
     val tags: List<String>,
     val highlights: List<HighlightDto>? = null,
-    val boardSource: String,
     val boardName: String,
     val videoUrl: String,
     val videoThumbnailUrl: String,
