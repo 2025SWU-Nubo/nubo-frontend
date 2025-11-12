@@ -29,8 +29,10 @@ import androidx.core.content.edit
 
 @AndroidEntryPoint
 class NuboFcmService : FirebaseMessagingService() {
-    @Inject lateinit var notificationRepository: NotificationRepository
-    @Inject lateinit var authRepository: AuthRepository
+    @Inject
+    lateinit var notificationRepository: NotificationRepository
+    @Inject
+    lateinit var authRepository: AuthRepository
     private val ioScope = CoroutineScope(Dispatchers.IO)
 
     override fun onCreate() {
@@ -75,24 +77,29 @@ class NuboFcmService : FirebaseMessagingService() {
         // 1) payload 파싱 (camelCase + snake_case를 모두 수용)
         val payload = parsePayload(message)
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            com.example.nubo.push.PushChannels.ensure(this)
+        }
+
         // 2) 탭 시 MainActivity로 이동할 Intent 구성 (딥링크/파라미터 포함)
         val contentPI = buildContentPendingIntent(payload)
 
-        // 3) 채널 보장 (Android 8+)
-        ensureChannel(payload.channelId, payload.channelName)
-
         // 4) 알림 빌드/표시
-        val notification = NotificationCompat.Builder(this, payload.channelId)
+        val builder = NotificationCompat.Builder(this, payload.channelId)
             .setSmallIcon(R.drawable.nubo_symbol) // TODO: 운영 아이콘으로 교체 가능
             .setContentTitle(payload.title)               // 서버 title 우선
             .setContentText(payload.body)                 // 서버 body 우선
             .setStyle(NotificationCompat.BigTextStyle().bigText(payload.body))
             .setAutoCancel(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setCategory(
+                when (payload.type) {
+                    "REMINDER" -> NotificationCompat.CATEGORY_REMINDER
+                    else -> NotificationCompat.CATEGORY_MESSAGE
+                }
+            )
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setContentIntent(contentPI)
-            .build()
 
         // Android 13+ 알림 권한 체크 (콜백 자체는 권한과 무관하나, 표시에는 필요)
         val canNotify = Build.VERSION.SDK_INT < 33 ||
@@ -101,11 +108,7 @@ class NuboFcmService : FirebaseMessagingService() {
 
         android.util.Log.d("FCM_SVC", "willNotify=$canNotify ch=${payload.channelId} title=${payload.title}")
 
-        if (canNotify) {
-            NotificationManagerCompat.from(this).notify(payload.notificationId, notification)
-        } else {
-            android.util.Log.w("FCM_SVC", "POST_NOTIFICATIONS not granted; skip notify")
-        }
+        if (canNotify) NotificationManagerCompat.from(this).notify(payload.notificationId, builder.build())
     }
 
     private fun parsePayload(message: RemoteMessage): Payload {
@@ -114,9 +117,9 @@ class NuboFcmService : FirebaseMessagingService() {
 
         val type = (pick("type", "TYPE") ?: "").trim().uppercase()
         val title = pick("title", "TITLE") ?: message.notification?.title ?: /* fallback */ "알림"
-        val body  = pick("body", "BODY")  ?: message.notification?.body  ?: /* fallback */ "새 알림이 있습니다."
+        val body = pick("body", "BODY") ?: message.notification?.body ?: /* fallback */ "새 알림이 있습니다."
 
-        val cardIdStr  = pick("card_id", "cardId")         // ← 그대로 String
+        val cardIdStr = pick("card_id", "cardId")         // ← 그대로 String
         val boardIdStr = pick("board_id", "boardId")       // ← 그대로 String
         val boardTitle = pick("board_title", "boardTitle")
         val invitationId = pick("invitation_id", "invitationId")
@@ -124,17 +127,19 @@ class NuboFcmService : FirebaseMessagingService() {
         val serverChannel = pick("channel_id", "android_channel_id")
         val (target, channelName, defaultChannel) = when (type) {
             "CARD_ADDED" -> Triple(DeepLinkContract.TARGET_CARD_DETAIL, "카드 알림", "card_channel")
-            "REMINDER"   -> Triple(DeepLinkContract.TARGET_CARD_UNREAD_LIST, "리마인더", "reminder_channel")
-            "BOARD"      -> Triple(DeepLinkContract.TARGET_BOARD_INVITE, "보드 알림", "board_channel")
-            else         -> Triple(DeepLinkContract.TARGET_BOARD_INVITE, "일반 알림", "default_channel")
+            "REMINDER" -> Triple(DeepLinkContract.TARGET_CARD_UNREAD_LIST, "리마인더", "reminder_channel")
+            "BOARD" -> Triple(DeepLinkContract.TARGET_BOARD_INVITE, "보드 알림", "board_channel")
+            else -> Triple(DeepLinkContract.TARGET_BOARD_INVITE, "일반 알림", "default_channel")
         }
         val channelId = serverChannel ?: defaultChannel
 
         val notificationId = listOfNotNull(type, cardIdStr, boardIdStr, invitationId)
             .joinToString("#").hashCode()
 
-        return Payload(type, title, body, cardIdStr, boardIdStr, boardTitle, invitationId,
-            channelId, channelName, target, notificationId)
+        return Payload(
+            type, title, body, cardIdStr, boardIdStr, boardTitle, invitationId,
+            channelId, channelName, target, notificationId
+        )
     }
 
 
@@ -177,24 +182,7 @@ class NuboFcmService : FirebaseMessagingService() {
         return PendingIntent.getActivity(this, p.notificationId, tap, flags)
     }
 
-    // 알림 채널 보장 (Android 8+). 이미 존재하면 create가 no-op
-    private fun ensureChannel(id: String, name: String) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        // 채널 조회 (기존 생성된 것이 있으면 그걸 씀)
-        var ch = nm.getNotificationChannel(id)
-        if (ch == null) {
-            ch = NotificationChannel(id, name, NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "Nubo notifications"
-                enableVibration(true)
-                setShowBadge(true)
-            }
-            nm.createNotificationChannel(ch)
-        }
-        android.util.Log.d("FCM_SVC", "channel id=$id importance=${ch.importance} enabled=${nm.areNotificationsEnabled()}")
-    }
-
-
+}
     // payload DTO
     private data class Payload(
         val type: String,
@@ -209,4 +197,3 @@ class NuboFcmService : FirebaseMessagingService() {
         val target: String,
         val notificationId: Int
     )
-}
