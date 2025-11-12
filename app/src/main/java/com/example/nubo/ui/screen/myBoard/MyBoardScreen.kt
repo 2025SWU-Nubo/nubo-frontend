@@ -51,6 +51,12 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.collect
+import androidx.compose.material3.CircularProgressIndicator
 import com.example.components.toast.AppToastHost
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.rememberAppToastHostState
@@ -287,6 +293,10 @@ fun MyBoardScreen(
                     0 -> { // 카드 탭 UI 로직
                         val isSearching by cardViewModel.isSearching
 
+                        //  ViewModel에서 isLoading, isLast 상태 가져오기
+                        val isLoading by cardViewModel.isLoading
+                        val isLastPage by cardViewModel.isLast
+
                         if (isSearchMode) {
                             // --- 검색 모드일 때의 UI ---
                             if (isSearching) {
@@ -307,7 +317,11 @@ fun MyBoardScreen(
                                             onCardClick = onCardClick, // 부모가 넘겨준 함수를 그대로 전달
                                             onCardLongClick = onCardLongClick, // 부모가 넘겨준 함수를 그대로 전달
                                             isSelectionMode = isCardSelectionMode,
-                                            selectedCardIds = selectedCardIds
+                                            selectedCardIds = selectedCardIds,
+                                            // 검색 상태는 무한 스크롤 미적용
+                                            onLoadMore = { },
+                                            isLoading = false,
+                                            isLastPage = true
                                         )
                                     }
                                 }
@@ -321,7 +335,11 @@ fun MyBoardScreen(
                                 onCardClick = onCardClick, // 부모가 넘겨준 함수를 그대로 전달
                                 onCardLongClick = onCardLongClick, // 부모가 넘겨준 함수를 그대로 전달
                                 isSelectionMode = isCardSelectionMode,
-                                selectedCardIds = selectedCardIds
+                                selectedCardIds = selectedCardIds,
+                                // 무한 스크롤 콜백 및 상태 전달
+                                onLoadMore = { cardViewModel.loadMore() },
+                                isLoading = isLoading,
+                                isLastPage = isLastPage
                             )
                         }
                     }
@@ -643,14 +661,37 @@ fun ScrollableCardContent(
     cardHeights: List<Dp>,
     onCardLongClick: (Int) -> Unit,
     isSelectionMode: Boolean = false,
-    selectedCardIds: Set<Int> = emptySet()
+    selectedCardIds: Set<Int> = emptySet(),
+    // 무한 스크롤을 위한 파라미터 추가
+    onLoadMore: () -> Unit,
+    isLoading: Boolean,
+    isLastPage: Boolean
 ) {
+
+    // LazyColumn의 스크롤 상태를 감지하기 위한 State
+    val lazyListState = rememberLazyListState()
+
+    // 스크롤 상태 감지 및 `onLoadMore` 호출 로직
+    LaunchedEffect(lazyListState, isLoading, isLastPage) {
+        // lazyListState의 스크롤 상태 변경을 Flow로 관찰
+        snapshotFlow { lazyListState.canScrollForward }
+            .distinctUntilChanged() // 값이 실제로 바뀔 때만 수신
+            .collect { canScrollForward ->
+                // 스크롤이 맨 아래에 도달했고(더 이상 앞으로 못 감),
+                // 로딩 중이 아니며, 마지막 페이지가 아닐 때
+                if (!canScrollForward && !isLoading && !isLastPage) {
+                    onLoadMore()
+                }
+            }
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(top = 4.dp),
         contentPadding = PaddingValues(bottom = 90.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+        state = lazyListState
     ) {
         item {
             MyCardContent(
@@ -661,6 +702,19 @@ fun ScrollableCardContent(
                 isSelectionMode = isSelectionMode,
                 selectedCardIds = selectedCardIds
             )
+        }
+        // ▼▼▼ 로딩 중일 때 하단에 인디케이터 표시 ▼▼▼
+        if (isLoading) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
         }
     }
 }

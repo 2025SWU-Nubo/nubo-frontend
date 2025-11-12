@@ -112,7 +112,9 @@ fun LearnScreen(
                 )
                 Text(
                     text = "시스템 오류가 발생했습니다.",
-                    modifier = Modifier.align(Alignment.TopCenter),
+                    style = AppTextStyles.title_semibold_24,
+                    modifier = Modifier.align(Alignment.TopCenter)
+                        .padding(top=300.dp),
                     color = Color.Black)
             }
 
@@ -147,7 +149,7 @@ fun LearnScreen(
                 )*/
                 GraphicBackgroundView(
                     modifier = Modifier.fillMaxSize(),
-                    todayVideoCount = 3, // 오늘 카운트 값 2D 그래픽 파일에 전달
+                    todayVideoCount = todayCount, // 오늘 카운트 값 2D 그래픽 파일에 전달
                     level = currentStage
                 )
 
@@ -450,10 +452,14 @@ private fun BottomProgressCard(
     var state by rememberSaveable { mutableStateOf("normal") }
     val nextStep = (currentStep + 1).coerceAtMost(5)
 
+    // '수확' 이벤트 정의: 'showBerry'가 true이고 '그 결과' 최신 스텝(currentStep)이 0인 경우
+    val isHarvestEvent = (showBerry && currentStep == 0)
+
+
     // 애니메이션 전환 (기존 UI → levelup → next)
     LaunchedEffect(showLevelUp) {
         if (showLevelUp) {
-            delay(700)        // 기존 UI 잠깐 보여주기
+            delay(500)        // 기존 UI 잠깐 보여주기
             state = "levelup" // 레벨업 화면으로 전환
             delay(LEVEL_HOLD_MS.toLong()) //레벨업 화면 애니메이션 처리 후
             state = "next"    // 다음 단계 화면으로 전환
@@ -463,7 +469,6 @@ private fun BottomProgressCard(
         }
         else if (showBerry) {
             // 레벨업이 아닐 때만 베리 획득 화면 표시
-            delay(700)
             state = "berry" // 베리 획득 화면으로 전환
             delay(LEVEL_HOLD_MS.toLong()) // 레벨업과 동일한 시간 유지
             state = "normal" // 베리 획득 후에는 '다음' 상태 없이 바로 'normal'로 복귀
@@ -499,6 +504,7 @@ private fun BottomProgressCard(
                     .clip(RoundedCornerShape(18.dp))
                     .background(Color.White.copy(alpha = 0.80f))
             ) {
+
                 // 내부 패딩은 콘텐츠에만 적용, 내용물 전환 애니메이션
                 AnimatedContent(
                     targetState = state,
@@ -519,7 +525,7 @@ private fun BottomProgressCard(
                         "levelup" -> {
                             // 레벨업 화면 + 바 이동 + 체크 효과 + 끝에 열매
                             LevelUpSection(
-                                totalSteps = 5,
+                                totalSteps = 6,
                                 prevStep = currentStep,   // 레벨업 직전 단계
                                 nextStep = nextStep,      // 레벨업 후 단계
                                 levelUpText = levelUpText,
@@ -530,12 +536,15 @@ private fun BottomProgressCard(
                             )
                         }
                         "berry" -> {
+                            val berryPrevStep = 5
+                            val berryNextStep = 6
+
                             // 누베리 획득 화면 (StepBar 애니메이션 포함)
                             NuberrySection(
-                                totalSteps = 5,
-                                prevStep = currentStep, // 베리 획득은 단계 변화 없음
-                                nextStep = currentStep, // 따라서 prev/next 동일
-                                levelUpText = "성장의 누베리를 수확했어요. 다음 성장을 향해 나아가요!", // 임시 텍스트
+                                totalSteps = 6,
+                                prevStep = berryPrevStep, // 4
+                                nextStep = berryNextStep, // 5 (or 4)
+                                levelUpText = "멋진 수확이에요. 다음 성장도 함께 가요.",  //
                                 onStepAnimDone = { /* no-op */ }
                             )
                         }
@@ -720,10 +729,12 @@ fun AnimatedProgressBar(
 // 스테이지 번호에 맞는 이름 반환 함수
 private fun getStageName(stage: Int): String {
     return when (stage) {
+        0 -> "작은 새싹"
         1 -> "묘목"
         2 -> "꽃봉오리"
         3 -> "꽃"
         4 -> "열매"
+        5 -> "누베리 수확"
         else -> ""
     }
 }
@@ -731,8 +742,8 @@ private fun getStageName(stage: Int): String {
 // ==== 단계 → 퍼센트 보조 함수 ====
 private fun stepToFraction(step: Int, total: Int): Float {
     if (total <= 1) return 1f
-    val s = step.coerceIn(1, total)
-    return (s - 1).toFloat() / (total - 1).toFloat()
+    val s = step.coerceIn(0, total - 1)
+    return s.toFloat() / (total - 1).toFloat()
 }
 
 @Composable
@@ -745,8 +756,8 @@ private fun LevelUpSection(
     levelUpText: String,
 ) {
     // 1) 시작/목표 퍼센트 (목표는 체크 지점으로 스냅)
-    val fromFrac = stepToFraction(prevStep, totalSteps).coerceIn(0f, 1f)
-    val toFrac = stepToFraction(nextStep, totalSteps)
+    val fromFrac = stepToFraction(prevStep - 1, totalSteps).coerceIn(0f, 1f)
+    val toFrac = stepToFraction(nextStep - 1, totalSteps)
 
     // 2) 진행도는 단순 Float 상태로 관리 (프레임마다 값 갱신)
     var barProgress by remember { mutableFloatStateOf(fromFrac) }
@@ -829,8 +840,8 @@ private fun NuberrySection(
     levelUpText: String,
 ) {
     // 1) 시작/목표 퍼센트 (목표는 체크 지점으로 스냅)
-    val fromFrac = stepToFraction(prevStep, totalSteps).coerceIn(0f, 1f)
-    val toFrac = stepToFraction(nextStep, totalSteps)
+    val fromFrac = stepToFraction(prevStep - 1, totalSteps).coerceIn(0f, 1f)
+    val toFrac = stepToFraction(nextStep - 1, totalSteps)
 
     // 2) 진행도는 단순 Float 상태로 관리 (프레임마다 값 갱신)
     var barProgress by remember { mutableFloatStateOf(fromFrac) }
@@ -879,7 +890,7 @@ private fun NuberrySection(
     // ---- UI ----
     Column {
         Text(
-            text = "누베리 수확!",
+            text = "Nuberry Get!",
             style = AppTextStyles.learn_percentage_46.copy(
                 brush = Brush.linearGradient(listOf(Color(0xFF8380FF), PurpleMain500))
             )
