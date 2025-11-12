@@ -50,11 +50,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.components.toast.AppToastHost
-import com.example.components.toast.AppToastHostState
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.AppToastType
 import com.example.components.toast.rememberAppToastHostState
@@ -65,11 +62,19 @@ import com.example.nubo.ui.screen.editCard.widgets.NoSelectionToolbar
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Grey700
 import com.example.nubo.utils.canonicalizeMarkdown
+import com.example.nubo.utils.debugFullPipeline
+import com.example.nubo.utils.debugMarkdownNormalization
+import com.example.nubo.utils.debugNewLines
+import com.example.nubo.utils.debugRichTextState
+import com.example.nubo.utils.demoteNestedOrderedToBullets
 import com.example.nubo.utils.sanitizeToAllowedMarkdown
 import com.mohamedrejeb.richeditor.ui.material3.RichTextEditorDefaults
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import com.example.nubo.utils.shimListBoldBug
+import com.example.nubo.utils.stripShimForServer
+
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -115,8 +120,11 @@ fun EditCardScreen(
 
                     // 1) AI 응답 마크다운을 정규화 후 세팅
                     val canon = canonicalizeMarkdown(event.markdown)
-                    rtState.setMarkdown(canon)
-                    currentMarkdown = canon
+                    val noNestedOrder = demoteNestedOrderedToBullets(canon)
+                    // 2) 에디터에 넣기 직전 파서 보호
+                    val safe = shimListBoldBug(canon)
+                    rtState.setMarkdown(safe)
+                    currentMarkdown = canonicalizeMarkdown(stripShimForServer(rtState.toMarkdown()))
 
                     // 2) 커서 복원
                     val newLength = rtState.toMarkdown().length
@@ -186,50 +194,45 @@ fun EditCardScreen(
 
     LaunchedEffect(uiState, didInit) {
         val ready = uiState as? EditCardUiState.Ready ?: return@LaunchedEffect
+        // ✅ 디버깅 1: 서버에서 받은 원본 확인
+        Log.d("EditCardDebug", "━━━ 서버 데이터 수신 ━━━")
+        Log.d("EditCardDebug", "원본 summary: '${ready.summary}'")
+        Log.d("EditCardDebug", "원본 길이: ${ready.summary.length}")
+        debugNewLines(ready.summary, "서버 원본")
+
         val target = canonicalizeMarkdown(ready.summary)
+        val noNestedOrder = demoteNestedOrderedToBullets(target)
+        val safeForEditor = shimListBoldBug(target)
+
+        // ✅ 디버깅 2: 정규화 후 확인
+        Log.d("EditCardDebug", "정규화 후: '${target}'")
+        Log.d("EditCardDebug", "정규화 후 길이: ${target.length}")
+        debugMarkdownNormalization(ready.summary, "초기 로드")
 
         if (!didInit) {
-            if (rtState.toMarkdown() != target) rtState.setMarkdown(target)
+            if (rtState.toMarkdown() != safeForEditor){
+                Log.d("EditCardDebug", "setMarkdown 호출 전 rtState: '${rtState.toMarkdown()}'")
+                rtState.setMarkdown(safeForEditor)
+                Log.d("EditCardDebug", "setMarkdown 호출 후 rtState: '${rtState.toMarkdown()}'")
 
-            val canonical = canonicalizeMarkdown(rtState.toMarkdown())
+                // ✅ 디버깅 3: 설정 후 RichTextState 상태 확인
+                debugRichTextState(rtState, "초기 설정 후")
+            }
+
+            val canonical = canonicalizeMarkdown(stripShimForServer(rtState.toMarkdown()))
             initialMarkdown = canonical
             currentMarkdown = canonical
 
+            // ✅ 디버깅 4: 전체 파이프라인 확인
+            debugFullPipeline(ready.summary, rtState, "초기화 완료")
             didInit = true
         }
     }
 
-
-    // 에디터 → 뷰모델 동기화 개선
-//    LaunchedEffect(rtState) {
-//        snapshotFlow {
-//            // 마크다운과 커서 위치를 함께 관찰
-//            Triple(
-//                sanitizeToAllowedMarkdown(rtState.toMarkdown()),
-//                rtState.selection,
-//                rtState.annotatedString.text
-//            )
-//        }
-//            .collectLatest { (md, selection, displayText) ->
-//                currentMarkdown = md
-//
-//                // VM 동기화 시 현재 커서 위치 로깅 (디버깅용)
-//                // Log.d("EditCard", "Cursor at: ${selection.end}, Display length: ${displayText.length}, MD length: ${md.length}")
-//
-//                if (!suppressVmSync) {
-//                    (uiState as? EditCardUiState.Ready)?.let {
-//                        if (it.summary != md) {
-//                            viewModel.updateSummary(md)
-//                        }
-//                    }
-//                }
-//            }
-//    }
-
     // 에디터 → 뷰모델 동기화 블록 교체
     LaunchedEffect(rtState) {
         snapshotFlow { rtState.toMarkdown() }
-            .map { raw -> canonicalizeMarkdown(raw) }
+            .map { raw -> canonicalizeMarkdown(stripShimForServer(raw)) }
             .distinctUntilChanged()                 // ← 추가
             .collectLatest { canon ->
                 currentMarkdown = canon
@@ -242,7 +245,6 @@ fun EditCardScreen(
                 }
             }
     }
-
 
     // 키보드 내려가면 AI 바 닫기
     LaunchedEffect(keyboardVisible) {
@@ -309,9 +311,16 @@ fun EditCardScreen(
                 },
                 actions = {
                     TextButton(onClick = {
-                        // 현재 수정 내용 뷰모델에 동기화
-                        val markdown = canonicalizeMarkdown(rtState.toMarkdown()) // ← 여기만 변경
+                        // ✅ 디버깅 6: 저장 전 상태 확인
+                        Log.d("EditCardDebug", "━━━ 저장 시작 ━━━")
+                        val beforeCanonical = rtState.toMarkdown()
+                        Log.d("EditCardDebug", "정규화 전: '${beforeCanonical}'")
+
+                        val markdown = canonicalizeMarkdown(stripShimForServer(beforeCanonical))
+                        Log.d("EditCardDebug", "정규화 후: '${markdown}'")
+                        debugMarkdownNormalization(beforeCanonical, "저장 시")
                         viewModel.updateSummary(markdown)
+
                         initialMarkdown = markdown
                         currentMarkdown = markdown
 
@@ -427,9 +436,8 @@ fun EditCardScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 20.dp)                // ← 좌우 여백 여기!
-                                    .onGloballyPositioned { editorBounds = it.boundsInParent() } // ← 패딩 포함한 영역을 에디터로 간주
-//                                    .bringIntoViewRequester(editorBringIntoView)
+                                    .padding(horizontal = 20.dp)                // 좌우 여백
+                                    .onGloballyPositioned { editorBounds = it.boundsInParent() } // 패딩 포함한 영역을 에디터로 간주
                             ) {
                                 RichTextEditor(
                                     state = rtState,
@@ -443,6 +451,12 @@ fun EditCardScreen(
                                         .heightIn(min = 220.dp)
                                         .focusRequester(editorFocusRequester)
                                         .bringIntoViewRequester(editorBringIntoView)
+                                        .onGloballyPositioned { coords ->
+                                            // ✅ 디버깅 5: 실제 렌더링 크기 확인
+                                            Log.d("EditCardDebug", "에디터 렌더링 크기: ${coords.size}")
+                                            Log.d("EditCardDebug", "에디터 표시 텍스트: '${rtState.annotatedString.text}'")
+                                            Log.d("EditCardDebug", "에디터 표시 길이: ${rtState.annotatedString.text.length}")
+                                        }
                                         .onFocusChanged { fs ->
                                             editorFocused = fs.isFocused
                                             if (fs.isFocused) {
@@ -543,10 +557,7 @@ fun EditCardScreen(
                     onValueChange = viewModel::onAiQueryChange,
                     onClose = { if (!aiLoading) viewModel.toggleAiBar(false) },
                     onSubmit = {
-//                        val md = sanitizeAndNormalizeForServer(rtState.toMarkdown())
-//                        viewModel.updateSummary(md)
-//                        viewModel.requestAiEdit()
-                        val md = canonicalizeMarkdown(rtState.toMarkdown())
+                        val md = canonicalizeMarkdown(stripShimForServer(rtState.toMarkdown()))
                         viewModel.updateSummary(md)
                         viewModel.requestAiEdit()
                     },
