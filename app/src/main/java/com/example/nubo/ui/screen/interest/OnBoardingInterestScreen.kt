@@ -1,5 +1,6 @@
 package com.example.nubo.ui.screen.interest
 
+import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -141,6 +142,12 @@ fun OnBoardingInterestScreen(
             }
         }
     ) { inner ->
+        BackHandler(enabled = true) {
+            // 아무 것도 하지 않음 (필요하면 스낵바 안내)
+            // scope.launch { snackbarHostState.showSnackbar("관심사 선택 완료 후 진행해주세요") }
+        }
+
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
