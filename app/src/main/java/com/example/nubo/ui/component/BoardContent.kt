@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -64,23 +65,70 @@ fun BoardContent(
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(bottom = 90.dp)
+        contentPadding = PaddingValues(top=3.dp,bottom = 110.dp)
     ) {
         items(boards.chunked(2)) { rowItems ->
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                rowItems.forEach { item ->
+                // --- 첫 번째 아이템 ---
+                // Column을 사용하고 weight(1f)를 주어 공간을 50% 차지
+                Column(modifier = Modifier.weight(1f)) {
+                    Box {
                     BoardCardWithText(
-                        board = item,
-                        onClick = { onBoardClick(item) }, // 클릭 이벤트
-                        onLongClick = { onBoardLongClick(item) }, // 롱클릭 이벤트 연결
+                        board = rowItems[0], // 첫 번째 아이템
+                        onClick = { onBoardClick(rowItems[0]) },
+                        onLongClick = { onBoardLongClick(rowItems[0]) },
                         onFavoriteClick = onFavoriteClick,
-                        // 파라미터 전달
                         isSelectionMode = isSelectionMode,
-                        isSelected = selectedBoardIds.contains(item.serverBoardId) // ID 비교
+                        // ID 비교
+                        isSelected = selectedBoardIds.contains(rowItems[0].serverBoardId)
                     )
+                        // AI 마크 아이콘을 밖에서 그림
+                        if (rowItems[0].source == "AI") {
+                            Icon(
+                                painter = painterResource(id = R.drawable.board_ai_mark),
+                                contentDescription = "AI 보드 마크",
+                                tint = Color.Unspecified,
+                                modifier = Modifier
+                                    .align(Alignment.TopStart) // 정렬 기준
+                                    .padding(start = 8.dp) // 좌측 여백
+                                    .offset(y = (-2).dp)  // <-- 여기! Y축으로 -3dp 이동
+                                    .size(32.dp)
+                            )
+                        }
+                    }
                 }
-                if (rowItems.size < 2) {
-                    Spacer(modifier = Modifier.width(182.dp))
+                // --- 두 번째 아이템 (또는 빈 공간) ---
+                if (rowItems.size > 1) {
+                    // 두 번째 아이템이 있으면, 동일하게 weight(1f)를 가진 Column에 배치
+                    Column(modifier = Modifier.weight(1f)) {
+                        Box {
+                        BoardCardWithText(
+                            board = rowItems[1], // 두 번째 아이템
+                            onClick = { onBoardClick(rowItems[1]) },
+                            onLongClick = { onBoardLongClick(rowItems[1]) },
+                            onFavoriteClick = onFavoriteClick,
+                            isSelectionMode = isSelectionMode,
+                            // ID 비교
+                            isSelected = selectedBoardIds.contains(rowItems[1].serverBoardId)
+                        )
+                            // AI 마크 아이콘을 밖에서 그림
+                            if (rowItems[1].source == "AI") {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.board_ai_mark),
+                                    contentDescription = "AI 보드 마크",
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier
+                                        .align(Alignment.TopStart)
+                                        .padding(start = 8.dp)
+                                        .offset(y = (-2).dp) // <-- 여기! Y축으로 -3dp 이동
+                                        .size(32.dp)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // 아이템이 하나뿐이면, 오른쪽 절반을 빈 Spacer로 채움
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -90,13 +138,13 @@ fun BoardContent(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BoardCardWithText(
-        board: BoardItem,
-        onClick: () -> Unit,
-        onFavoriteClick: (BoardItem) -> Unit,
-        // 보드 상세 화면 및 섹션 상세 화면 선택 관련 파라미터
-        isSelectionMode: Boolean,
-        isSelected: Boolean,
-        onLongClick: () -> Unit // 길게 클릭
+    board: BoardItem,
+    onClick: () -> Unit,
+    onFavoriteClick: (BoardItem) -> Unit,
+    // 보드 상세 화면 및 섹션 상세 화면 선택 관련 파라미터
+    isSelectionMode: Boolean,
+    isSelected: Boolean,
+    onLongClick: () -> Unit // 길게 클릭
 ) {
     Box(
         modifier = Modifier
@@ -150,18 +198,6 @@ fun BoardCardWithText(
                             modifier = Modifier.size(100.dp) // 로고 크기 조절
                         )
                     }
-                }
-                // board.source가 "ai"일 경우 좌측 상단에 아이콘 표시
-                if (board.source == "AI") {
-                    Icon(
-                        painter = painterResource(id = R.drawable.board_ai_mark),
-                        contentDescription = "AI 보드 마크",
-                        tint = Color.Unspecified, // 원본 드로어블 색상 사용
-                        modifier = Modifier
-                            .align(Alignment.TopStart) // 좌측 상단 정렬
-                            .padding(start = 8.dp) // 패딩
-                            .size(32.dp)
-                    )
                 }
             }
 
@@ -227,7 +263,7 @@ fun BoardCardWithText(
                 painter = painterResource(id = R.drawable.ic_board_selected), // 체크 아이콘
                 contentDescription = "선택됨",
                 tint = Color.Unspecified,
-                    modifier = Modifier
+                modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(bottom = 10.dp, end = 8.dp) // 패딩값 조정
             )
@@ -248,7 +284,7 @@ fun FullBoardCard(
             .clip(RoundedCornerShape(12.dp))
             .background(Color.White)
             .clickable { onClick() }
-            .padding(top=4.dp, start = 4.dp, end = 4.dp, bottom = 11.dp)
+            .padding(top = 4.dp, start = 4.dp, end = 4.dp, bottom = 11.dp)
     ) {
         Column(
             modifier = Modifier

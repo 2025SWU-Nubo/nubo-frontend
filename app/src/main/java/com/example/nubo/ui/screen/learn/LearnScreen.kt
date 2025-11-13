@@ -442,7 +442,7 @@ private fun BottomProgressCard(
     showBerry: Boolean,
     currentStep: Int,
     currentProgressFromServer: Float,
-    cardMinHeight: Dp = 137.dp,
+    cardMinHeight: Dp = 130.dp,
     levelUpText: String,
     onLevelUpAnimationDone: () -> Unit,
     onBerryAnimationDone: () -> Unit

@@ -54,20 +54,37 @@ fun BoardDetailContent(
         // [1] 보드(섹션) 2열 그리드
         items(boardItems.chunked(2)) { rowItems ->
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                rowItems.forEach { item ->
+                // --- 첫 번째 아이템 ---
+                // Column에 weight(1f)를 주어 50% 공간 차지
+                Column(modifier = Modifier.weight(1f)) {
                     BoardCardWithText(
-                        board = item,
-                        onClick = { onSectionClick(item) },
-                        onLongClick = { onSectionLongClick(item) },
+                        board = rowItems[0], // 첫 번째 아이템
+                        onClick = { onSectionClick(rowItems[0]) },
+                        onLongClick = { onSectionLongClick(rowItems[0]) },
                         onFavoriteClick = onFavoriteClick,
-                        // 선택 관련 파라미터 전달
                         isSelectionMode = isSelectionMode,
-                        isSelected = selectedSections.contains(item.id)
-
+                        // id로 선택 여부 확인
+                        isSelected = selectedSections.contains(rowItems[0].id)
                     )
                 }
-                if (rowItems.size < 2) {
-                    Spacer(modifier = Modifier.width(190.dp))
+
+                // --- 두 번째 아이템 (또는 빈 공간) ---
+                if (rowItems.size > 1) {
+                    // 두 번째 아이템이 있으면, 동일하게 weight(1f)로 50% 공간 차지
+                    Column(modifier = Modifier.weight(1f)) {
+                        BoardCardWithText(
+                            board = rowItems[1], // 두 번째 아이템
+                            onClick = { onSectionClick(rowItems[1]) },
+                            onLongClick = { onSectionLongClick(rowItems[1]) },
+                            onFavoriteClick = onFavoriteClick,
+                            isSelectionMode = isSelectionMode,
+                            // id로 선택 여부 확인
+                            isSelected = selectedSections.contains(rowItems[1].id)
+                        )
+                    }
+                } else {
+                    // 아이템이 하나뿐이면, 오른쪽 절반을 빈 Spacer로 채움
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
