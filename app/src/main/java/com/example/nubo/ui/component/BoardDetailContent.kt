@@ -53,7 +53,7 @@ fun BoardDetailContent(
     ) {
         // [1] 보드(섹션) 2열 그리드
         items(boardItems.chunked(2)) { rowItems ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 rowItems.forEach { item ->
                     BoardCardWithText(
                         board = item,

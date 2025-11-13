@@ -67,7 +67,7 @@ fun BoardContent(
         contentPadding = PaddingValues(bottom = 90.dp)
     ) {
         items(boards.chunked(2)) { rowItems ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 rowItems.forEach { item ->
                     BoardCardWithText(
                         board = item,
@@ -80,7 +80,7 @@ fun BoardContent(
                     )
                 }
                 if (rowItems.size < 2) {
-                    Spacer(modifier = Modifier.width(190.dp))
+                    Spacer(modifier = Modifier.width(182.dp))
                 }
             }
         }
@@ -100,7 +100,7 @@ fun BoardCardWithText(
 ) {
     Box(
         modifier = Modifier
-            .width(190.dp)
+            .width(182.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(Color.White)
             .combinedClickable( // 일반 클릭과 롱클릭을 함께 처리
