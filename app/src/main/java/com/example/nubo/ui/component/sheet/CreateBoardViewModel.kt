@@ -22,6 +22,11 @@ class CreateBoardViewModel @Inject constructor(
     private val _ui = MutableStateFlow(CreateBoardUiState())
     val ui: StateFlow<CreateBoardUiState>  = _ui.asStateFlow()
 
+    fun resetForNewBoard() {
+        // Reset all UI state to initial
+        _ui.value = CreateBoardUiState()
+    }
+
     fun onNameChange(text:String){
         _ui.update {it.copy(name = text, nameError = null)}
     }
@@ -125,7 +130,12 @@ class CreateBoardViewModel @Inject constructor(
 
 
     fun consumeCreated() {
-        _ui.update { it.copy(created = null, name = "", isShared = false) }
+        _ui.update { it.copy(
+            created = null,
+            name = "",
+            isShared = false,
+            invitedEmails = emptyList()
+        ) }
     }
 
 

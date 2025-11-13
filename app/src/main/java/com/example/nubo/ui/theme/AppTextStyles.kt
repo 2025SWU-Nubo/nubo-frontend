@@ -21,6 +21,7 @@ object AppTextStyles {
     val headline_regular_32 = style(32.sp, FontWeight.Normal)
     val headline_regular_28 = style(28.sp, FontWeight.Normal)
     val headline_bold_28 = style(28.sp, FontWeight.Bold)
+    val headline_bold_26 = style(26.sp, FontWeight.Bold)
     val headline_regular_26 = style(26.sp, FontWeight.Normal)
 
     // Title

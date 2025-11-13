@@ -327,7 +327,8 @@ fun MainScreen(
                         onHome = {
                             // 완료 후 홈으로 전환
                             navController.navigate("home") {
-                                popUpTo("home") { inclusive = true } // 백스택 정리
+                                popUpTo(navController.graph.id) { inclusive = true }
+//                                popUpTo("home") { inclusive = true } // 백스택 정리
                                 launchSingleTop = true
                             }
                         },

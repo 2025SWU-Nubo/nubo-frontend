@@ -63,7 +63,7 @@ class OnBoardingViewModel @Inject constructor(
 ) : AndroidViewModel(application) {
     companion object{
         // 무조건 newuser = true로 (테스트 버전)
-//        private const val FORCE_SHOW_INTEREST = true
+        private const val FORCE_SHOW_INTEREST = true
     }
 
     @SuppressLint("StaticFieldLeak")
@@ -426,7 +426,7 @@ class OnBoardingViewModel @Inject constructor(
         val realIsNewUser = _uiState.value.isNewUser
         val isNewUser = realIsNewUser
 
-        // 무조건 newuser = true로 (테스트 버전)
+        // 📍무조건 newuser = true로 (테스트 버전)
 //        val isNewUser = if (FORCE_SHOW_INTEREST) true else realIsNewUser
 
         // 이하 기존 로직 그대로
