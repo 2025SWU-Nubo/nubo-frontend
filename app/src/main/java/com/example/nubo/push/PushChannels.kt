@@ -141,7 +141,7 @@ object PushChannels {
         return NotificationChannel(
             CH_UPLOAD_PROGRESS,
             "카드 업로드 진행",
-            NotificationManager.IMPORTANCE_LOW  // LOW = 소리/진동 없이 조용히
+            NotificationManager.IMPORTANCE_HIGH
         ).apply {
             description = "영상 업로드 진행 상황을 표시합니다."
             enableVibration(false)
