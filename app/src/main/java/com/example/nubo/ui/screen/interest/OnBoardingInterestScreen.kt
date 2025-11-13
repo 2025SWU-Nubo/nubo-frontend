@@ -147,14 +147,17 @@ fun OnBoardingInterestScreen(
                 .padding(inner)
                 .padding(horizontal = 20.dp)
         ) {
-            Spacer(Modifier.height(50.dp))
-            Text("어떤 영상을 자주 보시나요?", style = AppTextStyles.headline_bold_28, modifier = Modifier.align(Alignment.CenterHorizontally))
+            Spacer(Modifier.height(30.dp))
+            Text("어떤 영상을 자주 보시나요?", style = AppTextStyles.headline_bold_26, modifier = Modifier.align(Alignment.CenterHorizontally),
+                textAlign = TextAlign.Center)
             Spacer(Modifier.height(8.dp))
             Text(
                 "선택한 관심사를 기반으로 추천 카드를 보여드려요.",
-                style = AppTextStyles.b1_semibold_18,
+                style = AppTextStyles.b2_semibold_16,
                 color = PurpleMain500,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                textAlign = TextAlign.Center
+
             )
             Spacer(Modifier.height(20.dp))
 
@@ -182,10 +185,12 @@ fun OnBoardingInterestScreen(
                     // 3열 원형 그리드 / 3-column circular grid
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
-                        contentPadding = PaddingValues(vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
                     ) {
 
                         items(state.boards, key = { it.boardId }) { item ->
@@ -214,13 +219,12 @@ fun OnBoardingInterestScreen(
                     }
                 }
             }
-
-            Spacer(Modifier.height(20.dp))
             Text(
                 "최대 5개까지 선택 가능  •  현재 ${selectedIds.size}개 선택",
                 style = AppTextStyles.label_medium_14,
                 color = GreyMain300,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -245,7 +249,7 @@ private fun InterestCircleChip(
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    val chipSize = 105.dp
+    val chipSize = 100.dp
 
     // 바깥 컨테이너는 clip 하지 않음(배지가 살짝 밖으로 나가도록)
     // Do not clip the outer box so the badge can protrude slightly

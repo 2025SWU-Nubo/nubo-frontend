@@ -80,7 +80,7 @@ fun InviteSheet (
     val selected by viewModel.selected.collectAsState()
     val selectedUsers by viewModel.selectedUsers.collectAsState()
 
-    // 🔹 resetSignal + initialSelected 처리
+    // resetSignal + initialSelected 처리
     LaunchedEffect(resetSignal, initialSelected) {
         // Clear only when signal changes
         viewModel.applyResetSignal(resetSignal)

@@ -42,7 +42,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -69,6 +68,7 @@ import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.PinkError
 import com.example.nubo.ui.theme.RedError
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.Alignment
 import com.example.nubo.domain.model.InviteUser
 
 
@@ -153,6 +153,25 @@ fun CreateBoardSheet(
                 style = AppTextStyles.b1_semibold_18,
                 color = MaterialTheme.colorScheme.onSurface
             )
+
+            //추가하기 버튼
+            Button(
+                modifier = Modifier.align(Alignment.CenterEnd).offset(x = 18.dp),
+                onClick = {
+                    touched = true
+                    if (localValid && !isLoading) {
+                        onSubmit(nameTrim)
+                    }},
+                enabled = localValid && !isLoading,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent,          // enabled 배경 투명
+                    disabledContainerColor = Color.Transparent,  // disabled 배경도 투명
+                    contentColor = PurpleMain500,                // enabled 텍스트 색
+                    disabledContentColor = GreyMain100               // disabled 텍스트 색
+                )
+                ) {
+                Text(text = "완료", style = AppTextStyles.b1_semibold_18)
+            }
         }
 
         Spacer(Modifier.height(28.dp))
@@ -317,21 +336,21 @@ fun CreateBoardSheet(
         }
 
         //추가하기 버튼
-        Button(modifier = Modifier.fillMaxWidth().height(50.dp),
-            onClick = {
-            touched = true
-            if (localValid && !isLoading) {
-                onSubmit(nameTrim)
-            }},
-            shape = RoundedCornerShape(8.dp),
-            enabled = localValid && !isLoading,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (localValid && !isLoading ) PurpleMain500 else Grey50
-            )) {
-            Text(text = "추가하기", style = AppTextStyles.b1_bold_18)
-        }
-
-        Spacer(Modifier.height(25.dp))
+//        Button(modifier = Modifier.fillMaxWidth().height(50.dp),
+//            onClick = {
+//            touched = true
+//            if (localValid && !isLoading) {
+//                onSubmit(nameTrim)
+//            }},
+//            shape = RoundedCornerShape(8.dp),
+//            enabled = localValid && !isLoading,
+//            colors = ButtonDefaults.buttonColors(
+//                containerColor = if (localValid && !isLoading ) PurpleMain500 else Grey50
+//            )) {
+//            Text(text = "추가하기", style = AppTextStyles.b1_bold_18)
+//        }
+//
+//        Spacer(Modifier.height(25.dp))
     }
 }
 

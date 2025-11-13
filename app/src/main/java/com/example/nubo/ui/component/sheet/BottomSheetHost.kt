@@ -2,9 +2,11 @@ package com.example.nubo.ui.component.sheet
 
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.SizeTransform
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -12,7 +14,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -42,6 +46,8 @@ fun BottomSheetHost(
     showToast: (String, AppToastType, Int,Int) -> Unit
 ) {
     if (route == null) return
+
+
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -75,12 +81,15 @@ fun BottomSheetHost(
 
     ModalBottomSheet(
         onDismissRequest = {
-            // Reset invited state when bottom sheet is fully dismissed
+            // 1) invited 상태 초기화
             inviteResetVersion++
             createBoardViewModel.setInvitedEmails(emptyList())
             invitedUserPreview = emptyList()
 
-            // Call external dismiss handler
+            // 2) board 생성 UI 전체 리셋
+            createBoardViewModel.resetForNewBoard()
+
+            // 3) 외부에 시트 닫힘 알리기 (route = null 등)
             onDismiss()
         },
         sheetState = sheetState,
@@ -89,6 +98,49 @@ fun BottomSheetHost(
         dragHandle = { BottomSheetDefaults.DragHandle() },
         modifier = modifier
     ) {
+        // Invite 시트일 때만 시스템 뒤로가기를 가로채서
+        // 바텀시트 dismiss 대신 "이전 시트로 이동" 처리
+        BackHandler(enabled = true) {
+            when (route) {
+                SheetRoute.Invite -> {
+                    // 참여자 초대 시트 -> 보드 만들기 시트로만 이동
+                    onBackToCreateBoard()
+                }
+
+                SheetRoute.CreateBoard -> {
+                    // 보드 만들기 시트 -> 추가 생성하기 시트로 이동
+                    // (공유 보드였다면 선택한 참여자도 초기화)
+                    if (ui.isShared) {
+                        inviteResetVersion++
+                        createBoardViewModel.setInvitedEmails(emptyList())
+                        invitedUserPreview = emptyList()
+                    }
+                    onBackToAddMenu()
+                }
+
+                SheetRoute.AddMenu -> {
+                    // 추가 생성하기 시트에서 뒤로가기 -> 바텀시트 닫기
+                    inviteResetVersion++
+                    createBoardViewModel.setInvitedEmails(emptyList())
+                    invitedUserPreview = emptyList()
+                    onDismiss()
+                }
+
+                SheetRoute.AddVideo -> {
+                    // 영상 추가 시트가 있다면:
+                    // 원하면 AddMenu로만 돌아가도 되고, 바로 닫아도 됨
+                    onBackToAddMenu()
+                }
+
+                null -> {
+                    // 안전장치: route가 null이면 그냥 닫기
+                    inviteResetVersion++
+                    createBoardViewModel.setInvitedEmails(emptyList())
+                    invitedUserPreview = emptyList()
+                    onDismiss()
+                }
+            }
+        }
 
         LaunchedEffect(route, pendingToastMessage) {
             if (route == SheetRoute.CreateBoard && pendingToastMessage != null) {
@@ -105,14 +157,24 @@ fun BottomSheetHost(
             targetState = route,
             transitionSpec = {
                 if (isForwardFrom(initialState, targetState)) {
-                    // 앞으로 이동
-                    slideInHorizontally(tween(300)) { fullWidth -> fullWidth } togetherWith
-                        slideOutHorizontally(tween(300)) { fullWidth -> -fullWidth }
+                    // forward: 아래에서 위로 등장, 기존 것은 위로 사라짐
+                    slideInVertically(
+                        animationSpec = tween(200)
+                    ) { fullHeight -> fullHeight } togetherWith
+                        slideOutVertically(
+                            animationSpec = tween(200)
+                        ) { fullHeight -> -fullHeight }
                 } else {
-                    // 뒤로 이동
-                    slideInHorizontally(tween(300)) { fullWidth -> -fullWidth } togetherWith
-                        slideOutHorizontally(tween(300)) { fullWidth -> fullWidth }
-                }
+                    // backward: 위에서 아래로 등장, 기존 것은 아래로 사라짐
+                    slideInVertically(
+                        animationSpec = tween(280)
+                    ) { fullHeight -> -fullHeight } togetherWith
+                        slideOutVertically(
+                            animationSpec = tween(280)
+                        ) { fullHeight -> fullHeight }
+                }.using(
+                    SizeTransform(clip = false) // avoid clipping during animation
+                )
             },
             label = "BottomSheetSwitch"
         ) { target ->
