@@ -51,6 +51,9 @@ import com.example.components.toast.AppToastType
 import com.example.nubo.ui.screen.cardupload.CardUploadViewModel
 import com.example.nubo.ui.theme.AppTextStyles.b2_bold_16
 import com.example.nubo.ui.theme.GreyMain100
+import androidx.compose.ui.platform.LocalContext
+import com.example.nubo.data.service.CardUploadService
+
 
 
 @Composable
@@ -60,6 +63,8 @@ fun AddVideoSheet(
     cardUploadViewModel: CardUploadViewModel = hiltViewModel(), // 업로드 재사용 (이미 존재) :contentReference[oaicite:5]{index=5}
     showToast: (String, AppToastType, Int) -> Unit = { _, _, _ -> }
 ) {
+
+
     // 페이지/입력/선택 상태 (네 코드 그대로)
     var page by remember { mutableStateOf(SheetPage.SAVE_VIDEO) }
     var input by rememberSaveable { mutableStateOf("") }
@@ -371,39 +376,33 @@ fun AddVideoSheet(
                         //추가하기 버튼
                         Button(
                             onClick = {
-                                // 업로드할 URL 결정: 검증 성공 시 저장된 URL 우선, 없으면 입력값 사용
+                                // 1) URL 결정
                                 val urlToUpload = viewModel.rememberedUrl ?: input.trim()
 
-                                // 체크된 보드/섹션 ID들을 Long 리스트로 변환 (섹션도 보드로 취급)
+                                // 2) 선택된 보드/섹션 ID 리스트
                                 val selectedIds: List<Long> = checkedIds
                                     .mapNotNull { it.toLongOrNull() }
                                     .distinct()
 
+                                // 3) 토큰
                                 val rawToken = viewModel.getAccessTokenOrNull()
                                 if (rawToken.isNullOrEmpty()) {
                                     showToast("로그인이 필요해요", AppToastType.NEGATIVE, 2000)
                                     return@Button
                                 }
 
-//                                showToast("카드 생성 중이에요", AppToastType.NORMAL, 1200)
-
-                                // 액세스 토큰 확보 (없으면 업로드 불가하므로 안내 후 반환)
-//                                val token = viewModel.getAccessTokenOrNull()
-//                                if (token.isNullOrEmpty()) {
-//                                    // 토큰 없으면 시트는 닫지 않고 안내만 (필요시 정책 변경)
-//                                    boardToastVisible = false
-//                                    networkErrorToastVisible = true
-//                                    return@Button
-//                                }
-
-                                // 업로드 트리거: 네트워크 호출은 비동기로 진행 → UI와 독립
-                                cardUploadViewModel.uploadCard(
-                                    token = rawToken,                      // 저장형태(이미 "Bearer ..."면 그대로)
+                                // ✅ 포그라운드 서비스 시작 → "카드 생성 중" 알림 표시
+                                CardUploadService.startService(
+                                    context = context,
+                                    accessToken = rawToken,
                                     videoUrl = urlToUpload,
-                                    boardIds = selectedIds.ifEmpty { null }   // 비었으면 null → AI 자동 분류
+                                    boardId = selectedIds.firstOrNull()   // 서버가 단일 보드만 받는다면
                                 )
 
-                                // 즉시 시트 초기화 + 닫기 (업로드는 백그라운드에서 계속됨)
+                                // 기존 viewModel 업로드 호출은 중복이니까 제거해도 됨
+                                // cardUploadViewModel.uploadCard(...) ← 이거는 빼는 쪽 추천
+
+                                // UI 상태 초기화 + 시트 닫기
                                 page = SheetPage.SAVE_VIDEO
                                 input = ""
                                 checkedIds = emptySet()
@@ -411,7 +410,7 @@ fun AddVideoSheet(
                                 boardToastVisible = false
                                 toastVisible = false
                                 networkErrorToastVisible = false
-                                viewModel.resetForNewSession()  // VM 상태도 초기화
+                                viewModel.resetForNewSession()
                                 onClose()
                             },
                             modifier = Modifier
