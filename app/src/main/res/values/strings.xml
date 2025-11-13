@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">nubo</string>
+    <string name="app_name">Nubo</string>
     <string name="title_activity_login">LoginActivity</string>
     <string name="default_notification_channel_id">default_channel</string>
 
