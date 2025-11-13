@@ -21,6 +21,7 @@ import com.example.components.toast.AppToastLayout
 import com.example.components.toast.AppToastOverlay
 import com.example.components.toast.AppToastType
 import com.example.components.toast.rememberAppToastHostState
+import com.example.nubo.domain.model.InviteUser
 import kotlinx.coroutines.launch
 
 
@@ -45,8 +46,11 @@ fun BottomSheetHost(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // 참여자 초대 상대 관리
-    var invitedEmails by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
+//    var invitedEmails by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var inviteResetVersion by remember { mutableStateOf(0) }
+
+    // 참여자 프리뷰 정보 (닉네임, 프로필 이미지)
+    var invitedUserPreview by remember { mutableStateOf<List<InviteUser>>(emptyList()) }
 
     val createBoardViewModel: CreateBoardViewModel = hiltViewModel()
     val ui by createBoardViewModel.ui.collectAsState() // CreateBoardUiState(name, isShared, isLoading, nameError, created)
@@ -70,7 +74,15 @@ fun BottomSheetHost(
     }
 
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            // Reset invited state when bottom sheet is fully dismissed
+            inviteResetVersion++
+            createBoardViewModel.setInvitedEmails(emptyList())
+            invitedUserPreview = emptyList()
+
+            // Call external dismiss handler
+            onDismiss()
+        },
         sheetState = sheetState,
         containerColor = Color.White,
         contentColor = MaterialTheme.colorScheme.onSurface,
@@ -114,7 +126,7 @@ fun BottomSheetHost(
                     onClose = onDismiss,
                     onBack = {
                         if (ui.isShared) {
-                            invitedEmails = emptyList()
+//                            ui.invitedEmails = emptyList()
                             inviteResetVersion++
                             createBoardViewModel.setInvitedEmails(emptyList())
                         }
@@ -124,10 +136,12 @@ fun BottomSheetHost(
                     onCreate = {_,_ ->},
                     name = ui.name,
                     isShared = ui.isShared,
+                    invitedEmails = ui.invitedEmails,
+                    invitedUsers = invitedUserPreview,
                     onNameChange = createBoardViewModel::onNameChange,
                     onSharedChange = { shared ->
                         if (ui.isShared && !shared) {
-                            invitedEmails = emptyList()
+//                            invitedEmails = emptyList()
                             inviteResetVersion++
                             createBoardViewModel.setInvitedEmails(emptyList())
                         }
@@ -144,8 +158,10 @@ fun BottomSheetHost(
                     onBack = onBackToCreateBoard,
                     onInvite = onInvite,
                     resetSignal = inviteResetVersion,
-                    onComplete = { emails ->
-                        invitedEmails = emails
+                    initialSelected = ui.invitedEmails,
+                    onComplete = { emails, users ->
+//                        invitedEmails = emails
+                        invitedUserPreview = users
                         // 1) 부모에 초대 이메일 전달(서버 전송은 부모/VM에서 처리 권장)
                         createBoardViewModel.setInvitedEmails(emails)
                         onInviteComplete(emails)

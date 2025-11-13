@@ -59,6 +59,7 @@ import com.example.nubo.ui.theme.Grey200
 import androidx.compose.material3.Button
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import com.example.nubo.domain.model.InviteUser
 import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.Purple700
@@ -68,23 +69,29 @@ fun InviteSheet (
     onClose: () -> Unit,
     onBack:()-> Unit,
     onInvite: (String) -> Unit,
-    onComplete: (List<String>) -> Unit,
-    resetSignal: Int = 0
+    onComplete: (List<String>, List<InviteUser>) -> Unit,
+    resetSignal: Int = 0,
+    initialSelected: List<String> = emptyList()
 ){
     val viewModel: InviteViewModel = hiltViewModel()
 
     val query by viewModel.query.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val selected by viewModel.selected.collectAsState()
+    val selectedUsers by viewModel.selectedUsers.collectAsState()
 
+    // 🔹 resetSignal + initialSelected 처리
+    LaunchedEffect(resetSignal, initialSelected) {
+        // Clear only when signal changes
+        viewModel.applyResetSignal(resetSignal)
 
-    LaunchedEffect(resetSignal) {
-        viewModel.clearSelection()
-        viewModel.clearQuery() // 검색어 삭제
+        // After reset, restore already invited emails from parent if any
+        if (initialSelected.isNotEmpty()) {
+            viewModel.setSelection(initialSelected)
+        }
     }
 
     val hasSelection = selected.isNotEmpty()
-    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -164,7 +171,19 @@ fun InviteSheet (
         ) {
             when(val s = uiState){
                 InviteUiState.Idle -> {
-                    EmptyHint("검색된 사용자는 이곳에 표시됩니다.")
+                    if (selectedUsers.isNotEmpty()) {
+                        Column {
+                            Text(text = "현재까지 초대 요청한 사용자", style = AppTextStyles.label_medium_12, color = Grey200)
+                            Spacer(Modifier.height(6.dp))
+                            InvitedList(
+                                users = selectedUsers,
+                                selectedEmails = selected,
+                                onToggle = { user -> viewModel.toggleSelect(user) }
+                            )
+                        }
+                    } else {
+                        EmptyHint("검색된 사용자는 이곳에 표시됩니다.")
+                    }
                 }
                 InviteUiState.Loading -> {
                     Box(
@@ -205,7 +224,7 @@ fun InviteSheet (
                                 UserRow(
                                     user = user,
                                     invited = user.email in selected,
-                                    onInviteToggle = { viewModel.toggleSelect(user.email) }
+                                    onInviteToggle = { viewModel.toggleSelect(user) }
                                 )
                             }
                             item { Spacer(Modifier.height(8.dp)) }
@@ -220,7 +239,12 @@ fun InviteSheet (
             onClick ={
                 val count = selected.size
                 if (count > 0) {
-                    onComplete(selected.toList())
+                    // 이메일 리스트
+                    val emails = selected.toList()
+                    // 전체 유저 정보 (프리뷰용)
+                    val users = selectedUsers // viewModel.selectedUsers.collectAsState() 로 받아온 값
+
+                    onComplete(emails, users)
                 }
         } ,
             shape = RoundedCornerShape(8.dp),
@@ -309,6 +333,81 @@ private fun UserRow(
             modifier = Modifier.height(32.dp)
         ) {
             Text(if (invited) "초대됨" else "초대")
+        }
+    }
+}
+
+@Composable
+private fun InvitedList(
+    users: List<InviteUser>,
+    selectedEmails: Set<String>,
+    onToggle: (InviteUser) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(users, key = { it.id }) { user ->
+            UserRow(
+                user = user,
+                invited = user.email in selectedEmails,
+                onInviteToggle = { onToggle(user) }
+            )
+        }
+        item { Spacer(Modifier.height(8.dp)) }
+    }
+}
+
+@Composable
+private fun InvitedEmailRow(
+    email: String,
+    onToggle: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Avatar circle with first letter
+        val initial = email.firstOrNull()?.uppercaseChar()?.toString() ?: ""
+
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFE8E7FF)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = initial,
+                fontSize = 12.sp
+            )
+        }
+
+        Spacer(Modifier.width(12.dp))
+
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = email,
+                style = AppTextStyles.b3_medium_14,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        OutlinedButton(
+            onClick = onToggle,
+            shape = RoundedCornerShape(15.dp),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 5.dp),
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = PurpleMain500,
+                contentColor = Color.White
+            ),
+            border = null,
+            modifier = Modifier.height(32.dp)
+        ) {
+            Text("초대됨")
         }
     }
 }

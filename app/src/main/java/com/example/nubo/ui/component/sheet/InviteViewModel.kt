@@ -3,6 +3,7 @@ package com.example.nubo.ui.component.sheet
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.nubo.domain.model.InviteUser
 import com.example.nubo.domain.repository.InviteRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -28,6 +29,8 @@ class InviteViewModel @Inject constructor(
     private val repo: InviteRepository
 ) : ViewModel(){
 
+    private var lastResetSignal: Int = -1
+
     // 검색어 상태
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
@@ -35,6 +38,11 @@ class InviteViewModel @Inject constructor(
     // 선택된 사용자
     private val _selected = MutableStateFlow<Set<String>>(emptySet())
     val selected: StateFlow<Set<String>> = _selected.asStateFlow()
+
+    // 선택된 사용자 전체 정보 (썸네일, 닉네임 포함)
+    private val _selectedUsers = MutableStateFlow<List<InviteUser>>(emptyList())
+    val selectedUsers: StateFlow<List<InviteUser>> = _selectedUsers.asStateFlow()
+
 
     // 선택 여부 플래그
     val hasSelection: StateFlow<Boolean> =
@@ -84,20 +92,44 @@ class InviteViewModel @Inject constructor(
     }
 
     // 선택 토글
-    fun toggleSelect(email: String) {
-        _selected.update { set ->
-            if (email in set) set - email else set + email
+    fun toggleSelect(user: InviteUser) {
+        _selected.update { current ->
+            val isSelected = user.email in current
+            val newSet =
+                if (isSelected) current - user.email else current + user.email
+
+            _selectedUsers.update { list ->
+                if (user.email in newSet) {
+                    // Add or update this user in the selected list
+                    val without = list.filterNot { it.email == user.email }
+                    without + user
+                } else {
+                    // Remove this user from the selected list
+                    list.filterNot { it.email == user.email }
+                }
+            }
+
+            newSet
         }
     }
 
     // 선택 초기화
     fun clearSelection() {
         _selected.value = emptySet()
+        _selectedUsers.value = emptyList()
     }
 
     //검색화 초기화
     fun clearQuery() {
         _query.value = ""
+    }
+
+    fun applyResetSignal(signal:Int){
+        if(signal != lastResetSignal){
+            lastResetSignal = signal
+            clearSelection()
+            clearQuery()
+        }
     }
 
 
@@ -137,5 +169,7 @@ class InviteViewModel @Inject constructor(
             }
         }
     }
+
+
 
 }

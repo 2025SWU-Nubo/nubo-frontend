@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -42,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.painterResource
@@ -60,10 +63,13 @@ import com.example.nubo.ui.theme.Purple700
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.PinkError
 import com.example.nubo.ui.theme.RedError
+import androidx.compose.foundation.lazy.items
+import com.example.nubo.domain.model.InviteUser
 
 
 @Composable
@@ -74,6 +80,8 @@ fun CreateBoardSheet(
     onCreate: (name : String, inShared: Boolean) -> Unit,
     name: String,
     isShared: Boolean,
+    invitedEmails: List<String>,
+    invitedUsers: List<InviteUser>,
     onNameChange: (String) -> Unit,
     onSharedChange: (Boolean) -> Unit,
     isLoading: Boolean,
@@ -126,7 +134,7 @@ fun CreateBoardSheet(
             IconButton(
                 onClick = {
                     onNameChange(nameValue.text)
-                    onBack },
+                    onBack() },
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .offset(x = (-18).dp)
@@ -263,6 +271,8 @@ fun CreateBoardSheet(
                 animationSpec = tween(durationMillis = 300) // shrink 속도 0.3초
             )
         ) {
+
+
             //참여자 초대(공유 보드 클릭 시,)
             Column(
                 modifier = Modifier
@@ -288,6 +298,19 @@ fun CreateBoardSheet(
 
                 Spacer(Modifier.height(5.dp))
                 Text("이후 생성한 보드에서 참여자를 추가할 수 있습니다.",  style = AppTextStyles.b3_regular_14, color =Grey500)
+
+
+                if(invitedUsers.isNotEmpty()){
+                    Spacer(Modifier.height(12.dp))
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(invitedUsers, key = { it.id }) { user ->
+                            InvitePreviewChip(user = user)
+                        }
+                    }
+                }
                 Spacer(Modifier.height(16.dp))
 
             }
@@ -355,6 +378,74 @@ private fun SegButton(
         Text(
             text = text,
             style = AppTextStyles.b3_medium_14
+        )
+    }
+}
+
+@Composable
+private fun InviteChip(email: String) {
+    // First letter as avatar initial
+    val initial = email.firstOrNull()?.uppercaseChar()?.toString() ?: ""
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(Purple50),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = initial,
+                style = AppTextStyles.b3_medium_14,
+                color = Purple700
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = email,
+            style = AppTextStyles.label_medium_12,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            color = Grey500
+        )
+    }
+}
+
+@Composable
+private fun InvitePreviewChip(user: InviteUser) {
+    // use first character of nickname as fallback
+    val initial = user.nickname.firstOrNull()?.uppercaseChar()?.toString()
+        ?: user.email.firstOrNull()?.uppercaseChar()?.toString()
+        ?: ""
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(Purple50),
+            contentAlignment = Alignment.Center
+        ) {
+            // TODO: If you want real thumbnail
+            // you can replace this Text with AsyncImage(user.profileImageUrl)
+            Text(
+                text = initial,
+                style = AppTextStyles.b3_medium_14,
+                color = Purple700
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = user.nickname,
+            style = AppTextStyles.label_medium_12,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            color = Grey500
         )
     }
 }
