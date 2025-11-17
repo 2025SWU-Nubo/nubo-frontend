@@ -391,13 +391,16 @@ fun AddVideoSheet(
                                     return@Button
                                 }
 
-                                // ✅ 포그라운드 서비스 시작 → "카드 생성 중" 알림 표시
+                                // 포그라운드 서비스 시작 → "카드 생성 중" 알림 표시
                                 CardUploadService.startService(
                                     context = context,
                                     accessToken = rawToken,
                                     videoUrl = urlToUpload,
                                     boardId = selectedIds.firstOrNull()   // 서버가 단일 보드만 받는다면
                                 )
+
+                                // 카드 생성 시작 토스트
+                                showToast("카드를 생성 중이에요", AppToastType.UPLOAD, 3000)
 
                                 // 기존 viewModel 업로드 호출은 중복이니까 제거해도 됨
                                 // cardUploadViewModel.uploadCard(...) ← 이거는 빼는 쪽 추천

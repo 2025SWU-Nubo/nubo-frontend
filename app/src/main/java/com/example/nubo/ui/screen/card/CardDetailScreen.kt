@@ -65,10 +65,9 @@ import com.halilibo.richtext.ui.material3.RichText
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
-import com.example.components.toast.AppToastHost
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.AppToastType
-import com.example.components.toast.rememberAppToastHostState
+import com.example.components.toast.LocalAppToastHostState
 import com.example.nubo.model.card.CardDetailItem
 import com.example.nubo.ui.component.InfoBubble
 import com.example.nubo.ui.theme.Grey30
@@ -103,7 +102,10 @@ fun CardDetailScreen(
 
     val context = LocalContext.current
     val scrollState = rememberScrollState()
-    val toastHost = rememberAppToastHostState()
+
+    // 전역 토스트 호스트 가져오기
+    val toastHost = LocalAppToastHostState.current
+
     val bottomSafe = rememberImeOrNavBottomPadding(extra = 24.dp) // 토스트 + 여유
     val scope = rememberCoroutineScope()
 
@@ -136,7 +138,7 @@ fun CardDetailScreen(
                 summary = msgPair.second,   // 요약 전달
                 layout = AppToastLayout.TitleWithSummary, // 2줄 레이아웃 사용
                 type = AppToastType.POSITIVE,
-                durationMillis = 3000
+                durationMillis = 2000
             )
             onConsumeToast2()
         }
@@ -154,16 +156,19 @@ fun CardDetailScreen(
                 onToggleFavorite = {
                     val willBeFavorite = !item.isFavorite
 
+                    // 1) 먼저 즐겨찾기 상태 토글 (ViewModel.toggleFavorite)
+                    onToggleFavorite()
+
+                    // 2) 토스트는 별도 코루틴에서 실행 (UI 즉시 반영)
                     scope.launch {
                         toastHost.show(
                             title = AnnotatedString(
-                                if(willBeFavorite) "즐겨찾기에 추가했어요!" else "즐겨찾기를 해제했어요!"
+                                if (willBeFavorite) "즐겨찾기에 추가했어요!" else "즐겨찾기를 해제했어요!"
                             ),
                             layout = AppToastLayout.TitleOnly,
                             type = AppToastType.FAVORITE,
-                            durationMillis = 800
+                            durationMillis = 1200
                         )
-                        onToggleFavorite()
                     }
                 }
             )
@@ -216,13 +221,6 @@ fun CardDetailScreen(
 
                 Spacer(Modifier.height(bottomSafe))
             }
-            // 토스트  아래 중앙 오버레이
-            AppToastHost(
-                hostState = toastHost,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = finalBottomPadding)
-            )
         }
     }
 }

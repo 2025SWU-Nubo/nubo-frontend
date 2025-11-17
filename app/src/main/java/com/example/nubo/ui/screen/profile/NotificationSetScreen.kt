@@ -24,6 +24,7 @@ import androidx.navigation.NavController
 import com.example.components.toast.AppToastHost
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.AppToastType
+import com.example.components.toast.LocalAppToastHostState
 import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
@@ -90,7 +91,8 @@ fun NotificationSetScreen(
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
 
-    val toastHost = rememberAppToastHostState()
+    // 전역 CompositionLocal 에서 토스트 호스트 가져오기
+    val toastHost = LocalAppToastHostState.current
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { ev ->
@@ -222,13 +224,6 @@ fun NotificationSetScreen(
                     )
                 }
             }
-
-            AppToastHost(
-                hostState = toastHost,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = rememberImeOrNavBottomPadding(extra = 24.dp))
-            )
         }
 
     }
