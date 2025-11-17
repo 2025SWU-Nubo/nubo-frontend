@@ -43,6 +43,7 @@ object AppTextStyles {
 
     // Body B2 (16)
     val b2_bold_16 = style(16.sp, FontWeight.Bold)
+    val b2_bold_15 = style(16.sp, FontWeight.Bold)
     val b2_semibold_16 = style(16.sp, FontWeight.SemiBold)
     val b2_medium_16 = style(16.sp, FontWeight.Medium)
     val b2_regular_16 = style(16.sp, FontWeight.Normal)

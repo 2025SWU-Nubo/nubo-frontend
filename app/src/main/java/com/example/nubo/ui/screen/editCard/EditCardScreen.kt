@@ -48,6 +48,7 @@ import com.mohamedrejeb.richeditor.ui.material3.RichTextEditor
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -67,7 +68,6 @@ import com.example.nubo.utils.debugMarkdownNormalization
 import com.example.nubo.utils.debugNewLines
 import com.example.nubo.utils.debugRichTextState
 import com.example.nubo.utils.demoteNestedOrderedToBullets
-import com.example.nubo.utils.sanitizeToAllowedMarkdown
 import com.mohamedrejeb.richeditor.ui.material3.RichTextEditorDefaults
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -99,13 +99,11 @@ fun EditCardScreen(
     val uiEventFlow = viewModel.uiEvent
 
     val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
 
-    val scope = rememberCoroutineScope() // + NEW: for bringIntoView()
-
-    // + NEW: bring-into-view requester for the editor
+    val scope = rememberCoroutineScope()
     val editorBringIntoView = remember { BringIntoViewRequester() }
 
-    // 상태 먼저
     var initialMarkdown by rememberSaveable { mutableStateOf("") }
     var currentMarkdown by rememberSaveable { mutableStateOf("") }
     var suppressVmSync by remember { mutableStateOf(false) }
@@ -133,11 +131,14 @@ fun EditCardScreen(
 
                     suppressVmSync = false
                 }
+                is EditCardUiEvent.HideKeyboard -> {
+                    // 포커스 해제 + 키보드 닫기
+                    focusManager.clearFocus(force = true)
+                    keyboardController?.hide()
+                }
             }
         }
     }
-
-
 
     // 포커스/경계
     var editorFocused by remember { mutableStateOf(false) }
@@ -184,7 +185,7 @@ fun EditCardScreen(
 
     var didInit by rememberSaveable { mutableStateOf(false) }
 
-// 서버에서 받아온 "초기 요약 마크다운"을 저장해두어 변경 여부 판단
+    // 서버에서 받아온 "초기 요약 마크다운"을 저장해두어 변경 여부 판단
     val hasUnsavedChangesState = remember {
         derivedStateOf { currentMarkdown != initialMarkdown }
     }
@@ -194,7 +195,7 @@ fun EditCardScreen(
 
     LaunchedEffect(uiState, didInit) {
         val ready = uiState as? EditCardUiState.Ready ?: return@LaunchedEffect
-        // ✅ 디버깅 1: 서버에서 받은 원본 확인
+        // 디버깅 1: 서버에서 받은 원본 확인
         Log.d("EditCardDebug", "━━━ 서버 데이터 수신 ━━━")
         Log.d("EditCardDebug", "원본 summary: '${ready.summary}'")
         Log.d("EditCardDebug", "원본 길이: ${ready.summary.length}")
@@ -204,7 +205,7 @@ fun EditCardScreen(
         val noNestedOrder = demoteNestedOrderedToBullets(target)
         val safeForEditor = shimListBoldBug(target)
 
-        // ✅ 디버깅 2: 정규화 후 확인
+        // 디버깅 2: 정규화 후 확인
         Log.d("EditCardDebug", "정규화 후: '${target}'")
         Log.d("EditCardDebug", "정규화 후 길이: ${target.length}")
         debugMarkdownNormalization(ready.summary, "초기 로드")
@@ -215,7 +216,7 @@ fun EditCardScreen(
                 rtState.setMarkdown(safeForEditor)
                 Log.d("EditCardDebug", "setMarkdown 호출 후 rtState: '${rtState.toMarkdown()}'")
 
-                // ✅ 디버깅 3: 설정 후 RichTextState 상태 확인
+                // 디버깅 3: 설정 후 RichTextState 상태 확인
                 debugRichTextState(rtState, "초기 설정 후")
             }
 
@@ -223,7 +224,7 @@ fun EditCardScreen(
             initialMarkdown = canonical
             currentMarkdown = canonical
 
-            // ✅ 디버깅 4: 전체 파이프라인 확인
+            // 디버깅 4: 전체 파이프라인 확인
             debugFullPipeline(ready.summary, rtState, "초기화 완료")
             didInit = true
         }
@@ -233,7 +234,7 @@ fun EditCardScreen(
     LaunchedEffect(rtState) {
         snapshotFlow { rtState.toMarkdown() }
             .map { raw -> canonicalizeMarkdown(stripShimForServer(raw)) }
-            .distinctUntilChanged()                 // ← 추가
+            .distinctUntilChanged()
             .collectLatest { canon ->
                 currentMarkdown = canon
                 if (!suppressVmSync) {
@@ -311,7 +312,7 @@ fun EditCardScreen(
                 },
                 actions = {
                     TextButton(onClick = {
-                        // ✅ 디버깅 6: 저장 전 상태 확인
+                        // 디버깅 6: 저장 전 상태 확인
                         Log.d("EditCardDebug", "━━━ 저장 시작 ━━━")
                         val beforeCanonical = rtState.toMarkdown()
                         Log.d("EditCardDebug", "정규화 전: '${beforeCanonical}'")
@@ -452,7 +453,7 @@ fun EditCardScreen(
                                         .focusRequester(editorFocusRequester)
                                         .bringIntoViewRequester(editorBringIntoView)
                                         .onGloballyPositioned { coords ->
-                                            // ✅ 디버깅 5: 실제 렌더링 크기 확인
+                                            // 디버깅 5: 실제 렌더링 크기 확인
                                             Log.d("EditCardDebug", "에디터 렌더링 크기: ${coords.size}")
                                             Log.d("EditCardDebug", "에디터 표시 텍스트: '${rtState.annotatedString.text}'")
                                             Log.d("EditCardDebug", "에디터 표시 길이: ${rtState.annotatedString.text.length}")
@@ -462,9 +463,8 @@ fun EditCardScreen(
                                             if (fs.isFocused) {
                                                 // AI 바는 닫고, 에디터가 보이도록 스크롤
                                                 viewModel.toggleAiBar(false)
-                                                // English: Scroll the editor into view on focus
                                                 scope.launch {
-                                                    withFrameNanos { /* wait one frame for IME insets */ }
+                                                    withFrameNanos { }
                                                     editorBringIntoView.bringIntoView()
                                                 }
                                             }
@@ -531,7 +531,6 @@ fun EditCardScreen(
                 )
             }
 
-            // 키보드를 내리면 ai 프롬 프트 바가 보이지 않도록 추가
             // ── AI 프롬프트 바: FAB로 열릴 때만 ──
             AnimatedVisibility(
                 visible = showAiBar,
@@ -574,15 +573,15 @@ fun EditCardScreen(
 
 @Composable
 fun rememberKeyboardVisible(): State<Boolean> {
-    // 한글 주석: 키보드(IME) 영역의 하단값을 픽셀로 가져오기 위해 Density 필요
+    // 키보드(IME) 영역의 하단값을 픽셀로 가져오기 위해 Density 필요
     val density = LocalDensity.current
-    // 한글 주석: Compose에서 제공하는 IME 인셋
+    // Compose에서 제공하는 IME 인셋
     val ime = WindowInsets.ime
 
-    // 한글 주석: 외부에서 관찰 가능한 가시성 상태
+    // 외부에서 관찰 가능한 가시성 상태
     val isVisible = remember { mutableStateOf(false) }
 
-    // 한글 주석: 인셋 하단값이 0 초과이면 키보드가 올라온 상태로 판단
+    // 인셋 하단값이 0 초과이면 키보드가 올라온 상태로 판단
     LaunchedEffect(ime, density) {
         snapshotFlow { ime.getBottom(density) > 0 }
             .collect { visible -> isVisible.value = visible }

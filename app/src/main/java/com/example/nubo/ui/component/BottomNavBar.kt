@@ -126,10 +126,10 @@ fun BottomNavBar(
                         painter = painterResource(
                             id = if (selectedIndex == 3) R.drawable.nav_learn_selected else R.drawable.nav_learn_unselected
                         ),
-                        contentDescription = "대시보드"
+                        contentDescription = "성장보드"
                     )
                 },
-                label = { Text("대시보드", style = if(selectedIndex==3)AppTextStyles.label_semibold_14 else AppTextStyles.label_medium_14) },
+                label = { Text("성장보드", style = if(selectedIndex==3)AppTextStyles.label_semibold_14 else AppTextStyles.label_medium_14) },
                 selected = selectedIndex == 3,
                 onClick = { onItemSelected(3) },
                 colors = NavigationBarItemDefaults.colors(

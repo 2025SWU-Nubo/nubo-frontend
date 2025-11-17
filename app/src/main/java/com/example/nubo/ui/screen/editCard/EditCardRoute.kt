@@ -24,9 +24,6 @@ fun EditCardRoute(
     viewModel: EditCardViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-//    val navController = rememberNavController()
-//    val state = viewModel.uiState.collectAsStateWithLifecycle().value
-//    val snackbarHostState = remember { SnackbarHostState() }
 
     when (state) {
         is EditCardUiState.Loading -> LoadingBox()
@@ -36,7 +33,6 @@ fun EditCardRoute(
         }
         is EditCardUiState.Saving -> LoadingBox()
         is EditCardUiState.Saved -> {
-//            LaunchedEffect(Unit) { onSaved() }
         }
         is EditCardUiState.Ready -> {
             // Scaffold 제거하고 EditCardScreen이 직접 Scaffold를 처리하도록

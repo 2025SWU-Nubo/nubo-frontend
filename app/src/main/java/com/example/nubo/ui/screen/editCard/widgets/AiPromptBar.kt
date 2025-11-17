@@ -126,7 +126,6 @@ fun AiPromptBar(
                             Icon(
                                 painter = painterResource(preset.iconRes),
                                 contentDescription = "${preset.label} 프리셋",
-//                                tint = Color.Unspecified,
                                 modifier = Modifier.size(18.dp)
                             )
                         },

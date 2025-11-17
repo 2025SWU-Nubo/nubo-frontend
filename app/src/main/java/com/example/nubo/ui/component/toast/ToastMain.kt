@@ -48,6 +48,8 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.Dp
+import com.example.nubo.ui.theme.GreyMain300
+import com.example.nubo.ui.theme.Purple300
 import kotlinx.coroutines.launch
 
 // ──────────────────────────────────────────────────────────────
@@ -108,7 +110,7 @@ fun defaultToastStyleProvider(): (AppToastType) -> AppToastStyle = { t ->
             textColor = Color.White.copy(alpha = 0.55f),
             backgroundRes = R.drawable.toast_bg,
             scrim = Color.Transparent,
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(14.dp)
         )
         AppToastType.NORMAL,
         AppToastType.POSITIVE,
@@ -118,11 +120,11 @@ fun defaultToastStyleProvider(): (AppToastType) -> AppToastStyle = { t ->
         AppToastType.ALARM_ALLOWED,
             AppToastType.ALARM_DENIED
         -> AppToastStyle(
-            bg = Color.White,
-            titleColor = Color.Black,
-            textColor = Grey700,
+            bg = GreyMain300,
+            titleColor = Color.White,
+            textColor = Color.White,
             backgroundRes = null,
-            shape = RoundedCornerShape(percent = 50)
+            shape = RoundedCornerShape(14.dp)
         )
     }
 }
@@ -284,14 +286,14 @@ fun AppToastHost(
             val fixedWidth =
                 if (t.type == AppToastType.FAVORITE)
                     // 즐겨찾기만 가로길이를 좀 더 작게
-                    Modifier.fillMaxWidth(0.90f).widthIn(max = 300.dp)
+                    Modifier.fillMaxWidth(0.90f).widthIn(max = 400.dp)
                 else
-                    Modifier.fillMaxWidth(0.92f).widthIn(max = 360.dp)
+                    Modifier.fillMaxWidth(1f).widthIn(max = 460.dp)
 
             // 확대/축소의 기준점을 중앙으로 고정(
             Box(
                 modifier = Modifier
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
                     .graphicsLayer { transformOrigin = TransformOrigin(0.5f, 0.5f) }
             ) {
                 Surface(
@@ -329,10 +331,10 @@ fun AppToastHost(
                                     Icon(
                                         painter = painterResource(effectiveIconRes),
                                         contentDescription = null,
-                                        tint = Color.Unspecified,
+                                        tint = Purple300,
                                         modifier = Modifier.size(if (isCompact) 20.dp else 24.dp)
                                     )
-                                    Spacer(Modifier.width(if (isCompact) 10.dp else 12.dp))
+                                    Spacer(Modifier.width(if (isCompact) 8.dp else 10.dp))
                                 }
 
                                 val columnWidth =
@@ -393,7 +395,7 @@ fun AppToastHost(
                                 Icon(
                                     painter = painterResource(effectiveIconRes),
                                     contentDescription = null,
-                                    tint = Color.Unspecified,
+                                    tint = Purple300,
                                     modifier = Modifier.size(if (isCompact) 20.dp else 24.dp)
                                 )
                                 Spacer(Modifier.width(if (isCompact) 10.dp else 12.dp))
@@ -587,20 +589,6 @@ fun AppToastOverlay(
                 contentAlignment = Alignment.BottomCenter
             )
         }
-
-//        Column(
-//            modifier = Modifier
-//                // ✅ 바텀바(+ 네비바) 위로 올리기
-//                .padding(bottom = bottomInset + extraBottomOffset)
-//                .fillMaxWidth(),
-//            horizontalAlignment = Alignment.CenterHorizontally
-//        ) {
-//            AppToastHost(
-//                hostState = hostState,
-//                matchParentSize = false,
-//                contentAlignment = Alignment.BottomCenter
-//            )
-//        }
     }
 }
 

@@ -299,8 +299,8 @@ private fun RecentBoardCard(
     Card(
         modifier = Modifier
             .size(width = 120.dp, height = 110.dp)
-            .shadow(2.dp, shape = RoundedCornerShape(12.dp))
-            .clip(RoundedCornerShape(12.dp))
+            .shadow(2.dp, shape = RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(8.dp))
             .clickable(enabled = boardId > 0) { onClick(boardId, boardName) },
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
@@ -312,7 +312,7 @@ private fun RecentBoardCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(58.dp)
-                .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
         )
 
         // Bottom title

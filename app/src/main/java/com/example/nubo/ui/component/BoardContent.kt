@@ -64,11 +64,11 @@ fun BoardContent(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
         contentPadding = PaddingValues(top=3.dp,bottom = 110.dp)
     ) {
         items(boards.chunked(2)) { rowItems ->
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 // --- 첫 번째 아이템 ---
                 // Column을 사용하고 weight(1f)를 주어 공간을 50% 차지
                 Column(modifier = Modifier.weight(1f)) {
@@ -149,7 +149,7 @@ fun BoardCardWithText(
     Box(
         modifier = Modifier
             .width(182.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(6.dp))
             .background(Color.White)
             .combinedClickable( // 일반 클릭과 롱클릭을 함께 처리
                 onClick = onClick,
@@ -165,7 +165,7 @@ fun BoardCardWithText(
                 modifier = Modifier
                     .width(182.dp)
                     .height(130.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(6.dp))
                     .background(Grey50),
             ) {
                 if (!board.imageUrl.isNullOrEmpty()) {

@@ -14,7 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 
-/* 한글 주석: 카드 본문만 덮는 흰색 스크림
+/* 카드 본문만 덮는 흰색 스크림
    - padding = Scaffold의 innerPadding을 그대로 넣어 앱바 제외
    - consumeTouch = true면 입력 차단  false면 통과 */
 @Composable
@@ -55,7 +55,7 @@ fun AiLoadingOverlay(
     }
 }
 
-/* 한글 주석: 점 3개 펄스 */
+/* 점 3개 펄스 */
 @Composable
 private fun DotsPulse() {
     val infinite = rememberInfiniteTransition(label = "dots")

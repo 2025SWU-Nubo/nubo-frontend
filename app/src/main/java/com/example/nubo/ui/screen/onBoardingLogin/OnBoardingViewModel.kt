@@ -424,10 +424,10 @@ class OnBoardingViewModel @Inject constructor(
 
         // UiState에서 isNewUser 가져오기
         val realIsNewUser = _uiState.value.isNewUser
-        val isNewUser = realIsNewUser
+//        val isNewUser = realIsNewUser
 
         // 📍무조건 newuser = true로 (테스트 버전)
-//        val isNewUser = if (FORCE_SHOW_INTEREST) true else realIsNewUser
+        val isNewUser = if (FORCE_SHOW_INTEREST) true else realIsNewUser
 
         // 이하 기존 로직 그대로
         if (NotificationPermissionHelper.shouldRequestNotificationPermission(context)) {

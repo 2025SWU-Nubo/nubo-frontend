@@ -200,11 +200,11 @@ fun NotificationScreen(
                 }
 
                 // ===== 최근 알림 더보기 버튼 =====
-                if (state.recent.size >= 3 && expandedRecentCount < state.recent.size) {
+                if (state.recent.size >= 4 && expandedRecentCount < state.recent.size) {
                     item{
                         TextButton(
                             onClick = {
-                                val bannerExtra = if (!notificationsEnabled) 2 else 0
+                                val bannerExtra = if (!notificationsEnabled) 3 else 0
                                 val firstNewRecentIndex = 1 + bannerExtra + expandedRecentCount
 
                                 expandedRecentCount = state.recent.size
