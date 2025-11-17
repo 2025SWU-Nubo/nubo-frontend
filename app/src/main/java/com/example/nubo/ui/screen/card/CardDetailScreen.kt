@@ -156,16 +156,19 @@ fun CardDetailScreen(
                 onToggleFavorite = {
                     val willBeFavorite = !item.isFavorite
 
+                    // 1) 먼저 즐겨찾기 상태 토글 (ViewModel.toggleFavorite)
+                    onToggleFavorite()
+
+                    // 2) 토스트는 별도 코루틴에서 실행 (UI 즉시 반영)
                     scope.launch {
                         toastHost.show(
                             title = AnnotatedString(
-                                if(willBeFavorite) "즐겨찾기에 추가했어요!" else "즐겨찾기를 해제했어요!"
+                                if (willBeFavorite) "즐겨찾기에 추가했어요!" else "즐겨찾기를 해제했어요!"
                             ),
                             layout = AppToastLayout.TitleOnly,
                             type = AppToastType.FAVORITE,
-                            durationMillis = 800
+                            durationMillis = 1200
                         )
-                        onToggleFavorite()
                     }
                 }
             )
