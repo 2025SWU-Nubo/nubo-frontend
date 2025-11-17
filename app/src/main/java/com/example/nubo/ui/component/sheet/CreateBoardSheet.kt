@@ -69,7 +69,9 @@ import com.example.nubo.ui.theme.PinkError
 import com.example.nubo.ui.theme.RedError
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.Alignment
+import com.example.components.toast.AppToastType
 import com.example.nubo.domain.model.InviteUser
+import com.example.nubo.ui.screen.profile.ProfileEvent
 
 
 @Composable
@@ -86,7 +88,8 @@ fun CreateBoardSheet(
     onSharedChange: (Boolean) -> Unit,
     isLoading: Boolean,
     nameError: String?,
-    onSubmit: (String) -> Unit
+    onSubmit: (String) -> Unit,
+    showToast: (String, AppToastType, Int) -> Unit = { _, _, _ -> }
 ){
 
     // 사용자가 타이핑 중일 때 커서/선택 상태를 보존하기 위한 로컬 상태

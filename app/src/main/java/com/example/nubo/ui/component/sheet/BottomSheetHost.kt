@@ -213,7 +213,7 @@ fun BottomSheetHost(
                     nameError = ui.nameError,
                     onSubmit = { nameText ->           // ← 시그니처 바뀜 (아래 3번 참고)
                         createBoardViewModel.submitWith(nameText)
-                    }
+                    } ,
                 )
                 SheetRoute.Invite -> InviteSheet(
                     onClose = onDismiss,
@@ -241,6 +241,11 @@ fun BottomSheetHost(
                     )
                 SheetRoute.AddVideo -> AddVideoSheet(
                     onClose = onDismiss,
+                    showToast = { msg, type, duration ->
+                        // 바텀시트 안에서 호출한 토스트를
+                        // MainScreen 에서 만든 전역 토스트로 전달
+                        showToast(msg, type, duration, 900)   // preDelay = 0
+                    }
                 )
             }
         }

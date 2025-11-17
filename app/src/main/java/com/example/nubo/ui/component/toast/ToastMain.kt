@@ -132,18 +132,19 @@ fun defaultToastStyleProvider(): (AppToastType) -> AppToastStyle = { t ->
 // ──────────────────────────────────────────────────────────────
 // 기본 아이콘(강제 노출용)
 // ──────────────────────────────────────────────────────────────
-private val DEFAULT_FAVORITE_ICON_RES = R.drawable.ic_board_fillstar
+private val DEFAULT_FAVORITE_ICON_RES = R.drawable.favorite
 private val DEFAULT_ERROR_ICON_RES = R.drawable.error_toast
-private val DEFAULT_POSITIVE_ICON_RES = R.drawable.check
-private val DEFAULT_UPLOAD_ICON_RES = R.drawable.upload_light
-private val DEFAULT_ALARM_ALLOW_ICON_RES = R.drawable.alarm_icon
-private val DEFAULT_ALARM_DENY_ICON_RES = R.drawable.alarm_denied
+private val DEFAULT_POSITIVE_ICON_RES = R.drawable.check_fill
+private val DEFAULT_UPLOAD_ICON_RES = R.drawable.upload
+private val DEFAULT_ALARM_ALLOW_ICON_RES = R.drawable.alarm_on
+private val DEFAULT_ALARM_DENY_ICON_RES = R.drawable.alarm_off
 
 // ──────────────────────────────────────────────────────────────
 // 호스트 상태 (순차 처리 + 표시 지연 + exit 버퍼)
 // ──────────────────────────────────────────────────────────────
 @Stable
-class AppToastHostState {
+class AppToastHostState
+{
     private val mutex = Mutex()
     var current by mutableStateOf<AppToastData?>(null)
         private set
@@ -196,8 +197,15 @@ class AppToastHostState {
     fun dismiss() { current = null }
 }
 
+
+
 @Composable
 fun rememberAppToastHostState(): AppToastHostState = remember { AppToastHostState() }
+
+// 전역 토스트 호스트를 제공하기 위한 CompositionLocal
+val LocalAppToastHostState = staticCompositionLocalOf<AppToastHostState> {
+    error("AppToastHostState is not provided")
+}
 
 // ──────────────────────────────────────────────────────────────
 // 토스트 호스트 UI
@@ -331,7 +339,7 @@ fun AppToastHost(
                                     Icon(
                                         painter = painterResource(effectiveIconRes),
                                         contentDescription = null,
-                                        tint = Purple300,
+                                        tint = Color.Unspecified,
                                         modifier = Modifier.size(if (isCompact) 20.dp else 24.dp)
                                     )
                                     Spacer(Modifier.width(if (isCompact) 8.dp else 10.dp))
@@ -395,7 +403,7 @@ fun AppToastHost(
                                 Icon(
                                     painter = painterResource(effectiveIconRes),
                                     contentDescription = null,
-                                    tint = Purple300,
+                                    tint = Color.Unspecified,
                                     modifier = Modifier.size(if (isCompact) 20.dp else 24.dp)
                                 )
                                 Spacer(Modifier.width(if (isCompact) 10.dp else 12.dp))
@@ -544,7 +552,7 @@ fun ToastDemoScreen(
 @Composable
 fun AppToastOverlay(
     hostState: AppToastHostState,
-    extraBottomOffset: Dp = 72.dp,
+    extraBottomOffset: Dp = 52.dp,
 ) {
     // 네비게이션 바 인셋 계산 (한 번만)
     val bottomInset = WindowInsets.navigationBars

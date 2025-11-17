@@ -19,6 +19,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -93,6 +94,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import com.example.components.toast.AppToastOverlay
+import com.example.components.toast.LocalAppToastHostState
+import com.example.components.toast.rememberAppToastHostState
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -129,9 +136,23 @@ class MainActivity : AppCompatActivity() {
 
         setContent {
             NuboAppTheme {
+                // 1  전역 토스트 호스트를 Activity 루트에서 remember
+                val toastHost = rememberAppToastHostState()
 
-                RequestNotificationPermissionOnce() // Android 13+ POST_NOTIFICATIONS permission
-                MainScreen(deepLinkEvents = deepLinkEvents)
+
+                // 2  CompositionLocal로 전체 앱에 제공
+                CompositionLocalProvider(LocalAppToastHostState provides toastHost) {
+                    RequestNotificationPermissionOnce()
+
+                    // 3  MainScreen 위에 전역 토스트 오버레이를 항상 깔아둠
+                    Box(Modifier.fillMaxSize()) {
+                        MainScreen(deepLinkEvents = deepLinkEvents)
+                        AppToastOverlay(
+                            hostState = toastHost,
+                            extraBottomOffset = 14.dp
+                        )
+                    }
+                }
             }
         }
 
@@ -182,7 +203,8 @@ fun MainScreen(
     val navController = rememberNavController()
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    val toastHost = rememberAppToastHostState()
+    // 전역 CompositionLocal 에서 토스트 호스트 가져오기
+    val toastHost = LocalAppToastHostState.current
     val toastScope = rememberCoroutineScope()
 
 
@@ -812,8 +834,6 @@ fun MainScreen(
         },
         showToast = showToast
     )
-
-    AppToastOverlay(hostState = toastHost,extraBottomOffset = 54.dp)
 }
 
 fun getSelectedIndex(route: String?): Int {
