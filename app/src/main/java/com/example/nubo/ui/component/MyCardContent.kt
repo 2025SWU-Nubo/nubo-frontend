@@ -54,50 +54,51 @@ fun MyCardContent(
     isSelectionMode: Boolean,
     selectedCardIds: Set<Int>
 ) {
+    // 1. CardContent와 동일한 높이 로직 적용 (index % 4)
+    // 리스트를 분리하기 전에 높이 정보를 매핑합니다.
+    val cardsWithHeight = cards.mapIndexed { index, item ->
+        val height = if (index % 4 == 0) 300.dp else 148.dp
+        item to height
+    }
 
-    // Masonry 구성 동일
-    val leftItems = cards.filterIndexed { i, _ -> i % 2 == 0 }
-    val rightItems = cards.filterIndexed { i, _ -> i % 2 != 0 }
+    // 2. 좌우 컬럼 분리
+    val leftItems = cardsWithHeight.filterIndexed { i, _ -> i % 2 == 0 }
+    val rightItems = cardsWithHeight.filterIndexed { i, _ -> i % 2 != 0 }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 16.dp), // 가로 여백 16dp
+        horizontalArrangement = Arrangement.spacedBy(4.dp) // 가운데 사이 여백 4dp
     ) {
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp) // 위아래 여백 4dp
         ) {
-            leftItems.forEachIndexed(){ index, item ->
-                // 여기서 각 카드가 선택되었는지 여부를 계산
+            leftItems.forEach { (item, height) ->
                 val isSelected = selectedCardIds.contains(item.id)
                 MyMasonryCard(
-                    height = cardHeights.getOrNull(index * 2) ?: 180.dp,
+                    height = height,
                     imageUrl = item.imageUrl,
                     onClick = { onCardClick(item.id) },
                     onLongClick = { onCardLongClick(item.id) },
-                    // 계산된 값을 파라미터로 전달
                     isSelectionMode = isSelectionMode,
                     isSelected = isSelected,
                     isFavorite = item.isFavorite
                 )
             }
         }
-
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp) // 위아래 여백 4dp
         ) {
-            rightItems.forEachIndexed(){ index, item ->
-                // 여기서 각 카드가 선택되었는지 여부를 계산
+            rightItems.forEach { (item, height) ->
                 val isSelected = selectedCardIds.contains(item.id)
                 MyMasonryCard(
-                    height = cardHeights.getOrNull(index * 2+1) ?: 180.dp,
+                    height = height,
                     imageUrl = item.imageUrl,
                     onClick = { onCardClick(item.id) },
                     onLongClick = { onCardLongClick(item.id) },
-                    // 계산된 값을 파라미터로 전달
                     isSelectionMode = isSelectionMode,
                     isSelected = isSelected,
                     isFavorite = item.isFavorite
@@ -117,20 +118,19 @@ fun MyMasonryCard(
     // 선택 관련 파라미터
     isSelectionMode: Boolean,
     isSelected: Boolean,
-    isFavorite: Boolean)
-{
+    isFavorite: Boolean
+) {
     Box(
         modifier = Modifier
-            .width(182.dp)
+            .fillMaxWidth()
             .height(height)
-            .clip(RoundedCornerShape(6.dp)) // 확대된 이미지를 잘라내는 역할
+            .clip(RoundedCornerShape(6.dp)) // CardContent와 동일하게 6dp로 변경 (기존 8dp)
             .background(Grey50)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
             ),
         contentAlignment = Alignment.Center
-
     ) {
         // 높이가 300dp일 때만 이미지를 1.2배 확대하는 Modifier 적용
         val imageModifier = if (height == 300.dp) {
@@ -140,7 +140,7 @@ fun MyMasonryCard(
                     scaleX = 1.2f, // 가로로 1.2배 확대
                     scaleY = 1.2f,  // 세로로 1.2배 확대
                 )
-        } else{
+        } else {
             Modifier
                 .fillMaxSize()
                 .graphicsLayer(
@@ -156,6 +156,7 @@ fun MyMasonryCard(
             modifier = imageModifier, // 위에서 만든 Modifier를 적용
             contentScale = ContentScale.Crop // Crop을 기본으로 두어 안정적인 크롭을 보장
         )
+
         //---- 즐겨찾기 추가 ---
         if (isFavorite) {
             Icon(
@@ -167,6 +168,7 @@ fun MyMasonryCard(
                     .padding(top = 10.dp, end = 10.dp)
             )
         }
+
         // --- 선택 모드 오버레이 ---
         if (isSelectionMode && isSelected) {
             Box(
@@ -186,4 +188,3 @@ fun MyMasonryCard(
         }
     }
 }
-
