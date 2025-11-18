@@ -441,6 +441,9 @@ fun EditCardScreen(
                     .matchParentSize()
                     .align(Alignment.Center)
                     .zIndex(12f),
+                leftDotResId = R.drawable.ai_loading1,
+                centerDotResId = R.drawable.ai_loading2,
+                rightDotResId = R.drawable.ai_loading3,
                 consumeTouch = true
             ) {
                 Text("AI가 요약 노트를 다듬고 있어요", style = AppTextStyles.b2_medium_16, color = Grey700)

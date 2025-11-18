@@ -48,6 +48,8 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.Dp
+import com.example.nubo.ui.theme.Grey200
+import com.example.nubo.ui.theme.Grey250
 import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.Purple300
 import kotlinx.coroutines.launch
@@ -120,7 +122,7 @@ fun defaultToastStyleProvider(): (AppToastType) -> AppToastStyle = { t ->
         AppToastType.ALARM_ALLOWED,
             AppToastType.ALARM_DENIED
         -> AppToastStyle(
-            bg = GreyMain300,
+            bg = Grey250,
             titleColor = Color.White,
             textColor = Color.White,
             backgroundRes = null,
