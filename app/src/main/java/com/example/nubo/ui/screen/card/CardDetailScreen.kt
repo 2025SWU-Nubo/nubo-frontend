@@ -60,8 +60,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
-import com.halilibo.richtext.commonmark.Markdown
-import com.halilibo.richtext.ui.material3.RichText
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
@@ -76,6 +74,9 @@ import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.GreyMain100
 import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.PurpleMain500
+import com.example.nubo.utils.standardizeMarkdown
+import com.mohamedrejeb.richeditor.model.rememberRichTextState
+import com.mohamedrejeb.richeditor.ui.material3.RichText
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.max
@@ -393,36 +394,40 @@ private fun ImageWithButton(
 @Composable
 private fun DetailBodyMarkdown(
     description: String,
-    maxCollapseLines: Int = 9,    // 줄 수 기준으로 접힘 계산
+    maxCollapseLines: Int = 9,
     modifier: Modifier = Modifier
 ) {
     var isExpanded by remember { mutableStateOf(false) }
 
-    // 1) Normalize markdown so that a heading isn't immediately followed by a list
+    // 1) 서버에서 온 마크다운을 에디터와 동일하게 정규화
     val normalizedMd = remember(description) {
-        description
-            // Insert a blank line between heading and list
-            .replace(Regex("(?m)^(#{1,6}\\s+.+?)\\n(?=\\s*[-*•]\\s+)"), "$1\n\n")
-            // Insert a blank line when a bold line is used like a heading
-            .replace(Regex("(?m)^\\*\\*.+?\\*\\*\\s*\\n(?=\\s*[-*•]\\s+)"), "$0\n")
-            .trim()
+        standardizeMarkdown(description)
     }
 
-    // 2) Build a safe collapsed markdown by cutting lines (no height/clip needed)
+    // 2) 접힘 상태일 때 사용할 "잘린 마크다운"
     val collapsedMd = remember(normalizedMd, maxCollapseLines) {
         val lines = normalizedMd.lines()
         lines.take(minOf(lines.size, maxCollapseLines)).joinToString("\n")
     }
 
-    // 3) Decide which markdown to render
     val mdToShow = if (isExpanded) normalizedMd else collapsedMd
 
-    // 4) Determine if collapsing is necessary
+
+    // 3) compose-rich-editor 의 RichTextState 사용 (읽기 전용 용도)
+    val richTextState = rememberRichTextState()
+
+    // 4) mdToShow 가 바뀔 때만 setMarkdown 호출 (무한 루프 방지)
+    LaunchedEffect(mdToShow) {
+        if (richTextState.toMarkdown() != mdToShow) {
+            richTextState.setMarkdown(mdToShow)
+        }
+    }
+
+    // 5) 접기/펼치기 가능 여부
     val canCollapse = remember(normalizedMd, maxCollapseLines) {
         normalizedMd.lineSequence().count() > maxCollapseLines
     }
 
-    // ui
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -439,15 +444,10 @@ private fun DetailBodyMarkdown(
             )
             Spacer(Modifier.height(8.dp))
 
-            // 5) Render markdown with safe line height (no heightIn/clip/animateContentSize)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
-                // Apply safe text metrics
+            Box(modifier = Modifier.fillMaxWidth()) {
                 ProvideTextStyle(
                     value = MaterialTheme.typography.bodyMedium.copy(
-                        lineHeight = 22.sp, // safe line height
+                        lineHeight = 22.sp,
                         platformStyle = PlatformTextStyle(includeFontPadding = true),
                         lineHeightStyle = LineHeightStyle(
                             alignment = LineHeightStyle.Alignment.Proportional,
@@ -455,10 +455,12 @@ private fun DetailBodyMarkdown(
                         )
                     )
                 ) {
-                    RichText { Markdown(mdToShow) }
+                    RichText(
+                        state = richTextState,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
 
-                // 6) Visual fade overlay only when collapsed (purely decorative)
                 if (!isExpanded && canCollapse) {
                     Box(
                         modifier = Modifier
@@ -478,7 +480,6 @@ private fun DetailBodyMarkdown(
                 }
             }
 
-            // 7) Toggle button
             if (canCollapse) {
                 Row(
                     modifier = Modifier
