@@ -123,7 +123,7 @@ fun MyMasonryCard(
         modifier = Modifier
             .width(182.dp)
             .height(height)
-            .clip(RoundedCornerShape(8.dp)) // 확대된 이미지를 잘라내는 역할
+            .clip(RoundedCornerShape(6.dp)) // 확대된 이미지를 잘라내는 역할
             .background(Grey50)
             .combinedClickable(
                 onClick = onClick,

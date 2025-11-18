@@ -590,7 +590,7 @@ fun FilterButtons(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, bottom = 18.dp)
+            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
     ) {
         // 정렬 버튼
         SortFilterButton(

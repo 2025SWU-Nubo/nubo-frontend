@@ -91,7 +91,7 @@ fun BoardContent(
                                 modifier = Modifier
                                     .align(Alignment.TopStart) // 정렬 기준
                                     .padding(start = 8.dp) // 좌측 여백
-                                    .offset(y = (-1).dp)  // <-- 여기! Y축으로 -3dp 이동
+                                    .offset(y = (-1).dp)
                                     .size(32.dp)
                             )
                         }
@@ -120,7 +120,7 @@ fun BoardContent(
                                     modifier = Modifier
                                         .align(Alignment.TopStart)
                                         .padding(start = 8.dp)
-                                        .offset(y = (-1).dp) // <-- 여기! Y축으로 -3dp 이동
+                                        .offset(y = (-1).dp)
                                         .size(32.dp)
                                 )
                             }

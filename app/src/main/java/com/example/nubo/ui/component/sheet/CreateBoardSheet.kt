@@ -54,7 +54,6 @@ import com.example.nubo.ui.theme.Grey10
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.GreyMain100
-import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.PurpleMain500
 import com.example.nubo.R
 import com.example.nubo.ui.theme.Purple50
@@ -63,9 +62,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.sp
 import com.example.nubo.ui.theme.Grey200
-import com.example.nubo.ui.theme.PinkError
 import com.example.nubo.ui.theme.RedError
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.Alignment

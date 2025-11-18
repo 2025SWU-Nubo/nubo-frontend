@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -71,7 +72,8 @@ fun InviteSheet (
     onInvite: (String) -> Unit,
     onComplete: (List<String>, List<InviteUser>) -> Unit,
     resetSignal: Int = 0,
-    initialSelected: List<String> = emptyList()
+    initialSelected: List<String> = emptyList(),
+    useTopPadding: Boolean = false
 ){
     val viewModel: InviteViewModel = hiltViewModel()
 
@@ -97,6 +99,8 @@ fun InviteSheet (
         modifier = Modifier
             .background(color = Color.White)
             .fillMaxWidth()
+            // 조건부 상단 패딩 적용
+            .then(if (useTopPadding) Modifier.statusBarsPadding() else Modifier)
             .navigationBarsPadding()
             .imePadding()
             .padding(horizontal = 18.dp),

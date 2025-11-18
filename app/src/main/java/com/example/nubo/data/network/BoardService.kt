@@ -4,6 +4,7 @@ import com.example.nubo.data.model.BoardDeleteRequest
 import com.example.nubo.data.model.BoardDeleteResponse
 import com.example.nubo.data.model.BoardItemResponse
 import com.example.nubo.data.model.BoardListItemResponse
+import com.example.nubo.data.model.BoardMembersResponse
 import com.example.nubo.data.model.BoardRenameRequest
 import com.example.nubo.data.model.BoardResponse
 import com.example.nubo.data.model.BoardRestoreRequest
@@ -25,6 +26,7 @@ import com.example.nubo.data.model.UpsertBoardRequest
 import com.google.gson.JsonObject
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.HTTP
 import retrofit2.http.Header
@@ -178,4 +180,19 @@ interface BoardService {
         @Header("Authorization") auth: String,
         @Header("Accept") accept: String = "application/json"
     ): List<DefaultBoardItemResponse>
+
+    // 보드 참여자 목록 조회 (대기중 + 참여중)
+    @GET("api/board/{boardId}/members")
+    suspend fun getBoardMembers(
+        @Header("Authorization") authHeader: String,
+        @Path("boardId") boardId: Long
+    ): Response<BoardMembersResponse>
+
+    // 공유 보드 멤버 초대 취소
+    @DELETE("api/board/{boardId}/invitation/{invitationId}")
+    suspend fun cancelInvitation(
+        @Header("Authorization") authHeader: String,
+        @Path("boardId") boardId: Long,          // [추가] boardId 필요
+        @Path("invitationId") invitationId: Long
+    ): Response<Unit>
 }
