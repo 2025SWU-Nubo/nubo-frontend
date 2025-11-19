@@ -163,6 +163,32 @@ class OnBoardingLoginActivity : ComponentActivity() {
                         }
                     )
 
+                    // 알림 권한 안내 다이얼로그
+                    NotificationPermissionDialog(
+                        visible = askPermission,
+                        onAllow = {
+                            // "알림 켜기" 버튼
+                            if (Build.VERSION.SDK_INT >= 33) {
+                                // 시스템 권한 다이얼로그 호출
+                                requestNotificationPermissionLauncher.launch(
+                                    android.Manifest.permission.POST_NOTIFICATIONS
+                                )
+                            } else {
+                                // 13 미만은 바로 다음 단계로 진행
+                                viewModel.onLoginNotificationPermissionHandled()
+                            }
+                        },
+                        onLater = {
+                            // "나중에" 선택  바로 다음 단계로 진행
+                            viewModel.toast("알림은 나중에 설정에서도 바꿀 수 있어요")
+                            viewModel.onLoginNotificationPermissionHandled()
+                        },
+                        onDismiss = {
+                            // 바깥 터치로 닫았을 때도 흐름은 계속 가야 함
+                            viewModel.onLoginNotificationPermissionHandled()
+                        }
+                    )
+
                     // 전역 토스트 오버레이
                     AppToastOverlay(hostState = toastHost)
                 }

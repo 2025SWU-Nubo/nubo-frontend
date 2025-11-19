@@ -185,7 +185,6 @@ fun NotificationScreen(
                 }
 
                 // ===== 최근 알림 리스트 (채널별) =====
-                // ===== 최근 알림 리스트 (채널별) =====
                 recentGroups.forEach { (type, itemsOfType) ->
                     item(key = "recent-${type.name}") {
 

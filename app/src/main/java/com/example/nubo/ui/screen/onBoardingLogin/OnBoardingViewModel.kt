@@ -61,17 +61,11 @@ class OnBoardingViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private var notificationRepository: NotificationRepository
 ) : AndroidViewModel(application) {
-    companion object{
-        // 무조건 newuser = true로 (테스트 버전)
-        private const val FORCE_SHOW_INTEREST = true
-    }
-
     @SuppressLint("StaticFieldLeak")
     private val context: Context = application.applicationContext
 
     // 새 사용자 여부를 저장할 변수 추가
     private var _pendingIsNewUser: Boolean = false
-
 
     // FCM 토큰 캐시/등록 상태 저장용
     private val prefs = context.getSharedPreferences("push_prefs", Context.MODE_PRIVATE)
@@ -157,20 +151,38 @@ class OnBoardingViewModel @Inject constructor(
                         Log.d("TokenCheck", "body=${Gson().toJson(response.body())}")
                         Log.d("TokenCheck", "error=${response.errorBody()?.string()}")
 
-                        if (response.isSuccessful) {
-                            val result = response.body()
-                            if (result?.valid == true) {
-                                // 토큰 유효 → 바로 메인으로 이동
-                                registerPushAfterLogin()
-                                navigateToMain()
-                            } else {
-                                // 토큰 만료 → 로그인 필요
+                        if (!response.isSuccessful) {
+                            if (response.code() in listOf(401, 403)) {
                                 handleTokenExpired()
+                            } else {
+                                showLoginButton()
                             }
-                        } else if (response.code() in listOf(401, 403)) {
+                            return
+                        }
+
+                        val result = response.body()
+                        if (result?.valid != true) {
+                            // 토큰 만료 → 로그인 필요
                             handleTokenExpired()
+                            return
+                        }
+
+                        // ===== 여기부터 토큰 유효한 경우 =====
+                        registerPushAfterLogin()
+
+                        // 서버에서 내려준 user 정보 (없으면 null)
+                        val user = result.user
+                        if (user != null) {
+                            // 로컬에도 저장해두면 이후에 쓸 수 있음
+                            authRepository.saveUserInfo(user)
+
+                            val interestCompleted = user.interestSetupCompleted
+                            val needsInterest = !interestCompleted
+
+                            navigateToMainWithInterest(needsInterest)
                         } else {
-                            showLoginButton()
+                            // user를 안 내려주는 경우에는 일단 관심사 스킵
+                            navigateToMainWithInterest(needsInterest = false)
                         }
                     }
 
@@ -255,7 +267,12 @@ class OnBoardingViewModel @Inject constructor(
                     if (existingUser != null && existingUser.id != newUser.id) {
                         _uiState.value = _uiState.value.copy(existingUser = existingUser, loginResponseUser = newUser)
                     } else {
-                        saveUserAndNavigate(newUser, loginRes.accessToken, onLoginComplete)
+                        saveUserAndNavigate(
+                            user = newUser,
+                            token = loginRes.accessToken,
+                            isNewUser = loginRes.newUser,
+                            onLoginComplete = onLoginComplete
+                        )
                         pendingAccessToken = null
                     }
                 }
@@ -319,20 +336,25 @@ class OnBoardingViewModel @Inject constructor(
     }
 
     /** 계정 전환 시: 서버/로컬 모두 토큰 정리 후 새 계정으로 저장 및 이동 */
+    /** 계정 전환 시: 서버/로컬 모두 토큰 정리 후 새 계정으로 저장 및 이동 */
     fun confirmAccountSwitch(onLoginComplete: (Intent) -> Unit) {
         val newUser = _uiState.value.loginResponseUser ?: return
         val accessTokenFromLogin = pendingAccessToken
+        val isNewUser = _uiState.value.isNewUser
 
-        if (accessTokenFromLogin.isNullOrEmpty()) {
-            val fallback = authRepository.getAccessToken() ?: return
-            saveUserAndNavigate(newUser, fallback, onLoginComplete)
-        } else {
-            saveUserAndNavigate(newUser, accessTokenFromLogin, onLoginComplete)
-            pendingAccessToken = null
-        }
+        // 토큰 우선순위  로그인 응답 > 기존 저장 토큰
+        val tokenToUse = accessTokenFromLogin ?: authRepository.getAccessToken() ?: return
 
+        saveUserAndNavigate(
+            user = newUser,
+            token = tokenToUse,
+            isNewUser = isNewUser,
+            onLoginComplete = onLoginComplete
+        )
+        pendingAccessToken = null
+
+        // 기존 계정에 묶여있던 푸시 매핑/토큰 정리
         viewModelScope.launch {
-            // 서버 삭제 및 로컬 FCM 삭제 병행
             runCatching { notificationRepository.deleteRegisteredTokenIfAny() }
             runCatching { FirebaseMessaging.getInstance().deleteToken() }
         }
@@ -347,7 +369,6 @@ class OnBoardingViewModel @Inject constructor(
                     android.util.Log.w("FCM_REG", "ensure: getToken empty")
                 } else {
                     android.util.Log.d("FCM_REG", "ensure: getToken (${token.take(12)}...)")
-//                    viewModelScope.launch { registerTokenIfNeeded(token) }
                     viewModelScope.launch { notificationRepository.registerDeviceTokenIfNeeded(token, force = force) }
 
                 }
@@ -356,7 +377,6 @@ class OnBoardingViewModel @Inject constructor(
                 val cached = prefs.getString("latest_fcm_token", null)
                 android.util.Log.w("FCM_REG", "ensure: getToken FAIL ${e.message}; cached=${cached?.take(12)}...")
                 if (!cached.isNullOrBlank()) {
-//                    viewModelScope.launch { registerTokenIfNeeded(cached) }
                     viewModelScope.launch { notificationRepository.registerDeviceTokenIfNeeded(cached, force = force) }
 
                 }
@@ -379,7 +399,8 @@ class OnBoardingViewModel @Inject constructor(
     fun onLoginNotificationPermissionHandled() {
         _shouldRequestNotificationPermission.value = false
         _pendingLoginComplete?.let { complete ->
-            complete(Intent(context, MainActivity::class.java).apply {
+            complete(
+                Intent(context, MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                 // 새 사용자면 관심사 설정 플래그 추가
                 if (_pendingIsNewUser) {
@@ -395,10 +416,7 @@ class OnBoardingViewModel @Inject constructor(
     }
 
     private fun navigateToMain() {
-        val intent = Intent(context, MainActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-        }
-        context.startActivity(intent)
+        navigateToMainWithInterest(needsInterest = false)
     }
 
     fun getGoogleSignInIntentWrapper(): Intent = googleSignInClient.signInIntent
@@ -406,41 +424,44 @@ class OnBoardingViewModel @Inject constructor(
     private fun saveUserAndNavigate(
         user: UserInfo,
         token: String,
+        isNewUser: Boolean,
         onLoginComplete: (Intent) -> Unit
     ) {
         authRepository.saveAccessToken(token)
         authRepository.saveUserId(user.id)
         authRepository.saveUserInfo(user)
 
-        // '이미 등록됨' 스킵 플래그 제거해서 다음 호출이 무조건 시도되게
-        getApplication<Application>()
-            .getSharedPreferences("push_prefs", Context.MODE_PRIVATE)
-            .edit() {
-                remove("registered_fcm_token")
-            }
-
         // 로그인 성공시 푸시 토큰 등록 시도 (이제 스킵 안 됨)
         registerPushAfterLogin()
 
-        // UiState에서 isNewUser 가져오기
-        val realIsNewUser = _uiState.value.isNewUser
-//        val isNewUser = realIsNewUser
-
-        // 📍무조건 newuser = true로 (테스트 버전)
-        val isNewUser = if (FORCE_SHOW_INTEREST) true else realIsNewUser
+        // 1  서버가 내려준 관심사 완료 여부
+        val interestCompleted = user.interestSetupCompleted
+        // 2  관심사 설정이 아직 안 되어 있으면 온보딩 필요
+        val needsInterest = isNewUser || !interestCompleted
 
         // 이하 기존 로직 그대로
         if (NotificationPermissionHelper.shouldRequestNotificationPermission(context)) {
             _shouldRequestNotificationPermission.value = true
             _pendingLoginComplete = onLoginComplete
-            _pendingIsNewUser = isNewUser
+            _pendingIsNewUser = needsInterest
         } else {
             // 권한 요청이 필요없을 때도 isNewUser 체크
             val intent = Intent(context, MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                if (isNewUser) putExtra("EXTRA_NEEDS_INTEREST", true)
+                if (needsInterest) putExtra("EXTRA_NEEDS_INTEREST", true)
             }
             onLoginComplete(intent)
         }
+    }
+
+    private fun navigateToMainWithInterest(needsInterest: Boolean) {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            if (needsInterest) {
+                // MainActivity → MainScreen 에서 이 값을 보고 onboarding_interest 로 네비게이션
+                putExtra("EXTRA_NEEDS_INTEREST", true)
+            }
+        }
+        context.startActivity(intent)
     }
 }
