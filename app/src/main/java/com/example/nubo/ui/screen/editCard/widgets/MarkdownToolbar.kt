@@ -27,9 +27,9 @@ import com.mohamedrejeb.richeditor.model.RichTextState
 import com.example.nubo.utils.*
 import kotlinx.coroutines.delay
 
-private val CHIP_HEIGHT = 45.dp
-private val CHIP_LONG_WIDTH = 75.dp
-private val CHIP_SHORT_WIDTH = 55.dp
+private val CHIP_HEIGHT = 38.dp
+private val CHIP_LONG_WIDTH = 60.dp
+private val CHIP_SHORT_WIDTH = 38.dp
 
 @Composable
 fun MarkdownToolbar(
@@ -51,17 +51,17 @@ fun MarkdownToolbar(
     }
 
     Surface(
-        tonalElevation = 8.dp,
-        shadowElevation = 12.dp,
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+        tonalElevation = 4.dp,
+        shadowElevation = 6.dp,
+        shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
         modifier = modifier,
         color = Grey5
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = 14.dp, vertical = 12.dp)
+                .padding(horizontal = 8.dp, vertical = 10.dp)
                 .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 제목(H2)
@@ -74,7 +74,7 @@ fun MarkdownToolbar(
                     rtState.selection = TextRange(pos)
                     Log.d("Toolbar", "H2 clicked caret=$pos")
                 },
-                textSize = AppTextStyles.subtitle_semibold_20
+                textSize = AppTextStyles.b2_semibold_16
             )
 
             // 부제목(H3)
@@ -87,7 +87,7 @@ fun MarkdownToolbar(
                     rtState.selection = TextRange(pos)
                     Log.d("Toolbar", "H3 clicked caret=$pos")
                 },
-                textSize = AppTextStyles.b2_semibold_16
+                textSize = AppTextStyles.label_semibold_14
             )
 
             // 본문
@@ -100,13 +100,13 @@ fun MarkdownToolbar(
                     rtState.selection = TextRange(pos)
                     Log.d("Toolbar", "Clear heading caret=$pos")
                 },
-                textSize = AppTextStyles.label_medium_14
+                textSize = AppTextStyles.label_medium_12
             )
 
             // 굵게(B) — 표시상 허용, 저장 시 서버 정규화에서 제거됨(텍스트만 남음)
             val BOLD_STYLE = remember { SpanStyle(fontWeight = FontWeight.Bold) }
             FilterChip(
-                modifier = Modifier.height(CHIP_HEIGHT),
+                modifier = Modifier.height(CHIP_HEIGHT).padding(0.dp),
                 selected = isBoldSelected,
                 onClick = {
                     editorFocusRequester.requestFocus()
@@ -114,7 +114,7 @@ fun MarkdownToolbar(
                     isBoldSelected = !isBoldSelected
                 },
                 label = {
-                    Text("B", style = AppTextStyles.b1_semibold_18)
+                    Text("B", style = AppTextStyles.b2_bold_15)
                 },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = PurpleMain500,
