@@ -59,7 +59,7 @@ fun MarkdownToolbar(
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 14.dp, vertical = 12.dp)
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -74,7 +74,7 @@ fun MarkdownToolbar(
                     rtState.selection = TextRange(pos)
                     Log.d("Toolbar", "H2 clicked caret=$pos")
                 },
-                textSize = AppTextStyles.title_semibold_24
+                textSize = AppTextStyles.subtitle_semibold_20
             )
 
             // 부제목(H3)
@@ -87,7 +87,7 @@ fun MarkdownToolbar(
                     rtState.selection = TextRange(pos)
                     Log.d("Toolbar", "H3 clicked caret=$pos")
                 },
-                textSize = AppTextStyles.subtitle_semibold_20
+                textSize = AppTextStyles.b2_semibold_16
             )
 
             // 본문
@@ -100,7 +100,7 @@ fun MarkdownToolbar(
                     rtState.selection = TextRange(pos)
                     Log.d("Toolbar", "Clear heading caret=$pos")
                 },
-                textSize = AppTextStyles.b2_medium_16
+                textSize = AppTextStyles.label_medium_14
             )
 
             // 굵게(B) — 표시상 허용, 저장 시 서버 정규화에서 제거됨(텍스트만 남음)
@@ -114,7 +114,7 @@ fun MarkdownToolbar(
                     isBoldSelected = !isBoldSelected
                 },
                 label = {
-                    Text("B", style = AppTextStyles.title_semibold_24)
+                    Text("B", style = AppTextStyles.b1_semibold_18)
                 },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = PurpleMain500,

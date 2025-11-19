@@ -86,7 +86,7 @@ fun CardContent(cards: List<CardResponse>,
 fun MasonryCard(item: CardItem, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .width(180.dp)
+            .fillMaxWidth()
             .height(item.height)
             .clip(RoundedCornerShape(6.dp))
             .background(Grey50)

@@ -1,4 +1,3 @@
-
 package com.example.nubo.ui.screen.editCard
 
 import android.util.Log
@@ -36,6 +35,7 @@ import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -48,7 +48,6 @@ import com.mohamedrejeb.richeditor.ui.material3.RichTextEditor
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -62,18 +61,11 @@ import com.example.nubo.ui.screen.editCard.widgets.MarkdownToolbar
 import com.example.nubo.ui.screen.editCard.widgets.NoSelectionToolbar
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Grey700
-import com.example.nubo.utils.canonicalizeMarkdown
-import com.example.nubo.utils.debugFullPipeline
-import com.example.nubo.utils.debugMarkdownNormalization
-import com.example.nubo.utils.debugNewLines
-import com.example.nubo.utils.debugRichTextState
-import com.example.nubo.utils.demoteNestedOrderedToBullets
+import com.example.nubo.utils.standardizeMarkdown
 import com.mohamedrejeb.richeditor.ui.material3.RichTextEditorDefaults
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import com.example.nubo.utils.shimListBoldBug
-import com.example.nubo.utils.stripShimForServer
 
 
 
@@ -82,7 +74,7 @@ import com.example.nubo.utils.stripShimForServer
 fun EditCardScreen(
     onBack: () -> Unit,
     onSave: () -> Unit,
-    onSaveWithToast: (String) -> Unit,  // 저장 성공 시 상세 화면에서 토스트를 띄우도록 메시지 전달
+    onSaveWithToast: (String) -> Unit,
     viewModel: EditCardViewModel = hiltViewModel()
 ) {
     // 에디터 상태
@@ -102,13 +94,14 @@ fun EditCardScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
 
     val scope = rememberCoroutineScope()
-    val editorBringIntoView = remember { BringIntoViewRequester() }
+//    val editorBringIntoView = remember { BringIntoViewRequester() }
 
     var initialMarkdown by rememberSaveable { mutableStateOf("") }
     var currentMarkdown by rememberSaveable { mutableStateOf("") }
     var suppressVmSync by remember { mutableStateOf(false) }
 
-    // AI 편집 적용 시 커서 위치 보존
+
+    // ✅ AI 편집 적용 시 커서 위치 보존
     LaunchedEffect(Unit) {
         uiEventFlow.collect { event ->
             when (event) {
@@ -116,24 +109,17 @@ fun EditCardScreen(
                     suppressVmSync = true
                     val currentSelection = rtState.selection
 
-                    // 1) AI 응답 마크다운을 정규화 후 세팅
-                    val canon = canonicalizeMarkdown(event.markdown)
-                    val noNestedOrder = demoteNestedOrderedToBullets(canon)
-                    // 2) 에디터에 넣기 직전 파서 보호
-                    val safe = shimListBoldBug(canon)
-                    rtState.setMarkdown(safe)
-                    currentMarkdown = canonicalizeMarkdown(stripShimForServer(rtState.toMarkdown()))
+                    val normalized = standardizeMarkdown(event.markdown)
+                    rtState.setMarkdown(normalized)
+                    currentMarkdown = normalized
 
-                    // 2) 커서 복원
                     val newLength = rtState.toMarkdown().length
                     val restoredCursor = currentSelection.end.coerceIn(0, newLength)
                     rtState.selection = TextRange(restoredCursor)
 
                     suppressVmSync = false
                 }
-                is EditCardUiEvent.HideKeyboard -> {
-                    // 포커스 해제 + 키보드 닫기
-                    focusManager.clearFocus(force = true)
+                EditCardUiEvent.HideKeyboard -> {
                     keyboardController?.hide()
                 }
             }
@@ -145,39 +131,80 @@ fun EditCardScreen(
     var editorBounds by remember { mutableStateOf<Rect?>(null) }
     var toolbarBounds by remember { mutableStateOf<Rect?>(null) }
 
-    // EditCardScreen() 내부 최상단 근처
-    val editorFocusRequester = remember { FocusRequester() }   // 에디터 포커스 요청자
+    val editorFocusRequester = remember { FocusRequester() }
 
     // 키보드 표시 여부 관찰
     val keyboardVisible by rememberKeyboardVisible()
 
-    var keepToolbar by remember { mutableStateOf(false) }      // 툴바 가시성 유지 플래그
-
-    // 하단 패딩(툴바 보정) 계산값을 Column에도 적용해서 마지막 줄까지 보이도록 하기
     val contentBottomInset = when {
-        showAiBar -> 300.dp     // AiPromptBar + 여유
-        editorFocused && keyboardVisible && !showAiBar -> 64.dp + 12.dp // MarkdownBar + 여유
+        showAiBar -> 300.dp
+        editorFocused && keyboardVisible && !showAiBar -> 64.dp + 12.dp
         else -> 0.dp
     }
 
-    // 키보드가 올라오면(=visible) 포커스 중일 때 에디터를 뷰포트로 스크롤
-    LaunchedEffect(keyboardVisible, editorFocused, showAiBar) {
-        if (keyboardVisible && editorFocused) {
-            withFrameNanos { /* wait one frame for IME insets */ }
-            scope.launch { editorBringIntoView.bringIntoView() }
+    val density = LocalDensity.current
+    val imeBottom = WindowInsets.ime.getBottom(density) // px
+
+    val scrollState = rememberScrollState()
+    var rootHeight by remember { mutableStateOf(0) } // px
+
+
+    LaunchedEffect(
+        keyboardVisible,
+        editorFocused,
+        showAiBar,
+        editorBounds,
+        rtState.selection, // cursor move also triggers re-centering
+        rootHeight,
+        imeBottom
+    ) {
+        // Guard conditions
+        if (!keyboardVisible) return@LaunchedEffect
+        if (!editorFocused) return@LaunchedEffect
+        if (showAiBar) return@LaunchedEffect
+
+        val bounds = editorBounds ?: return@LaunchedEffect
+        if (rootHeight == 0) return@LaunchedEffect
+
+        // Visible height = whole content - IME overlay
+        val visibleHeight = (rootHeight - imeBottom).coerceAtLeast(0)
+        if (visibleHeight == 0) return@LaunchedEffect
+
+        // Editor center in parent's coordinate space
+        val editorCenter = bounds.top + bounds.height / 2f
+
+        // We want editorCenter to be at visible center
+        val visibleCenter = visibleHeight / 2f
+
+        val currentScroll = scrollState.value.toFloat()
+        val diff = editorCenter - visibleCenter
+        val targetScroll = (currentScroll + diff)
+            .coerceIn(0f, scrollState.maxValue.toFloat())
+
+        // Avoid tiny oscillations
+        if (kotlin.math.abs(targetScroll - currentScroll) > 4f) {
+            scrollState.animateScrollTo(targetScroll.toInt())
         }
     }
 
+
+    // 키보드가 올라오면(=visible) 포커스 중일 때 에디터를 뷰포트로 스크롤
+//    LaunchedEffect(keyboardVisible, editorFocused, showAiBar,rtState.selection) {
+//        if (keyboardVisible && editorFocused && !showAiBar) {
+//            withFrameNanos { }
+//            scope.launch { editorBringIntoView.bringIntoView() }
+//        }
+//    }
+
     // 바 높이(대략치) — 토스트를 바 위로 띄우기 위한 패딩
-    val aiBarHeight = 84.dp      // AiPromptBar 높이(+여유)
-    val mdBarHeight = 64.dp      // MarkdownToolbar 높이(+여유)
+    val aiBarHeight = 84.dp
+    val mdBarHeight = 64.dp
     val toastBottomPadding = when {
         showAiBar -> aiBarHeight + 16.dp
         editorFocused && keyboardVisible && !showAiBar -> mdBarHeight + 16.dp
         else -> 16.dp
     }
 
-    // FAB 가시성 로컬 상태(조건 연동)
     var fabVisible by remember { mutableStateOf(true) }
     LaunchedEffect(showAiBar, editorFocused) {
         fabVisible = !showAiBar && !editorFocused
@@ -193,54 +220,40 @@ fun EditCardScreen(
     // "뒤로가기 확인" 다이얼로그 노출 상태
     var showLeaveConfirm by rememberSaveable { mutableStateOf(false) }
 
+    // ✅ 1️⃣ 초기화 LaunchedEffect 수정
     LaunchedEffect(uiState, didInit) {
         val ready = uiState as? EditCardUiState.Ready ?: return@LaunchedEffect
-        // 디버깅 1: 서버에서 받은 원본 확인
+
         Log.d("EditCardDebug", "━━━ 서버 데이터 수신 ━━━")
         Log.d("EditCardDebug", "원본 summary: '${ready.summary}'")
-        Log.d("EditCardDebug", "원본 길이: ${ready.summary.length}")
-        debugNewLines(ready.summary, "서버 원본")
 
-        val target = canonicalizeMarkdown(ready.summary)
-        val noNestedOrder = demoteNestedOrderedToBullets(target)
-        val safeForEditor = shimListBoldBug(target)
+        val normalized = standardizeMarkdown(ready.summary)
 
-        // 디버깅 2: 정규화 후 확인
-        Log.d("EditCardDebug", "정규화 후: '${target}'")
-        Log.d("EditCardDebug", "정규화 후 길이: ${target.length}")
-        debugMarkdownNormalization(ready.summary, "초기 로드")
+        Log.d("EditCardDebug", "정규화 후: '${normalized}'")
 
         if (!didInit) {
-            if (rtState.toMarkdown() != safeForEditor){
-                Log.d("EditCardDebug", "setMarkdown 호출 전 rtState: '${rtState.toMarkdown()}'")
-                rtState.setMarkdown(safeForEditor)
-                Log.d("EditCardDebug", "setMarkdown 호출 후 rtState: '${rtState.toMarkdown()}'")
-
-                // 디버깅 3: 설정 후 RichTextState 상태 확인
-                debugRichTextState(rtState, "초기 설정 후")
+            if (rtState.toMarkdown() != normalized) {
+                Log.d("EditCardDebug", "setMarkdown 호출")
+                rtState.setMarkdown(normalized)
             }
 
-            val canonical = canonicalizeMarkdown(stripShimForServer(rtState.toMarkdown()))
-            initialMarkdown = canonical
-            currentMarkdown = canonical
-
-            // 디버깅 4: 전체 파이프라인 확인
-            debugFullPipeline(ready.summary, rtState, "초기화 완료")
+            initialMarkdown = normalized
+            currentMarkdown = normalized
             didInit = true
         }
     }
 
-    // 에디터 → 뷰모델 동기화 블록 교체
+    // ✅ 2️⃣ 에디터 → VM 동기화 수정
     LaunchedEffect(rtState) {
         snapshotFlow { rtState.toMarkdown() }
-            .map { raw -> canonicalizeMarkdown(stripShimForServer(raw)) }
+            .map { raw -> standardizeMarkdown(raw) }
             .distinctUntilChanged()
-            .collectLatest { canon ->
-                currentMarkdown = canon
+            .collectLatest { normalized ->
+                currentMarkdown = normalized
                 if (!suppressVmSync) {
                     (uiState as? EditCardUiState.Ready)?.let {
-                        if (it.summary != canon) {
-                            viewModel.updateSummary(canon)
+                        if (it.summary != normalized) {
+                            viewModel.updateSummary(normalized)
                         }
                     }
                 }
@@ -257,7 +270,6 @@ fun EditCardScreen(
     // VM의 문자열 토스트를 커스텀 토스트로 라우팅
     LaunchedEffect(toast) {
         toast?.let { msg ->
-            // ... type 계산 생략 ...
             toastHost.show(
                 title = AnnotatedString(msg),
                 layout = AppToastLayout.TitleOnly,
@@ -277,17 +289,13 @@ fun EditCardScreen(
     EditCardAlertDialog(
         visible = showLeaveConfirm,
         onKeepEditing = {
-            // 계속 편집 → 다이얼로그만 닫기
             showLeaveConfirm = false
         },
         onDiscardAndExit = {
-            // 변경 폐기 후 나가기
-            // 필요시 VM 초기화가 있다면 호출: viewModel.discardChanges()
             showLeaveConfirm = false
             onBack()
         },
         onDismiss = {
-            // 바깥 클릭/백 등으로 닫힘
             showLeaveConfirm = false
         }
     )
@@ -301,31 +309,26 @@ fun EditCardScreen(
                 navigationIcon = {
                     IconButton(
                         onClick = {
-                            // 뒤로가기 눌렀을 떄 변경사항 있을 경우 경고 다이얼로그 노출
                             focusManager.clearFocus(force = true)
                             if (hasUnsavedChangesState.value) showLeaveConfirm = true else onBack()
                         },
-                        enabled = !aiLoading //  AI 응답 대기 중에는 뒤로가기 비활성화
+                        enabled = !aiLoading
                     ) {
                         Icon(painterResource(R.drawable.arrow_back), contentDescription = "뒤로가기")
                     }
                 },
                 actions = {
                     TextButton(onClick = {
-                        // 디버깅 6: 저장 전 상태 확인
                         Log.d("EditCardDebug", "━━━ 저장 시작 ━━━")
-                        val beforeCanonical = rtState.toMarkdown()
-                        Log.d("EditCardDebug", "정규화 전: '${beforeCanonical}'")
 
-                        val markdown = canonicalizeMarkdown(stripShimForServer(beforeCanonical))
+                        // ✅ 3️⃣ standardizeMarkdown 사용
+                        val markdown = standardizeMarkdown(rtState.toMarkdown())
                         Log.d("EditCardDebug", "정규화 후: '${markdown}'")
-                        debugMarkdownNormalization(beforeCanonical, "저장 시")
-                        viewModel.updateSummary(markdown)
 
+                        viewModel.updateSummary(markdown)
                         initialMarkdown = markdown
                         currentMarkdown = markdown
 
-                        // 저장 요청
                         focusManager.clearFocus(force = true)
                         viewModel.save(onSuccess = { onSaveWithToast("요약 노트 수정 완료되었어요.") })
                         onSave()
@@ -336,7 +339,6 @@ fun EditCardScreen(
                     }
                 },
                 modifier = Modifier.drawBehind {
-                    // 상단바 하단 구분선
                     val y = size.height
                     drawLine(
                         color = Grey50,
@@ -348,10 +350,9 @@ fun EditCardScreen(
             )
         },
 
-        // ── FAB: 간소화된 위치 계산 ──
         floatingActionButton = {
             AnimatedVisibility(
-                visible =  !showAiBar,
+                visible = !showAiBar,
                 modifier = Modifier
                     .imePadding()
                     .zIndex(30f)
@@ -369,9 +370,7 @@ fun EditCardScreen(
                         defaultElevation = 4.dp,
                         pressedElevation = 5.dp
                     ),
-                    modifier = Modifier
-                        .size(56.dp),
-
+                    modifier = Modifier.size(56.dp),
                     shape = CircleShape
                 ) {
                     Icon(
@@ -385,11 +384,16 @@ fun EditCardScreen(
         },
     ) { innerPadding ->
 
+
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .onGloballyPositioned { coords ->
+                    // 전체 뷰포트 높이 저장
+                    rootHeight = coords.size.height
+                }
                 .pointerInput(editorBounds, toolbarBounds) {
-                    // 에디터/툴바 외 영역 터치 시 포커스 해제
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = true)
                         val p = down.position
@@ -405,40 +409,38 @@ fun EditCardScreen(
                 hostState = toastHost,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    // 키보드(IME) 인셋을 반영해서 "항상 키보드 위"에 위치
                     .imePadding()
-                    // 네비게이션 바 있는 기기에서 하단 소프트키 위로
                     .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
                     .zIndex(100f)
-                    // AI바/마크다운바 위로 조금 더 띄우는 추가 여백만 계산
                     .padding(
                         bottom = when {
-                            showAiBar -> 130.dp  // aiBarHeight + 여유
-                            editorFocused && keyboardVisible && !showAiBar -> 64.dp + 12.dp   // mdBarHeight + 여유
+                            showAiBar -> 130.dp
+                            editorFocused && keyboardVisible && !showAiBar -> 64.dp + 12.dp
                             else -> 12.dp
                         }
                     )
             )
 
-            // 본문: 기본 패딩만 적용
+
+
+            /* 본문 */
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scrollState)
                     .imePadding()
                     .padding(bottom = contentBottomInset),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // 시스템 기본 선택 툴바 숨김
-                Surface( color = Color.White ) {
+                Surface(color = Color.White) {
                     NoSelectionToolbar {
                         NoSelectionToolbar {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 20.dp)                // 좌우 여백
-                                    .onGloballyPositioned { editorBounds = it.boundsInParent() } // 패딩 포함한 영역을 에디터로 간주
+                                    .padding(horizontal = 20.dp)
+                                    .onGloballyPositioned { editorBounds = it.boundsInParent() }
                             ) {
                                 RichTextEditor(
                                     state = rtState,
@@ -449,24 +451,22 @@ fun EditCardScreen(
                                     ),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .heightIn(min = 220.dp)
+                                        //  - min: 기본 높이
+                                        //  - max: 키보드 올라와도 화면 안에 들어갈 수 있게 적당히 작은 값
+                                        .heightIn(min = 220.dp, max = 320.dp)
                                         .focusRequester(editorFocusRequester)
-                                        .bringIntoViewRequester(editorBringIntoView)
+//                                        .bringIntoViewRequester(editorBringIntoView)
                                         .onGloballyPositioned { coords ->
-                                            // 디버깅 5: 실제 렌더링 크기 확인
                                             Log.d("EditCardDebug", "에디터 렌더링 크기: ${coords.size}")
                                             Log.d("EditCardDebug", "에디터 표시 텍스트: '${rtState.annotatedString.text}'")
                                             Log.d("EditCardDebug", "에디터 표시 길이: ${rtState.annotatedString.text.length}")
-                                        }
-                                        .onFocusChanged { fs ->
+                                        } .onFocusChanged { fs ->
+                                            // editor focus flag for toolbar and scroll logic
                                             editorFocused = fs.isFocused
+
                                             if (fs.isFocused) {
-                                                // AI 바는 닫고, 에디터가 보이도록 스크롤
+                                                // when editor gains focus, AI bar는 닫아두기
                                                 viewModel.toggleAiBar(false)
-                                                scope.launch {
-                                                    withFrameNanos { }
-                                                    editorBringIntoView.bringIntoView()
-                                                }
                                             }
                                         }
                                 )
@@ -476,11 +476,10 @@ fun EditCardScreen(
                 }
             }
 
-            // 3) AI 처리 오버레이
-            //  애니메이션 추가
+            /* AI 로딩 오버레이 */
             val aiOverlayBottomPadding by animateDpAsState(
                 targetValue = when {
-                    showAiBar -> 300.dp  // aiBarHeight + 여유
+                    showAiBar -> 300.dp
                     else -> 0.dp
                 },
                 animationSpec = tween(
@@ -494,16 +493,18 @@ fun EditCardScreen(
                 visible = aiLoading,
                 modifier = Modifier
                     .padding(bottom = aiOverlayBottomPadding)
-                    .matchParentSize()            // Box 꽉 채움
+                    .matchParentSize()
                     .align(Alignment.Center)
                     .zIndex(12f),
+                leftDotResId = R.drawable.ai_loading1,
+                centerDotResId = R.drawable.ai_loading2,
+                rightDotResId = R.drawable.ai_loading3,
                 consumeTouch = true
             ) {
                 Text("AI가 요약 노트를 다듬고 있어요", style = AppTextStyles.b2_medium_16, color = Grey700)
             }
 
-
-            // ── 마크다운 툴바: 에디터 포커스 && AI 바 닫힘 ──
+            /* 마크다운 툴바 */
             AnimatedVisibility(
                 visible = editorFocused && keyboardVisible && !showAiBar,
                 modifier = Modifier
@@ -516,7 +517,7 @@ fun EditCardScreen(
                         initialOffsetY = { it / 3 },
                         animationSpec = tween(50, easing = FastOutLinearInEasing)
                     ),
-                exit  = fadeOut(animationSpec = tween(30)) +
+                exit = fadeOut(animationSpec = tween(30)) +
                     slideOutVertically(
                         targetOffsetY = { it / 3 },
                         animationSpec = tween(30, easing = LinearOutSlowInEasing)
@@ -531,7 +532,7 @@ fun EditCardScreen(
                 )
             }
 
-            // ── AI 프롬프트 바: FAB로 열릴 때만 ──
+            /* AI 프롬프트 바 */
             AnimatedVisibility(
                 visible = showAiBar,
                 modifier = Modifier
@@ -544,7 +545,7 @@ fun EditCardScreen(
                         initialOffsetY = { it / 3 },
                         animationSpec = tween(50, easing = FastOutLinearInEasing)
                     ),
-                exit  = fadeOut(animationSpec = tween(30)) +
+                exit = fadeOut(animationSpec = tween(30)) +
                     slideOutVertically(
                         targetOffsetY = { it / 3 },
                         animationSpec = tween(30, easing = LinearOutSlowInEasing)
@@ -556,15 +557,15 @@ fun EditCardScreen(
                     onValueChange = viewModel::onAiQueryChange,
                     onClose = { if (!aiLoading) viewModel.toggleAiBar(false) },
                     onSubmit = {
-                        val md = canonicalizeMarkdown(stripShimForServer(rtState.toMarkdown()))
+                        // ✅ 4️⃣ AI 제출시도 standardizeMarkdown 사용
+                        val md = standardizeMarkdown(rtState.toMarkdown())
                         viewModel.updateSummary(md)
                         viewModel.requestAiEdit()
                     },
                     showAiBar = showAiBar,
                     canUndo = canUndo,
                     onUndo = { if (!aiLoading) viewModel.undoAiEdit() },
-                    modifier = Modifier
-                        .fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
@@ -573,15 +574,11 @@ fun EditCardScreen(
 
 @Composable
 fun rememberKeyboardVisible(): State<Boolean> {
-    // 키보드(IME) 영역의 하단값을 픽셀로 가져오기 위해 Density 필요
     val density = LocalDensity.current
-    // Compose에서 제공하는 IME 인셋
     val ime = WindowInsets.ime
 
-    // 외부에서 관찰 가능한 가시성 상태
     val isVisible = remember { mutableStateOf(false) }
 
-    // 인셋 하단값이 0 초과이면 키보드가 올라온 상태로 판단
     LaunchedEffect(ime, density) {
         snapshotFlow { ime.getBottom(density) > 0 }
             .collect { visible -> isVisible.value = visible }

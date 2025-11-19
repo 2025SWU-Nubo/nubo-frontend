@@ -194,6 +194,7 @@ fun HomeScreen(
                         onOpenCardDetail(item.id)
                     }
                 )
+                Spacer(Modifier.height(80.dp))
             }
         }
 
@@ -296,13 +297,14 @@ private fun RecentBoardCard(
     videoThumbnailUrl: String?,
     onClick: (Int, String) -> Unit
 ) {
+    val cardShape = RoundedCornerShape(8.dp)
     Card(
         modifier = Modifier
             .size(width = 120.dp, height = 110.dp)
-            .shadow(2.dp, shape = RoundedCornerShape(8.dp))
-            .clip(RoundedCornerShape(8.dp))
             .clickable(enabled = boardId > 0) { onClick(boardId, boardName) },
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        shape = cardShape, // 카드 모양
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         // Top image
         AsyncImage(
