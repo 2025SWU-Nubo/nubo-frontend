@@ -9,6 +9,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -73,8 +74,10 @@ import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.GreyMain100
 import com.example.nubo.ui.theme.GreyMain300
+import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.ui.theme.PurpleMain500
 import com.example.nubo.utils.standardizeMarkdown
+import com.google.firebase.annotations.concurrent.Background
 import com.mohamedrejeb.richeditor.model.rememberRichTextState
 import com.mohamedrejeb.richeditor.ui.material3.RichText
 import kotlinx.coroutines.delay
@@ -201,7 +204,7 @@ fun CardDetailScreen(
                     .verticalScroll(scrollState),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
                 ImageWithButton(
                     item = item,
                     onInfoClick = {
@@ -303,7 +306,7 @@ private fun ImageWithButton(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(215.dp)
+            .height(200.dp)
     ) {
         Image(
             painter = rememberAsyncImagePainter(item.videoThumbnailUrl),
@@ -380,8 +383,8 @@ private fun ImageWithButton(
             Icon(
                 painter = painterResource(R.drawable.play),
                 contentDescription = "Start",
-                tint = Color.White.copy(alpha = 0.9f),
-                modifier = Modifier.size(56.dp)
+                tint = Color.White.copy(alpha = 0.95f),
+                modifier = Modifier.size(60.dp)
             )
         }
     }
@@ -434,7 +437,7 @@ private fun DetailBodyMarkdown(
             .animateContentSize(animationSpec = tween(180)),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(Color.White),
-        border = BorderStroke(1.5.dp, Grey30),
+        border = BorderStroke(1.dp, Grey30),
     ) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp)) {
             Text(
@@ -521,7 +524,7 @@ private fun CardKeyword(
             ),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(Color.White),
-        border = BorderStroke(1.5.dp, Grey30),
+        border = BorderStroke(1.dp, Grey30),
     ) {
         Column (
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp)
@@ -529,8 +532,26 @@ private fun CardKeyword(
             Text(text = "포함된 키워드", style = AppTextStyles.b2_semibold_16, color = Grey500)
             Spacer(Modifier.height(12.dp))
 
-            val display = if(keywords.isEmpty()) "키워드가 없어요" else keywords.joinToString(separator = " ")
-            Text(text = display, style = AppTextStyles.b2_regular_16, color = GreyMain300)
+
+            if (keywords.isEmpty()) {
+                Text(
+                    text = "키워드가 없어요",
+                    style = AppTextStyles.b2_regular_16,
+                    color = GreyMain300
+                )
+            } else {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    keywords.forEach { keyword ->
+                        keywordChip(
+                            text = keyword,
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -545,7 +566,26 @@ private fun rememberImeOrNavBottomPadding(extra: Dp = 0.dp): Dp {
     return with(density) { bottomPx.toDp() } + extra
 }
 
-
+@Composable
+fun keywordChip(
+    text: String,
+    modifier: Modifier = Modifier,
+    textColor: Color = PurpleMain500,
+    backgroundColor: Color = Purple50,
+    ){
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(backgroundColor)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ){
+        Text(
+            text = text,
+            style = AppTextStyles.b3_medium_14,
+            color = textColor
+        )
+    }
+}
 
 // 프리뷰용 더미 데이터
 //@Preview(showBackground = true, showSystemUi = true)
