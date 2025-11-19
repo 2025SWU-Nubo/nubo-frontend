@@ -103,7 +103,7 @@ class CardDetailViewModel @Inject constructor(
             }.onFailure { e ->
                 val msg = when (e) {
                 is HttpException -> when (e.code()) {
-                    401, 403 -> "세션이 만료되었어요. 다시 로그인해주세요."
+                    401, 403 -> "세션이 만료되었어요.\n다시 로그인해주세요."
                     404 -> "해당 카드를 찾을 수 없습니다."
                     else -> "서버 오류(${e.code()})가 발생했습니다."
                 }
