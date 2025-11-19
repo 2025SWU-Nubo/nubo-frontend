@@ -42,12 +42,18 @@ fun BottomSheetHost(
     onBackToAddMenu: () -> Unit,
     onBackToCreateBoard: ()-> Unit,
     onInviteComplete: (List<String>) -> Unit,
+    onClickCreatedBoard: (Long, String) -> Unit,
     modifier: Modifier = Modifier,
-    showToast: (String, AppToastType, Int,Int) -> Unit
+    showToast: (
+        String,               // message
+        AppToastType,         // type
+        Int,                  // durationMillis
+        Int,                  // preDelayMillis
+        String?,              // actionLabel (nullable)
+        (() -> Unit)?         // onAction (nullable)
+    ) -> Unit
 ) {
     if (route == null) return
-
-
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -64,15 +70,19 @@ fun BottomSheetHost(
     var pendingToastMessage by rememberSaveable { mutableStateOf<String?>(null) }
     val context = LocalContext.current
 
-    // 성공 처리 (토스트 이후 상위 알림도 생성 결과 이름 사용 권장)
+    // 보드 생성 완료 시 토스트 + 콜백 처리
     LaunchedEffect(ui.created) {
         ui.created?.let { created ->
             showToast(
                 "‘${created.name}’ ${if (ui.isShared) "공유" else "개인"} 보드를 생성했어요.",
-                AppToastType.POSITIVE,
-                1800,
-                550
+                AppToastType.NORMAL,
+                2600,
+                550,
+                "바로가기",                           // actionLabel
+                { onClickCreatedBoard(created.id, created.name) }  // onAction: 네비게이션 콜백
             )
+
+            // 기존 상위 처리 유지 (리스트 갱신 등)
             onCreateBoard(created.name, ui.isShared)
             createBoardViewModel.consumeCreated()
             onDismiss()
@@ -148,7 +158,9 @@ fun BottomSheetHost(
                     pendingToastMessage!!, // 예약된 메시지 사용
                     AppToastType.POSITIVE,
                     1600,
-                    160 // 160ms 지연 후 CreateBoardSheet 위에 토스트가 뜸
+                    160, // 160ms 지연 후 CreateBoardSheet 위에 토스트가 뜸
+                    null,
+                    null
                 )
                 pendingToastMessage = null // 토스트를 띄웠으므로 상태를 비움
             }
@@ -244,7 +256,7 @@ fun BottomSheetHost(
                     showToast = { msg, type, duration ->
                         // 바텀시트 안에서 호출한 토스트를
                         // MainScreen 에서 만든 전역 토스트로 전달
-                        showToast(msg, type, duration, 900)   // preDelay = 0
+                        showToast(msg, type, duration, 900, null, null )   // preDelay = 0
                     }
                 )
             }

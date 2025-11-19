@@ -168,7 +168,7 @@ fun CardDetailScreen(
                             ),
                             layout = AppToastLayout.TitleOnly,
                             type = AppToastType.FAVORITE,
-                            durationMillis = 1200
+                            durationMillis = 1800
                         )
                     }
                 }

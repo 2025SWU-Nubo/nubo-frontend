@@ -328,7 +328,7 @@ private fun InterestCircleChip(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.check),
+                        painter = painterResource(R.drawable.check_fill),
                         contentDescription = "선택됨",
                         tint = Color.White,
                         modifier = Modifier.size(24.dp)

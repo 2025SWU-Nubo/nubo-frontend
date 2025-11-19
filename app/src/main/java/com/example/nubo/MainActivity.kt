@@ -207,15 +207,29 @@ fun MainScreen(
     val toastHost = LocalAppToastHostState.current
     val toastScope = rememberCoroutineScope()
 
-
-    val showToast: (String, AppToastType, Int,Int) -> Unit = { msg, type, duration,preDelay ->
+    // message, type, duration, preDelay, actionLabel, onAction
+    val showToast: (
+        String,
+        AppToastType,
+        Int,
+        Int,
+        String?,
+        (() -> Unit)?
+    ) -> Unit = { msg, type, duration, preDelay, actionLabel, onAction ->
         toastScope.launch {
             toastHost.show(
                 title = AnnotatedString(msg),
                 type = type,
-                layout = AppToastLayout.TitleOnly,
+                // If action exists, use action layout  otherwise title only
+                layout = if (actionLabel != null && onAction != null) {
+                    AppToastLayout.TitleWithAction
+                } else {
+                    AppToastLayout.TitleOnly
+                },
                 durationMillis = duration,
-                preDelayMillis = preDelay
+                preDelayMillis = preDelay,
+                actionLabel = actionLabel,
+                onAction = onAction
             )
         }
     }
@@ -278,7 +292,7 @@ fun MainScreen(
             android.util.Log.d("Myboard","새로고침 신호 전송!")
 
             // 플래그를 재설정하여 중복 새로고침 방지
-            createBoardViewModel.consumeCreated()
+//            createBoardViewModel.consumeCreated()
         }
     }
 
@@ -819,8 +833,8 @@ fun MainScreen(
         onDismiss = { sheetRoute = null },
         onGoCreateBoard = { sheetRoute = SheetRoute.CreateBoard },
         onGoInvite = { sheetRoute = SheetRoute.Invite },
-        onCreateBoard = { name, isShared ->
-            // TODO Create board via ViewModel
+        onCreateBoard = { _, _ ->
+            // Board creation callback from sheet  refresh list, close sheet etc
             sheetRoute = null
         },
         onInvite = { email ->
@@ -831,6 +845,17 @@ fun MainScreen(
         onBackToCreateBoard = { sheetRoute = SheetRoute.CreateBoard },
         onInviteComplete = { emails ->
             // TODO Submit invites via ViewModel
+        },
+        onClickCreatedBoard = { boardId, boardName ->
+            // Navigate to created board detail when toast action is clicked
+            val encoded = URLEncoder.encode(
+                boardName,
+                StandardCharsets.UTF_8.toString()
+            )
+            navController.navigate("board_detail/${boardId.toInt()}/$encoded?source=FROM_CREATE") {
+                popUpTo("home") { inclusive = false }
+                launchSingleTop = true
+            }
         },
         showToast = showToast
     )

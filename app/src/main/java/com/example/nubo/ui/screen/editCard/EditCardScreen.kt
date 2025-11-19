@@ -54,6 +54,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.components.toast.AppToastHost
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.AppToastType
+import com.example.components.toast.LocalAppToastHostState
 import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.ui.component.dialog.EditCardAlertDialog
 import com.example.nubo.ui.screen.editCard.widgets.AiPromptBar
@@ -63,6 +64,7 @@ import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Grey700
 import com.example.nubo.utils.standardizeMarkdown
 import com.mohamedrejeb.richeditor.ui.material3.RichTextEditorDefaults
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -86,7 +88,7 @@ fun EditCardScreen(
     val aiQuery by viewModel.aiQuery.collectAsState()
     val aiLoading by viewModel.aiLoading.collectAsState()
     val toast by viewModel.toast.collectAsState()
-    val toastHost = rememberAppToastHostState()
+    val toastHost = LocalAppToastHostState.current
     val canUndo by viewModel.canUndoAiEdit.collectAsState()
     val uiEventFlow = viewModel.uiEvent
 
@@ -101,7 +103,7 @@ fun EditCardScreen(
     var suppressVmSync by remember { mutableStateOf(false) }
 
 
-    // ✅ AI 편집 적용 시 커서 위치 보존
+    // AI 편집 적용 시 커서 위치 보존
     LaunchedEffect(Unit) {
         uiEventFlow.collect { event ->
             when (event) {
@@ -187,15 +189,6 @@ fun EditCardScreen(
         }
     }
 
-
-    // 키보드가 올라오면(=visible) 포커스 중일 때 에디터를 뷰포트로 스크롤
-//    LaunchedEffect(keyboardVisible, editorFocused, showAiBar,rtState.selection) {
-//        if (keyboardVisible && editorFocused && !showAiBar) {
-//            withFrameNanos { }
-//            scope.launch { editorBringIntoView.bringIntoView() }
-//        }
-//    }
-
     // 바 높이(대략치) — 토스트를 바 위로 띄우기 위한 패딩
     val aiBarHeight = 84.dp
     val mdBarHeight = 64.dp
@@ -203,11 +196,6 @@ fun EditCardScreen(
         showAiBar -> aiBarHeight + 16.dp
         editorFocused && keyboardVisible && !showAiBar -> mdBarHeight + 16.dp
         else -> 16.dp
-    }
-
-    var fabVisible by remember { mutableStateOf(true) }
-    LaunchedEffect(showAiBar, editorFocused) {
-        fabVisible = !showAiBar && !editorFocused
     }
 
     var didInit by rememberSaveable { mutableStateOf(false) }
@@ -220,7 +208,7 @@ fun EditCardScreen(
     // "뒤로가기 확인" 다이얼로그 노출 상태
     var showLeaveConfirm by rememberSaveable { mutableStateOf(false) }
 
-    // ✅ 1️⃣ 초기화 LaunchedEffect 수정
+    // 초기화 LaunchedEffect 수정
     LaunchedEffect(uiState, didInit) {
         val ready = uiState as? EditCardUiState.Ready ?: return@LaunchedEffect
 
@@ -243,7 +231,7 @@ fun EditCardScreen(
         }
     }
 
-    // ✅ 2️⃣ 에디터 → VM 동기화 수정
+    // 2️⃣ 에디터 → VM 동기화 수정
     LaunchedEffect(rtState) {
         snapshotFlow { rtState.toMarkdown() }
             .map { raw -> standardizeMarkdown(raw) }
@@ -270,6 +258,8 @@ fun EditCardScreen(
     // VM의 문자열 토스트를 커스텀 토스트로 라우팅
     LaunchedEffect(toast) {
         toast?.let { msg ->
+            delay(400)
+
             toastHost.show(
                 title = AnnotatedString(msg),
                 layout = AppToastLayout.TitleOnly,
@@ -349,39 +339,6 @@ fun EditCardScreen(
                 }
             )
         },
-
-        floatingActionButton = {
-            AnimatedVisibility(
-                visible = !showAiBar,
-                modifier = Modifier
-                    .imePadding()
-                    .zIndex(30f)
-                    .padding(bottom = if (editorFocused && keyboardVisible && !showAiBar) 68.dp else 45.dp),
-                enter = EnterTransition.None,
-                exit = ExitTransition.None
-            ) {
-                FloatingActionButton(
-                    onClick = {
-                        if (!aiLoading) viewModel.toggleAiBar(true)
-                    },
-                    containerColor = Grey5,
-                    contentColor = Color.Unspecified,
-                    elevation = FloatingActionButtonDefaults.elevation(
-                        defaultElevation = 4.dp,
-                        pressedElevation = 5.dp
-                    ),
-                    modifier = Modifier.size(56.dp),
-                    shape = CircleShape
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ai_prompt_logo),
-                        contentDescription = "AI 요약 편집",
-                        tint = Color.Unspecified,
-                        modifier = Modifier.size(56.dp)
-                    )
-                }
-            }
-        },
     ) { innerPadding ->
 
 
@@ -404,25 +361,6 @@ fun EditCardScreen(
                     }
                 },
         ) {
-            /* 토스트 */
-            AppToastHost(
-                hostState = toastHost,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .imePadding()
-                    .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
-                    .zIndex(100f)
-                    .padding(
-                        bottom = when {
-                            showAiBar -> 130.dp
-                            editorFocused && keyboardVisible && !showAiBar -> 64.dp + 12.dp
-                            else -> 12.dp
-                        }
-                    )
-            )
-
-
-
             /* 본문 */
             Column(
                 modifier = Modifier
@@ -557,7 +495,7 @@ fun EditCardScreen(
                     onValueChange = viewModel::onAiQueryChange,
                     onClose = { if (!aiLoading) viewModel.toggleAiBar(false) },
                     onSubmit = {
-                        // ✅ 4️⃣ AI 제출시도 standardizeMarkdown 사용
+                        // AI 제출시도 standardizeMarkdown 사용
                         val md = standardizeMarkdown(rtState.toMarkdown())
                         viewModel.updateSummary(md)
                         viewModel.requestAiEdit()
@@ -567,6 +505,42 @@ fun EditCardScreen(
                     onUndo = { if (!aiLoading) viewModel.undoAiEdit() },
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+
+            AnimatedVisibility(
+                visible = !showAiBar,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd) // 오른쪽 아래 고정
+                    .imePadding()
+                    .zIndex(30f) // 토스트보다 낮게
+                    .padding(
+                        end = 20.dp,
+                        bottom = if (editorFocused && keyboardVisible && !showAiBar)
+                            60.dp else 45.dp
+                    ),
+                enter = EnterTransition.None,
+                exit = ExitTransition.None
+            ) {
+                FloatingActionButton(
+                    onClick = {
+                        if (!aiLoading) viewModel.toggleAiBar(true)
+                    },
+                    containerColor = Grey5,
+                    contentColor = Color.Unspecified,
+                    elevation = FloatingActionButtonDefaults.elevation(
+                        defaultElevation = 4.dp,
+                        pressedElevation = 5.dp
+                    ),
+                    modifier = Modifier.size(56.dp),
+                    shape = CircleShape
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ai_prompt_logo),
+                        contentDescription = "AI 요약 편집",
+                        tint = Color.Unspecified,
+                        modifier = Modifier.size(56.dp)
+                    )
+                }
             }
         }
     }

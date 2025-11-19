@@ -10,6 +10,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -320,24 +322,43 @@ fun AppToastHost(
     ) {
         AnimatedVisibility(
             visible = data != null,
-            enter = scaleIn(
-                initialScale = 0.97f,
-                animationSpec = tween(
-                    durationMillis = 140,
-                    easing = LinearOutSlowInEasing
-                )
-            ) + fadeIn(
-                animationSpec = tween(
-                    durationMillis = 120,
-                    easing = LinearOutSlowInEasing
-                )
-            ),
-            exit = fadeOut(
-                animationSpec = tween(
-                    durationMillis = 140,
-                    easing = FastOutLinearInEasing
-                )
-            )
+            enter =
+                fadeIn(
+                    animationSpec = tween(
+                        durationMillis = 420,
+                        easing = LinearOutSlowInEasing
+                    )
+                ) +
+                    scaleIn(
+                        initialScale = 0.9f,
+                        animationSpec = tween(
+                            durationMillis = 420,
+                            easing = LinearOutSlowInEasing
+                        )
+                    ) +
+                    slideInVertically(
+                        // 토스트 높이의 1/4 정도 아래에서 살짝 올라오게
+                        initialOffsetY = { fullHeight -> fullHeight },
+                        animationSpec = tween(
+                            durationMillis = 420,
+                            easing = LinearOutSlowInEasing
+                        )
+                    ),
+            exit =
+                fadeOut(
+                    animationSpec = tween(
+                        durationMillis = 200,
+                        easing = FastOutLinearInEasing
+                    )
+                ) +
+                    slideOutVertically(
+                        // 살짝 아래로 내려가면서 사라지게
+                        targetOffsetY = { fullHeight -> fullHeight / 9 },
+                        animationSpec = tween(
+                            durationMillis = 220,
+                            easing = FastOutLinearInEasing
+                        )
+                    )
         ) {
             val t = data ?: rendered ?: return@AnimatedVisibility
             val toastStyle = styleProvider(t.type)
@@ -499,8 +520,8 @@ private fun ToastRowContent(
     val hasBody = data.layout == AppToastLayout.TitleWithBody
 
     val contentPadding =
-        if (isCompact) PaddingValues(horizontal = 20.dp, vertical = 16.dp)
-        else PaddingValues(horizontal = 24.dp, vertical = 16.dp)
+        if (isCompact) PaddingValues(horizontal = 20.dp, vertical = 14.dp)
+        else PaddingValues(horizontal = 24.dp, vertical = 14.dp)
 
     Row(
         modifier = Modifier

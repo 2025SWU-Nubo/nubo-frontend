@@ -35,6 +35,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.example.components.toast.AppToastOverlay
 import com.example.components.toast.AppToastType
+import com.example.components.toast.LocalAppToastHostState
 import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.MainActivity
 import com.example.nubo.R
@@ -88,11 +89,9 @@ class OnBoardingLoginActivity : ComponentActivity() {
             viewModel.onLoginNotificationPermissionHandled()
         }
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 온보딩이 최초로 받은 인텐트에 FCM/딥링크 데이터가 있으면 캐시
         intent?.let { cacheToStore(it) }
 
         setContent {
@@ -100,107 +99,77 @@ class OnBoardingLoginActivity : ComponentActivity() {
             val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
 
             var notificationsEnabled by remember {
-                mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled())
+                mutableStateOf(
+                    NotificationManagerCompat.from(context).areNotificationsEnabled()
+                )
             }
 
-            // settings launcher to open app's notification settings
             val settingsLauncher = rememberNotificationSettingsLauncher(
                 onReturn = {
-                    // refresh flag after coming back from settings
-                    notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+                    notificationsEnabled =
+                        NotificationManagerCompat.from(context).areNotificationsEnabled()
                 }
             )
 
-            DisposableEffect(lifecycleOwner) {
-                val obs = LifecycleEventObserver { _, ev ->
-                    if (ev == Lifecycle.Event.ON_RESUME) {
-                        notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
-                    }
-                }
-                lifecycleOwner.lifecycle.addObserver(obs)
-                onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
-            }
-
-
-            val uiState = viewModel.uiState.collectAsState().value
-            val askPermission by viewModel.shouldRequestNotificationPermission.collectAsState()
-
+            // 전역 토스트 호스트 생성
             val toastHost = rememberAppToastHostState()
 
-            // 진입 즉시 자동으로 토큰 검증 플로우 시작(기존 onStartButtonClicked 로직 재사용)
-            LaunchedEffect(Unit) {
-                viewModel.onStartButtonClicked()
-            }
+            // 온보딩 전체를 CompositionLocal 로 감싸기
+            CompositionLocalProvider(LocalAppToastHostState provides toastHost) {
 
-            // 토스트 이벤트 수신
-            LaunchedEffect(Unit) {
-                viewModel.toastEvents.collectLatest { ev ->
-                    toastHost.show(
-                        title = AnnotatedString(ev.message),
-                        layout = ev.layout,
-                        type = ev.type,
-                        durationMillis = ev.durationMillis
-                    )
-                }
-            }
+                val uiState = viewModel.uiState.collectAsState().value
+                val askPermission by viewModel.shouldRequestNotificationPermission.collectAsState()
 
-            LaunchedEffect(Unit) {
-                viewModel.ensurePushTokenRegistered()
-            }
-
-
-            Box(Modifier.fillMaxSize()) {
-                // Android 13+ 에서만 권한 다이얼로그 노출
-                if (askPermission && Build.VERSION.SDK_INT >= 33) {
-                    NotificationPermissionDialog(
-                        visible = true,
-                        onAllow = {
-                            if (com.example.nubo.utils.NotificationPermissionHelper
-                                    .shouldRequestNotificationPermission(context)
-                            ) {
-                                requestNotificationPermissionLauncher.launch(
-                                    android.Manifest.permission.POST_NOTIFICATIONS
-                                )
-                            }
-
-                            // 앱 알림 설정 바로 열기
-                            com.example.nubo.utils.NotificationPermissionHelper
-                                .openAppNotificationSettings(context)
-
-                            viewModel.onLoginNotificationPermissionHandled()
-                        },
-                        onLater = { viewModel.onLoginNotificationPermissionHandled() },
-                        onDismiss = { viewModel.onLoginNotificationPermissionHandled() }
-                    )
-                }
-                // 33 미만이면 권한 요청 없이 즉시 핸들링
-                if (askPermission && Build.VERSION.SDK_INT < 33) {
-                    LaunchedEffect(Unit) { viewModel.onLoginNotificationPermissionHandled() }
+                // 자동 토큰 검증
+                LaunchedEffect(Unit) {
+                    viewModel.onStartButtonClicked()
                 }
 
-                OnBoardingScreen(
-                    uiState = uiState,
-                    onStartClick = { viewModel.onStartButtonClicked() },
-                    onGoogleLoginClick = {
-                        googleSignInLauncher.launch(viewModel.getGoogleSignInIntent())
-                    },
-                    onAccountSwitchConfirmed = {
-                        viewModel.confirmAccountSwitch { baseIntent ->
-                            val main = baseIntent.apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                                this@OnBoardingLoginActivity.intent?.extras?.let { putExtras(it) }
-                                setClass(this@OnBoardingLoginActivity, MainActivity::class.java)
-                            }
-                            startActivity(main)
-                            finish()
-                        }
+                // 토스트 이벤트 수신
+                LaunchedEffect(Unit) {
+                    viewModel.toastEvents.collectLatest { ev ->
+                        toastHost.show(
+                            title = AnnotatedString(ev.message),
+                            layout = ev.layout,
+                            type = ev.type,
+                            durationMillis = ev.durationMillis
+                        )
                     }
-                )
+                }
 
-                AppToastOverlay(hostState = toastHost)
+                LaunchedEffect(Unit) {
+                    viewModel.ensurePushTokenRegistered()
+                }
+
+                Box(Modifier.fillMaxSize()) {
+                    // 알림 권한 다이얼로그 등 기존 코드 그대로
+
+                    OnBoardingScreen(
+                        uiState = uiState,
+                        onStartClick = { viewModel.onStartButtonClicked() },
+                        onGoogleLoginClick = {
+                            googleSignInLauncher.launch(viewModel.getGoogleSignInIntent())
+                        },
+                        onAccountSwitchConfirmed = {
+                            viewModel.confirmAccountSwitch { baseIntent ->
+                                val main = baseIntent.apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                                    this@OnBoardingLoginActivity.intent?.extras?.let { putExtras(it) }
+                                    setClass(this@OnBoardingLoginActivity, MainActivity::class.java)
+                                }
+                                startActivity(main)
+                                finish()
+                            }
+                        }
+                    )
+
+                    // 전역 토스트 오버레이
+                    AppToastOverlay(hostState = toastHost)
+                }
             }
         }
     }
+
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
