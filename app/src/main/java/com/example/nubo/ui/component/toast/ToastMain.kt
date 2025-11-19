@@ -136,7 +136,7 @@ fun defaultToastStyleProvider(): (AppToastType) -> AppToastStyle = { t ->
 // ──────────────────────────────────────────────────────────────
 private val DEFAULT_FAVORITE_ICON_RES = R.drawable.favorite
 private val DEFAULT_ERROR_ICON_RES = R.drawable.error_toast
-private val DEFAULT_POSITIVE_ICON_RES = R.drawable.check_fill
+private val DEFAULT_POSITIVE_ICON_RES = R.drawable.check
 private val DEFAULT_UPLOAD_ICON_RES = R.drawable.upload
 private val DEFAULT_ALARM_ALLOW_ICON_RES = R.drawable.alarm_on
 private val DEFAULT_ALARM_DENY_ICON_RES = R.drawable.alarm_off
@@ -293,12 +293,7 @@ fun AppToastHost(
             // 토스트 배경 컬러
             val surfaceColor = if (useImageBackground) Color.Transparent else toastStyle.bg
 
-            val fixedWidth =
-                if (t.type == AppToastType.FAVORITE)
-                    // 즐겨찾기만 가로길이를 좀 더 작게
-                    Modifier.fillMaxWidth(0.90f).widthIn(max = 400.dp)
-                else
-                    Modifier.fillMaxWidth(1f).widthIn(max = 460.dp)
+            val fixedWidth = Modifier.fillMaxWidth(1f).widthIn(max = 460.dp)
 
             // 확대/축소의 기준점을 중앙으로 고정(
             Box(

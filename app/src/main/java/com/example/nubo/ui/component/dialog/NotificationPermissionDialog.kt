@@ -153,8 +153,8 @@ fun NotificationPermissionDialog(
     TwoButtonBasicDialog(
         visible = visible,
         title = "알림 권한 설정",
-        body1 = "카드 업로드 완료 알림을 켤까요?",
-        body2 = "알림을 켜면 업로드가 끝났을 때 바로 알려드려요.",
+        body1 = "'누보'에서 알림을 보내고자 합니다.?",
+        body2 = "알림을 켜야 영상을 저장했을 때 바로 알려드릴 수 있어요.",
 
         primaryButtonText = "알림 켜기",
         secondaryButtonText = "나중에",

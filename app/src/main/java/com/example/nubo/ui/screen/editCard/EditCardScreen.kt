@@ -94,11 +94,12 @@ fun EditCardScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
 
     val scope = rememberCoroutineScope()
-    val editorBringIntoView = remember { BringIntoViewRequester() }
+//    val editorBringIntoView = remember { BringIntoViewRequester() }
 
     var initialMarkdown by rememberSaveable { mutableStateOf("") }
     var currentMarkdown by rememberSaveable { mutableStateOf("") }
     var suppressVmSync by remember { mutableStateOf(false) }
+
 
     // ✅ AI 편집 적용 시 커서 위치 보존
     LaunchedEffect(Unit) {
@@ -141,13 +142,59 @@ fun EditCardScreen(
         else -> 0.dp
     }
 
-    // 키보드가 올라오면(=visible) 포커스 중일 때 에디터를 뷰포트로 스크롤
-    LaunchedEffect(keyboardVisible, editorFocused, showAiBar) {
-        if (keyboardVisible && editorFocused) {
-            withFrameNanos { }
-            scope.launch { editorBringIntoView.bringIntoView() }
+    val density = LocalDensity.current
+    val imeBottom = WindowInsets.ime.getBottom(density) // px
+
+    val scrollState = rememberScrollState()
+    var rootHeight by remember { mutableStateOf(0) } // px
+
+
+    LaunchedEffect(
+        keyboardVisible,
+        editorFocused,
+        showAiBar,
+        editorBounds,
+        rtState.selection, // cursor move also triggers re-centering
+        rootHeight,
+        imeBottom
+    ) {
+        // Guard conditions
+        if (!keyboardVisible) return@LaunchedEffect
+        if (!editorFocused) return@LaunchedEffect
+        if (showAiBar) return@LaunchedEffect
+
+        val bounds = editorBounds ?: return@LaunchedEffect
+        if (rootHeight == 0) return@LaunchedEffect
+
+        // Visible height = whole content - IME overlay
+        val visibleHeight = (rootHeight - imeBottom).coerceAtLeast(0)
+        if (visibleHeight == 0) return@LaunchedEffect
+
+        // Editor center in parent's coordinate space
+        val editorCenter = bounds.top + bounds.height / 2f
+
+        // We want editorCenter to be at visible center
+        val visibleCenter = visibleHeight / 2f
+
+        val currentScroll = scrollState.value.toFloat()
+        val diff = editorCenter - visibleCenter
+        val targetScroll = (currentScroll + diff)
+            .coerceIn(0f, scrollState.maxValue.toFloat())
+
+        // Avoid tiny oscillations
+        if (kotlin.math.abs(targetScroll - currentScroll) > 4f) {
+            scrollState.animateScrollTo(targetScroll.toInt())
         }
     }
+
+
+    // 키보드가 올라오면(=visible) 포커스 중일 때 에디터를 뷰포트로 스크롤
+//    LaunchedEffect(keyboardVisible, editorFocused, showAiBar,rtState.selection) {
+//        if (keyboardVisible && editorFocused && !showAiBar) {
+//            withFrameNanos { }
+//            scope.launch { editorBringIntoView.bringIntoView() }
+//        }
+//    }
 
     // 바 높이(대략치) — 토스트를 바 위로 띄우기 위한 패딩
     val aiBarHeight = 84.dp
@@ -337,9 +384,15 @@ fun EditCardScreen(
         },
     ) { innerPadding ->
 
+
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .onGloballyPositioned { coords ->
+                    // 전체 뷰포트 높이 저장
+                    rootHeight = coords.size.height
+                }
                 .pointerInput(editorBounds, toolbarBounds) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = true)
@@ -368,12 +421,14 @@ fun EditCardScreen(
                     )
             )
 
+
+
             /* 본문 */
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scrollState)
                     .imePadding()
                     .padding(bottom = contentBottomInset),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -396,22 +451,22 @@ fun EditCardScreen(
                                     ),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .heightIn(min = 220.dp)
+                                        //  - min: 기본 높이
+                                        //  - max: 키보드 올라와도 화면 안에 들어갈 수 있게 적당히 작은 값
+                                        .heightIn(min = 220.dp, max = 320.dp)
                                         .focusRequester(editorFocusRequester)
-                                        .bringIntoViewRequester(editorBringIntoView)
+//                                        .bringIntoViewRequester(editorBringIntoView)
                                         .onGloballyPositioned { coords ->
                                             Log.d("EditCardDebug", "에디터 렌더링 크기: ${coords.size}")
                                             Log.d("EditCardDebug", "에디터 표시 텍스트: '${rtState.annotatedString.text}'")
                                             Log.d("EditCardDebug", "에디터 표시 길이: ${rtState.annotatedString.text.length}")
-                                        }
-                                        .onFocusChanged { fs ->
+                                        } .onFocusChanged { fs ->
+                                            // editor focus flag for toolbar and scroll logic
                                             editorFocused = fs.isFocused
+
                                             if (fs.isFocused) {
+                                                // when editor gains focus, AI bar는 닫아두기
                                                 viewModel.toggleAiBar(false)
-                                                scope.launch {
-                                                    withFrameNanos { }
-                                                    editorBringIntoView.bringIntoView()
-                                                }
                                             }
                                         }
                                 )
