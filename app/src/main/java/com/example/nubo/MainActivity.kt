@@ -529,7 +529,8 @@ fun MainScreen(
                         onClickItem = { item -> nvm.onClickItem(item) },
                         onAcceptInvite = { item -> nvm.onClickPrimary(item) },
                         onRejectInvite = { item -> nvm.onClickSecondary(item) },
-                        onShowMore = { _ -> nvm.onClickMore() }
+                        onShowMore = { _ -> nvm.onClickMore() },
+                        onMarkAllRead = { nvm.onClickMarkAllRead() }
                     )
 
                     // 2) 단발 이벤트 수신 → 실제 네비게이션 수행
