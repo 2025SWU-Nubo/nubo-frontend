@@ -74,7 +74,7 @@ fun BottomSheetHost(
     LaunchedEffect(ui.created) {
         ui.created?.let { created ->
             showToast(
-                "‘${created.name}’ ${if (ui.isShared) "공유" else "개인"} 보드를 생성했어요.",
+                "보드 생성이 완료되었어요.",
                 AppToastType.NORMAL,
                 2600,
                 550,
