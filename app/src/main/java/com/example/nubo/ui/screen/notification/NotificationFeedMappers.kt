@@ -30,8 +30,8 @@ private fun AppNotification.toUiItem(now: Instant): NotificationItem {
     val type = when (this.type) {
         AppNotificationType.UNREAD_RECOMMEND -> NotiType.UnviewedReminder
         AppNotificationType.CARD_CREATED     -> NotiType.NewCard
-        AppNotificationType.BOARD_INVITE     -> NotiType.Invite
-        AppNotificationType.INVITE_RESULT,
+        AppNotificationType.BOARD_INVITE,
+        AppNotificationType.INVITE_RESULT    -> NotiType.Invite
         AppNotificationType.BOARD_ADDED,
         AppNotificationType.UNKNOWN          -> NotiType.System
     }

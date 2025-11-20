@@ -246,7 +246,7 @@ fun MainScreen(
 
             val (msg, type, dur) = when (ev) {
                 CardUploadViewModel.UploadEvent.Started ->
-                    Triple("카드 생성 중이에요", AppToastType.UPLOAD, 1200)
+                    Triple("카드 생성 중이에요", AppToastType.UPLOAD, 1000)
                 CardUploadViewModel.UploadEvent.Succeeded -> {
                     // MyBoard에 새로고침 신호 전송
                     // 유틸리티 함수를 사용해 "myboard" 라우트에 신호를 보냄
