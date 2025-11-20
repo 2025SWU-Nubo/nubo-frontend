@@ -1334,6 +1334,7 @@ private fun InvitePreviewChip(user: InviteUser) {
 fun BoardMembersSheet(
     activeMembers: List<MemberDto>,     // 참여 중인 사용자
     pendingMembers: List<InvitationDto>, // 대기 중인 사용자
+    isOwner: Boolean,
     onBack: () -> Unit,
     onCancelInvite: (Long) -> Unit // 초대 취소 클릭 시 (invitationId 전달)
 ) {
@@ -1389,8 +1390,7 @@ fun BoardMembersSheet(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(0.dp) // 아이템 간 간격은 개별 처리
             ) {
-                // --- 대기 중인 사용자 영역 ---
-                if (pendingMembers.isNotEmpty()) {
+                if (isOwner && pendingMembers.isNotEmpty()) { // owner 체크 추가
                     item {
                         Text(
                             text = "대기 중인 사용자",
@@ -1402,6 +1402,7 @@ fun BoardMembersSheet(
                     items(pendingMembers, key = { "invitation_${it.invitationId}" }) { invitation ->
                         PendingMemberRow(
                             invitation = invitation,
+                            isOwner = isOwner,
                             onCancelClick = { onCancelInvite(invitation.invitationId) }
                         )
                         Spacer(Modifier.height(16.dp)) // 아이템 간 간격
@@ -1412,8 +1413,8 @@ fun BoardMembersSheet(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(6.dp)
-                                .background(Grey10)   // 원하는 배경색
+                                .height(1.dp)
+                                .background(Grey50)   // 원하는 배경색
                         )
                         Spacer(Modifier.height(16.dp))
                     }
@@ -1444,6 +1445,7 @@ fun BoardMembersSheet(
 @Composable
 private fun PendingMemberRow(
     invitation: InvitationDto,
+    isOwner: Boolean,
     onCancelClick: () -> Unit
 ) {
     Row(
@@ -1483,28 +1485,31 @@ private fun PendingMemberRow(
         // 초대 취소 버튼 (요청하신 스타일 적용)
         // invited 상태는 '대기 중'이므로 항상 true라고 가정하고 UI 표시
         val invited = true
-        OutlinedButton(
-            onClick = onCancelClick,
-            shape = RoundedCornerShape(15.dp),
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 5.dp),
-            colors = if (invited) {
-                ButtonDefaults.outlinedButtonColors(
-                    containerColor = PurpleMain500,
-                    contentColor = Color.White
+        // [수정] owner=true 일 때만 초대 취소 버튼 표시
+        if (isOwner) {
+            OutlinedButton(
+                onClick = onCancelClick,
+                shape = RoundedCornerShape(15.dp),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 5.dp),
+                colors = if (invited) {
+                    ButtonDefaults.outlinedButtonColors(
+                        containerColor = PurpleMain500,
+                        contentColor = Color.White
+                    )
+                } else {
+                    ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color.Transparent,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                },
+                border = if (invited) null else ButtonDefaults.outlinedButtonBorder,
+                modifier = Modifier.height(32.dp)
+            ) {
+                Text(
+                    text = "초대 취소",
+                    style = AppTextStyles.b3_medium_14.copy(fontSize = 12.sp) // 버튼 텍스트 크기 조정
                 )
-            } else {
-                ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color.Transparent,
-                    contentColor = MaterialTheme.colorScheme.onSurface
-                )
-            },
-            border = if (invited) null else ButtonDefaults.outlinedButtonBorder,
-            modifier = Modifier.height(32.dp)
-        ) {
-            Text(
-                text = "초대 취소",
-                style = AppTextStyles.b3_medium_14.copy(fontSize = 12.sp) // 버튼 텍스트 크기 조정
-            )
+            }
         }
     }
 }
@@ -1567,7 +1572,6 @@ private fun ActiveMemberRow(
                 Text(
                     text = "OWNER",
                     style = AppTextStyles.label_medium_12,
-                    fontWeight = FontWeight.Bold
                 )
             }
         }

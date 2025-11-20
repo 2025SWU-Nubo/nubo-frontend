@@ -283,7 +283,17 @@ fun BoardDetailScreen(
                         navController.popBackStack()
 
                     }, // 메뉴 버튼 클릭 시 보드 설정 바텀 시트 표시
-                    onMenuClick = { bottomSheetType = BottomSheetType.BOARD_EDIT },
+                    onMenuClick = {
+                        // owner 값에 따라 바텀 시트 유형 결정
+                        val isOwner = ui.board?.owner ?: false
+                        bottomSheetType = if (isOwner) {
+                            BottomSheetType.BOARD_EDIT // 1. owner=true: 설정/편집 화면 표시
+                        } else {
+                            // 2. owner=false: 멤버 목록 화면으로 바로 이동
+                            viewModel.loadBoardMembers() // 멤버 목록 데이터 로드
+                            BottomSheetType.BOARD_MEMBERS
+                        }
+                                  },
                     isSelectionMode = isSelectionMode
                 )
                 BoardTitleBar(
@@ -541,11 +551,15 @@ fun BoardDetailScreen(
                         pendingMembers = pendingMembers,
                         onBack = {
                             // 뒤로가기 시 다시 보드 설정(BOARD_EDIT) 화면으로 복귀
-                            bottomSheetType = BottomSheetType.BOARD_EDIT
+                            // **owner=false 일 때, 뒤로가기는 NONE으로 닫아야 함.
+                            // owner=true 일 때만 BOARD_EDIT으로 복귀**
+                            val isOwner = ui.board?.owner ?: false
+                            bottomSheetType = if (isOwner) BottomSheetType.BOARD_EDIT else BottomSheetType.NONE
                         },
                         onCancelInvite = { invitationId ->
                             viewModel.cancelInvitation(invitationId)
-                        }
+                        },
+                        isOwner = ui.board?.owner ?: false,
                     )
                 }
 
@@ -658,8 +672,8 @@ fun DetailTopBar(
 
         // 오른쪽 (메뉴 버튼)
         Icon(
-            painter = painterResource(id = R.drawable.ic_board_menu),
-            contentDescription = "보드 메뉴",
+            painter = painterResource(id = R.drawable.ic_board_settings),
+            contentDescription = "보드 설정",
             tint = GreyMain300,
             // 선택 모드일 때 비활성화하고, 투명도를 조절합니다.
             modifier = Modifier

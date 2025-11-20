@@ -409,7 +409,7 @@ fun TabHeader(
     onTabSelected: (Int) -> Unit,
     isSelectionMode: Boolean
 ) {
-    val tabs = listOf("카드", "보드")
+    val tabs = listOf("보드", "카드")
 
     Column(modifier = Modifier.padding(top = 45.dp)) {
         // 탭 전체 중앙 정렬
@@ -421,8 +421,12 @@ fun TabHeader(
                 horizontalArrangement = Arrangement.spacedBy(25.dp), // 탭 간 간격
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                tabs.forEachIndexed { index, title ->
-                    val isSelected = index == selectedTabIndex
+                tabs.forEach { title ->
+                    // 로직 매핑: "보드"는 실제 인덱스 1, "카드"는 실제 인덱스 0
+                    // 화면 순서는 바뀌었지만, 데이터 로직(ViewModel)은 그대로 유지
+                    val targetIndex = if (title == "보드") 1 else 0
+                    val isSelected = selectedTabIndex == targetIndex
+
                     val textColor = if (isSelected)
                         MaterialTheme.colorScheme.primary
                     else
@@ -431,7 +435,9 @@ fun TabHeader(
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
-                            .noRippleClickable { if (!isSelectionMode) onTabSelected(index) }
+                            .noRippleClickable {
+                                if (!isSelectionMode) onTabSelected(targetIndex)
+                            }
                     ) {
                         // 텍스트 설정
                         Text(
@@ -440,9 +446,9 @@ fun TabHeader(
                             color = textColor
                         )
 
-                        Spacer(modifier = Modifier.height(14.dp)) // 텍스트-인디케이터  간격
+                        Spacer(modifier = Modifier.height(14.dp))
 
-                        // 인디케이터 설정 (선택여부에 따라 색상 다르게)
+                        // 인디케이터 설정
                         Box(
                             modifier = Modifier
                                 .width(83.dp)
@@ -455,7 +461,6 @@ fun TabHeader(
         }
     }
 }
-
 
 // 타이틀 & 검색
 @Composable

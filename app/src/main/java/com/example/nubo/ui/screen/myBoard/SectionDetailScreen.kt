@@ -44,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -56,6 +57,7 @@ import com.example.nubo.model.myBoard.MyCardItem
 import com.example.nubo.ui.component.randomCardHeight
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.AppTextStyles.subtitle_medium_16
+import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.ui.theme.PurpleMain500
@@ -498,4 +500,29 @@ fun CardItemDto.toMyCardItem(): MyCardItem {
         imageUrl = this.imageUrl ?: "",
         isFavorite = this.favorite ?: false
     )
+}
+
+@Composable
+fun EmptyDetailView() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = 60.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            painter = painterResource(id = R.drawable.error_face),
+            contentDescription = "빈 화면",
+            modifier = Modifier.size(48.dp),
+            tint = Color.Unspecified
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = "안에 아직 저장한 게 없어요.\n영상을 추가해서 저장해봐요!",
+            style = AppTextStyles.b3_medium_14,
+            color = Grey1000,
+            textAlign = TextAlign.Center
+        )
+    }
 }

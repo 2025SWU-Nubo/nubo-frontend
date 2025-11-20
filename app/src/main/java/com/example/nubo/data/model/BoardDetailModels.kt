@@ -26,7 +26,8 @@ data class CardItemDto(
     val favorite: Boolean? = null,
     val title: String? = null,
     val category: String? = null,
-    val description: String? = null
+    val description: String? = null,
+    val mine: Boolean? = null
 )
 
 // 페이징 래퍼
@@ -55,5 +56,6 @@ data class BoardResponse(
     val cardCount: Int? = null,
     val updatedAt: String? = null,
     @SerializedName("videoThumbnailUrl")
-    val videoThumbnailUrl: String? = null
+    val videoThumbnailUrl: String? = null,
+    val owner: Boolean = false
 )
