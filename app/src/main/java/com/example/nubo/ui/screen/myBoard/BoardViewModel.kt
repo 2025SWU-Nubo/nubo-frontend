@@ -81,6 +81,18 @@ class BoardViewModel @Inject constructor(
     private val _cardDeleteCompleteEvent = MutableSharedFlow<Int>() // 삭제 개수 전달
     val cardDeleteCompleteEvent = _cardDeleteCompleteEvent.asSharedFlow()
 
+    // --- 삭제 완료 시 액션 토스트를 띄우기 위한 이벤트 ---
+    private val _deleteToastEvent = MutableSharedFlow<String>()
+    val deleteToastEvent = _deleteToastEvent.asSharedFlow()
+
+    // Route 등에서 삭제가 완료되었음을 알릴 때 호출
+    fun triggerDeleteToast(count: Int, isBoard: Boolean) {
+        val message = if (isBoard) "${count}개의 보드를 삭제했어요." else "${count}개의 카드를 삭제했어요."
+        viewModelScope.launch {
+            _deleteToastEvent.emit(message)
+        }
+    }
+
     init {
         refresh()
     }
@@ -187,6 +199,14 @@ class BoardViewModel @Inject constructor(
                 Log.e("BoardViewModel", "toggleFavorite failed", e)
             }
         }
+    }
+
+    // 탭 전환 시 필터와 정렬 상태를 초기값으로 리셋하는 함수
+    fun resetFilterAndSort() {
+        sort = "LATEST"
+        filter = "ALL"
+        // 여기서 refresh()는 호출하지 않습니다.
+        // (Route에서 reset 호출 후 바로 refresh()를 호출하기 때문)
     }
 
     // 상세 화면에서 보드명 수정 시 바로 적용
@@ -299,18 +319,14 @@ class BoardViewModel @Inject constructor(
                 if (response.isSuccessful && response.body() != null) {
                     // API 응답 스펙에 'restoredBoardIds'가 있으므로 사용
                     val count = response.body()!!.restoredBoardIds.size
-                    _toastMessage.value = "${count}개의 보드 삭제가 취소되었습니다."
-                    // 또는 전체 복구 개수를 사용
-                    // val totalCount = response.body()!!.restoredCount
-                    // _toastMessage.value = "${totalCount}개 항목이 복구되었습니다."
-
+                    _toastMessage.value = "${count}개의 보드 삭제가 취소되었어요."
                     refresh()
                 } else {
-                    _toastMessage.value = "복구에 실패했습니다."
+                    _toastMessage.value = "삭제 실행 취소에 실패했어요."
                 }
             } catch (e: Exception) {
                 Log.e("BoardViewModel", "Undo board deletion failed", e)
-                _toastMessage.value = "복구 중 오류가 발생했습니다."
+                _toastMessage.value = "삭제 실행 취소에 실패했어요."
             } finally {
                 // 성공/실패와 관계없이 임시 ID 초기화
                 lastDeletedBoardIdsForUndo = emptySet()
@@ -331,11 +347,11 @@ class BoardViewModel @Inject constructor(
                     deleteMode = lastCardDeleteMode
                 )
                 val response = cardService.restoreCards(token, request)
-                _toastMessage.value = "${response.restoredCount}개 카드 삭제가 취소되었습니다."
+                _toastMessage.value = "${response.restoredCount}개 카드 삭제가 취소되었어요."
                 refresh() // 카드 목록도 새로고침이 필요할 수 있으므로 refresh() 호출
             } catch (e: Exception) {
                 Log.e("BoardViewModel", "Undo card deletion failed", e)
-                _toastMessage.value = "복구 중 오류가 발생했습니다."
+                _toastMessage.value = "삭제 실행 취소에 실패했어요."
             } finally {
                 lastDeletedCardIds = emptySet()
                 lastCardDeleteMode = ""
@@ -366,15 +382,18 @@ class BoardViewModel @Inject constructor(
                 lastDeletedCardIds = selectedCardIds
                 lastCardDeleteMode = deleteMode
 
+                // [수정] 여기서 액션 토스트 이벤트를 바로 트리거
+                triggerDeleteToast(selectedCardIds.size, isBoard = false)
+
                 // UI 에게 "N개 삭제됨" 알림
                 _cardDeleteCompleteEvent.emit(selectedCardIds.size)
                 true // 4. 성공 시 true 반환
             } else {
-                _toastMessage.value = "카드 삭제에 실패했습니다 (${res.code()})"
+                _toastMessage.value = "카드 삭제에 실패했어요. (${res.code()})"
                 false // 5. 실패 시 false 반환
             }
         } catch (t: Throwable) {
-            _toastMessage.value = "카드 삭제 중 오류가 발생했습니다"
+            _toastMessage.value = "카드 삭제 중 오류가 발생했어요."
             Log.e("BoardViewModel", "deleteCardsFromGlobal error", t)
             false // 6. 예외 시 false 반환
         }

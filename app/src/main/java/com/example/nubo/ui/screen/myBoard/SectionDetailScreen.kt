@@ -43,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -50,6 +51,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.components.toast.AppToastHost
 import com.example.components.toast.AppToastLayout
+import com.example.components.toast.AppToastType
 import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.R
 import com.example.nubo.data.model.CardItemDto
@@ -110,41 +112,68 @@ fun SectionDetailScreen(
     // 삭제 다이얼로그
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // --- 스낵바 및 토스트 상태 추가 ---
-    val snackbarHostState = remember { SnackbarHostState() }
     // 토스트 상태 및 코루틴 스코프 선언
     val toastHostState = rememberAppToastHostState()
     val scope = rememberCoroutineScope()
     val toastMessage by viewModel.toastMessage.collectAsState()
 
+    val toastEvent by viewModel.toastEvent.collectAsState()
+
+    // 보드 상세 화면과 토스트 분기 처리
+    LaunchedEffect(toastEvent) {
+        toastEvent?.let { (message, source) ->
+            if (source == "section") {   // 섹션 관련 메시지만 표시
+                scope.launch {
+                    toastHostState.show(
+                        title = AnnotatedString(message),
+                        layout = AppToastLayout.TitleOnly,
+                        type = if (message.contains("실패")) AppToastType.NEGATIVE else AppToastType.POSITIVE
+                    )
+                }
+            }
+            viewModel.clearToastEvent()
+        }
+    }
+
     // ViewModel의 toastMessage 변경을 감지하여 토스트 표시
     LaunchedEffect(toastMessage) {
         toastMessage?.let { message ->
+            val toastType = when {
+                message.contains("실패했어요") -> AppToastType.NEGATIVE
+                message.contains("완료되었어요") -> AppToastType.POSITIVE
+                else -> AppToastType.NORMAL
+            }
+
             scope.launch {
                 toastHostState.show(
-                    title = buildAnnotatedString { append(message) },
-                    layout = AppToastLayout.TitleOnly // 제목만 있는 레이아웃 사용
+                    title = AnnotatedString(message),
+                    layout = AppToastLayout.TitleOnly,
+                    type = toastType,
                 )
             }
             // 토스트를 띄운 후에는 상태를 다시 null로 초기화하여 중복 표시 방지
             viewModel.clearToastMessage()
         }
     }
-    // --- ViewModel의 삭제 완료 이벤트를 구독하여 스낵바 호출 및 상태 초기화 ---
+
+    // --- ViewModel의 삭제 완료 이벤트를 구독하여 액션 토스트 호출 및 상태 초기화 ---
     LaunchedEffect(viewModel) {
         viewModel.deleteCompleteEvent.collect { count ->
             scope.launch {
-                val result = snackbarHostState.showSnackbar(
-                    message = "${count}개의 항목이 삭제되었습니다.",
+                // 삭제 알림은 Action Toast 사용 (스낵바 대체)
+                toastHostState.show(
+                    title = AnnotatedString("${count}개의 항목이 삭제되었어요."),
+                    layout = AppToastLayout.TitleWithAction,
+                    type = AppToastType.NORMAL,
                     actionLabel = "실행 취소",
-                    duration = SnackbarDuration.Long
+                    onAction = {
+                        scope.launch {
+                            viewModel.undoLastDeletion()
+                        }
+                    }
                 )
-                if (result == SnackbarResult.ActionPerformed) {
-                    // undoLastDeletion이 suspend이므로, 완료될 때까지 기다림
-                    viewModel.undoLastDeletion()
-                }
             }
-            // 스낵바가 닫힌 후 선택 모드를 해제
+            // 토스트가 뜬 후 선택 모드를 해제
             resetSelectionState()
         }
     }
@@ -160,14 +189,6 @@ fun SectionDetailScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
-            snackbarHost = {
-                SnackbarHost(hostState = snackbarHostState) { snackbarData ->
-                    UndoSnackbar(
-                        message = snackbarData.visuals.message,
-                        onUndo = { snackbarData.performAction() }
-                    )
-                }
-            },
             containerColor = Color.White
         ) { paddingValues ->
             Column(
@@ -467,6 +488,7 @@ fun SectionFilterButton(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             // 정렬 버튼
             SortFilterButton(
+                selectedTab = 0,
                 enabled = !isSelectionMode,//선택 모드일 때 버튼 비활성화
                 onSortSelected = { sortKey -> onRequestSort(sortKey) }
             )

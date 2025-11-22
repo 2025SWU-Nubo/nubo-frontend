@@ -101,6 +101,15 @@ class MyCardViewModel @Inject constructor(
         }
     }
 
+    // 탭 전환 시 필터와 정렬 상태를 초기값으로 리셋하는 함수
+    fun resetFilterAndSort() {
+        sort = CardSort.LATEST
+        filter = CardFilter.ALL
+        // 여기서 refresh()는 호출하지 않습니다.
+        // (Route에서 reset 호출 후 바로 refresh()를 호출하기 때문)
+    }
+
+
 //    private fun fetchCards() {
 //        _isLoading.value = true
 //

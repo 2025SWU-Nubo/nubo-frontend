@@ -24,7 +24,9 @@ import com.example.nubo.data.model.BulkMoveRequest
 import com.example.nubo.data.model.CardDeleteRequest
 import com.example.nubo.data.model.CardRestoreInfo
 import com.example.nubo.data.model.InvitationDto
+import com.example.nubo.data.model.InviteMembersRequest
 import com.example.nubo.data.model.MemberDto
+import com.example.nubo.data.model.ShareBoardRequest
 import com.example.nubo.data.network.CardService
 import com.example.nubo.domain.model.InviteUser
 import kotlinx.coroutines.async
@@ -69,6 +71,10 @@ class BoardDetailViewModel @Inject constructor(
     private var bootstrapped = false
     private val pageSize = 20
 
+    // 섹션 생성 시 이동할 섹션 id
+    private val _lastCreatedSectionId = MutableStateFlow<Int?>(null)
+    val lastCreatedSectionId: StateFlow<Int?> = _lastCreatedSectionId
+
     // --- 삭제 성공 시 '삭제된 개수(Int)'를 UI에 보내기 위한 SharedFlow ---
     private val _deleteCompleteEvent = MutableSharedFlow<Int>()
     val deleteCompleteEvent = _deleteCompleteEvent.asSharedFlow()
@@ -88,6 +94,17 @@ class BoardDetailViewModel @Inject constructor(
     fun clearToastMessage() {
         _toastMessage.value = null
     }
+
+    // 토스트 이벤트 발생 조정 - 섹션 이름 변경은 섹션 화면에서
+    private val _toastEvent = MutableStateFlow<Pair<String, String>?>(null)
+    val toastEvent: StateFlow<Pair<String, String>?> = _toastEvent
+
+    fun clearToastEvent() {
+        _toastEvent.value = null
+    }
+
+    // InviteSheet 에서 넘어온 초대 대상 이메일들 (아직 서버로 안 보낸 상태)
+    private var pendingInviteEmails: List<String> = emptyList()
 
     // --- ViewModel 최초 생성 시 신호 수신 시작 ---
     init {
@@ -147,9 +164,15 @@ class BoardDetailViewModel @Inject constructor(
     }
 
     // 멤버 리스트 업데이트 (InviteSheet 완료 시 호출)
-    fun updateBoardMembers(emails: List<String>, users: List<InviteUser>) {
+    fun updateBoardMembers(
+        emails: List<String>,
+        users: List<InviteUser>
+    ) {
+        // UI 에 보여줄 "초대 예정 멤버" 리스트
         _currentBoardMembers.value = users
-        // TODO: 실제 서버로 초대를 보내거나 보드 수정 완료 시점에 저장할 수 있도록 데이터 보관
+
+        // 실제 초대 API 에 사용할 이메일 리스트
+        pendingInviteEmails = emails
     }
 
     // --- 공유보드 참여자 목록 상태 ---
@@ -226,6 +249,16 @@ class BoardDetailViewModel @Inject constructor(
         val board = beforeState.board ?: return
         val newFav = !currentFavorite
 
+        // 토스트 메세지 설정
+        val targetSection = board.sections.find { it.id.toInt() == sectionId }
+        val sectionName = targetSection?.name ?: "섹션"
+
+        val successMessage = if (newFav) {
+            "$sectionName 즐겨찾기가 완료되었어요."
+        } else {
+            "$sectionName 즐겨찾기가 해제되었어요."
+        }
+
         // 1) UI를 즉시 업데이트하여 사용자에게 빠른 피드백
         val updatedSections = board.sections.map { sec ->
             if (sec.id.toInt() == sectionId) sec.copy(favorite = newFav) else sec
@@ -236,23 +269,23 @@ class BoardDetailViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val token = authRepository.getAccessToken().orEmpty()
-                // 보내주신 API 명세서와 동일한 boardService.setFavorite 함수를 호출
                 boardService.setFavorite(
                     authHeader = "Bearer $token",
-                    boardId = sectionId.toLong(), // 섹션 ID를 전달
-                    body = FavoriteRequest(favorite = !currentFavorite)
+                    boardId = sectionId.toLong(),          // section id
+                    body = FavoriteRequest(favorite = newFav)
                 )
-                // 성공하면 변경된 UI 상태가 유지
+                // 성공 시
+                _toastMessage.value = successMessage
             } catch (t: Throwable) {
-                // 3) 만약 API 호출이 실패하면, 원래 상태로 UI를 롤백
+                // UI Rollback + 실패 토스트
                 _ui.value = beforeState
+                _toastMessage.value = "즐겨찾기에 실패했어요."
             }
         }
     }
 
     // 섹션 생성
     fun createSection(name: String) {
-        val parentShared = _ui.value.board?.shared ?: false          // 부모 보드 공유 여부 따라감
 
         viewModelScope.launch {
             // 로딩 표시
@@ -263,7 +296,7 @@ class BoardDetailViewModel @Inject constructor(
                     name = name,                      // 섹션 이름
                     boardType = "SECTION",            // 스펙상 문자열이면 그대로 사용
                     source = "USER",  // 보드 생성 출처 고정
-                    shared = parentShared,             // 부모와 동일하게
+                    shared = false,             // 부모와 동일하게
                     favorite = false,
                     memberEmails = null,
                     parentBoardId = currentBoardId.toLong()
@@ -272,13 +305,18 @@ class BoardDetailViewModel @Inject constructor(
                     body = req,
                     authHeader = token
                 )
-                // 성공 후 상세 재조회
+                // 성공 후 토스트
                 loadPage(reset = true)
+                _ui.value = _ui.value.copy(isLoading = false)
+                _toastMessage.value = "섹션 생성이 완료되었어요."
+
             } catch (t: Throwable) {
+                // 실패 시
                 _ui.value = _ui.value.copy(
                     isLoading = false,
-                    error = t.message ?: "섹션 생성에 실패했어요"
+                    error = t.message ?: "섹션 생성 실패했어요."
                 )
+                _toastMessage.value = "섹션 생성 실패했어요."
             }
         }
     }
@@ -298,14 +336,17 @@ class BoardDetailViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val token = "Bearer ${authRepository.getAccessToken()}"
+                // 여기서는 반환값을 쓰지 않음 (예외 없으면 성공으로 간주)
                 boardService.renameBoardOrSection(
                     authHeader = token,
                     boardId = sectionId.toLong(),
                     body = BoardRenameRequest(name = newName)
                 )
+
+                _toastEvent.value = "섹션 이름 변경이 완료되었어요." to "section"
             } catch (t: Throwable) {
-                // 실패 시 롤백
                 _ui.value = before
+                _toastEvent.value = "섹션 이름 변경 실패했어요." to "section"
             }
         }
     }
@@ -418,23 +459,21 @@ class BoardDetailViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     // --- 성공 시, 개수를 포함한 토스트 메시지를 설정 ---
                     val count = selectedSectionIds.size + selectedCardIds.size
-                    _toastMessage.value = "${count}개의 항목 복제가 완료되었습니다."
+                    _toastMessage.value = "${count}개의 항목 복제가 완료되었어요."
                     // --- BoardDetailScreen일 때만 새로고침 ---
                     if (currentBoardId > -1) {
                         loadPage(reset = true)
                     }
                 } else {
-                    // 실패 시 로그 및 토스트
                     val errorBody = response.errorBody()?.string()
                     Log.e("BoardDetailVM", "Copy failed: Code=${response.code()}, Body=$errorBody")
-                    _toastMessage.value = "복제에 실패했습니다."
-                    _ui.value = _ui.value.copy(isLoading = false, error = "복제에 실패했습니다: ${response.code()}")
+                    _toastMessage.value = "복제에 실패했어요."
+                    _ui.value = _ui.value.copy(isLoading = false, error = "복제에 실패했어요.")
                 }
             } catch (e: Exception) {
-                // 네트워크 오류 시 로그 및 토스트
                 Log.e("BoardDetailVM", "Copy network error", e)
-                _toastMessage.value = "복제 중 오류가 발생했습니다."
-                _ui.value = _ui.value.copy(isLoading = false, error = "복제 네트워크 오류: ${e.message}")
+                _toastMessage.value = "복제에 실패했어요."
+                _ui.value = _ui.value.copy(isLoading = false, error = "복제에 실패했어요.")
             }
         }
     }
@@ -470,23 +509,21 @@ class BoardDetailViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     // --- 성공 시, 개수를 포함한 토스트 메시지를 설정 ---
                     val count = selectedSectionIds.size + selectedCardIds.size
-                    _toastMessage.value = "${count}개의 항목 이동이 완료되었습니다."
+                    _toastMessage.value = "${count}개의 항목 이동이 완료되었어요."
                     // --- BoardDetailScreen일 때만 새로고침 ---
                     if (currentBoardId > -1) {
                         loadPage(reset = true)
                     }
                 } else {
-                    // 실패 시 로그 및 토스트
                     val errorBody = response.errorBody()?.string()
                     Log.e("BoardDetailVM", "Move failed: Code=${response.code()}, Body=$errorBody")
-                    _toastMessage.value = "이동에 실패했습니다."
-                    _ui.value = _ui.value.copy(isLoading = false, error = "이동에 실패했습니다: ${response.code()}")
+                    _toastMessage.value = "이동에 실패했어요."
+                    _ui.value = _ui.value.copy(isLoading = false, error = "이동에 실패했어요.")
                 }
             } catch (e: Exception) {
-                // 네트워크 오류 시 로그 및 토스트
                 Log.e("BoardDetailVM", "Move network error", e)
-                _toastMessage.value = "이동 중 오류가 발생했습니다."
-                _ui.value = _ui.value.copy(isLoading = false, error = "이동 오류 발생: ${e.message}")
+                _toastMessage.value = "이동 실패했어요."
+                _ui.value = _ui.value.copy(isLoading = false, error = "이동에 실패했어요.")
             }
         }
     }
@@ -597,7 +634,7 @@ class BoardDetailViewModel @Inject constructor(
         }
     }
 
-    // --- 삭제 실행 취소(복구) 함수 (API 통합) ---
+    // --- 삭제 실행 취소(복구) 함수 ---
     suspend fun undoLastDeletion() {
         // 새 변수까지 함께 체크
         if (lastDeletedSectionIds.isEmpty() && lastDeletedCardIds.isEmpty() && lastDeletedCardRestores.isEmpty()) return
@@ -634,22 +671,17 @@ class BoardDetailViewModel @Inject constructor(
             val response = boardService.restoreBoards(token, request)
 
             if (response.isSuccessful && response.body() != null) {
-                val restoredBoards = response.body()!!.restoredBoardIds.size
-                val restoredCards = response.body()!!.restoredCardIds.size
+                val restoredSize = response.body()!!.restoredBoardIds.size + response.body()!!.restoredCardIds.size
 
-                val message = when {
-                    restoredBoards > 0 && restoredCards > 0 -> "${restoredBoards}개 섹션과 ${restoredCards}개 카드 삭제가 취소되었습니다."
-                    restoredBoards > 0 -> "${restoredBoards}개 섹션 삭제가 취소되었습니다."
-                    restoredCards > 0 -> "${restoredCards}개 카드 삭제가 취소되었습니다."
-                    else -> null
-                }
+                val message = "${restoredSize}개 항목 삭제가 취소되었어요."
+
                 message?.let { _toastMessage.value = it }
 
                 if (currentBoardId > -1) {
                     loadPage(reset = true)
                 }
             } else {
-                _toastMessage.value = "복구에 실패했습니다."
+                _toastMessage.value = "삭제 실행취소에 실패했어요."
                 throw Exception("Restore request failed with code ${response.code()}")
             }
 
@@ -671,8 +703,6 @@ class BoardDetailViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val token = "Bearer ${authRepository.getAccessToken()}"
-                // TODO: BoardService에 getBoardMembers 함수가 추가되어야 합니다.
-                // API 엔드포인트: GET /api/board/{boardId}/members
                 val response = boardService.getBoardMembers(token, currentBoardId.toLong())
 
                 if (response.isSuccessful && response.body() != null) {
@@ -686,13 +716,13 @@ class BoardDetailViewModel @Inject constructor(
         }
     }
 
-    // 초대 취소
+    // 대기자 초대 취소
     fun cancelInvitation(invitationId: Long) {
         viewModelScope.launch {
             try {
                 val token = "Bearer ${authRepository.getAccessToken()}"
 
-                // [수정] boardId 파라미터 추가 전달
+                // boardId 파라미터 추가 전달
                 val response = boardService.cancelInvitation(
                     authHeader = token,
                     boardId = currentBoardId.toLong(), // 현재 보드 ID 전달
@@ -700,16 +730,85 @@ class BoardDetailViewModel @Inject constructor(
                 )
 
                 if (response.isSuccessful) {
-                    // 성공 시(204 No Content) 목록에서 제거 (낙관적 업데이트)
-                    _pendingMembers.value = _pendingMembers.value.filterNot { it.invitationId == invitationId }
-                    _toastMessage.value = "초대가 취소가 완료되었어요."
+                    _pendingMembers.value =
+                        _pendingMembers.value.filterNot { it.invitationId == invitationId }
+                    _toastMessage.value = "초대 취소가 완료되었어요."
                 } else {
-                    // 실패 처리
-                    _toastMessage.value = "초대 취소 실패: ${response.code()}"
+                    _toastMessage.value = "초대 취소에 실패했어요."
                 }
-
             } catch (e: Exception) {
-                _toastMessage.value = "초대 취소 중 오류 발생"
+                _toastMessage.value = "초대 취소에 실패했어요."
+            }
+        }
+    }
+
+    // 개인 보드를 공유 보드로 전환할 때만 호출
+    fun convertToSharedIfNeeded(draftIsShared: Boolean) {
+        val current = _ui.value.board ?: return
+
+        // 이미 공유 보드이거나, 이번에 공유로 바꾸지 않는 경우면 바로 종료
+        if (!draftIsShared || current.shared) return
+
+        // 현재 보드 id
+        val boardId = currentBoardId.takeIf { it > 0 }?.toLong() ?: return
+
+        viewModelScope.launch {
+            try {
+                val token = authRepository.getAccessToken() ?: return@launch
+
+                val response = boardService.updateBoardShare(
+                    authHeader = "Bearer $token",
+                    boardId = boardId,
+                    body = ShareBoardRequest(shared = true)
+                )
+
+                if (response.isSuccessful) {
+                    val body = response.body()
+
+                    // shared 상태만 true 로 갱신
+                    _ui.value = _ui.value.copy(
+                        board = _ui.value.board?.copy(
+                            shared = body?.shared ?: true
+                        )
+                    )
+                } else {
+                    _toastMessage.value = "공유 보드 전환에 성공했어요. (${response.code()})"
+                }
+            } catch (e: Exception) {
+                _toastMessage.value = "공유 보드 전환에 실패했어요."
+            }
+        }
+    }
+
+    // pendingInviteEmails 가 있을 때만 실제 초대 API 호출
+    fun sendInvitationsIfNeeded() {
+        val emails = pendingInviteEmails
+        if (emails.isEmpty()) return
+
+        val boardId = currentBoardId ?: return
+
+        viewModelScope.launch {
+            try {
+                val token = authRepository.getAccessToken() ?: return@launch
+
+                val response = boardService.inviteMembers(
+                    authHeader = "Bearer $token",
+                    boardId = boardId.toLong(),
+                    body = InviteMembersRequest(emails = emails)
+                )
+
+                if (response.isSuccessful) {
+                    // 성공 시: 초대 예정 리스트 초기화
+                    _currentBoardMembers.value = emptyList()
+                    pendingInviteEmails = emptyList()
+
+                    // 대기/참여 중 멤버 목록 다시 불러오기
+                    loadBoardMembers()
+                } else {
+                    // TODO: error toast
+                }
+            } catch (e: Exception) {
+                // TODO: error toast
             }
         }
     }

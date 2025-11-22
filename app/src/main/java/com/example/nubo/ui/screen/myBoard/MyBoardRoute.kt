@@ -114,43 +114,27 @@ fun MyBoardRoute(
         resetCardSelectionState()
     }
 
-    // --- 실행 취소 스낵바 상태를 Route에서 관리 ---
-    val snackbarHostState = remember { SnackbarHostState() }
+    // --- SavedStateHandle을 감시하여 삭제 이벤트 처리 ---
 
-    // --- SavedStateHandle을 감시하여 스낵바 표시 (수정된 버전) ---
-
-    // 1. 현재 컴포저블의 생명주기(LifecycleOwner)를 가져옴.
     val lifecycleOwner = LocalLifecycleOwner.current
-    // 2. SavedStateHandle을 한 번만 가져옴
     val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
 
-    // 3. LaunchedEffect 대신 DisposableEffect를 사용
-    //    (lifecycleOwner나 savedStateHandle이 변경될 때마다 이펙트를 재실행)
+    // 스낵바 대신 ViewModel을 통해 액션 토스트 이벤트를 발생시킴
     DisposableEffect(lifecycleOwner, savedStateHandle) {
 
         // Int 대신 BoardDeleteEvent를 관찰
         val observer = Observer<BoardDeleteEvent> { event ->
 
-            // event가 null이 아니고 count가 0보다 클 때만 실행
             if (event != null && event.count > 0) {
-                scope.launch {
-                    val result = snackbarHostState.showSnackbar(
-                        message = "${event.count}개의 보드가 삭제되었습니다.", // <--- event.count 사용
-                        actionLabel = "실행 취소",
-                        duration = SnackbarDuration.Long
-                    )
-                    if (result == SnackbarResult.ActionPerformed) {
-                        boardViewModel.undoLastDeletion()
-                    }
+                // Route에서는 직접 UI를 띄우지 않고 ViewModel에 위임
+                boardViewModel.triggerDeleteToast(event.count, isBoard = true)
 
-                    // 스낵바 처리가 끝난 후, 코루틴 '안'에서 이벤트를 제거 ( 소비)
-                    savedStateHandle?.remove<BoardDeleteEvent>("deleted_board_event") // <---
-                }
+                // 이벤트 소비
+                savedStateHandle?.remove<BoardDeleteEvent>("deleted_board_event")
             }
         }
 
-        // 새로운 키와 타입으로 LiveData를 구독
-        val liveData = savedStateHandle?.getLiveData<BoardDeleteEvent>("deleted_board_event") // <---
+        val liveData = savedStateHandle?.getLiveData<BoardDeleteEvent>("deleted_board_event")
         liveData?.observe(lifecycleOwner, observer)
 
         onDispose {
@@ -184,48 +168,21 @@ fun MyBoardRoute(
             resetCardSelectionState()
             cardViewModel.refresh()
 
-            val result = snackbarHostState.showSnackbar(
-                message = "${count}개의 카드가 삭제되었습니다.",
-                actionLabel = "실행 취소",
-                duration = SnackbarDuration.Short
-            )
-
-            if (result == SnackbarResult.ActionPerformed) {
-                // BoardViewModel의 카드 복구 로직 호출
-                boardViewModel.undoLastDeletion()
-
-                // 복구 완료 후 카드 목록 다시 새로고침
-                cardViewModel.refresh()
-            }
+            // 스낵바 대신 액션 토스트 이벤트 트리거
+            boardViewModel.triggerDeleteToast(count, isBoard = false)
         }
     }
 
     // --- '나의 카드' 탭용 카드 삭제 이벤트 수신 ---
-    // 이 블록이 누락된 것으로 보입니다.
-    LaunchedEffect(boardViewModel, cardViewModel, snackbarHostState) {
-        boardViewModel.cardDeleteCompleteEvent.collect { deletedCount ->
-
-            // 1. 선택 모드 해제 (바텀바 닫기)
+    // BoardViewModel 내부에서 deleteCardsFromGlobal 성공 시 triggerDeleteToast를 호출하므로
+    // 여기서는 UI 상태 초기화와 데이터 갱신만 담당
+    LaunchedEffect(boardViewModel, cardViewModel) {
+        boardViewModel.cardDeleteCompleteEvent.collect {
+            // 1. 선택 모드 해제
             resetCardSelectionState()
-
             // 2. 카드 목록 새로고침
             cardViewModel.refresh()
-
-            // 3. 실행 취소 스낵바 표시
-            val result = snackbarHostState.showSnackbar(
-                message = "${deletedCount}개의 카드가 삭제되었습니다.",
-                actionLabel = "실행 취소",
-                duration = SnackbarDuration.Long
-            )
-
-            // 4. '실행 취소' 클릭 시
-            if (result == SnackbarResult.ActionPerformed) {
-                // BoardViewModel의 카드 복구 로직 호출
-                boardViewModel.undoLastDeletion()
-
-                // 복구 완료 후 카드 목록 다시 새로고침
-                cardViewModel.refresh()
-            }
+            // (토스트는 ViewModel -> Screen으로 전달됨)
         }
     }
 
@@ -233,23 +190,6 @@ fun MyBoardRoute(
     // BottomBar 충돌 문제 해결
     // --- Scaffold에는 modifier를 적용하지 않고, SnackbarHost에만 적용 ---
     Scaffold(
-        snackbarHost = {
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier
-                    .windowInsetsPadding(WindowInsets.systemBars)
-                    .padding(bottom = 60.dp)
-
-            ) { snackbarData ->
-                UndoSnackbar(
-                    message = snackbarData.visuals.message,
-                    onUndo = {
-                        snackbarData.performAction()
-                        snackbarData.dismiss()
-                    }
-                )
-            }
-        },
         bottomBar = {
             // --- 카드 선택 모드 바텀바 ---
             if (isCardSelectionMode) {
@@ -322,8 +262,15 @@ fun MyBoardRoute(
                 // 탭이 실제로 변경될 때만 새로고침
                 if (selectedTab != newTab) {
                     when (newTab) {
-                        0 -> cardViewModel.refresh() // 카드 탭
-                        1 -> boardViewModel.refresh() // 보드 탭
+                        0 -> {// 카드 탭
+                            // 필터/정렬 초기화 (MyCardViewModel에도 함수 추가 필요)
+                            cardViewModel.resetFilterAndSort()
+                            cardViewModel.refresh()}
+                        1 -> { // 보드 탭으로 이동
+                            // 보드 탭의 필터/정렬 초기화
+                            boardViewModel.resetFilterAndSort()
+                            boardViewModel.refresh()
+                        }
                     }
                 }
                 selectedTab = newTab
@@ -413,12 +360,9 @@ fun MyBoardRoute(
                 scope.launch {
                     val deletedCount = boardViewModel.deleteBoards(boardIdsToDelete)
                     if (deletedCount != null && deletedCount > 0) {
-                        // Int 대신 고유한 ID를 가진 Event 객체를 set
-                        navController.currentBackStackEntry
-                            ?.savedStateHandle
-                            ?.set("deleted_board_event", BoardDeleteEvent(count = deletedCount))
+                        // 여기서 바로 토스트 트리거를 호출
+                        boardViewModel.triggerDeleteToast(deletedCount, isBoard = true)
 
-                        // 스낵바가 뜨는 것과 별개로 목록 새로고침 시작
                         boardViewModel.refresh()
                     }
                 }
