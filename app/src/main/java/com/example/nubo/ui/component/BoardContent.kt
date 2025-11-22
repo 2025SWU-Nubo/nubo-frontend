@@ -64,7 +64,7 @@ fun BoardContent(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
         contentPadding = PaddingValues(top=3.dp,bottom = 110.dp)
     ) {
         items(boards.chunked(2)) { rowItems ->

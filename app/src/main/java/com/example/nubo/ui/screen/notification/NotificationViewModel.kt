@@ -192,6 +192,32 @@ class NotificationViewModel @Inject constructor(
         // 스크린이 펼침 수를 관리하므로 여기서는 별도 동작 없음(추후 분석 이벤트 등 가능)
     }
 
+    fun onClickMarkAllRead() {
+        // 1) 체크해서 전부 이미 읽었으면 리턴
+        val hasUnread = _uiState.value.recent.any { it.unread } ||
+            _uiState.value.past.any { it.unread }
+        if (!hasUnread) return
+
+        // 2) UI 먼저 모두 읽음 처리 (optimistic update)
+        _uiState.update { s ->
+            s.copy(
+                recent = s.recent.map { it.copy(unread = false) },
+                past   = s.past.map   { it.copy(unread = false) }
+            )
+        }
+
+        // 3) 서버에 일괄 읽음 요청
+        viewModelScope.launch {
+            runCatching {
+                repository.markAllRead()
+            }.onFailure { e ->
+                // 필요하면 여기서 롤백 로직 추가 가능
+                android.util.Log.e("NOTI", "markAllRead failed: ${e.message}", e)
+            }
+        }
+    }
+
+
     private fun markReadLocal(notificationId: String) {
         _uiState.update { s ->
             s.copy(

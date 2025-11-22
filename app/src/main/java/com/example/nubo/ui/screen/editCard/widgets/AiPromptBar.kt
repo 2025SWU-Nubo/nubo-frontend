@@ -45,6 +45,8 @@ import com.example.nubo.ui.theme.Purple100
 // 라벨+아이콘 프리셋 데이터
 data class PresetAction(val label: String, @androidx.annotation.DrawableRes val iconRes: Int)
 
+private val CHIP_HEIGHT = 32.dp  // 혹은 30.dp 정도로 통일
+
 @Composable
 fun AiPromptBar(
     value: String,
@@ -57,6 +59,8 @@ fun AiPromptBar(
     onUndo: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+
+
     val focusRequester = remember { FocusRequester() }
     var tfv by remember { mutableStateOf(TextFieldValue(text = value, selection = TextRange(value.length))) }
     LaunchedEffect(value) { if (value != tfv.text) tfv = tfv.copy(text = value, selection = TextRange(value.length)) }
@@ -85,13 +89,17 @@ fun AiPromptBar(
     val undoEnabled = !loading && canUndo               // 되돌리기 칩 enable 기준
 
     Surface(
-        tonalElevation = 8.dp,
-        shadowElevation = 16.dp,
+        tonalElevation = 4.dp,
+        shadowElevation = 6.dp,
         color = Grey5,
-        shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
+        shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
         modifier = modifier
     ) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
 
             // 프리셋 칩
             Row(
@@ -108,6 +116,7 @@ fun AiPromptBar(
                         else -> null
                     }
                     AssistChip(
+                        modifier = Modifier.height(CHIP_HEIGHT),
                         onClick = {
                             val next = "${preset.label} "
                             tfv = TextFieldValue(next, TextRange(next.length))
@@ -126,7 +135,6 @@ fun AiPromptBar(
                             Icon(
                                 painter = painterResource(preset.iconRes),
                                 contentDescription = "${preset.label} 프리셋",
-//                                tint = Color.Unspecified,
                                 modifier = Modifier.size(18.dp)
                             )
                         },
@@ -154,6 +162,7 @@ fun AiPromptBar(
                         selectedPreset = null
                         focusRequester.requestFocus()
                     },
+                    modifier = Modifier.height(CHIP_HEIGHT),
                     containerColor = if (canUndo) Purple100 else Grey20,
                     contentColor = if (canUndo) PurpleMain500 else Grey200,
                     borderColor = undoBorderColor
@@ -163,7 +172,14 @@ fun AiPromptBar(
             }
 
             // 입력 + 전송
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(vertical = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Icon(painter = painterResource(R.drawable.ai_prompt_logo), contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(30.dp))
 
                 Spacer(Modifier.width(8.dp))

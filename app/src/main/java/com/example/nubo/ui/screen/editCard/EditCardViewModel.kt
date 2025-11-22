@@ -33,6 +33,8 @@ sealed interface EditCardUiState {
 
 sealed interface EditCardUiEvent {
     data class ApplyAiEdit(val markdown: String) : EditCardUiEvent
+
+    data object HideKeyboard : EditCardUiEvent
 }
 
 @HiltViewModel
@@ -216,7 +218,7 @@ class EditCardViewModel @Inject constructor(
         val prompt = _aiQuery.value.trim()
         if (token.isNullOrEmpty() || s !is EditCardUiState.Ready || prompt.isEmpty() || _aiLoading.value) return@launch
 
-        /* 1 현재 요약 백업 */
+        /* 현재 요약 백업 */
         startAiEditBackup(s.summary)
 
         _aiLoading.value = true
@@ -224,15 +226,18 @@ class EditCardViewModel @Inject constructor(
             val body = EditSummaryAiRequest(prompt)
             cardRepository.updateSummaryWithAi(token, cardId, body).await()
         }.onSuccess { resp ->
-            /* 3 성공  응답 채택 후 프롬프트 초기화  UI 토스트 */
+            /* 성공  응답 채택 후 프롬프트 초기화  UI 토스트 */
             applyAiEditedSummary(resp.summary)
             _aiQuery.value = ""
             _toast.value = "AI가 요약노트를 정리했어요!👍🏻"
-            /* AI 바를 자동으로 닫고 싶다면 아래 주석 해제
-               키보드 유지가 필요하면 닫지 않고 그대로 둬도 됨 */
+
             _uiEvent.emit(EditCardUiEvent.ApplyAiEdit(resp.summary))
+            _uiEvent.emit(EditCardUiEvent.HideKeyboard)
+
+            // AI바 자동으로 닫기
+            _showAiBar.value = false
         }.onFailure { e ->
-            /* 4 실패  되돌리기 가능 상태 유지  에러 토스트 */
+            /* 실패  되돌리기 가능 상태 유지  에러 토스트 */
             val msg = if(e is HttpException && e.code() == 400){
                 "요구 사항을 정확하게 입력해주세요."
             }else{

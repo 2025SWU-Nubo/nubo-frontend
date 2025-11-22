@@ -9,6 +9,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -60,15 +61,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
-import com.halilibo.richtext.commonmark.Markdown
-import com.halilibo.richtext.ui.material3.RichText
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
-import com.example.components.toast.AppToastHost
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.AppToastType
-import com.example.components.toast.rememberAppToastHostState
+import com.example.components.toast.LocalAppToastHostState
 import com.example.nubo.model.card.CardDetailItem
 import com.example.nubo.ui.component.InfoBubble
 import com.example.nubo.ui.theme.Grey30
@@ -76,7 +74,12 @@ import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.GreyMain100
 import com.example.nubo.ui.theme.GreyMain300
+import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.ui.theme.PurpleMain500
+import com.example.nubo.utils.standardizeMarkdown
+import com.google.firebase.annotations.concurrent.Background
+import com.mohamedrejeb.richeditor.model.rememberRichTextState
+import com.mohamedrejeb.richeditor.ui.material3.RichText
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.max
@@ -103,7 +106,10 @@ fun CardDetailScreen(
 
     val context = LocalContext.current
     val scrollState = rememberScrollState()
-    val toastHost = rememberAppToastHostState()
+
+    // 전역 토스트 호스트 가져오기
+    val toastHost = LocalAppToastHostState.current
+
     val bottomSafe = rememberImeOrNavBottomPadding(extra = 24.dp) // 토스트 + 여유
     val scope = rememberCoroutineScope()
 
@@ -136,7 +142,7 @@ fun CardDetailScreen(
                 summary = msgPair.second,   // 요약 전달
                 layout = AppToastLayout.TitleWithSummary, // 2줄 레이아웃 사용
                 type = AppToastType.POSITIVE,
-                durationMillis = 3000
+                durationMillis = 2000
             )
             onConsumeToast2()
         }
@@ -154,16 +160,19 @@ fun CardDetailScreen(
                 onToggleFavorite = {
                     val willBeFavorite = !item.isFavorite
 
+                    // 1) 먼저 즐겨찾기 상태 토글 (ViewModel.toggleFavorite)
+                    onToggleFavorite()
+
+                    // 2) 토스트는 별도 코루틴에서 실행 (UI 즉시 반영)
                     scope.launch {
                         toastHost.show(
                             title = AnnotatedString(
-                                if(willBeFavorite) "즐겨찾기에 추가했어요!" else "즐겨찾기를 해제했어요!"
+                                if (willBeFavorite) "즐겨찾기에 추가했어요!" else "즐겨찾기를 해제했어요!"
                             ),
                             layout = AppToastLayout.TitleOnly,
                             type = AppToastType.FAVORITE,
-                            durationMillis = 800
+                            durationMillis = 1800
                         )
-                        onToggleFavorite()
                     }
                 }
             )
@@ -195,7 +204,7 @@ fun CardDetailScreen(
                     .verticalScroll(scrollState),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
                 ImageWithButton(
                     item = item,
                     onInfoClick = {
@@ -216,13 +225,6 @@ fun CardDetailScreen(
 
                 Spacer(Modifier.height(bottomSafe))
             }
-            // 토스트  아래 중앙 오버레이
-            AppToastHost(
-                hostState = toastHost,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = finalBottomPadding)
-            )
         }
     }
 }
@@ -304,7 +306,7 @@ private fun ImageWithButton(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(215.dp)
+            .height(200.dp)
     ) {
         Image(
             painter = rememberAsyncImagePainter(item.videoThumbnailUrl),
@@ -381,8 +383,8 @@ private fun ImageWithButton(
             Icon(
                 painter = painterResource(R.drawable.play),
                 contentDescription = "Start",
-                tint = Color.White.copy(alpha = 0.9f),
-                modifier = Modifier.size(56.dp)
+                tint = Color.White.copy(alpha = 0.95f),
+                modifier = Modifier.size(60.dp)
             )
         }
     }
@@ -395,43 +397,47 @@ private fun ImageWithButton(
 @Composable
 private fun DetailBodyMarkdown(
     description: String,
-    maxCollapseLines: Int = 9,    // 줄 수 기준으로 접힘 계산
+    maxCollapseLines: Int = 9,
     modifier: Modifier = Modifier
 ) {
     var isExpanded by remember { mutableStateOf(false) }
 
-    // 1) Normalize markdown so that a heading isn't immediately followed by a list
+    // 1) 서버에서 온 마크다운을 에디터와 동일하게 정규화
     val normalizedMd = remember(description) {
-        description
-            // Insert a blank line between heading and list
-            .replace(Regex("(?m)^(#{1,6}\\s+.+?)\\n(?=\\s*[-*•]\\s+)"), "$1\n\n")
-            // Insert a blank line when a bold line is used like a heading
-            .replace(Regex("(?m)^\\*\\*.+?\\*\\*\\s*\\n(?=\\s*[-*•]\\s+)"), "$0\n")
-            .trim()
+        standardizeMarkdown(description)
     }
 
-    // 2) Build a safe collapsed markdown by cutting lines (no height/clip needed)
+    // 2) 접힘 상태일 때 사용할 "잘린 마크다운"
     val collapsedMd = remember(normalizedMd, maxCollapseLines) {
         val lines = normalizedMd.lines()
         lines.take(minOf(lines.size, maxCollapseLines)).joinToString("\n")
     }
 
-    // 3) Decide which markdown to render
     val mdToShow = if (isExpanded) normalizedMd else collapsedMd
 
-    // 4) Determine if collapsing is necessary
+
+    // 3) compose-rich-editor 의 RichTextState 사용 (읽기 전용 용도)
+    val richTextState = rememberRichTextState()
+
+    // 4) mdToShow 가 바뀔 때만 setMarkdown 호출 (무한 루프 방지)
+    LaunchedEffect(mdToShow) {
+        if (richTextState.toMarkdown() != mdToShow) {
+            richTextState.setMarkdown(mdToShow)
+        }
+    }
+
+    // 5) 접기/펼치기 가능 여부
     val canCollapse = remember(normalizedMd, maxCollapseLines) {
         normalizedMd.lineSequence().count() > maxCollapseLines
     }
 
-    // ui
     Card(
         modifier = modifier
             .fillMaxWidth()
             .animateContentSize(animationSpec = tween(180)),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(Color.White),
-        border = BorderStroke(1.5.dp, Grey30),
+        border = BorderStroke(1.dp, Grey30),
     ) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp)) {
             Text(
@@ -441,15 +447,10 @@ private fun DetailBodyMarkdown(
             )
             Spacer(Modifier.height(8.dp))
 
-            // 5) Render markdown with safe line height (no heightIn/clip/animateContentSize)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
-                // Apply safe text metrics
+            Box(modifier = Modifier.fillMaxWidth()) {
                 ProvideTextStyle(
                     value = MaterialTheme.typography.bodyMedium.copy(
-                        lineHeight = 22.sp, // safe line height
+                        lineHeight = 22.sp,
                         platformStyle = PlatformTextStyle(includeFontPadding = true),
                         lineHeightStyle = LineHeightStyle(
                             alignment = LineHeightStyle.Alignment.Proportional,
@@ -457,10 +458,12 @@ private fun DetailBodyMarkdown(
                         )
                     )
                 ) {
-                    RichText { Markdown(mdToShow) }
+                    RichText(
+                        state = richTextState,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
 
-                // 6) Visual fade overlay only when collapsed (purely decorative)
                 if (!isExpanded && canCollapse) {
                     Box(
                         modifier = Modifier
@@ -480,7 +483,6 @@ private fun DetailBodyMarkdown(
                 }
             }
 
-            // 7) Toggle button
             if (canCollapse) {
                 Row(
                     modifier = Modifier
@@ -522,7 +524,7 @@ private fun CardKeyword(
             ),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(Color.White),
-        border = BorderStroke(1.5.dp, Grey30),
+        border = BorderStroke(1.dp, Grey30),
     ) {
         Column (
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp)
@@ -530,8 +532,26 @@ private fun CardKeyword(
             Text(text = "포함된 키워드", style = AppTextStyles.b2_semibold_16, color = Grey500)
             Spacer(Modifier.height(12.dp))
 
-            val display = if(keywords.isEmpty()) "키워드가 없어요" else keywords.joinToString(separator = " ")
-            Text(text = display, style = AppTextStyles.b2_regular_16, color = GreyMain300)
+
+            if (keywords.isEmpty()) {
+                Text(
+                    text = "키워드가 없어요",
+                    style = AppTextStyles.b2_regular_16,
+                    color = GreyMain300
+                )
+            } else {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    keywords.forEach { keyword ->
+                        keywordChip(
+                            text = keyword,
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -546,7 +566,26 @@ private fun rememberImeOrNavBottomPadding(extra: Dp = 0.dp): Dp {
     return with(density) { bottomPx.toDp() } + extra
 }
 
-
+@Composable
+fun keywordChip(
+    text: String,
+    modifier: Modifier = Modifier,
+    textColor: Color = PurpleMain500,
+    backgroundColor: Color = Purple50,
+    ){
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(backgroundColor)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ){
+        Text(
+            text = text,
+            style = AppTextStyles.b3_medium_14,
+            color = textColor
+        )
+    }
+}
 
 // 프리뷰용 더미 데이터
 //@Preview(showBackground = true, showSystemUi = true)

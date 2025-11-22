@@ -34,8 +34,8 @@ fun CardContent(cards: List<CardResponse>,
     val allItems = cards.mapIndexed { index, card ->
         val height = when (index % 4) {
             0 -> 300.dp
-            1 -> 130.dp
-            else -> 180.dp
+            1 -> 148.dp
+            else -> 148.dp
         }
         CardItem(
             id = card.cardId,
@@ -55,11 +55,11 @@ fun CardContent(cards: List<CardResponse>,
     Row(
         modifier = Modifier
             .fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             leftItems.forEach { item ->
                 MasonryCard(item = item) {
@@ -70,7 +70,7 @@ fun CardContent(cards: List<CardResponse>,
 
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             rightItems.forEach { item ->
                 MasonryCard(item = item) {
@@ -86,9 +86,9 @@ fun CardContent(cards: List<CardResponse>,
 fun MasonryCard(item: CardItem, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .width(180.dp)
+            .fillMaxWidth()
             .height(item.height)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(6.dp))
             .background(Grey50)
             .clickable { onClick() }, // 클릭 시 전면 상세 스크린 오픈
         contentAlignment = Alignment.Center

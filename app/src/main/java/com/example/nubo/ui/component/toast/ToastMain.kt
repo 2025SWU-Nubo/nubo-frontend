@@ -10,13 +10,44 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -32,42 +63,75 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.nubo.ui.theme.AppTextStyles
-import com.example.nubo.ui.theme.Grey700
-import com.example.nubo.ui.theme.PurpleMain500
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.example.nubo.R
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.unit.Dp
+import com.example.nubo.ui.theme.AppTextStyles
+import com.example.nubo.ui.theme.Grey250
+import com.example.nubo.ui.theme.Grey500
+import com.example.nubo.ui.theme.GreyMain300
+import com.example.nubo.ui.theme.PurpleMain500
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 // ──────────────────────────────────────────────────────────────
-// 레이아웃 유형 (제목만 / 요약 포함 / 본문 포함)
+// 토스트 레이아웃 종류
+//  - TitleOnly              : 제목만 있는 기본형
+//  - TitleWithSummary       : 제목 + 한 줄 설명
+//  - TitleWithBody          : 제목 + 긴 본문
+//  - TitleWithAction        : 제목 + 우측 액션 버튼
+//  - TitleWithSummaryAndAction : 제목 + 요약 + 우측 액션 버튼
 // ──────────────────────────────────────────────────────────────
-enum class AppToastLayout { TitleOnly, TitleWithSummary, TitleWithBody }
+enum class AppToastLayout {
+    TitleOnly,
+    TitleWithSummary,
+    TitleWithBody,
+    TitleWithAction,
+    TitleWithSummaryAndAction
+}
+
+// 액션 버튼 슬롯을 갖는 레이아웃인지 여부
+private fun AppToastLayout.hasActionSlot(): Boolean =
+    this == AppToastLayout.TitleWithAction ||
+        this == AppToastLayout.TitleWithSummaryAndAction
 
 // ──────────────────────────────────────────────────────────────
 // 토스트 타입
-//  - AI_RESULT: 배경 일러스트 사용 (이미지)
-//  - FAVORITE : 흰 배경 + 컴팩트 폭 + 좌측 아이콘 강제 노출
-//  - NEGATIVE : 흰 배경 + 좌측 에러 아이콘 강제 노출
-//  - NORMAL/POSITIVE: 흰 배경
+//  - NORMAL       : 기본 회색 배경
+//  - POSITIVE     : 성공 아이콘이 붙는 토스트
+//  - NEGATIVE     : 에러 아이콘이 붙는 토스트
+//  - FAVORITE     : 즐겨찾기용 컴팩트 토스트
+//  - AI_RESULT    : 배경 일러스트를 쓰는 특수 토스트
+//  - UPLOAD       : 업로드 진행 결과
+//  - ALARM_*      : 알림 허용/거부 안내
 // ──────────────────────────────────────────────────────────────
-enum class AppToastType { NORMAL, POSITIVE, NEGATIVE, FAVORITE, AI_RESULT,UPLOAD, ALARM_ALLOWED,ALARM_DENIED }
+enum class AppToastType {
+    NORMAL,
+    POSITIVE,
+    NEGATIVE,
+    FAVORITE,
+    AI_RESULT,
+    UPLOAD,
+    ALARM_ALLOWED,
+    ALARM_DENIED
+}
 
 // ──────────────────────────────────────────────────────────────
-
-// 데이터 모델
-//   - preDelayMillis: 표시 지연(시트 닫힌 뒤 약간 기다렸다 띄우기 등)
+// 토스트 데이터 모델
+//  - layout        : 레이아웃 타입
+//  - title         : 제목(굵게)
+//  - summary       : 짧은 설명
+//  - body          : 긴 설명
+//  - iconRes       : 좌측 아이콘
+//  - durationMillis: 화면에 머무는 시간
+//  - preDelayMillis: 표시 지연
+//  - actionLabel   : 우측 액션 버튼 텍스트
+//  - onAction      : 액션 버튼 클릭 콜백
 // ──────────────────────────────────────────────────────────────
 data class AppToastData(
     val id: Long,
@@ -79,13 +143,19 @@ data class AppToastData(
     @DrawableRes val iconRes: Int? = null,
     val iconTint: Color? = null,
     val durationMillis: Int = 2000,
-    val preDelayMillis: Int = 120
+    val preDelayMillis: Int = 120,
+    val actionLabel: String? = null,
+    val onAction: (() -> Unit)? = null,
 )
 
 // ──────────────────────────────────────────────────────────────
-// 스타일 모델
-//  - backgroundRes: 배경 이미지 (AI_RESULT에서만 사용)
-//  - scrim: 배경 이미지 위 가독성 향상용 반투명 오버레이
+// 스타일 정의
+//  - bg           : 배경 색
+//  - titleColor   : 제목 색
+//  - textColor    : 본문 색
+//  - shape        : 카드 모양
+//  - backgroundRes: 배경 이미지 리소스
+//  - scrim        : 이미지 위에 까는 반투명 오버레이 색
 // ──────────────────────────────────────────────────────────────
 data class AppToastStyle(
     val bg: Color,
@@ -97,75 +167,87 @@ data class AppToastStyle(
 )
 
 // ──────────────────────────────────────────────────────────────
-// 타입별 기본 스타일
+// 타입별 기본 스타일 제공자
 // ──────────────────────────────────────────────────────────────
 @Composable
 fun defaultToastStyleProvider(): (AppToastType) -> AppToastStyle = { t ->
     when (t) {
+        // AI 결과 토스트는 이미지 배경 사용
         AppToastType.AI_RESULT -> AppToastStyle(
-            bg = Color.White,                 // 이미지 로딩 실패 시 폴백
+            bg = Color.White,                 // 이미지 실패 시 폴백 배경
             titleColor = Color.Black,
             textColor = Color.White.copy(alpha = 0.55f),
             backgroundRes = R.drawable.toast_bg,
             scrim = Color.Transparent,
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(14.dp)
         )
+
+        // 나머지는 공통 회색 배경
         AppToastType.NORMAL,
         AppToastType.POSITIVE,
         AppToastType.NEGATIVE,
         AppToastType.FAVORITE,
         AppToastType.UPLOAD,
         AppToastType.ALARM_ALLOWED,
-            AppToastType.ALARM_DENIED
-        -> AppToastStyle(
-            bg = Color.White,
-            titleColor = Color.Black,
-            textColor = Grey700,
+        AppToastType.ALARM_DENIED -> AppToastStyle(
+            bg = Grey250,
+            titleColor = Color.White,
+            textColor = Color.White,
             backgroundRes = null,
-            shape = RoundedCornerShape(percent = 50)
+            shape = RoundedCornerShape(14.dp)
         )
     }
 }
 
 // ──────────────────────────────────────────────────────────────
-// 기본 아이콘(강제 노출용)
+// 기본 아이콘 리소스
 // ──────────────────────────────────────────────────────────────
-private val DEFAULT_FAVORITE_ICON_RES = R.drawable.ic_board_fillstar
+private val DEFAULT_FAVORITE_ICON_RES = R.drawable.favorite
 private val DEFAULT_ERROR_ICON_RES = R.drawable.error_toast
 private val DEFAULT_POSITIVE_ICON_RES = R.drawable.check
-private val DEFAULT_UPLOAD_ICON_RES = R.drawable.upload_light
-private val DEFAULT_ALARM_ALLOW_ICON_RES = R.drawable.alarm_icon
-private val DEFAULT_ALARM_DENY_ICON_RES = R.drawable.alarm_denied
+private val DEFAULT_UPLOAD_ICON_RES = R.drawable.upload
+private val DEFAULT_ALARM_ALLOW_ICON_RES = R.drawable.alarm_on
+private val DEFAULT_ALARM_DENY_ICON_RES = R.drawable.alarm_off
 
 // ──────────────────────────────────────────────────────────────
-// 호스트 상태 (순차 처리 + 표시 지연 + exit 버퍼)
+// 토스트 호스트 상태
+//  - current 에 현재 표시 중인 토스트를 보관
+//  - Mutex 로 순차 표시를 보장
 // ──────────────────────────────────────────────────────────────
 @Stable
 class AppToastHostState {
+
     private val mutex = Mutex()
+
     var current by mutableStateOf<AppToastData?>(null)
         private set
 
+    // AppToastData 를 그대로 넘기는 버전
     suspend fun show(data: AppToastData) {
         mutex.withLock {
-            // 1) 표시 지연 (시트 닫힘 이후 살짝 기다렸다가 띄우고 싶을 때 유용)
-            if (data.preDelayMillis > 0) delay(data.preDelayMillis.toLong())
-
-            // 2) 현재 토스트 진입
-            current = data
-            try {
-                // 표시 시간 유지 (최소 800ms 보장)
-                delay(data.durationMillis.coerceAtLeast(800).toLong())
-            } finally {
-                // 3) 자신이라면 null로 만들어 exit 시작
-                if (current?.id == data.id) current = null
+            // 표시 지연
+            if (data.preDelayMillis > 0) {
+                delay(data.preDelayMillis.toLong())
             }
 
-            // 4) 퇴장 애니메이션 길이에 맞게 추가 버퍼(겹침 방지)
+            // 토스트 진입
+            current = data
+            try {
+                // 최소 800ms 이상 유지
+                delay(data.durationMillis.coerceAtLeast(800).toLong())
+            } finally {
+                // 자신일 때만 null 로 만들어 퇴장 시작
+                if (current?.id == data.id) {
+                    current = null
+                }
+            }
+
+            // 퇴장 애니메이션 버퍼
             delay(460)
         }
     }
 
+    // 편의용 오버로드  title 만 필수 인자
     suspend fun show(
         title: AnnotatedString,
         layout: AppToastLayout = AppToastLayout.TitleOnly,
@@ -175,7 +257,9 @@ class AppToastHostState {
         @DrawableRes iconRes: Int? = null,
         iconTint: Color? = null,
         durationMillis: Int = 2000,
-        preDelayMillis: Int = 120
+        preDelayMillis: Int = 120,
+        actionLabel: String? = null,
+        onAction: (() -> Unit)? = null,
     ) = show(
         AppToastData(
             id = System.currentTimeMillis(),
@@ -187,20 +271,31 @@ class AppToastHostState {
             iconRes = iconRes,
             iconTint = iconTint,
             durationMillis = durationMillis,
-            preDelayMillis = preDelayMillis
+            preDelayMillis = preDelayMillis,
+            actionLabel = actionLabel,
+            onAction = onAction
         )
     )
 
-    fun dismiss() { current = null }
+    // 즉시 닫기
+    fun dismiss() {
+        current = null
+    }
 }
 
+// remember 용 헬퍼
 @Composable
 fun rememberAppToastHostState(): AppToastHostState = remember { AppToastHostState() }
 
+// CompositionLocal  전역 토스트 액세스용
+val LocalAppToastHostState = staticCompositionLocalOf<AppToastHostState> {
+    error("AppToastHostState is not provided")
+}
+
 // ──────────────────────────────────────────────────────────────
 // 토스트 호스트 UI
-//   - 마지막 non-null 데이터 래치: exit 동안에도 내용이 바뀌지 않게
-//   - 퇴장: slideOut + fadeOut + scaleOut(살짝 확대)로 “안드 내장 토스트” 느낌
+//  - Box 내부에서 AnimatedVisibility 로 등장/퇴장
+//  - 마지막 렌더링 데이터를 별도로 기억해 exit 중에 내용이 사라지지 않게 처리
 // ──────────────────────────────────────────────────────────────
 @Composable
 fun AppToastHost(
@@ -212,13 +307,14 @@ fun AppToastHost(
 ) {
     val data = hostState.current
 
-    // 마지막 non-null 토스트를 기억해 두었다가 exit 중에도 유지
+    // 마지막으로 표시된 토스트를 보관
     var rendered by remember { mutableStateOf<AppToastData?>(null) }
     if (data != null && rendered?.id != data.id) {
         rendered = data
     }
 
-    val rootModifier = if (matchParentSize) modifier.fillMaxSize() else modifier
+    val rootModifier =
+        if (matchParentSize) modifier.fillMaxSize() else modifier
 
     Box(
         modifier = rootModifier.semantics(mergeDescendants = true) {},
@@ -226,32 +322,48 @@ fun AppToastHost(
     ) {
         AnimatedVisibility(
             visible = data != null,
-            // 아래서 살짝 올라오며 페이드인
-            enter = scaleIn(
-                initialScale = 0.97f,
-                animationSpec = tween(
-                    durationMillis = 140,
-                    easing = LinearOutSlowInEasing
-                )
-            ) + fadeIn(
-                animationSpec = tween(
-                    durationMillis = 120,
-                    easing = LinearOutSlowInEasing
-                )
-            ),
-            exit = fadeOut(
-                animationSpec = tween(
-                    durationMillis = 140,
-                    easing = FastOutLinearInEasing
-                )
-            )
+            enter =
+                fadeIn(
+                    animationSpec = tween(
+                        durationMillis = 420,
+                        easing = LinearOutSlowInEasing
+                    )
+                ) +
+                    scaleIn(
+                        initialScale = 0.9f,
+                        animationSpec = tween(
+                            durationMillis = 420,
+                            easing = LinearOutSlowInEasing
+                        )
+                    ) +
+                    slideInVertically(
+                        // 토스트 높이의 1/4 정도 아래에서 살짝 올라오게
+                        initialOffsetY = { fullHeight -> fullHeight },
+                        animationSpec = tween(
+                            durationMillis = 420,
+                            easing = LinearOutSlowInEasing
+                        )
+                    ),
+            exit =
+                fadeOut(
+                    animationSpec = tween(
+                        durationMillis = 200,
+                        easing = FastOutLinearInEasing
+                    )
+                ) +
+                    slideOutVertically(
+                        // 살짝 아래로 내려가면서 사라지게
+                        targetOffsetY = { fullHeight -> fullHeight / 9 },
+                        animationSpec = tween(
+                            durationMillis = 220,
+                            easing = FastOutLinearInEasing
+                        )
+                    )
         ) {
-            // exit 중에도 contentData가 유지됨 (data를 직접 쓰면 null로 사라지며 끊길 수 있음)
             val t = data ?: rendered ?: return@AnimatedVisibility
-
             val toastStyle = styleProvider(t.type)
 
-            // 타입별 아이콘 강제 규칙
+            // 타입에 따른 기본 아이콘
             val isFavorite = t.type == AppToastType.FAVORITE
             val isNegative = t.type == AppToastType.NEGATIVE
             val isPositive = t.type == AppToastType.POSITIVE
@@ -259,7 +371,6 @@ fun AppToastHost(
             val isAlarmAllow = t.type == AppToastType.ALARM_ALLOWED
             val isAlarmDeny = t.type == AppToastType.ALARM_DENIED
 
-            // 아이콘 리소스
             val effectiveIconRes: Int? = when {
                 t.iconRes != null -> t.iconRes
                 isFavorite -> DEFAULT_FAVORITE_ICON_RES
@@ -267,45 +378,47 @@ fun AppToastHost(
                 isPositive -> DEFAULT_POSITIVE_ICON_RES
                 isUpload -> DEFAULT_UPLOAD_ICON_RES
                 isAlarmAllow -> DEFAULT_ALARM_ALLOW_ICON_RES
-                isAlarmDeny-> DEFAULT_ALARM_DENY_ICON_RES
+                isAlarmDeny -> DEFAULT_ALARM_DENY_ICON_RES
                 else -> null
             }
 
-            // FAVORITE만 컴팩트
+            // 즐겨찾기만 컴팩트 패딩 사용
             val isCompact = isFavorite
-            val contentPadding =
-                if (isCompact) PaddingValues(horizontal = 24.dp, vertical = 18.dp)
-                else PaddingValues(horizontal = 30.dp, vertical = 18.dp)
 
             val useImageBackground = toastStyle.backgroundRes != null
-            // 토스트 배경 컬러
-            val surfaceColor = if (useImageBackground) Color.Transparent else toastStyle.bg
+            val surfaceColor =
+                if (useImageBackground) Color.Transparent else toastStyle.bg
 
             val fixedWidth =
-                if (t.type == AppToastType.FAVORITE)
-                    // 즐겨찾기만 가로길이를 좀 더 작게
-                    Modifier.fillMaxWidth(0.90f).widthIn(max = 300.dp)
-                else
-                    Modifier.fillMaxWidth(0.92f).widthIn(max = 360.dp)
+                Modifier.fillMaxWidth(1f).widthIn(max = 460.dp)
 
-            // 확대/축소의 기준점을 중앙으로 고정(
             Box(
                 modifier = Modifier
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
-                    .graphicsLayer { transformOrigin = TransformOrigin(0.5f, 0.5f) }
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
+                    .graphicsLayer {
+                        transformOrigin = TransformOrigin(0.5f, 0.5f)
+                    }
             ) {
                 Surface(
-                    onClick = { hostState.dismiss() },         // 탭하여 즉시 닫기
+                    onClick = { hostState.dismiss() }, // 토스트 탭 시 바로 닫기
                     color = surfaceColor,
                     shape = toastStyle.shape,
                     tonalElevation = 0.dp,
-                    modifier = fixedWidth.shadow(elevation = 5.dp, shape = toastStyle.shape)
+                    modifier = fixedWidth.shadow(
+                        elevation = 5.dp,
+                        shape = toastStyle.shape
+                    )
                 ) {
+                    // 이미지 배경 토스트와 일반 토스트를 분리 렌더링
                     if (useImageBackground) {
-                        // 이미지 배경(풀블리드) + 스크림 + 중앙 정렬
+                        // AI_RESULT 전용 레이아웃  배경 이미지만 사용
+                        val contentPadding =
+                            if (isCompact) PaddingValues(horizontal = 24.dp, vertical = 18.dp)
+                            else PaddingValues(horizontal = 30.dp, vertical = 18.dp)
+
                         Box(Modifier.clip(toastStyle.shape)) {
                             Image(
-                                painter = painterResource(toastStyle.backgroundRes),
+                                painter = painterResource(toastStyle.backgroundRes!!),
                                 contentDescription = null,
                                 modifier = Modifier.matchParentSize(),
                                 contentScale = ContentScale.Crop
@@ -326,97 +439,32 @@ fun AppToastHost(
                                 horizontalArrangement = Arrangement.Start
                             ) {
                                 if (effectiveIconRes != null) {
-                                    Icon(
+                                    androidx.compose.material3.Icon(
                                         painter = painterResource(effectiveIconRes),
                                         contentDescription = null,
                                         tint = Color.Unspecified,
                                         modifier = Modifier.size(if (isCompact) 20.dp else 24.dp)
                                     )
-                                    Spacer(Modifier.width(if (isCompact) 10.dp else 12.dp))
+                                    Spacer(
+                                        Modifier.width(
+                                            if (isCompact) 8.dp else 10.dp
+                                        )
+                                    )
                                 }
 
-                                val columnWidth =
-                                    if (isCompact) Modifier.wrapContentWidth() else Modifier.fillMaxWidth()
-
                                 Column(
-                                    modifier = columnWidth,
+                                    modifier = Modifier.fillMaxWidth(),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
                                     Text(
                                         text = t.title,
                                         color = toastStyle.titleColor,
                                         style = AppTextStyles.b2_semibold_16,
-                                        maxLines = if (t.layout == AppToastLayout.TitleOnly) 2 else 3,
+                                        maxLines = 2,
                                         overflow = TextOverflow.Ellipsis,
                                         textAlign = TextAlign.Start
                                     )
-                                    when (t.layout) {
-                                        AppToastLayout.TitleOnly -> Unit
-                                        AppToastLayout.TitleWithSummary -> {
-                                            Spacer(Modifier.height(6.dp))
-                                            Text(
-                                                text = t.summary.orEmpty(),
-                                                color = toastStyle.textColor,
-                                                style = AppTextStyles.b3_regular_14,
-                                                lineHeight = 20.sp,
-                                                maxLines = 2,
-                                                overflow = TextOverflow.Ellipsis,
-                                                textAlign = TextAlign.Start
-                                            )
-                                        }
-                                        AppToastLayout.TitleWithBody -> {
-                                            Spacer(Modifier.height(8.dp))
-                                            Text(
-                                                text = t.body.orEmpty(),
-                                                color = toastStyle.textColor,
-                                                fontSize = 14.sp,
-                                                lineHeight = 20.sp,
-                                                maxLines = 4,
-                                                overflow = TextOverflow.Ellipsis,
-                                                textAlign = TextAlign.Start
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        // 단색 배경 + 중앙 정렬
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(contentPadding),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Start
-                        ) {
-                            if (effectiveIconRes != null) {
-                                Icon(
-                                    painter = painterResource(effectiveIconRes),
-                                    contentDescription = null,
-                                    tint = Color.Unspecified,
-                                    modifier = Modifier.size(if (isCompact) 20.dp else 24.dp)
-                                )
-                                Spacer(Modifier.width(if (isCompact) 10.dp else 12.dp))
-                            }
-
-                            val columnWidth =
-                                if (isCompact) Modifier.wrapContentWidth() else Modifier.fillMaxWidth()
-
-                            Column(
-                                modifier = columnWidth,
-                                horizontalAlignment = Alignment.Start
-                            ) {
-                                Text(
-                                    text = t.title,
-                                    color = toastStyle.titleColor,
-                                    style = AppTextStyles.b2_semibold_16,
-                                    maxLines = if (t.layout == AppToastLayout.TitleOnly) 2 else 3,
-                                    overflow = TextOverflow.Ellipsis,
-                                    textAlign = TextAlign.Start
-                                )
-                                when (t.layout) {
-                                    AppToastLayout.TitleOnly -> Unit
-                                    AppToastLayout.TitleWithSummary -> {
+                                    if (t.layout == AppToastLayout.TitleWithSummary) {
                                         Spacer(Modifier.height(6.dp))
                                         Text(
                                             text = t.summary.orEmpty(),
@@ -428,21 +476,17 @@ fun AppToastHost(
                                             textAlign = TextAlign.Start
                                         )
                                     }
-                                    AppToastLayout.TitleWithBody -> {
-                                        Spacer(Modifier.height(8.dp))
-                                        Text(
-                                            text = t.body.orEmpty(),
-                                            color = toastStyle.textColor,
-                                            fontSize = 14.sp,
-                                            lineHeight = 20.sp,
-                                            maxLines = 4,
-                                            overflow = TextOverflow.Ellipsis,
-                                            textAlign = TextAlign.Start
-                                        )
-                                    }
                                 }
                             }
                         }
+                    } else {
+                        // 대부분의 회색 배경 토스트는 공통 레이아웃 사용
+                        ToastRowContent(
+                            data = t,
+                            toastStyle = toastStyle,
+                            effectiveIconRes = effectiveIconRes,
+                            isCompact = isCompact
+                        )
                     }
                 }
             }
@@ -451,7 +495,124 @@ fun AppToastHost(
 }
 
 // ──────────────────────────────────────────────────────────────
-// 강조 텍스트 빌더 (특정 단어만 색상 변경)
+// 공통 토스트 Row 레이아웃
+//  - 좌측 아이콘
+//  - 가운데 텍스트
+//  - 우측 액션 버튼(선택)
+//  액션 레이아웃일 때는 아이콘을 숨기고 버튼만 보여줌
+// ──────────────────────────────────────────────────────────────
+@Composable
+private fun ToastRowContent(
+    data: AppToastData,
+    toastStyle: AppToastStyle,
+    effectiveIconRes: Int?,
+    isCompact: Boolean
+) {
+    val hasAction = data.layout.hasActionSlot() &&
+        !data.actionLabel.isNullOrBlank() &&
+        data.onAction != null
+
+    // 액션 버튼이 있는 토스트에서는 아이콘을 숨김
+    val showIcon = effectiveIconRes != null && !hasAction
+
+    val hasSummary = data.layout == AppToastLayout.TitleWithSummary ||
+        data.layout == AppToastLayout.TitleWithSummaryAndAction
+    val hasBody = data.layout == AppToastLayout.TitleWithBody
+
+    val contentPadding =
+        if (isCompact) PaddingValues(horizontal = 20.dp, vertical = 14.dp)
+        else PaddingValues(horizontal = 24.dp, vertical = 14.dp)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(contentPadding),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Start
+    ) {
+        // 좌측 아이콘
+        if (showIcon) {
+            androidx.compose.material3.Icon(
+                painter = painterResource(effectiveIconRes!!),
+                contentDescription = null,
+                tint = Color.Unspecified,
+                modifier = Modifier.size(if (isCompact) 20.dp else 24.dp)
+            )
+            Spacer(Modifier.width(if (isCompact) 10.dp else 12.dp))
+        }
+
+        // 가운데 텍스트 영역
+        Column(
+            modifier = Modifier.weight(1f),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Text(
+                text = data.title,
+                color = toastStyle.titleColor,
+                style = AppTextStyles.b2_semibold_16,
+                maxLines =
+                    if (data.layout == AppToastLayout.TitleOnly ||
+                        data.layout == AppToastLayout.TitleWithAction
+                    ) 2 else 3,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Start
+            )
+
+            when {
+                hasSummary -> {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = data.summary.orEmpty(),
+                        color = toastStyle.textColor,
+                        style = AppTextStyles.b3_regular_14,
+                        lineHeight = 20.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Start
+                    )
+                }
+
+                hasBody -> {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = data.body.orEmpty(),
+                        color = toastStyle.textColor,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
+                        maxLines = 4,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Start
+                    )
+                }
+            }
+        }
+
+        // 우측 액션 버튼  회색 pill 버튼
+        if (hasAction) {
+            Spacer(Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .height(32.dp)
+                    .wrapContentWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(GreyMain300)
+                    .clickable { data.onAction?.invoke() }
+                    .padding(horizontal = 16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = data.actionLabel.orEmpty(),
+                    style = AppTextStyles.b3_semibold_14,
+                    color = Color.White
+                )
+            }
+        }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────
+// 강조 텍스트 빌더
+//  - full 문자열 안에서 highlight 부분만 색상을 바꿔서 AnnotatedString 생성
 // ──────────────────────────────────────────────────────────────
 fun buildHighlightedTitle(
     full: String,
@@ -459,7 +620,9 @@ fun buildHighlightedTitle(
     highlightColor: Color = PurpleMain500
 ): AnnotatedString = buildAnnotatedString {
     val idx = full.indexOf(highlight)
-    if (idx < 0) append(full) else {
+    if (idx < 0) {
+        append(full)
+    } else {
         append(full.substring(0, idx))
         pushStyle(SpanStyle(color = highlightColor))
         append(highlight)
@@ -469,7 +632,7 @@ fun buildHighlightedTitle(
 }
 
 // ──────────────────────────────────────────────────────────────
-// 데모 화면
+// 데모용 화면  여러 타입의 토스트를 테스트할 수 있음
 // ──────────────────────────────────────────────────────────────
 @Composable
 fun ToastDemoScreen(
@@ -484,25 +647,28 @@ fun ToastDemoScreen(
                 Button(onClick = {
                     scope.launch {
                         host.show(
-                            title = buildHighlightedTitle("토스트의 제목이 여기에 작성됩니다.", "작성"),
+                            title = buildHighlightedTitle(
+                                "토스트의 제목이 여기에 작성됩니다",
+                                "제목"
+                            ),
                             layout = AppToastLayout.TitleOnly,
                             type = AppToastType.NORMAL
                         )
                     }
-                }) { Text("NORMAL (흰 배경)") }
+                }) { Text("NORMAL") }
 
                 Spacer(Modifier.height(8.dp))
 
                 Button(onClick = {
                     scope.launch {
                         host.show(
-                            title = buildHighlightedTitle("AI 요약이 완료되었습니다.", "완료"),
+                            title = buildHighlightedTitle("AI 요약이 완료되었습니다", "완료"),
                             layout = AppToastLayout.TitleWithSummary,
                             type = AppToastType.AI_RESULT,
                             summary = "핵심 포인트 3가지를 정리했어요"
                         )
                     }
-                }) { Text("AI_RESULT (배경 이미지)") }
+                }) { Text("AI_RESULT") }
 
                 Spacer(Modifier.height(8.dp))
 
@@ -514,7 +680,7 @@ fun ToastDemoScreen(
                             type = AppToastType.FAVORITE
                         )
                     }
-                }) { Text("FAVORITE (컴팩트 + 좌측 아이콘)") }
+                }) { Text("FAVORITE") }
 
                 Spacer(Modifier.height(8.dp))
 
@@ -527,42 +693,54 @@ fun ToastDemoScreen(
                             summary = "잠시 후 다시 시도해 주세요"
                         )
                     }
-                }) { Text("NEGATIVE (좌측 에러 아이콘)") }
+                }) { Text("NEGATIVE") }
+
+                Spacer(Modifier.height(8.dp))
+
+                Button(onClick = {
+                    scope.launch {
+                        host.show(
+                            title = AnnotatedString("보드 생성이 완료되었습니다"),
+                            layout = AppToastLayout.TitleWithAction,
+                            type = AppToastType.NORMAL,
+                            actionLabel = "바로가기",
+                            onAction = { /* 보드 화면으로 이동 */ }
+                        )
+                    }
+                }) { Text("ACTION") }
             }
+
             AppToastHost(hostState = host, styleProvider = styleProvider)
         }
     }
 }
 
 // ──────────────────────────────────────────────────────────────
-// 오버레이(Popup)
-//   - current == null이어도 항상 그려서 exit 애니메이션이 끊기지 않도록 함
-//   - 네비 바 인셋만큼 위로 띄워 위치 안정
+// 전체 앱 위에 떠 있는 오버레이 Popup
+//  - 네비게이션 바 인셋만큼 위로 올림
+//  - hostState.current 가 null 이어도 exit 애니메이션 동안 유지
 // ──────────────────────────────────────────────────────────────
 @Composable
 fun AppToastOverlay(
     hostState: AppToastHostState,
-    extraBottomOffset: Dp = 72.dp,
+    extraBottomOffset: Dp = 52.dp,
 ) {
-    // 네비게이션 바 인셋 계산 (한 번만)
     val bottomInset = WindowInsets.navigationBars
         .asPaddingValues()
         .calculateBottomPadding()
 
-    // 토스트 표시 여부를 오버레이 레벨에서 관리
     var showOverlay by remember { mutableStateOf(false) }
-    // exit 동안만 잠깐 더 유지
+
     LaunchedEffect(hostState.current) {
         if (hostState.current != null) {
             showOverlay = true
         } else {
-            // AppToastHost.exit 애니메이션 140ms + 버퍼
-            kotlinx.coroutines.delay(200)
+            delay(200)
             showOverlay = false
         }
     }
 
-    if (!showOverlay) return  // 완전히 사라지면 Popup 자체를 제거해 터치 통과
+    if (!showOverlay) return
 
     Popup(
         alignment = Alignment.BottomCenter,
@@ -574,33 +752,18 @@ fun AppToastOverlay(
             usePlatformDefaultWidth = false
         )
     ) {
-        // 하단 바 클릭영역과 겹치지 않도록 충분히 올려둠
         Column(
             modifier = Modifier
                 .padding(bottom = bottomInset + extraBottomOffset)
-                .fillMaxWidth(),   // 폭 안정 (크래시 방지)
+                .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             AppToastHost(
                 hostState = hostState,
-                matchParentSize = false,                 // Overlay가 전체 영역이라 false로 충분
+                matchParentSize = false,
                 contentAlignment = Alignment.BottomCenter
             )
         }
-
-//        Column(
-//            modifier = Modifier
-//                // ✅ 바텀바(+ 네비바) 위로 올리기
-//                .padding(bottom = bottomInset + extraBottomOffset)
-//                .fillMaxWidth(),
-//            horizontalAlignment = Alignment.CenterHorizontally
-//        ) {
-//            AppToastHost(
-//                hostState = hostState,
-//                matchParentSize = false,
-//                contentAlignment = Alignment.BottomCenter
-//            )
-//        }
     }
 }
 
@@ -620,7 +783,7 @@ private fun PreviewToastDemoAI() {
         val host = rememberAppToastHostState()
         LaunchedEffect(Unit) {
             host.show(
-                title = buildHighlightedTitle("AI 요약이 완료되었습니다.", "완료"),
+                title = buildHighlightedTitle("AI 요약이 완료되었습니다", "완료"),
                 layout = AppToastLayout.TitleWithSummary,
                 type = AppToastType.AI_RESULT,
                 summary = "3가지 핵심 포인트를 제공해요",

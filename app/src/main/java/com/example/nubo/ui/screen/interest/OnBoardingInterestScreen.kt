@@ -154,7 +154,7 @@ fun OnBoardingInterestScreen(
                 .padding(inner)
                 .padding(horizontal = 20.dp)
         ) {
-            Spacer(Modifier.height(30.dp))
+            Spacer(Modifier.height(50.dp))
             Text("어떤 영상을 자주 보시나요?", style = AppTextStyles.headline_bold_26, modifier = Modifier.align(Alignment.CenterHorizontally),
                 textAlign = TextAlign.Center)
             Spacer(Modifier.height(8.dp))
@@ -192,9 +192,9 @@ fun OnBoardingInterestScreen(
                     // 3열 원형 그리드 / 3-column circular grid
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
-                        contentPadding = PaddingValues(vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(0.dp),
+                        horizontalArrangement = Arrangement.spacedBy(0.dp),
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
@@ -220,7 +220,9 @@ fun OnBoardingInterestScreen(
                                         val next = if (isSelected) selectedIds - item.boardId else selectedIds + item.boardId
                                         viewModel.updateSelected(next)
                                     }
-                                }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
                             )
                         }
                     }
@@ -254,15 +256,17 @@ private fun InterestCircleChip(
     @DrawableRes imageRes: Int,
     enabled: Boolean,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val chipSize = 100.dp
+    val chipSize = 110.dp
 
     // 바깥 컨테이너는 clip 하지 않음(배지가 살짝 밖으로 나가도록)
     // Do not clip the outer box so the badge can protrude slightly
     Box(
         modifier = Modifier
-            .size(chipSize)
+            .aspectRatio(1f)
+//            .size(chipSize)
             .alpha(if (enabled || selected) 1f else 0.5f)
             .clickable(enabled = enabled || selected) { onClick() },
         contentAlignment = Alignment.Center
@@ -290,11 +294,11 @@ private fun InterestCircleChip(
             // 타이틀(가독성 향상을 위한 얕은 그림자) / title with subtle shadow
             Text(
                 text = item.boardName,
-                style = AppTextStyles.b2_bold_16.copy(
+                style = AppTextStyles.b3_bold_14.copy(
                     shadow = Shadow(
                         color = Color.Black,
-                        offset = androidx.compose.ui.geometry.Offset(0f, 3f),
-                        blurRadius = 12f
+                        offset = androidx.compose.ui.geometry.Offset(0f, 5f),
+                        blurRadius = 8f
                     )
                 ),
                 color = Color.White,
@@ -324,7 +328,7 @@ private fun InterestCircleChip(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.check),
+                        painter = painterResource(R.drawable.check_fill),
                         contentDescription = "선택됨",
                         tint = Color.White,
                         modifier = Modifier.size(24.dp)

@@ -19,6 +19,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -93,6 +94,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import com.example.components.toast.AppToastOverlay
+import com.example.components.toast.LocalAppToastHostState
+import com.example.components.toast.rememberAppToastHostState
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -129,9 +136,23 @@ class MainActivity : AppCompatActivity() {
 
         setContent {
             NuboAppTheme {
+                // 1  전역 토스트 호스트를 Activity 루트에서 remember
+                val toastHost = rememberAppToastHostState()
 
-                RequestNotificationPermissionOnce() // Android 13+ POST_NOTIFICATIONS permission
-                MainScreen(deepLinkEvents = deepLinkEvents)
+
+                // 2  CompositionLocal로 전체 앱에 제공
+                CompositionLocalProvider(LocalAppToastHostState provides toastHost) {
+                    RequestNotificationPermissionOnce()
+
+                    // 3  MainScreen 위에 전역 토스트 오버레이를 항상 깔아둠
+                    Box(Modifier.fillMaxSize()) {
+                        MainScreen(deepLinkEvents = deepLinkEvents)
+                        AppToastOverlay(
+                            hostState = toastHost,
+                            extraBottomOffset = 14.dp
+                        )
+                    }
+                }
             }
         }
 
@@ -182,18 +203,33 @@ fun MainScreen(
     val navController = rememberNavController()
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    val toastHost = rememberAppToastHostState()
+    // 전역 CompositionLocal 에서 토스트 호스트 가져오기
+    val toastHost = LocalAppToastHostState.current
     val toastScope = rememberCoroutineScope()
 
-
-    val showToast: (String, AppToastType, Int,Int) -> Unit = { msg, type, duration,preDelay ->
+    // message, type, duration, preDelay, actionLabel, onAction
+    val showToast: (
+        String,
+        AppToastType,
+        Int,
+        Int,
+        String?,
+        (() -> Unit)?
+    ) -> Unit = { msg, type, duration, preDelay, actionLabel, onAction ->
         toastScope.launch {
             toastHost.show(
                 title = AnnotatedString(msg),
                 type = type,
-                layout = AppToastLayout.TitleOnly,
+                // If action exists, use action layout  otherwise title only
+                layout = if (actionLabel != null && onAction != null) {
+                    AppToastLayout.TitleWithAction
+                } else {
+                    AppToastLayout.TitleOnly
+                },
                 durationMillis = duration,
-                preDelayMillis = preDelay
+                preDelayMillis = preDelay,
+                actionLabel = actionLabel,
+                onAction = onAction
             )
         }
     }
@@ -210,7 +246,7 @@ fun MainScreen(
 
             val (msg, type, dur) = when (ev) {
                 CardUploadViewModel.UploadEvent.Started ->
-                    Triple("카드 생성 중이에요", AppToastType.UPLOAD, 1200)
+                    Triple("카드 생성 중이에요", AppToastType.UPLOAD, 1000)
                 CardUploadViewModel.UploadEvent.Succeeded -> {
                     // MyBoard에 새로고침 신호 전송
                     // 유틸리티 함수를 사용해 "myboard" 라우트에 신호를 보냄
@@ -256,7 +292,7 @@ fun MainScreen(
             android.util.Log.d("Myboard","새로고침 신호 전송!")
 
             // 플래그를 재설정하여 중복 새로고침 방지
-            createBoardViewModel.consumeCreated()
+//            createBoardViewModel.consumeCreated()
         }
     }
 
@@ -493,7 +529,8 @@ fun MainScreen(
                         onClickItem = { item -> nvm.onClickItem(item) },
                         onAcceptInvite = { item -> nvm.onClickPrimary(item) },
                         onRejectInvite = { item -> nvm.onClickSecondary(item) },
-                        onShowMore = { _ -> nvm.onClickMore() }
+                        onShowMore = { _ -> nvm.onClickMore() },
+                        onMarkAllRead = { nvm.onClickMarkAllRead() }
                     )
 
                     // 2) 단발 이벤트 수신 → 실제 네비게이션 수행
@@ -797,8 +834,8 @@ fun MainScreen(
         onDismiss = { sheetRoute = null },
         onGoCreateBoard = { sheetRoute = SheetRoute.CreateBoard },
         onGoInvite = { sheetRoute = SheetRoute.Invite },
-        onCreateBoard = { name, isShared ->
-            // TODO Create board via ViewModel
+        onCreateBoard = { _, _ ->
+            // Board creation callback from sheet  refresh list, close sheet etc
             sheetRoute = null
         },
         onInvite = { email ->
@@ -810,10 +847,19 @@ fun MainScreen(
         onInviteComplete = { emails ->
             // TODO Submit invites via ViewModel
         },
+        onClickCreatedBoard = { boardId, boardName ->
+            // Navigate to created board detail when toast action is clicked
+            val encoded = URLEncoder.encode(
+                boardName,
+                StandardCharsets.UTF_8.toString()
+            )
+            navController.navigate("board_detail/${boardId.toInt()}/$encoded?source=FROM_CREATE") {
+                popUpTo("home") { inclusive = false }
+                launchSingleTop = true
+            }
+        },
         showToast = showToast
     )
-
-    AppToastOverlay(hostState = toastHost,extraBottomOffset = 54.dp)
 }
 
 fun getSelectedIndex(route: String?): Int {
