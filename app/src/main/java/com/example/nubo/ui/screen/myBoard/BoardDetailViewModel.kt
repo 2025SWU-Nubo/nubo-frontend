@@ -702,7 +702,7 @@ class BoardDetailViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     // 성공 시(204 No Content) 목록에서 제거 (낙관적 업데이트)
                     _pendingMembers.value = _pendingMembers.value.filterNot { it.invitationId == invitationId }
-                    _toastMessage.value = "초대가 취소되었습니다."
+                    _toastMessage.value = "초대가 취소가 완료되었어요."
                 } else {
                     // 실패 처리
                     _toastMessage.value = "초대 취소 실패: ${response.code()}"

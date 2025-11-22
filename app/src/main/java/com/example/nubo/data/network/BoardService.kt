@@ -192,7 +192,7 @@ interface BoardService {
     @DELETE("api/board/{boardId}/invitation/{invitationId}")
     suspend fun cancelInvitation(
         @Header("Authorization") authHeader: String,
-        @Path("boardId") boardId: Long,          // [추가] boardId 필요
+        @Path("boardId") boardId: Long,
         @Path("invitationId") invitationId: Long
     ): Response<Unit>
 }

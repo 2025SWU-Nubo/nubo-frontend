@@ -1330,6 +1330,7 @@ private fun InvitePreviewChip(user: InviteUser) {
     }
 }
 
+// 참여자 목록 확인
 @Composable
 fun BoardMembersSheet(
     activeMembers: List<MemberDto>,     // 참여 중인 사용자
@@ -1341,8 +1342,7 @@ fun BoardMembersSheet(
     Surface(
         modifier = Modifier
             .imePadding()
-            .fillMaxWidth()
-            .padding(top=13.dp),
+            .fillMaxWidth(),
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         shadowElevation = 8.dp, // 입체 효과
         color = Color.White
@@ -1353,7 +1353,7 @@ fun BoardMembersSheet(
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .imePadding()
-                .padding(horizontal = 18.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 13.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
@@ -1384,7 +1384,7 @@ fun BoardMembersSheet(
             }
 
             // 2. 헤더로부터 32dp 아래부터 목록 시작
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(24.dp))
 
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
@@ -1396,7 +1396,7 @@ fun BoardMembersSheet(
                             text = "대기 중인 사용자",
                             style = b2_semibold_16
                         )
-                        Spacer(Modifier.height(16.dp)) // 텍스트와 목록 사이 여백
+                        Spacer(Modifier.height(12.dp)) // 텍스트와 목록 사이 여백
                     }
 
                     items(pendingMembers, key = { "invitation_${it.invitationId}" }) { invitation ->
@@ -1405,7 +1405,7 @@ fun BoardMembersSheet(
                             isOwner = isOwner,
                             onCancelClick = { onCancelInvite(invitation.invitationId) }
                         )
-                        Spacer(Modifier.height(16.dp)) // 아이템 간 간격
+                        Spacer(Modifier.height(8.dp)) // 아이템 간 간격
                     }
 
                     // 영역 사이 구분선 (대기 중인 사용자가 있을 때만 표시)
@@ -1424,14 +1424,14 @@ fun BoardMembersSheet(
                 item {
                     Text(
                         text = "참여 중인 사용자",
-                        style = AppTextStyles.b2_medium_16
+                        style = b2_semibold_16
                     )
-                    Spacer(Modifier.height(16.dp)) // 텍스트와 목록 사이 여백
+                    Spacer(Modifier.height(12.dp)) // 텍스트와 목록 사이 여백
                 }
 
                 items(activeMembers, key = { "member_${it.userId}" }) { member ->
                     ActiveMemberRow(member = member)
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(8.dp))
                 }
 
                 // 하단 여백
@@ -1451,7 +1451,7 @@ private fun PendingMemberRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 56.dp),
+            .heightIn(min = 50.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 아바타 (이니셜)
@@ -1472,20 +1472,20 @@ private fun PendingMemberRow(
         Column(Modifier.weight(1f)) {
             Text(
                 text = invitation.nickname,
-                style = AppTextStyles.b2_semibold_16,
+                style = b2_semibold_16,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Text(
+            /*Text(
                 text = invitation.email,
                 style = AppTextStyles.b3_regular_14,
                 color = Grey200 // 혹은 Grey500
-            )
+            )*/
         }
 
         // 초대 취소 버튼 (요청하신 스타일 적용)
         // invited 상태는 '대기 중'이므로 항상 true라고 가정하고 UI 표시
         val invited = true
-        // [수정] owner=true 일 때만 초대 취소 버튼 표시
+        // owner=true 일 때만 초대 취소 버튼 표시
         if (isOwner) {
             OutlinedButton(
                 onClick = onCancelClick,
