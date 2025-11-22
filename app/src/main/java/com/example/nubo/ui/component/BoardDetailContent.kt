@@ -42,18 +42,17 @@ fun BoardDetailContent(
     selectedSections: Set<Int>,
     selectedCards: Set<Int>
 ) {
-    // 카드 Masonry 좌/우 컬럼 분리
-    val leftItems = cardItems.filterIndexed { i, _ -> i % 2 == 0 }
-    val rightItems = cardItems.filterIndexed { i, _ -> i % 2 != 0 }
+    // 카드 Masonry 블록 패턴 생성
+    val (leftItems, rightItems) = buildMasonryBlocks(cardItems)
 
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(20.dp),
-        contentPadding = PaddingValues(start = 16.dp, end=16.dp,  bottom = 11.dp)
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 11.dp)
     ) {
         // [1] 보드(섹션) 2열 그리드
         items(boardItems.chunked(2)) { rowItems ->
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 // --- 첫 번째 아이템 ---
                 // Column에 weight(1f)를 주어 50% 공간 차지
                 Column(modifier = Modifier.weight(1f)) {
@@ -92,21 +91,19 @@ fun BoardDetailContent(
         // [2] 카드 Masonry
         item {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp) // 가운데 4dp
             ) {
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp) // 세로 4dp
                 ) {
-                    leftItems.forEachIndexed { index, item ->
+                    leftItems.forEach { (item, height) ->
                         MyMasonryCard(
-                            height = cardHeights.getOrNull(index * 2) ?: 180.dp,
+                            height = height,
                             imageUrl = item.imageUrl,
                             onClick = { onCardClick(item.id) },
                             onLongClick = { onCardLongClick(item.id) },
-                            // 선택 관련 파라미터 전달
                             isSelectionMode = isSelectionMode,
                             isSelected = selectedCards.contains(item.id),
                             isFavorite = item.isFavorite
@@ -116,17 +113,16 @@ fun BoardDetailContent(
 
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp) // 세로 4dp
                 ) {
-                    rightItems.forEachIndexed { index, item ->
+                    rightItems.forEach { (item, height) ->
                         MyMasonryCard(
-                            height = cardHeights.getOrNull(index * 2 + 1) ?: 180.dp,
+                            height = height,
                             imageUrl = item.imageUrl,
-                            // 선택 관련 파라미터 전달
-                            isSelectionMode = isSelectionMode,
-                            isSelected = selectedCards.contains(item.id),
                             onClick = { onCardClick(item.id) },
                             onLongClick = { onCardLongClick(item.id) },
+                            isSelectionMode = isSelectionMode,
+                            isSelected = selectedCards.contains(item.id),
                             isFavorite = item.isFavorite
                         )
                     }
@@ -136,8 +132,7 @@ fun BoardDetailContent(
     }
 }
 
-// 필요 시 다른 화면에서도 쓰는 보조 함수
-fun randomCardHeight(): Dp {
-    val heights = listOf(130.dp, 180.dp, 300.dp)
-    return heights[Random.nextInt(heights.size)]
+fun cardHeightForIndex(index: Int): Dp {
+    // every 4th card → tall
+    return if (index % 4 == 0) 300.dp else 148.dp
 }

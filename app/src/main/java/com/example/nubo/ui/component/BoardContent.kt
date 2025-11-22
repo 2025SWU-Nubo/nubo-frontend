@@ -68,7 +68,7 @@ fun BoardContent(
         contentPadding = PaddingValues(top=3.dp,bottom = 110.dp)
     ) {
         items(boards.chunked(2)) { rowItems ->
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 // --- 첫 번째 아이템 ---
                 // Column을 사용하고 weight(1f)를 주어 공간을 50% 차지
                 Column(modifier = Modifier.weight(1f)) {
@@ -149,7 +149,7 @@ fun BoardCardWithText(
     Box(
         modifier = Modifier
             .width(182.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(6.dp))
             .background(Color.White)
             .combinedClickable( // 일반 클릭과 롱클릭을 함께 처리
                 onClick = onClick,
@@ -164,8 +164,8 @@ fun BoardCardWithText(
             Box(
                 modifier = Modifier
                     .width(182.dp)
-                    .height(130.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .height(120.dp)
+                    .clip(RoundedCornerShape(6.dp))
                     .background(Grey50),
             ) {
                 if (!board.imageUrl.isNullOrEmpty()) {
@@ -187,8 +187,8 @@ fun BoardCardWithText(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Purple50, RoundedCornerShape(8.dp))
-                            .clip(RoundedCornerShape(8.dp)),
+                            .background(Purple50, RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(6.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -204,7 +204,7 @@ fun BoardCardWithText(
             Spacer(modifier = Modifier.height(6.dp))
 
             // 텍스트 영역은 카드 바깥에 표시됨
-            Column(modifier = Modifier.padding(horizontal = 6.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 3.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,

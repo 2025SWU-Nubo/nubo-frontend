@@ -57,6 +57,7 @@ import com.example.nubo.data.model.CardItemDto
 import com.example.nubo.data.model.SectionDto
 import com.example.nubo.model.myBoard.BoardItem
 import com.example.nubo.ui.component.BoardDetailContent
+import com.example.nubo.ui.component.cardHeightForIndex
 import com.example.nubo.ui.component.sheet.InviteSheet
 import com.example.nubo.ui.theme.AppTextStyles.headline_regular_26
 import com.example.nubo.ui.theme.AppTextStyles.subtitle_medium_16
@@ -65,7 +66,6 @@ import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.PurpleMain500
 import com.example.nubo.model.card.CardItem
-import com.example.nubo.ui.component.randomCardHeight
 import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
 import com.example.nubo.ui.theme.AppTextStyles.b3_medium_14
 import com.example.nubo.utils.postRefreshTick
@@ -312,9 +312,13 @@ fun BoardDetailScreen(
                     val boardItems = boardState.sections?.map { it.toBoardItem() } ?: emptyList()
                     // 페이징 래퍼에서 실제 리스트 꺼내기
                     val cardItems = boardState.cards.content.map { it.toCardItem() }
-                    // 카드 배열 길이가 바뀌면 높이도 재생성
+                    // 카드 배열 길이가 바뀌면 index 기반으로 높이 재생성
                     val cardHeights by remember(boardId, cardItems.size) {
-                        mutableStateOf(cardItems.map { randomCardHeight() })
+                        mutableStateOf(
+                            cardItems.mapIndexed { index, _ ->
+                                cardHeightForIndex(index)
+                            }
+                        )
                     }
 
                     BoardDetailContent(
@@ -648,7 +652,7 @@ fun DetailTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 14.dp, end = 16.dp, top = 13.dp, bottom = 10.dp),
+            .padding(start = 14.dp, end = 16.dp, top = 30.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 왼쪽 (뒤로가기 버튼 + 타이틀)
@@ -670,13 +674,14 @@ fun DetailTopBar(
         // 중간을 채우는 빈 공간
         Spacer(modifier = Modifier.weight(1f))
 
-        // 오른쪽 (메뉴 버튼)
+        // 오른쪽 (설정 버튼)
         Icon(
-            painter = painterResource(id = R.drawable.ic_board_settings),
+            painter = painterResource(id = R.drawable.ic_board_setting),
             contentDescription = "보드 설정",
             tint = GreyMain300,
             // 선택 모드일 때 비활성화하고, 투명도를 조절합니다.
             modifier = Modifier
+                .size(20.dp)
                 .noRippleClickable(enabled = !isSelectionMode) { onMenuClick() }
         )
     }
@@ -802,7 +807,7 @@ fun SectionDto.toBoardItem(): BoardItem {
 fun CardItemDto.toCardItem(): CardItem {
     return CardItem(
         id = this.id,
-        height = randomCardHeight(), // 기존 randomCardHeight() 함수 사용
+        height = 300.dp, // 기존 randomCardHeight() 함수 사용
         title = this.title ?: "No Title", // 서버 데이터 없을 경우 기본값
         category = this.category ?: "No Category", // 마찬가지
         description = this.description ?: "No Description",

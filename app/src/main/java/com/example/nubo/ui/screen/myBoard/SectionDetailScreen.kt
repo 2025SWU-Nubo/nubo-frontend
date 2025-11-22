@@ -54,7 +54,8 @@ import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.R
 import com.example.nubo.data.model.CardItemDto
 import com.example.nubo.model.myBoard.MyCardItem
-import com.example.nubo.ui.component.randomCardHeight
+import com.example.nubo.ui.component.cardHeightForIndex
+import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.AppTextStyles.subtitle_medium_16
 import com.example.nubo.ui.theme.Grey1000
@@ -212,7 +213,11 @@ fun SectionDetailScreen(
                 } else if (detailState != null) {
                     val cardItems = detailState.cards.content.map { it.toMyCardItem() }
                     val cardHeights by remember(sectionId, cardItems.size) {
-                        mutableStateOf(cardItems.map { randomCardHeight() })
+                        mutableStateOf(
+                            cardItems.mapIndexed { index, _ ->
+                                cardHeightForIndex(index)
+                            }
+                        )
                     }
                     ScrollableCardContent(
                         cards = cardItems,
@@ -403,7 +408,7 @@ fun SectionDetailTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 14.dp, end = 16.dp, top = 13.dp, bottom = 10.dp),
+            .padding(start = 14.dp, end = 16.dp, top = 30.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 왼쪽 (뒤로가기 버튼 + 타이틀)
@@ -425,12 +430,15 @@ fun SectionDetailTopBar(
         // 중간을 채우는 빈 공간
         Spacer(modifier = Modifier.weight(1f))
 
-        // 오른쪽 (메뉴 버튼)
+        // 오른쪽 (설정 버튼)
         Icon(
-            painter = painterResource(id = R.drawable.ic_board_menu),
-            contentDescription = "섹션 메뉴",
+            painter = painterResource(id = R.drawable.ic_board_setting),
+            contentDescription = "보드 설정",
             tint = GreyMain300,
-            modifier = Modifier.clickable(enabled = !isSelectionMode) { onMenuClick() }
+            // 선택 모드일 때 비활성화하고, 투명도를 조절합니다.
+            modifier = Modifier
+                .size(20.dp)
+                .noRippleClickable(enabled = !isSelectionMode) { onMenuClick() }
         )
     }
 }
