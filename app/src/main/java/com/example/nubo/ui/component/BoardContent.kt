@@ -91,7 +91,7 @@ fun BoardContent(
                                 modifier = Modifier
                                     .align(Alignment.TopStart) // 정렬 기준
                                     .padding(start = 8.dp) // 좌측 여백
-                                    .offset(y = (-1).dp)  // <-- 여기! Y축으로 -3dp 이동
+                                    .offset(y = (-1).dp)
                                     .size(32.dp)
                             )
                         }
@@ -120,7 +120,7 @@ fun BoardContent(
                                     modifier = Modifier
                                         .align(Alignment.TopStart)
                                         .padding(start = 8.dp)
-                                        .offset(y = (-1).dp) // <-- 여기! Y축으로 -3dp 이동
+                                        .offset(y = (-1).dp)
                                         .size(32.dp)
                                 )
                             }
@@ -164,7 +164,7 @@ fun BoardCardWithText(
             Box(
                 modifier = Modifier
                     .width(182.dp)
-                    .height(130.dp)
+                    .height(120.dp)
                     .clip(RoundedCornerShape(6.dp))
                     .background(Grey50),
             ) {
@@ -187,8 +187,8 @@ fun BoardCardWithText(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Purple50, RoundedCornerShape(8.dp))
-                            .clip(RoundedCornerShape(8.dp)),
+                            .background(Purple50, RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(6.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -204,7 +204,7 @@ fun BoardCardWithText(
             Spacer(modifier = Modifier.height(6.dp))
 
             // 텍스트 영역은 카드 바깥에 표시됨
-            Column(modifier = Modifier.padding(horizontal = 6.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 3.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,

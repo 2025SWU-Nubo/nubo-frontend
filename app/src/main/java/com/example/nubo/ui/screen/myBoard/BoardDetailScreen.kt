@@ -1,6 +1,5 @@
 package com.example.nubo.ui.screen.myBoard
 
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
@@ -58,7 +57,8 @@ import com.example.nubo.data.model.CardItemDto
 import com.example.nubo.data.model.SectionDto
 import com.example.nubo.model.myBoard.BoardItem
 import com.example.nubo.ui.component.BoardDetailContent
-import com.example.nubo.ui.theme.AppTextStyles.label_medium_12
+import com.example.nubo.ui.component.cardHeightForIndex
+import com.example.nubo.ui.component.sheet.InviteSheet
 import com.example.nubo.ui.theme.AppTextStyles.headline_regular_26
 import com.example.nubo.ui.theme.AppTextStyles.subtitle_medium_16
 import com.example.nubo.ui.theme.Grey200
@@ -66,7 +66,6 @@ import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.PurpleMain500
 import com.example.nubo.model.card.CardItem
-import com.example.nubo.ui.component.randomCardHeight
 import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
 import com.example.nubo.ui.theme.AppTextStyles.b3_medium_14
 import com.example.nubo.utils.postRefreshTick
@@ -88,6 +87,7 @@ import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.utils.REFRESH_TICK_KEY
 import kotlinx.coroutines.launch
 import com.example.components.toast.AppToastType
+import com.example.nubo.ui.component.noRippleClickable
 
 // 어떤 다이얼로그를 띄울지 구분하기 위한 sealed class
 sealed class InputDialogMode {
@@ -241,6 +241,18 @@ fun BoardDetailScreen(
     val ui by viewModel.ui.collectAsState()
     val boardState = ui.board
 
+    // 공유 보드 초대 ViewModel 상태 구독
+    val currentBoardMembers by viewModel.currentBoardMembers.collectAsState()
+    val inviteResetSignal by viewModel.inviteResetSignal.collectAsState()
+
+    // 보드 설정 화면의 임시 상태 저장용 변수
+    var tempEditName by remember { mutableStateOf<String?>(null) }
+    var tempEditShared by remember { mutableStateOf<Boolean?>(null) }
+
+    // 공유 보드 멤버 상태 구독
+    val activeMembers by viewModel.activeMembers.collectAsState()
+    val pendingMembers by viewModel.pendingMembers.collectAsState()
+
     Box(modifier = Modifier.fillMaxSize()) {
 
         Scaffold(
@@ -271,7 +283,17 @@ fun BoardDetailScreen(
                         navController.popBackStack()
 
                     }, // 메뉴 버튼 클릭 시 보드 설정 바텀 시트 표시
-                    onMenuClick = { bottomSheetType = BottomSheetType.BOARD_EDIT },
+                    onMenuClick = {
+                        // owner 값에 따라 바텀 시트 유형 결정
+                        val isOwner = ui.board?.owner ?: false
+                        bottomSheetType = if (isOwner) {
+                            BottomSheetType.BOARD_EDIT // 1. owner=true: 설정/편집 화면 표시
+                        } else {
+                            // 2. owner=false: 멤버 목록 화면으로 바로 이동
+                            viewModel.loadBoardMembers() // 멤버 목록 데이터 로드
+                            BottomSheetType.BOARD_MEMBERS
+                        }
+                                  },
                     isSelectionMode = isSelectionMode
                 )
                 BoardTitleBar(
@@ -290,9 +312,13 @@ fun BoardDetailScreen(
                     val boardItems = boardState.sections?.map { it.toBoardItem() } ?: emptyList()
                     // 페이징 래퍼에서 실제 리스트 꺼내기
                     val cardItems = boardState.cards.content.map { it.toCardItem() }
-                    // 카드 배열 길이가 바뀌면 높이도 재생성
+                    // 카드 배열 길이가 바뀌면 index 기반으로 높이 재생성
                     val cardHeights by remember(boardId, cardItems.size) {
-                        mutableStateOf(cardItems.map { randomCardHeight() })
+                        mutableStateOf(
+                            cardItems.mapIndexed { index, _ ->
+                                cardHeightForIndex(index)
+                            }
+                        )
                     }
 
                     BoardDetailContent(
@@ -450,19 +476,43 @@ fun BoardDetailScreen(
                 BottomSheetType.BOARD_EDIT -> {
                     // 현재 보드 정보가 있을 때만 설정 화면을 보여줌
                     ui.board?.let { currentBoard ->
+                        // 임시 저장된 값이 있으면 그 값을, 없으면 원래 보드 정보를 사용
+                        val initialName = tempEditName ?: currentBoard.name
+                        // 서버 상태 (버튼 활성화/비활성화 기준)
+                        val isServerShared = currentBoard.shared
+                        // 사용자가 "선택한" 상태 (초대 화면 갔다 왔을 때 복구용)
+                        val isDraftShared = tempEditShared ?: currentBoard.shared
                         BoardEditSheet(
                             modifier = Modifier.imePadding(),
                             source = source,
-                            currentName = currentBoard.name,
-                            isCurrentlyShared = currentBoard.shared,
+                            currentName = initialName,      // 수정된 초기값 적용
+                            isCurrentlyShared = isServerShared, // 서버 상태 (버튼 잠금 여부 판단용)
+                            draftIsShared = isDraftShared,      // UI 표시 상태 (버튼 선택 여부용)
                             onDismiss = {
-                                // 바텀시트 닫기
+                                // 닫을 때 임시 값 초기화
+                                tempEditName = null
+                                tempEditShared = null
                                 bottomSheetType = BottomSheetType.NONE
                             },
-                            onInviteClick = {
-                                // TODO: 참여자 초대 화면으로 이동하는 로직
+                            onMembersClick = {
+                                viewModel.loadBoardMembers() // 1. 데이터 로드
+                                bottomSheetType = BottomSheetType.BOARD_MEMBERS // 2. 화면 전환
                             },
+                            onInviteClick = { editingName, editingShared ->
+                                // 다른 화면으로 가기 전에 현재 상태 저장
+                                tempEditName = editingName
+                                tempEditShared = editingShared // 사용자가 선택한 상태(isSharing) 저장
+
+                                viewModel.prepareInvite()
+                                bottomSheetType = BottomSheetType.INVITE
+                            },
+                            // ViewModel에서 관리하는 현재 멤버 리스트 전달
+                            currentMembers = currentBoardMembers,
                             onConfirm = { newName, isShared ->
+                                // 저장 시 임시 값 초기화
+                                tempEditName = null
+                                tempEditShared = null
+
                                 // 이름이 변경되었을 때만 API 호출
                                 if (newName != currentBoard.name) {
                                     viewModel.renameCurrentBoard(newName)
@@ -474,6 +524,47 @@ fun BoardDetailScreen(
                             }
                         )
                     }
+                }
+                // INVITE 상태일 때 공유 보드 초대 화면
+                BottomSheetType.INVITE -> {
+                    InviteSheet(
+                        onClose = {
+                            // 아예 닫기 (또는 BOARD_EDIT로 갈지 결정)
+                            bottomSheetType = BottomSheetType.NONE
+                        },
+                        onBack = {
+                            // 뒤로가기: 다시 보드 설정 화면(BOARD_EDIT)으로 복귀
+                            bottomSheetType = BottomSheetType.BOARD_EDIT
+                        },
+                        onInvite = { /* 필요시 단일 초대 로직 */ },
+                        onComplete = { emails, users ->
+                            // 선택 완료 시 ViewModel에 저장 후 보드 설정 화면으로 복귀
+                            viewModel.updateBoardMembers(emails, users)
+                            bottomSheetType = BottomSheetType.BOARD_EDIT
+                        },
+                        resetSignal = inviteResetSignal,
+                        // 이미 선택된 이메일들을 넘겨줌 (체크 상태 유지)
+                        initialSelected = currentBoardMembers.map { it.email },
+                        useTopPadding= true
+                    )
+                }
+                // 참여자 목록 화면 연결
+                BottomSheetType.BOARD_MEMBERS -> {
+                    BoardMembersSheet(
+                        activeMembers = activeMembers,
+                        pendingMembers = pendingMembers,
+                        onBack = {
+                            // 뒤로가기 시 다시 보드 설정(BOARD_EDIT) 화면으로 복귀
+                            // **owner=false 일 때, 뒤로가기는 NONE으로 닫아야 함.
+                            // owner=true 일 때만 BOARD_EDIT으로 복귀**
+                            val isOwner = ui.board?.owner ?: false
+                            bottomSheetType = if (isOwner) BottomSheetType.BOARD_EDIT else BottomSheetType.NONE
+                        },
+                        onCancelInvite = { invitationId ->
+                            viewModel.cancelInvitation(invitationId)
+                        },
+                        isOwner = ui.board?.owner ?: false,
+                    )
                 }
 
                 else -> {}
@@ -561,7 +652,7 @@ fun DetailTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 14.dp, end = 16.dp, top = 13.dp, bottom = 10.dp),
+            .padding(start = 14.dp, end = 16.dp, top = 30.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 왼쪽 (뒤로가기 버튼 + 타이틀)
@@ -570,7 +661,7 @@ fun DetailTopBar(
                 painter = painterResource(id = R.drawable.ic_arrow_back),
                 contentDescription = "뒤로가기",
                 tint = GreyMain300,
-                modifier = Modifier.clickable { onBack() }
+                modifier = Modifier.noRippleClickable { onBack() }
             )
             Spacer(modifier = Modifier.width(5.dp))
             Text(
@@ -583,14 +674,15 @@ fun DetailTopBar(
         // 중간을 채우는 빈 공간
         Spacer(modifier = Modifier.weight(1f))
 
-        // 오른쪽 (메뉴 버튼)
+        // 오른쪽 (설정 버튼)
         Icon(
-            painter = painterResource(id = R.drawable.ic_board_menu),
-            contentDescription = "보드 메뉴",
+            painter = painterResource(id = R.drawable.ic_board_setting),
+            contentDescription = "보드 설정",
             tint = GreyMain300,
             // 선택 모드일 때 비활성화하고, 투명도를 조절합니다.
             modifier = Modifier
-                .clickable(enabled = !isSelectionMode) { onMenuClick() }
+                .size(20.dp)
+                .noRippleClickable(enabled = !isSelectionMode) { onMenuClick() }
         )
     }
 }
@@ -715,7 +807,7 @@ fun SectionDto.toBoardItem(): BoardItem {
 fun CardItemDto.toCardItem(): CardItem {
     return CardItem(
         id = this.id,
-        height = randomCardHeight(), // 기존 randomCardHeight() 함수 사용
+        height = 300.dp, // 기존 randomCardHeight() 함수 사용
         title = this.title ?: "No Title", // 서버 데이터 없을 경우 기본값
         category = this.category ?: "No Category", // 마찬가지
         description = this.description ?: "No Description",

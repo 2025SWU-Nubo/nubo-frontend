@@ -1,7 +1,5 @@
 package com.example.nubo.ui.screen.learn
 
-import com.example.nubo.ui.screen.learn.GlbBackgroundView
-import com.example.nubo.ui.screen.learn.GraphicBackgroundView
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.tween
@@ -46,6 +44,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
@@ -65,6 +64,7 @@ import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.res.painterResource
 
 
 // BottomProgressCard 애니메이션 시간 조절
@@ -81,7 +81,6 @@ fun LearnScreen(
     viewModel: LearnViewModel = hiltViewModel(),
     navController: NavController
 ) {
-
     // ViewModel의 UI 상태를 구독
     val uiState by viewModel.uiState.collectAsState()
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
@@ -418,7 +417,13 @@ private fun SpeechBubble(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                Text(text = "💧", fontSize = 14.sp)
+                // 물방울 PNG 아이콘
+                Image(
+                    painter = painterResource(id = R.drawable.learn_waterdrop_calender),
+                    contentDescription = null, // decorative image
+                    modifier = Modifier
+                        .size(24.dp) // icon size
+                )
                 Text(
                     text = "${count}개",
                     fontSize = 16.sp,
@@ -620,15 +625,20 @@ private fun BottomProgressCard(
         Row(
             modifier = Modifier
                 .align(Alignment.TopEnd) // 부모(Box) 기준
-                .offset(y = (-45).dp)    // 스크린샷과 같은 시각적 위치
+                .offset(y = (-52).dp)    // 스크린샷과 같은 시각적 위치
                 .shadow(6.dp, RoundedCornerShape(999.dp), clip = true)
                 .clip(RoundedCornerShape(999.dp))
                 .background(Color.White.copy(alpha = 0.80f))
-                .padding(horizontal = 14.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "🫐", fontSize = 16.sp)
-            Spacer(Modifier.width(6.dp))
+            Image(
+                painter = painterResource(id = R.drawable.learn_nuberry_total),
+                contentDescription = null, // decorative image
+                modifier = Modifier
+                    .size(28.dp) // icon size
+            )
+            Spacer(Modifier.width(3.dp))
             Text(
                 text = "${topBadgeCount}개",
                 style = AppTextStyles.b2_medium_16,
@@ -1026,7 +1036,12 @@ private fun StepBar(
                 contentDescription = "누베리 획득",
                 tint = Color.Unspecified
             )
-            Text("🫐")
+            Image(
+                painter = painterResource(id = R.drawable.learn_nuberry_total),
+                contentDescription = null, // decorative image
+                modifier = Modifier
+                    .size(28.dp) // icon size
+            )
         }
     }
 }

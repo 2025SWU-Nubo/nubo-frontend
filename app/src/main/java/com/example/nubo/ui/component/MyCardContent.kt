@@ -54,50 +54,42 @@ fun MyCardContent(
     isSelectionMode: Boolean,
     selectedCardIds: Set<Int>
 ) {
-
-    // Masonry 구성 동일
-    val leftItems = cards.filterIndexed { i, _ -> i % 2 == 0 }
-    val rightItems = cards.filterIndexed { i, _ -> i % 2 != 0 }
-
+    // 블록 패턴 카드
+    val (leftItems, rightItems) = buildMasonryBlocks(cards)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 16.dp), // 좌우 16dp
+        horizontalArrangement = Arrangement.spacedBy(4.dp) // 가운데 4dp
     ) {
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp) // 세로 4dp
         ) {
-            leftItems.forEachIndexed(){ index, item ->
-                // 여기서 각 카드가 선택되었는지 여부를 계산
+            leftItems.forEach { (item, height) ->
                 val isSelected = selectedCardIds.contains(item.id)
                 MyMasonryCard(
-                    height = cardHeights.getOrNull(index * 2) ?: 180.dp,
+                    height = height,
                     imageUrl = item.imageUrl,
                     onClick = { onCardClick(item.id) },
                     onLongClick = { onCardLongClick(item.id) },
-                    // 계산된 값을 파라미터로 전달
                     isSelectionMode = isSelectionMode,
                     isSelected = isSelected,
                     isFavorite = item.isFavorite
                 )
             }
         }
-
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            rightItems.forEachIndexed(){ index, item ->
-                // 여기서 각 카드가 선택되었는지 여부를 계산
+            rightItems.forEach { (item, height) ->
                 val isSelected = selectedCardIds.contains(item.id)
                 MyMasonryCard(
-                    height = cardHeights.getOrNull(index * 2+1) ?: 180.dp,
+                    height = height,
                     imageUrl = item.imageUrl,
                     onClick = { onCardClick(item.id) },
                     onLongClick = { onCardLongClick(item.id) },
-                    // 계산된 값을 파라미터로 전달
                     isSelectionMode = isSelectionMode,
                     isSelected = isSelected,
                     isFavorite = item.isFavorite
@@ -107,7 +99,7 @@ fun MyCardContent(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+    @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MyMasonryCard(
     height: Dp,
@@ -117,20 +109,19 @@ fun MyMasonryCard(
     // 선택 관련 파라미터
     isSelectionMode: Boolean,
     isSelected: Boolean,
-    isFavorite: Boolean)
-{
+    isFavorite: Boolean
+) {
     Box(
         modifier = Modifier
-            .width(182.dp)
+            .fillMaxWidth()
             .height(height)
-            .clip(RoundedCornerShape(8.dp)) // 확대된 이미지를 잘라내는 역할
+            .clip(RoundedCornerShape(6.dp)) // CardContent와 동일하게 6dp로 변경 (기존 8dp)
             .background(Grey50)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
             ),
         contentAlignment = Alignment.Center
-
     ) {
         // 높이가 300dp일 때만 이미지를 1.2배 확대하는 Modifier 적용
         val imageModifier = if (height == 300.dp) {
@@ -140,7 +131,7 @@ fun MyMasonryCard(
                     scaleX = 1.2f, // 가로로 1.2배 확대
                     scaleY = 1.2f,  // 세로로 1.2배 확대
                 )
-        } else{
+        } else {
             Modifier
                 .fillMaxSize()
                 .graphicsLayer(
@@ -156,6 +147,7 @@ fun MyMasonryCard(
             modifier = imageModifier, // 위에서 만든 Modifier를 적용
             contentScale = ContentScale.Crop // Crop을 기본으로 두어 안정적인 크롭을 보장
         )
+
         //---- 즐겨찾기 추가 ---
         if (isFavorite) {
             Icon(
@@ -167,6 +159,7 @@ fun MyMasonryCard(
                     .padding(top = 10.dp, end = 10.dp)
             )
         }
+
         // --- 선택 모드 오버레이 ---
         if (isSelectionMode && isSelected) {
             Box(
@@ -187,3 +180,49 @@ fun MyMasonryCard(
     }
 }
 
+// 카드 3개 블록 패턴
+fun <T> buildMasonryBlocks(
+    items: List<T>,
+    bigHeight: Dp = 300.dp,
+    smallHeight: Dp = 148.dp
+): Pair<List<Pair<T, Dp>>, List<Pair<T, Dp>>> {
+
+    val left = mutableListOf<Pair<T, Dp>>()
+    val right = mutableListOf<Pair<T, Dp>>()
+
+    var index = 0
+    var isFirstBlock = true
+
+    // 가득 찬 블록 (3 cards per block)
+    while (items.size - index >= 3) {
+        if (isFirstBlock) {
+            // Block 1: Left big (1) + Right small (2)
+            left += items[index] to bigHeight
+            right += items[index + 1] to smallHeight
+            right += items[index + 2] to smallHeight
+        } else {
+            // Block 2: Left small (2) + Right big (1)
+            left += items[index] to smallHeight
+            left += items[index + 1] to smallHeight
+            right += items[index + 2] to bigHeight
+        }
+        index += 3
+        isFirstBlock = !isFirstBlock
+    }
+
+    // 남은 카드가 1개 또는 2개 일 때
+    val remaining = items.size - index
+    when (remaining) {
+        1 -> {
+            // One small card on the left
+            left += items[index] to smallHeight
+        }
+        2 -> {
+            // One small card on each column
+            left += items[index] to smallHeight
+            right += items[index + 1] to smallHeight
+        }
+    }
+
+    return left to right
+}

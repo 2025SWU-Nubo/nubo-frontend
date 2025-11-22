@@ -10,8 +10,6 @@ import com.example.nubo.data.model.BoardDeleteRequest
 import com.example.nubo.data.model.BoardListItemResponse
 import com.example.nubo.data.model.BoardRestoreRequest
 import com.example.nubo.data.model.BoardSearchItemResponse
-import com.example.nubo.data.model.BulkCopyRequest
-import com.example.nubo.data.model.BulkMoveRequest
 import com.example.nubo.data.model.CardDeleteRequest
 import com.example.nubo.data.model.CardRestoreInfo
 import com.example.nubo.data.model.CardRestoreRequest
@@ -23,8 +21,6 @@ import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.model.myBoard.BoardItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import getDisplayDate
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -84,8 +80,6 @@ class BoardViewModel @Inject constructor(
     // "카드 삭제 완료" 이벤트 (스낵바/리스트 갱신 트리거)
     private val _cardDeleteCompleteEvent = MutableSharedFlow<Int>() // 삭제 개수 전달
     val cardDeleteCompleteEvent = _cardDeleteCompleteEvent.asSharedFlow()
-
-
 
     init {
         refresh()
@@ -386,5 +380,3 @@ class BoardViewModel @Inject constructor(
         }
     }
 }
-
-

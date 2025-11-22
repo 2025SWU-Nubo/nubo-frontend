@@ -39,7 +39,7 @@ import androidx.navigation.NavController
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.model.myBoard.MyCardItem
 import com.example.nubo.ui.component.MyCardContent
-import com.example.nubo.ui.component.randomCardHeight
+import com.example.nubo.ui.component.cardHeightForIndex
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.collectAsState
@@ -227,8 +227,12 @@ fun MyBoardScreen(
     // 현재 화면에 표시될 카드 리스트를 결정
     val currentCardList = if (isSearchMode && hasSearched) cardSearchResults else cardViewModel.cards.value
     // 'currentCardList'가 변경될 때만 카드 높이를 다시 계산하도록 키를 수정합니다.
-    val randomHeights = remember(currentCardList) {
-        currentCardList.map { randomCardHeight() }}
+    val cardHeights = remember(currentCardList.size) {
+        currentCardList.mapIndexed { index, _ ->
+            cardHeightForIndex(index)
+        }
+    }
+
 
     Box(Modifier.fillMaxSize()) {
         Column(
@@ -313,7 +317,7 @@ fun MyBoardScreen(
                                         // 결과가 있을 때
                                         ScrollableCardContent(
                                             cards = cardSearchResults,
-                                            cardHeights = randomHeights,
+                                            cardHeights = cardHeights,
                                             onCardClick = onCardClick, // 부모가 넘겨준 함수를 그대로 전달
                                             onCardLongClick = onCardLongClick, // 부모가 넘겨준 함수를 그대로 전달
                                             isSelectionMode = isCardSelectionMode,
@@ -331,7 +335,7 @@ fun MyBoardScreen(
                             // --- 검색 모드가 아닐 때의 UI (기본 목록) ---
                             ScrollableCardContent(
                                 cards = cardViewModel.cards.value,
-                                cardHeights = randomHeights,
+                                cardHeights = cardHeights,
                                 onCardClick = onCardClick, // 부모가 넘겨준 함수를 그대로 전달
                                 onCardLongClick = onCardLongClick, // 부모가 넘겨준 함수를 그대로 전달
                                 isSelectionMode = isCardSelectionMode,
@@ -409,20 +413,24 @@ fun TabHeader(
     onTabSelected: (Int) -> Unit,
     isSelectionMode: Boolean
 ) {
-    val tabs = listOf("카드", "보드")
+    val tabs = listOf("보드", "카드")
 
-    Column(modifier = Modifier.padding(top = 45.dp)) {
+    Column(modifier = Modifier.padding(top = 32.dp)) {
         // 탭 전체 중앙 정렬
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(25.dp), // 탭 간 간격
+                horizontalArrangement = Arrangement.spacedBy(24.dp), // 탭 간 간격
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                tabs.forEachIndexed { index, title ->
-                    val isSelected = index == selectedTabIndex
+                tabs.forEach { title ->
+                    // 로직 매핑: "보드"는 실제 인덱스 1, "카드"는 실제 인덱스 0
+                    // 화면 순서는 바뀌었지만, 데이터 로직(ViewModel)은 그대로 유지
+                    val targetIndex = if (title == "보드") 1 else 0
+                    val isSelected = selectedTabIndex == targetIndex
+
                     val textColor = if (isSelected)
                         MaterialTheme.colorScheme.primary
                     else
@@ -431,7 +439,9 @@ fun TabHeader(
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
-                            .noRippleClickable { if (!isSelectionMode) onTabSelected(index) }
+                            .noRippleClickable {
+                                if (!isSelectionMode) onTabSelected(targetIndex)
+                            }
                     ) {
                         // 텍스트 설정
                         Text(
@@ -440,9 +450,9 @@ fun TabHeader(
                             color = textColor
                         )
 
-                        Spacer(modifier = Modifier.height(14.dp)) // 텍스트-인디케이터  간격
+                        Spacer(modifier = Modifier.height(14.dp))
 
-                        // 인디케이터 설정 (선택여부에 따라 색상 다르게)
+                        // 인디케이터 설정
                         Box(
                             modifier = Modifier
                                 .width(83.dp)
@@ -455,7 +465,6 @@ fun TabHeader(
         }
     }
 }
-
 
 // 타이틀 & 검색
 @Composable
@@ -475,7 +484,7 @@ fun TitleBar(
     var searchFocused by remember { mutableStateOf(false) }
     val titleText = if (selectedTab == 0) "나의 카드" else "나의 보드"
 
-    Column(modifier = Modifier.padding(top = 27.dp)) {
+    Column(modifier = Modifier.padding(top = 24.dp)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -590,7 +599,7 @@ fun FilterButtons(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, bottom = 18.dp)
+            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
     ) {
         // 정렬 버튼
         SortFilterButton(

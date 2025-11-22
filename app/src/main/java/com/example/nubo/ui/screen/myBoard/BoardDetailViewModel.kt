@@ -23,7 +23,10 @@ import com.example.nubo.data.model.BulkCopyRequest
 import com.example.nubo.data.model.BulkMoveRequest
 import com.example.nubo.data.model.CardDeleteRequest
 import com.example.nubo.data.model.CardRestoreInfo
+import com.example.nubo.data.model.InvitationDto
+import com.example.nubo.data.model.MemberDto
 import com.example.nubo.data.network.CardService
+import com.example.nubo.domain.model.InviteUser
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -125,6 +128,36 @@ class BoardDetailViewModel @Inject constructor(
         )
         loadPage(reset = true)
     }
+
+    // --- 공유보드 초대 관련 상태 추가 ---
+
+    // 현재 초대된/선택된 멤버 리스트
+    private val _currentBoardMembers = MutableStateFlow<List<InviteUser>>(emptyList())
+    val currentBoardMembers: StateFlow<List<InviteUser>> = _currentBoardMembers
+
+    // InviteSheet 재진입 시 검색어 초기화 등을 위한 시그널
+    private val _inviteResetSignal = MutableStateFlow(0)
+    val inviteResetSignal: StateFlow<Int> = _inviteResetSignal
+
+    // 초대 화면 진입 전 준비
+    fun prepareInvite() {
+        _inviteResetSignal.value += 1
+        // 만약 `_ui.value.board`에 이미 멤버 정보가 있다면
+        // 여기서 _currentBoardMembers에 초기값을 넣어줄 수 있습니다.
+    }
+
+    // 멤버 리스트 업데이트 (InviteSheet 완료 시 호출)
+    fun updateBoardMembers(emails: List<String>, users: List<InviteUser>) {
+        _currentBoardMembers.value = users
+        // TODO: 실제 서버로 초대를 보내거나 보드 수정 완료 시점에 저장할 수 있도록 데이터 보관
+    }
+
+    // --- 공유보드 참여자 목록 상태 ---
+    private val _activeMembers = MutableStateFlow<List<MemberDto>>(emptyList())
+    val activeMembers: StateFlow<List<MemberDto>> = _activeMembers
+
+    private val _pendingMembers = MutableStateFlow<List<InvitationDto>>(emptyList())
+    val pendingMembers: StateFlow<List<InvitationDto>> = _pendingMembers
 
     // 즐겨찾기 필터
     fun setFavoriteFilter(enabled: Boolean) {
@@ -630,6 +663,54 @@ class BoardDetailViewModel @Inject constructor(
             lastDeletedCardRestores = emptyList()
             lastCardDeleteMode = ""
             _ui.value = _ui.value.copy(isLoading = false)
+        }
+    }
+
+    // 참여자 목록 불러오기
+    fun loadBoardMembers() {
+        viewModelScope.launch {
+            try {
+                val token = "Bearer ${authRepository.getAccessToken()}"
+                // TODO: BoardService에 getBoardMembers 함수가 추가되어야 합니다.
+                // API 엔드포인트: GET /api/board/{boardId}/members
+                val response = boardService.getBoardMembers(token, currentBoardId.toLong())
+
+                if (response.isSuccessful && response.body() != null) {
+                    val data = response.body()!!
+                    _activeMembers.value = data.members
+                    _pendingMembers.value = data.invitations
+                }
+            } catch (e: Exception) {
+                Log.e("BoardDetailVM", "Load members failed", e)
+            }
+        }
+    }
+
+    // 초대 취소
+    fun cancelInvitation(invitationId: Long) {
+        viewModelScope.launch {
+            try {
+                val token = "Bearer ${authRepository.getAccessToken()}"
+
+                // [수정] boardId 파라미터 추가 전달
+                val response = boardService.cancelInvitation(
+                    authHeader = token,
+                    boardId = currentBoardId.toLong(), // 현재 보드 ID 전달
+                    invitationId = invitationId
+                )
+
+                if (response.isSuccessful) {
+                    // 성공 시(204 No Content) 목록에서 제거 (낙관적 업데이트)
+                    _pendingMembers.value = _pendingMembers.value.filterNot { it.invitationId == invitationId }
+                    _toastMessage.value = "초대가 취소가 완료되었어요."
+                } else {
+                    // 실패 처리
+                    _toastMessage.value = "초대 취소 실패: ${response.code()}"
+                }
+
+            } catch (e: Exception) {
+                _toastMessage.value = "초대 취소 중 오류 발생"
+            }
         }
     }
 }
