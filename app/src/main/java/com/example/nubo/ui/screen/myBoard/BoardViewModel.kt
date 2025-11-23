@@ -176,12 +176,13 @@ class BoardViewModel @Inject constructor(
     // 즐겨찾기 토글 (낙관적 업데이트 + 실패 시 롤백)
     fun toggleFavorite(boardId: Int, currentFavorite: Boolean) {
         viewModelScope.launch {
-            val before = _boards.value // 롤백 스냅샷
+            val before = _boards.value // rollback snapshot
+            val newFav = !currentFavorite
+
 
             // 1) UI 먼저 반영 (빠른 피드백)
             _boards.value = before.map { b ->
-                // 한글 주석: Int끼리 비교 (오류 없음)
-                if (b.serverBoardId == boardId) b.copy(isBookmarked = !currentFavorite) else b
+                if (b.serverBoardId == boardId) b.copy(isBookmarked = newFav) else b
             }
 
             try {
@@ -189,14 +190,23 @@ class BoardViewModel @Inject constructor(
                 // 2) 서버 PATCH 호출 (여기서만 Long으로 변환)
                 boardService.setFavorite(
                     authHeader = "Bearer $token",
-                    boardId = boardId.toLong(),                    // ← Int → Long
-                    body = FavoriteRequest(favorite = !currentFavorite)
+                    boardId = boardId.toLong(),
+                    body = FavoriteRequest(favorite = newFav)
                 )
-                // 성공 시 그대로 유지
+
+                // 3) 성공 시 토스트 메세지
+                val successMessage = if (newFav) {
+                    "즐겨찾기가 완료되었어요."
+                } else {
+                    "즐겨찾기가 해제되었어요."
+                }
+                _toastMessage.value = successMessage
+
             } catch (e: Exception) {
-                // 실패 시 롤백
+                // 실패 시 rollback
                 _boards.value = before
                 Log.e("BoardViewModel", "toggleFavorite failed", e)
+                _toastMessage.value = "즐겨찾기 변경에 실패했어요."
             }
         }
     }
@@ -382,7 +392,7 @@ class BoardViewModel @Inject constructor(
                 lastDeletedCardIds = selectedCardIds
                 lastCardDeleteMode = deleteMode
 
-                // [수정] 여기서 액션 토스트 이벤트를 바로 트리거
+                // 여기서 액션 토스트 이벤트를 바로 트리거
                 triggerDeleteToast(selectedCardIds.size, isBoard = false)
 
                 // UI 에게 "N개 삭제됨" 알림

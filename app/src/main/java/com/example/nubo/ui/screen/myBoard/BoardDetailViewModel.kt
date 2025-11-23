@@ -254,9 +254,9 @@ class BoardDetailViewModel @Inject constructor(
         val sectionName = targetSection?.name ?: "섹션"
 
         val successMessage = if (newFav) {
-            "$sectionName 즐겨찾기가 완료되었어요."
+            "즐겨찾기가 완료되었어요."
         } else {
-            "$sectionName 즐겨찾기가 해제되었어요."
+            "즐겨찾기가 해제되었어요."
         }
 
         // 1) UI를 즉시 업데이트하여 사용자에게 빠른 피드백

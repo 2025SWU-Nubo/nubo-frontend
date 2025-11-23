@@ -61,5 +61,5 @@ object AppTextStyles {
     val label_SemiBold_12 = style(12.sp, FontWeight.SemiBold)
 
     // Caption
-    val caption_regular_9 = style(9.sp, FontWeight.Normal)
+    val caption_regular_9 = style(10.sp, FontWeight.Normal)
 }

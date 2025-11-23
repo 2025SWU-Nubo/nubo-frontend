@@ -17,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
@@ -24,6 +25,9 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,7 +68,9 @@ import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import com.example.nubo.ui.theme.Purple100
 
 
 // BottomProgressCard 애니메이션 시간 조절
@@ -137,6 +143,7 @@ fun LearnScreen(
                 val growthRate = dashboardData.growthRate
                 val berryCount = dashboardData.berryCount
                 val currentStage = dashboardData.stage
+                val nextStageRemaining = dashboardData.nextStageRemaining
 
                 // 오늘 학습 카운트 계산 (물방울 개수 적용)
                 val todayCount = bubbleCounts.getOrNull(todayIndex) ?: 0
@@ -192,6 +199,7 @@ fun LearnScreen(
                         showLevelUp = showLevelUp,
                         showBerry = berryGained,
                         currentStep = dashboardData.stage, // 현재 stage 전달
+                        nextStageRemaining = nextStageRemaining, // 남은 카드 개수 전달
                         // 레벨업 후 텍스트를 동적으로 생성하여 전달
                         levelUpText = levelUpStage?.let { newStage ->
                             // getStageName이 1단계부터 이름을 반환한다고 가정
@@ -212,6 +220,12 @@ fun LearnScreen(
                 }
             }
         }
+        if (berryGained) {
+            NuberryPopup(
+                onDismiss = { viewModel.onBerryAnimationFinished() },
+                onClickBerryPage = { /* TODO: 나중에 베리 화면으로 이동 */ }
+            )
+        }
     }
 }
 
@@ -227,7 +241,7 @@ private fun TopBar(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 24.dp, vertical = 15.dp),
+            .padding(start = 24.dp, end = 24.dp, top = 32.dp, bottom = 20.dp),
         contentAlignment = Alignment.Center
     ) {
         // 타이틀 텍스트
@@ -243,17 +257,16 @@ private fun TopBar(
         Box(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .size(38.dp)
                 .clip(CircleShape),
             //.clickable(onClick = onClickChart),
             contentAlignment = Alignment.Center
         ) {
-            /*Icon(
-                imageVector = Icons.Outlined.BarChart,
-                contentDescription = "통계",
+            Icon(
+                painter = painterResource(id = R.drawable.learn_ic_info),
+                contentDescription = "정보",
                 tint = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size(24.dp)
-            )*/
+            )
         }
     }
 }
@@ -446,8 +459,9 @@ private fun BottomProgressCard(
     showLevelUp: Boolean,
     showBerry: Boolean,
     currentStep: Int,
+    nextStageRemaining: Int,
     currentProgressFromServer: Float,
-    cardMinHeight: Dp = 130.dp,
+    cardMinHeight: Dp = 50.dp,
     levelUpText: String,
     onLevelUpAnimationDone: () -> Unit,
     onBerryAnimationDone: () -> Unit
@@ -457,27 +471,25 @@ private fun BottomProgressCard(
     var state by rememberSaveable { mutableStateOf("normal") }
     val nextStep = (currentStep + 1).coerceAtMost(5)
 
-    // '수확' 이벤트 정의: 'showBerry'가 true이고 '그 결과' 최신 스텝(currentStep)이 0인 경우
-    val isHarvestEvent = (showBerry && currentStep == 0)
+    // 카드 앞/뒤 상태와 높이/회전 애니메이션
+    var isFlipped by rememberSaveable { mutableStateOf(false) }
 
+    // 회전 값 애니메이션
+    val rotationYAnim by animateFloatAsState(
+        targetValue = if (isFlipped) 180f else 0f,
+        animationSpec = tween(durationMillis = 1300),
+        label = "cardFlip"
+    )
 
     // 애니메이션 전환 (기존 UI → levelup → next)
     LaunchedEffect(showLevelUp) {
         if (showLevelUp) {
-            delay(300)        // 기존 UI 잠깐 보여주기
+            delay(600)        // 기존 UI 잠깐 보여주기
             state = "levelup" // 레벨업 화면으로 전환
             delay(LEVEL_HOLD_MS.toLong()) //레벨업 화면 애니메이션 처리 후
             state = "next"    // 다음 단계 화면으로 전환
             // 이벤트가 소비되었음을 ViewModel에 알림
             onLevelUpAnimationDone()
-
-        }
-        else if (showBerry) {
-            // 레벨업이 아닐 때만 베리 획득 화면 표시
-            state = "berry" // 베리 획득 화면으로 전환
-            delay(LEVEL_HOLD_MS.toLong()) // 레벨업과 동일한 시간 유지
-            state = "normal" // 베리 획득 후에는 '다음' 상태 없이 바로 'normal'로 복귀
-            onBerryAnimationDone() // 이벤트 소비 알림
 
         }
         else if (state != "normal") {
@@ -494,43 +506,62 @@ private fun BottomProgressCard(
     ) {
         // 그림자 박스는 카드 자체만 감싼다 (배지는 별도)
         CustomShadowBox(
-            cornerRadius = 18.dp,
+            // 카드와 그림자가 함께 회전하도록 상위 레이어에 회전 적용
+            modifier = Modifier.graphicsLayer {
+                rotationY = rotationYAnim
+                cameraDistance = 12 * density
+            },
+            cornerRadius = 11.dp,
             shadowColor = Color.Black,
             shadowAlpha = 0.2f,
             shadowBlurRadius = 8.dp,
             offsetX = 6.dp,
             offsetY = 6.dp
         ) {
-            // 카드 본체 : 고정/최소 높이를 줘서 상태 변경 시에도 외곽 크기가 유지되도록
+            // 카드 본체에 회전/클릭 추가
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = cardMinHeight)
+                    .heightIn(min = cardMinHeight)          // 기존 cardMinHeight 대신 animatedHeight 사용
+                    .graphicsLayer {
+                        // 카드에 적용할 실제 회전 값
+                        rotationY = rotationYAnim
+                        cameraDistance = 12 * density
+                    }
                     .clip(RoundedCornerShape(18.dp))
                     .background(Color.White.copy(alpha = 0.80f))
+                    .noRippleClickable {
+                        // 레벨업/베리 화면이 아닐 때만 카드 뒤집기 허용
+                        if (state == "normal" || state == "next") {
+                            isFlipped = !isFlipped
+                        }
+                    }
             ) {
+                // 앞면/뒷면 선택 기준
+                val showFront = rotationYAnim <= 90f
 
-                // 내부 패딩은 콘텐츠에만 적용, 내용물 전환 애니메이션
-                AnimatedContent(
-                    targetState = state,
-                    transitionSpec = {
-                        (
-                            (slideInVertically(animationSpec = tween(ENTER_MS)) { it } + fadeIn()) togetherWith
-                                (slideOutVertically(animationSpec = tween(EXIT_MS)) { -it } + fadeOut())
-                            ).using(
-                                SizeTransform(clip = false) { _, _ -> tween(0) } // 사이즈 애니메이션 제거
-                            )
-                    },
-                    label = "BottomProgressContentAnim",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 25.dp, vertical = 25.dp)
-                ) { current ->
+                if (showFront) {
+                    // 기존 AnimatedContent 는 그대로 유지
+                    AnimatedContent(
+                        targetState = state,
+                        transitionSpec = {
+                            (
+                                (slideInVertically(animationSpec = tween(ENTER_MS)) { it } + fadeIn()) togetherWith
+                                    (slideOutVertically(animationSpec = tween(EXIT_MS)) { -it } + fadeOut())
+                                ).using(
+                                    SizeTransform(clip = false) { _, _ -> tween(0) } // 사이즈 애니메이션 제거
+                                )
+                        },
+                        label = "BottomProgressContentAnim",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 28.dp, vertical = 16.dp)
+                    ) { current ->
                     when (current) {
                         "levelup" -> {
-                            // 레벨업 화면 + 바 이동 + 체크 효과 + 끝에 열매
+                            // 레벨업 화면
                             LevelUpSection(
-                                totalSteps = 6,
+                                totalSteps = 5,
                                 prevStep = currentStep,   // 레벨업 직전 단계
                                 nextStep = nextStep,      // 레벨업 후 단계
                                 levelUpText = levelUpText,
@@ -540,85 +571,41 @@ private fun BottomProgressCard(
                                 }
                             )
                         }
-                        "berry" -> {
-                            val berryPrevStep = 5
-                            val berryNextStep = 6
-
-                            // 누베리 획득 화면 (StepBar 애니메이션 포함)
-                            NuberrySection(
-                                totalSteps = 6,
-                                prevStep = berryPrevStep, // 4
-                                nextStep = berryNextStep, // 5 (or 4)
-                                levelUpText = "멋진 수확이에요. 다음 성장도 함께 가요.",  //
-                                onStepAnimDone = { /* no-op */ }
-                            )
-                        }
                         "next" -> {
                             // 다음 성장률 UI
-                            Column {
-                                Row(verticalAlignment = Alignment.Bottom) {
-                                    Text(
-                                        text = "$percent",
-                                        style = AppTextStyles.learn_percentage_46.copy(
-                                            brush = Brush.linearGradient(
-                                                listOf(Color(0xFF8380FF), PurpleMain500)
-                                            )
-                                        )
-                                    )
-                                    Text(
-                                        text = "%",
-                                        style = AppTextStyles.learn_percentage_30,
-                                        color = Color(0xFF8380FF),
-                                        modifier = Modifier.padding(start = 3.dp, bottom = 3.dp)
-                                    )
-                                }
-                                Text(
-                                    text = "title",
-                                    style = AppTextStyles.b2_semibold_16,
-                                    color = Grey1000
-                                )
-                                Spacer(Modifier.height(16.dp))
-                                AnimatedProgressBar(
-                                    progress = progress,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
+                            GrowthFrontContent(
+                                title = title,
+                                percent = percent,
+                                progress = progress
+                            )
                         }
-
                         else -> {
-                            // 기본 화면 (기존 UI)
-                            Column {
-                                Row(verticalAlignment = Alignment.Bottom) {
-                                    Text(
-                                        text = "$percent",
-                                        style = AppTextStyles.learn_percentage_46.copy(
-                                            brush = Brush.linearGradient(
-                                                colors = listOf(Color(0xFF8380FF), PurpleMain500)
-                                            )
-                                        ),
-                                    )
-                                    Text(
-                                        text = "%",
-                                        style = AppTextStyles.learn_percentage_30,
-                                        color = Color(0xFF8380FF),
-                                        modifier = Modifier.padding(start = 3.dp, bottom = 3.dp)
-                                    )
-                                }
-                                Text(
-                                    text = title,
-                                    style = AppTextStyles.b2_semibold_16,
-                                    color = Grey1000
-                                )
-                                Spacer(Modifier.height(16.dp))
-                                AnimatedProgressBar(
-                                    progress = progress,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
+                            // 기본 화면
+                            GrowthFrontContent(
+                                title = title,
+                                percent = percent,
+                                progress = progress
+                            )
                         }
+                    }
+                    }
+                } else {
+                    // 뒤집힌 면 UI
+                    Column(
+                        modifier = Modifier
+                           /* .graphicsLayer { rotationY = 180f } // 텍스트 반전 방지*/
+                            .padding(horizontal = 28.dp, vertical = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        BackNextLevelSection(
+                            currentStage = currentStep, // 현재 단계 전달
+                            remainingCards = nextStageRemaining
+                        )
                     }
                 }
             }
+            // ▲ 변경
         }
         // 누베리 개수 원형 카드
         // 배지는 카드 콘텐츠와 독립적으로 Box(부모) 기준에 고정
@@ -694,7 +681,51 @@ fun CustomShadowBox(
     }
 }
 
-//하단 성장률 카드 기본 UI 그래프
+//------------ 하단 성장률 카드 기본 UI ------------------
+// next/기본 상태에서 사용하는 앞면 공통 UI
+@Composable
+private fun GrowthFrontContent(
+    title: String,
+    percent: Int,
+    progress: Float
+) {
+    Column {
+        // 상단 한 줄: 왼쪽 타이틀, 오른쪽 퍼센트
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = title,
+                style = AppTextStyles.b2_semibold_16,
+                color = Grey1000
+            )
+
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = "$percent",
+                    style = AppTextStyles.b1_semibold_18,
+                    color = PurpleMain500
+                )
+                Text(
+                    text = "%",
+                    style = AppTextStyles.b1_semibold_18,
+                    color = PurpleMain500
+                )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        AnimatedProgressBar(
+            progress = progress,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+//하단 성장률 카드 기본 UI 프로그레스 바
 @Composable
 fun AnimatedProgressBar(
     progress: Float, // 최종 목표 progress (0f ~ 1f)
@@ -715,7 +746,7 @@ fun AnimatedProgressBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(16.dp) // 원하는 높이
+            .height(10.dp) // 원하는 높이
             .clip(RoundedCornerShape(999.dp))
             .background(GreyMain300) // 배경 (연한 회색/투명)
     ) {
@@ -736,15 +767,219 @@ fun AnimatedProgressBar(
     }
 }
 
+// 뒤집힌 면
+@Composable
+private fun BackNextLevelSection(
+    currentStage: Int,
+    remainingCards: Int
+) {
+    // 가운데 숫자만 보라색으로 스타일 적용
+    val text = buildAnnotatedString {
+        append("다음 레벨까지 ")
+        withStyle(SpanStyle(color = PurpleMain500)) {
+            append(remainingCards.toString())
+        }
+        append("장의 카드가 남았어요.")
+    }
+
+    Column {
+        // 문장 한 줄
+        Text(
+            text = text,
+            style = AppTextStyles.b2_semibold_16,
+            color = Grey1000
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // 아래 정적 스텝바
+        StaticLevelStepBar(
+            totalSteps = 5,
+            currentStep = currentStage,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+// 뒤집힌 면 스텝 바
+@Composable
+private fun StaticLevelStepBar(
+    totalSteps: Int = 5,
+    currentStep: Int,
+    modifier: Modifier = Modifier,
+    barHeight: Dp = 8.dp,
+    circleSize: Dp = 24.dp,
+    trackColor: Color = Color(0xFFC8C8C8)
+) {
+    // 단계 이름 리스트 (마지막 누베리 수확은 제외)
+    val stageNames = listOf("새싹", "묘목", "꽃봉오리", "꽃", "열매")
+
+    // 보라색 바 그라디언트 (좌 → 우)
+    val barGradient = remember {
+        Brush.horizontalGradient(
+            listOf(Color(0xFF7272FF), PurpleMain500)
+        )
+    }
+
+    // 회색 트랙 그라디언트 (위 → 아래)  c8c8c8 + 진한 회색
+    val trackGradient = remember {
+        Brush.verticalGradient(
+            listOf(Color(0xFFB0B0B0), trackColor) // 위는 밝게, 아래는 파라미터 값
+        )
+    }
+
+    // 비활성 회색 동그라미 그라디언트 (위 → 아래)
+    val inactiveCircleGradient = remember {
+        Brush.verticalGradient(
+            listOf(Color(0xFFB0B0B0), Color(0xFFC8C8C8))
+        )
+    }
+
+    // 현재 단계 인덱스를 0..totalSteps-1 로 보정
+    val clampedStep = currentStep.coerceIn(0, totalSteps - 1)
+
+    Column(modifier = modifier) {
+
+        // 위쪽 라인 + 동그라미 영역
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = circleSize / 2)
+                .height(max(circleSize, barHeight))
+        ) {
+            val stepFrac = if (totalSteps > 1) 1f / (totalSteps - 1) else 1f
+
+            // 전체 회색 트랙 (세로 그라디언트)
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .fillMaxWidth()
+                    .height(barHeight)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(trackGradient) // ← 단색 대신 그라디언트
+            )
+
+            // 채워진 구간 (현재 단계까지) – 보라색 그라디언트
+            Canvas(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .fillMaxWidth()
+                    .height(barHeight)
+            ) {
+                val radius = size.height / 2f
+                val progress = if (totalSteps > 1) {
+                    clampedStep.toFloat() / (totalSteps - 1).toFloat()
+                } else {
+                    1f
+                }
+                val filledW = size.width * progress.coerceIn(0f, 1f)
+                if (filledW > 0f) {
+                    drawRoundRect(
+                        brush = barGradient,
+                        size = Size(filledW, size.height),
+                        cornerRadius = CornerRadius(radius, radius)
+                    )
+                }
+            }
+
+            // 각 단계 동그라미와 숫자
+            repeat(totalSteps) { index ->
+                val x = maxWidth * (index * stepFrac)
+                val isActive = index <= clampedStep
+
+                // 활성 동그라미 색 계산
+                //   - 0번 인덱스: 가장 밝은 보라 (#7272FF)
+                //   - 마지막 활성 인덱스: 메인 퍼플(PurpleMain500)
+                //   - 그 사이 인덱스: 위 두 색 사이에서 선형 보간
+                val activeCircleColor: Color = if (!isActive) {
+                    Color.Unspecified // 사용 안 함
+                } else {
+                    if (clampedStep == 0) {
+                        // 단계가 1개만 활성인 경우 바로 메인 퍼플
+                        PurpleMain500
+                    } else {
+                        val t = index.toFloat() / clampedStep.toFloat() // 0f ~ 1f
+                        val start = Color(0xFF7272FF)   // 새싹 단계용 밝은 보라
+                        val end = PurpleMain500        // 마지막 단계 메인 퍼플
+                        lerp(start, end, t)
+                    }
+                }
+
+                // 실제로 사용할 브러시/색 결정
+                val circleModifier = if (isActive) {
+                    Modifier.background(
+                        color = activeCircleColor,
+                        shape = CircleShape
+                    )
+                } else {
+                    // 비활성 동그라미는 기존처럼 회색 계열
+                    Modifier.background(
+                        brush = inactiveCircleGradient, // 위에서 만든 회색 그라데이션
+                        shape = CircleShape
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .offset(x = x - circleSize / 2)
+                        .size(circleSize)
+                        .clip(CircleShape)
+                        .then(circleModifier),          // 여기서 색 적용
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "${index + 1}",
+                        style = AppTextStyles.b3_medium_14,
+                        color = if (isActive) Color.White else Grey1000
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
+
+        // 단계 이름 텍스트 줄
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = circleSize / 2)
+        ) {
+            val stepFrac = if (totalSteps > 1) 1f / (totalSteps - 1) else 1f
+
+            stageNames.forEachIndexed { index, name ->
+                val isActive = index <= clampedStep
+                val x = maxWidth * (index * stepFrac)
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        // 동그라미와 동일한 x 에 두고, 텍스트 박스 폭만 넓혀서 가운데 정렬
+                        .offset(x = x - (circleSize * 1.6f) / 2)
+                        .width(circleSize * 1.6f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = name,
+                        style = AppTextStyles.caption_regular_9,
+                        textAlign = TextAlign.Center,
+                        color = if (isActive) Grey1000 else GreyMain300
+                    )
+                }
+            }
+        }
+    }
+}
+//------------ 하단 성장률 카드 기본 UI 끝 ------------------
+
 // 스테이지 번호에 맞는 이름 반환 함수
 private fun getStageName(stage: Int): String {
     return when (stage) {
-        0 -> "작은 새싹"
-        1 -> "묘목"
-        2 -> "꽃봉오리"
-        3 -> "꽃"
-        4 -> "열매"
-        5 -> "누베리 수확"
+        1 -> "작은 새싹"
+        2 -> "묘목"
+        3 -> "꽃봉오리"
+        4 -> "꽃"
+        5 -> "열매"
         else -> ""
     }
 }
@@ -840,130 +1075,68 @@ private fun LevelUpSection(
     }
 }
 
-@Composable
-private fun NuberrySection(
-    totalSteps: Int,
-    prevStep: Int,
-    nextStep: Int,
-    nextPercentFromServer: Float? = null, // 예: 0.50f (최종은 체크 지점으로 스냅)
-    onStepAnimDone: () -> Unit,
-    levelUpText: String,
-) {
-    // 1) 시작/목표 퍼센트 (목표는 체크 지점으로 스냅)
-    val fromFrac = stepToFraction(prevStep - 1, totalSteps).coerceIn(0f, 1f)
-    val toFrac = stepToFraction(nextStep - 1, totalSteps)
-
-    // 2) 진행도는 단순 Float 상태로 관리 (프레임마다 값 갱신)
-    var barProgress by remember { mutableFloatStateOf(fromFrac) }
-
-    // 3) 체크 개수/튀는 효과
-    var checkedCount by remember { mutableStateOf(prevStep) }
-    var showCheck by remember { mutableStateOf(false) }
-    val checkScale by animateFloatAsState(
-        targetValue = if (showCheck) 1f else 0.6f,
-        animationSpec = tween(durationMillis = CHECK_BOUNCE_MS),
-        label = "checkScale"
-    )
-
-    // 4) 애니메이션: 진행 중 스냅 지점 통과 시 체크 생성
-    LaunchedEffect(prevStep, nextStep) {
-        barProgress = fromFrac
-        val trigger = toFrac - 0.0005f // 부동소수 안전 마진
-
-        delay(600) // 타이틀 감상 시간
-
-        var spawned = false
-        animate(
-            initialValue = fromFrac,
-            targetValue = toFrac,
-            animationSpec = tween(durationMillis = STEP_ANIM_MS, easing = LinearEasing)
-        ) { value, _ ->
-            // 프레임마다 진행도 업데이트
-            barProgress = value
-
-            // 스냅 지점 도달 순간 체크 생성
-            if (!spawned && value >= trigger) {
-                spawned = true
-                checkedCount = nextStep
-                showCheck = true
-                // 체크 "톡" 효과 잠깐 보여주고 해제
-                launch {
-                    delay(220)
-                    showCheck = false
-                }
-            }
-        }
-
-        onStepAnimDone()
-    }
-
-    // ---- UI ----
-    Column {
-        Text(
-            text = "Nuberry Get!",
-            style = AppTextStyles.learn_percentage_46.copy(
-                brush = Brush.linearGradient(listOf(Color(0xFF8380FF), PurpleMain500))
-            )
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = levelUpText,
-            style = AppTextStyles.b2_semibold_16,
-            color = Grey1000
-        )
-        Spacer(Modifier.height(30.dp))
-
-        StepBar(
-            total = totalSteps,
-            progress = barProgress,      // 진행 중 값
-            checkedCount = checkedCount, // 트리거 순간 증가
-            showBounceOnLast = showCheck,
-            lastCheckScale = checkScale,
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-}
-
 // ==== 스텝 바 ====
 @Composable
 private fun StepBar(
     total: Int,
     progress: Float,             // 0f~1f (바 채움 비율, 체크 지점으로 스냅된 값 전달)
-    checkedCount: Int,           // 현재 표시할 체크 개수
-    showBounceOnLast: Boolean,   // 마지막 체크 튀는 효과
-    lastCheckScale: Float,       // 마지막 체크 스케일 값
+    checkedCount: Int,           // 현재 활성 단계(1부터 시작)
+    showBounceOnLast: Boolean,   // 마지막 동그라미 튀는 효과 여부
+    lastCheckScale: Float,       // 마지막 동그라미 스케일 값
     modifier: Modifier = Modifier,
-    barHeight: Dp = 16.dp,       // 기본 UI 그래프 두께와 동일
-    circleSize: Dp = 32.dp,      // 체크 원 크기
+    barHeight: Dp = 8.dp,
+    circleSize: Dp = 24.dp,    // 단계 동그라미 크기
     berrySize: Dp = 40.dp,       // 베리 아이콘 크기
-    berryOffsetUp: Dp = 16.dp,    // 마지막 동그라미 위로 8dp
-    trackColor: Color = Grey50 // 기본 그래프 트랙 색과 동일 계열
+    berryOffsetUp: Dp = 16.dp,   // 마지막 동그라미 위로 띄우는 높이
+    trackColor: Color = Grey50   // 기본 트랙 색 계열
 ) {
-    val gradient = remember {
-        // 기본 그래프와 동일한 그라디언트
-        Brush.horizontalGradient(listOf(Color(0xFF6863FF), PurpleMain500))
+    // 단계 이름 리스트
+    val stageNames = listOf("새싹", "묘목", "꽃봉오리", "꽃", "열매")
+
+    // 보라색 바 그라디언트 (좌 → 우)
+    val barGradient = remember {
+        Brush.horizontalGradient(
+            listOf(Color(0xFF7272FF), PurpleMain500)
+        )
     }
+
+    // 회색 트랙 그라디언트 (위 → 아래)
+    val trackGradient = remember {
+        Brush.verticalGradient(
+            listOf(Color(0xFFB0B0B0), trackColor)
+        )
+    }
+
+    // 비활성 회색 동그라미 그라디언트
+    val inactiveCircleGradient = remember {
+        Brush.verticalGradient(
+            listOf(Color(0xFFB0B0B0), Color(0xFFC8C8C8))
+        )
+    }
+
+    // 현재 활성 단계 인덱스(0 기반)로 변환
+    val lastActiveIndex = (checkedCount - 1).coerceAtLeast(0)
 
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = circleSize / 2)                 // 끝 원이 잘리지 않게
-            .height(max(circleSize, barHeight) + 10.dp)       // 전체 높이 확보
+            .padding(horizontal = circleSize / 2)          // 끝 동그라미 안 잘리게 여백
+            .height(max(circleSize, barHeight) + 10.dp)   // 전체 높이 확보
     ) {
         val stepFrac = if (total > 1) 1f / (total - 1) else 1f
 
-        // (1) 트랙
+        // (1) 회색 트랙
         Box(
             modifier = Modifier
                 .align(Alignment.CenterStart)
                 .fillMaxWidth()
                 .height(barHeight)
                 .clip(RoundedCornerShape(999.dp))
-                .background(trackColor)
+                .background(trackGradient)                 // 단색 → 그라디언트
                 .zIndex(0f)
         )
 
-        // (2) 채워진 바
+        // (2) 채워진 바 (보라색 그라디언트)
         Canvas(
             modifier = Modifier
                 .align(Alignment.CenterStart)
@@ -975,18 +1148,41 @@ private fun StepBar(
             val filledW = size.width * progress.coerceIn(0f, 1f)
             if (filledW > 0f) {
                 drawRoundRect(
-                    brush = gradient,
+                    brush = barGradient,
                     size = Size(filledW, size.height),
                     cornerRadius = CornerRadius(radius, radius)
                 )
             }
         }
 
-        // (3) 체크 원들 — 바 위에 정확히 겹치기
+        // (3) 단계 동그라미들 (체크 아이콘 제거, 숫자 + 보라 동그라미로 변경)
         repeat(total) { i ->
             val x = maxWidth * (i * stepFrac)
-            val isChecked = (i + 1) <= checkedCount
-            val isLastChecked = isChecked && (i + 1) == checkedCount && showBounceOnLast
+            val isActive = (i + 1) <= checkedCount
+            val isLastActive = isActive && (i == lastActiveIndex) && showBounceOnLast
+
+            // 활성 동그라미 색 계산
+            val activeCircleColor: Color = if (!isActive) {
+                Color.Unspecified
+            } else {
+                if (lastActiveIndex <= 0) {
+                    // 단계가 하나만 활성일 때는 메인 퍼플
+                    PurpleMain500
+                } else {
+                    // 새싹(첫 단계) 쪽은 밝게, 마지막 활성 단계로 갈수록 진하게
+                    val t = i.toFloat() / lastActiveIndex.toFloat()   // 0f ~ 1f
+                    val start = Color(0xFF7272FF)
+                    val end = PurpleMain500
+                    lerp(start, end, t)
+                }
+            }
+
+            // 동그라미 배경 브러시 결정
+            val circleBackgroundModifier = if (isActive) {
+                Modifier.background(color = activeCircleColor, shape = CircleShape)
+            } else {
+                Modifier.background(brush = inactiveCircleGradient, shape = CircleShape)
+            }
 
             Box(
                 modifier = Modifier
@@ -994,29 +1190,26 @@ private fun StepBar(
                     .offset(x = x - circleSize / 2)
                     .size(circleSize)
                     .clip(CircleShape)
-                    .background(if (isChecked) PurpleMain500 else Grey50)
+                    // 마지막 활성 단계일 때만 스케일 애니메이션 적용
+                    .graphicsLayer {
+                        if (isLastActive) {
+                            scaleX = lastCheckScale
+                            scaleY = lastCheckScale
+                        }
+                    }
+                    .then(circleBackgroundModifier)
                     .zIndex(1f),
                 contentAlignment = Alignment.Center
             ) {
-                if (isChecked) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier
-                            .size(circleSize * 0.6f)
-                            .then(
-                                if (isLastChecked) Modifier.graphicsLayer {
-                                    scaleX = lastCheckScale
-                                    scaleY = lastCheckScale
-                                } else Modifier
-                            )
-                    )
-                }
+                Text(
+                    text = "${i + 1}",
+                    style = AppTextStyles.b3_medium_14,
+                    color = if (isActive) Color.White else Grey1000
+                )
             }
         }
 
-        // (4) 베리 — 맨 마지막 동그라미 위
+        // (4) 베리 — 맨 마지막 동그라미 위 (기존과 동일)
         val lastIdx = (total - 1).coerceAtLeast(0)
         val berryX = maxWidth * (lastIdx * stepFrac)
         Box(
@@ -1038,10 +1231,167 @@ private fun StepBar(
             )
             Image(
                 painter = painterResource(id = R.drawable.learn_nuberry_total),
-                contentDescription = null, // decorative image
-                modifier = Modifier
-                    .size(28.dp) // icon size
+                contentDescription = null,
+                modifier = Modifier.size(28.dp)
             )
+        }
+    }
+    Spacer(Modifier.height(4.dp))
+
+    // 단계 이름 텍스트 줄
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = circleSize / 2)
+    ) {
+        val stepFrac = if (total > 1) 1f / (total - 1) else 1f
+        val labelWidth = circleSize * 2f
+
+        stageNames.forEachIndexed { index, name ->
+            val isActive = index <= lastActiveIndex
+            val x = maxWidth * (index * stepFrac)
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    // 동그라미 중심은 그대로 두고, 글자 박스 폭만 넓혀서 가운데 정렬
+                    .offset(x = x - labelWidth / 2)
+                    .width(labelWidth),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = name,
+                    style = AppTextStyles.caption_regular_9,
+                    textAlign = TextAlign.Center,
+                    color = if (isActive) Grey1000 else GreyMain300
+                )
+            }
+        }
+    }
+}
+
+// 누베리 획득 시 팝업
+@Composable
+fun NuberryPopup(
+    onDismiss: () -> Unit,
+    onClickBerryPage: () -> Unit
+) {
+    // 팝업 표시 애니메이션 (베리 살짝 커졌다 작아지는 효과)
+    val scaleAnim = remember { Animatable(0.8f) }
+
+    LaunchedEffect(Unit) {
+        scaleAnim.animateTo(
+            1.2f,
+            animationSpec = tween(400, easing = LinearEasing)
+        )
+        scaleAnim.animateTo(
+            1f,
+            animationSpec = tween(300, easing = LinearEasing)
+        )
+    }
+
+    // 반투명 배경 (뒤 비활성화)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.4f))
+            .noRippleClickable { /* 배경 클릭 막기 */ },
+        contentAlignment = Alignment.Center
+    ) {
+        // 팝업 카드
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.8f)
+                .wrapContentHeight()
+                .clip(RoundedCornerShape(14.dp))
+                .background(Purple100)
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // 닫기 버튼 (좌측 상단)
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Start)
+                        .noRippleClickable { onDismiss() }
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_close), // 닫기 아이콘
+                        contentDescription = "닫기",
+                        tint = Grey1000,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Spacer(Modifier.height(32.dp))
+
+                // 중앙 원 + 베리 이미지
+                Box(
+                    modifier = Modifier
+                        .size(180.dp)
+                        .graphicsLayer {
+                            scaleX = scaleAnim.value
+                            scaleY = scaleAnim.value
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(160.dp)
+                            .shadow(8.dp, CircleShape)
+                            .background(Color.White, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.learn_nuberry_get),
+                            contentDescription = null,
+                            modifier = Modifier.size(120.dp)
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(20.dp))
+
+                // 텍스트 영역
+                Text(
+                    text = "Nuberry Get!",
+                    style = AppTextStyles.learn_percentage_30.copy(
+                        brush = Brush.linearGradient(listOf(Color(0xFF8380FF), PurpleMain500))
+                    ),
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                Text(
+                    text = "멋진 수확이에요.\n다음 성장도 함께 가요.",
+                    style = AppTextStyles.b2_medium_16,
+                    color = Grey1000,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(Modifier.height(36.dp))
+
+                // 버튼
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(41.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(PurpleMain500)
+                        .noRippleClickable { onClickBerryPage() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "모은 베리 확인하러 가기",
+                        style = AppTextStyles.label_semibold_14,
+                        color = Color.White
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+            }
         }
     }
 }

@@ -124,7 +124,8 @@ fun MyBoardScreen(
             // 메시지 내용에 따라 토스트 타입 결정 (성공/실패)
             val toastType = when {
                 message.contains("실패했어요.") -> AppToastType.NEGATIVE
-                message.contains("취소되었어요.") || message.contains("완료되었어요.") -> AppToastType.POSITIVE
+                message.contains("취소되었어요.") -> AppToastType.POSITIVE
+                message.contains("즐겨찾기가")->AppToastType.FAVORITE
                 else -> AppToastType.NORMAL
             }
 

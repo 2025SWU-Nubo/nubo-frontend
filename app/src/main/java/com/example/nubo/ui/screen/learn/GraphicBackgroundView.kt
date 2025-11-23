@@ -438,11 +438,11 @@ fun GraphicBackgroundView(
                 contentAlignment = Alignment.TopCenter
             ) {
                 // 물방울 개별 위치 로직 (이전과 동일)
-                val pos1 = Pair((-700).dp, (-390).dp)
-                val pos2 = Pair((-350).dp, (-300).dp)
-                val pos3 = Pair(0.dp, (-390).dp)
-                val pos4 = Pair(350.dp, (-300).dp)
-                val pos5 = Pair(700.dp, (-390).dp)
+                val pos1 = Pair((-700).dp, (-270).dp)
+                val pos2 = Pair((-350).dp, (-200).dp)
+                val pos3 = Pair(0.dp, (-270).dp)
+                val pos4 = Pair(350.dp, (-200).dp)
+                val pos5 = Pair(700.dp, (-270).dp)
 
                 val positionsToShow = when (dropCount) {
                     1 -> listOf(pos3)
@@ -472,7 +472,7 @@ fun GraphicBackgroundView(
                 painter = painterResource(id = R.drawable.learn_cloud),
                 contentDescription = "구름",
                 modifier = Modifier
-                    .offset(y = -80.dp)
+                    .offset(y = -60.dp)
                     .scale(scaleX = 1.9f, scaleY = 1.9f)
                     .graphicsLayer {
                         translationY = cloudOffsetY
