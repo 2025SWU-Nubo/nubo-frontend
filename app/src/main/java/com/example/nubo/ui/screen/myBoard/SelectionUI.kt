@@ -1063,7 +1063,6 @@ fun BoardEditSheet(
                         contentColor = PurpleMain500,
                         disabledContentColor = GreyMain100
                     ),
-                    contentPadding = PaddingValues(0.dp) // 패딩 제거하여 텍스트 위치 조정
                 ) {
                     Text(text = "완료", style = b1_semibold_18)
                 }

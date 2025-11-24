@@ -20,8 +20,12 @@ import com.example.nubo.data.model.DefaultBoardItemResponse
 import com.example.nubo.data.model.FavoriteRequest
 import com.example.nubo.data.model.FavoriteResponse
 import com.example.nubo.data.model.HomeBoardResponse
+import com.example.nubo.data.model.InvitationDto
+import com.example.nubo.data.model.InviteMembersRequest
 import com.example.nubo.data.model.PagedResponse
 import com.example.nubo.data.model.RecentBoardResponse
+import com.example.nubo.data.model.ShareBoardRequest
+import com.example.nubo.data.model.ShareBoardResponse
 import com.example.nubo.data.model.UpsertBoardRequest
 import com.google.gson.JsonObject
 import retrofit2.Response
@@ -195,4 +199,20 @@ interface BoardService {
         @Path("boardId") boardId: Long,
         @Path("invitationId") invitationId: Long
     ): Response<Unit>
+
+    // 개인 보드 -> 공유 보드 전환
+    @PATCH("api/board/{boardId}/share")
+    suspend fun updateBoardShare(
+        @Header("Authorization") authHeader: String,
+        @Path("boardId") boardId: Long,
+        @Body body: ShareBoardRequest
+    ): Response<ShareBoardResponse>
+
+    // 보드 설정에서 공유 보드 참여자 초대
+    @POST("api/board/{boardId}/invitation")
+    suspend fun inviteMembers(
+        @Header("Authorization") authHeader: String,
+        @Path("boardId") boardId: Long,
+        @Body body: InviteMembersRequest
+    ): Response<List<InvitationDto>>
 }

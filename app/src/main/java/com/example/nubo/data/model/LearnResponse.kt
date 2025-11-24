@@ -22,6 +22,9 @@ data class DashboardResponse(
     @SerializedName("berryCount")
     val berryCount: Int,
 
+    @SerializedName("nextStageRemaining")
+    val nextStageRemaining: Int,
+
     // 배경 .glb 파일 url
     @SerializedName("dashboardBackground")
     val dashboardBackground: String

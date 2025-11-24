@@ -1,17 +1,25 @@
 package com.example.nubo.ui.screen.learn
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.EaseInOutSine
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -20,9 +28,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import com.example.nubo.R // R 파일 경로는 프로젝트에 맞게 확인해주세요.
+import com.example.nubo.R
+import com.example.nubo.ui.component.noRippleClickable
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.sin
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * 2D PNG 이미지를 사용하여 대시보드 배경을 렌더링하는 Composable
@@ -76,6 +88,42 @@ fun GraphicBackgroundView(
 
     // Y축 오프셋 계산 (sin 함수)
     val animatedRaindropY = sin(raindropTime) * bobbingAmount.value
+
+    //-----------------------------
+    // 클릭 상태 관리
+    //-----------------------------
+
+    val bobbingY = sin(raindropTime) * 20f // 위아래 진폭
+
+    // 구름 클릭 시 확대
+    var cloudClicked by remember { mutableStateOf(false) }
+    val cloudScale by animateFloatAsState(
+        targetValue = if (cloudClicked) 1.2f else 1f,
+        animationSpec = tween(300, easing = EaseInOutSine),
+        label = "cloudScale"
+    )
+    // 물방울 낙하 상태 (구름 클릭 시 트리거)
+    var fallingDrops by remember { mutableStateOf(false) }
+    val fallAnim = remember { Animatable(0f) }
+
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(fallingDrops) {
+        if (fallingDrops) {
+            // 아래로 떨어짐
+            fallAnim.animateTo(
+                targetValue = 250f,
+                animationSpec = tween(600, easing = EaseInOutSine)
+            )
+            // 다시 제자리로 복귀
+            fallAnim.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(700, easing = EaseInOutSine)
+            )
+            fallingDrops = false
+        }
+    }
+
 
     Box(
         modifier = modifier
@@ -438,11 +486,11 @@ fun GraphicBackgroundView(
                 contentAlignment = Alignment.TopCenter
             ) {
                 // 물방울 개별 위치 로직 (이전과 동일)
-                val pos1 = Pair((-700).dp, (-390).dp)
-                val pos2 = Pair((-350).dp, (-300).dp)
-                val pos3 = Pair(0.dp, (-390).dp)
-                val pos4 = Pair(350.dp, (-300).dp)
-                val pos5 = Pair(700.dp, (-390).dp)
+                val pos1 = Pair((-700).dp, (-270).dp)
+                val pos2 = Pair((-350).dp, (-200).dp)
+                val pos3 = Pair(0.dp, (-270).dp)
+                val pos4 = Pair(350.dp, (-200).dp)
+                val pos5 = Pair(700.dp, (-270).dp)
 
                 val positionsToShow = when (dropCount) {
                     1 -> listOf(pos3)
@@ -472,10 +520,30 @@ fun GraphicBackgroundView(
                 painter = painterResource(id = R.drawable.learn_cloud),
                 contentDescription = "구름",
                 modifier = Modifier
-                    .offset(y = -80.dp)
+                    .offset(y = -60.dp)
                     .scale(scaleX = 1.9f, scaleY = 1.9f)
                     .graphicsLayer {
                         translationY = cloudOffsetY
+                    }
+            )
+
+            // 구름 클릭 시
+            val coroutineScope = rememberCoroutineScope()
+
+            Image(
+                painter = painterResource(id = R.drawable.learn_cloud),
+                contentDescription = "구름",
+                modifier = Modifier
+                    .offset(y = (-60).dp + cloudOffsetY.dp)
+                    .scale(1.9f * cloudScale)
+                    .noRippleClickable{
+                        if (!cloudClicked) {
+                            cloudClicked = true
+                            coroutineScope.launch {
+                                delay(300)
+                                cloudClicked = false
+                            }
+                        }
                     }
             )
         }

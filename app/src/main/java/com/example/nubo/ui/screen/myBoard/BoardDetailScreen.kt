@@ -32,10 +32,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -73,6 +69,7 @@ import getDisplayDate
 import java.net.URLDecoder
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -88,6 +85,7 @@ import com.example.nubo.utils.REFRESH_TICK_KEY
 import kotlinx.coroutines.launch
 import com.example.components.toast.AppToastType
 import com.example.nubo.ui.component.noRippleClickable
+import com.example.nubo.ui.theme.AppTextStyles.b2_medium_16
 
 // 어떤 다이얼로그를 띄울지 구분하기 위한 sealed class
 sealed class InputDialogMode {
@@ -107,6 +105,10 @@ fun BoardDetailScreen(
     boardViewModel: BoardViewModel = hiltViewModel(remember { navController.previousBackStackEntry!! }),
     modifier: Modifier = Modifier
 ) {
+
+    // 뷰모델 상태 올바르게 구독
+    val ui by viewModel.ui.collectAsState()
+    val boardState = ui.board
 
     // --- 선택 모드 관리를 위한 상태 변수 ---
     // 1. 선택 모드 활성화 여부
@@ -156,50 +158,107 @@ fun BoardDetailScreen(
         viewModel.init(boardId)
     }
 
-    // 1. '실행 취소'용 Snackbar 상태
-    val snackbarHostState = remember { SnackbarHostState() }
     // 토스트 상태 및 코루틴 스코프 선언
     val toastHostState = rememberAppToastHostState()
     val scope = rememberCoroutineScope()
     val toastMessage by viewModel.toastMessage.collectAsState()
 
-    // ---  스낵바를 띄우는 함수가 '개수'를 받도록 변경 ---
-    fun showUndoSnackbar(count: Int) {
-        scope.launch {
-            val result = snackbarHostState.showSnackbar(
-                message = "${count}개의 항목 삭제가 완료되었습니다.", // 메시지에 개수 포함
-                actionLabel = "실행 취소",
-                duration = SnackbarDuration.Long
-            )
-            // "실행 취소" 버튼을 눌렀을 때
-            if (result == SnackbarResult.ActionPerformed) {
-                viewModel.undoLastDeletion() // ViewModel의 복구 함수 호출
-            }
-        }
-    }
-
-    // --- ViewModel의 삭제 완료 이벤트를 구독하여 '개수'를 받아 스낵바 호출 ---
+    // --- ViewModel의 삭제 완료 이벤트를 구독하여 '개수'를 받아 액션 토스트 호출 ---
     LaunchedEffect(viewModel) {
         viewModel.deleteCompleteEvent.collect { count ->
-            showUndoSnackbar(count)
+            // 스낵바 대신 액션 토스트 사용 (섹션 생성 시 사용한 스타일 활용)
+            scope.launch {
+                toastHostState.show(
+                    title = AnnotatedString("${count}개의 항목이 삭제되었어요."),
+                    layout = AppToastLayout.TitleWithAction,
+                    type = AppToastType.NORMAL, // 삭제 알림은 Normal (또는 Positive 체크 아이콘 없이) 사용
+                    actionLabel = "실행 취소",
+                    onAction = {
+                        scope.launch {
+                            viewModel.undoLastDeletion()
+                        }
+                    }
+                )
+            }
             resetSelectionState()
         }
     }
 
-    // ViewModel의 toastMessage 변경을 감지하여 토스트 표시
+    val toastEvent by viewModel.toastEvent.collectAsState()
+
+    // 섹션 화면과 토스트 분기처리
+    LaunchedEffect(toastEvent) {
+        toastEvent?.let { (message, source) ->
+            if (source != "section") {   //  섹션 관련 토스트는 무시
+                scope.launch {
+                    toastHostState.show(
+                        title = AnnotatedString(message),
+                        layout = AppToastLayout.TitleOnly,
+                        type = if (message.contains("실패")) AppToastType.NEGATIVE else AppToastType.POSITIVE
+                    )
+                }
+            }
+            viewModel.clearToastEvent()
+        }
+    }
+
+    // view 모델 결과에 따른 토스트 출력
     LaunchedEffect(toastMessage) {
         toastMessage?.let { message ->
-            val isSuccess = (message.contains("복제") || message.contains("이동")) && message.contains("완료")
-            val toastType = if (isSuccess) AppToastType.POSITIVE else AppToastType.NORMAL
 
-            scope.launch {
-                toastHostState.show(
-                    title = buildAnnotatedString { append(message) },
-                    layout = AppToastLayout.TitleOnly, // 제목만 있는 레이아웃 사용
-                    type = toastType,
-                )
+            // 1) 섹션 생성 성공일 때만: 액션 버튼 토스트 + 섹션으로 이동
+            if (message == "섹션 생성이 완료되었어요.") {
+
+                // 현재 보드의 섹션 목록을 BoardItem 으로 변환 후, id 가 가장 큰 섹션 선택
+                val latestSectionItem = ui.board
+                    ?.sections
+                    ?.map { it.toBoardItem() }          // ← SectionDto -> BoardItem
+                    ?.maxByOrNull { it.id }
+
+                scope.launch {
+                    toastHostState.show(
+                        title = AnnotatedString(message),
+                        layout = AppToastLayout.TitleWithAction,   // 액션 버튼 있는 레이아웃
+                        actionLabel = "섹션으로 이동",
+                        onAction = {
+                            latestSectionItem?.let { section ->
+                                // onSectionClick 의 else 분기 로직 그대로 사용
+                                val encodedTitle =
+                                    java.net.URLEncoder.encode(section.title, "utf-8")
+
+                                val currentBoardTitle = ui.board?.name ?: boardTitle
+                                val encodedBoardTitle =
+                                    java.net.URLEncoder.encode(currentBoardTitle, "utf-8")
+
+                                navController.navigate(
+                                    "section_detail/${section.id}/$encodedTitle/$encodedBoardTitle"
+                                )
+                            }
+                        }
+                    )
+                }
+
+            }  else {
+                // 나머지 토스트는 기존 로직 그대로 유지
+                val toastType = when {
+                    message.contains("실패했어요") -> AppToastType.NEGATIVE
+                    message.contains("즐겨찾기가 완료되었어요.") -> AppToastType.FAVORITE
+                    message.contains("완료되었어요") ||
+                        message.contains("취소되었어요.") ||
+                        message.contains("취소가 완료되었어요.") ->
+                        AppToastType.POSITIVE
+                    else -> AppToastType.NORMAL
+                }
+
+                scope.launch {
+                    toastHostState.show(
+                        title = AnnotatedString(message),
+                        layout = AppToastLayout.TitleOnly,
+                        type = toastType,
+                    )
+                }
             }
-            // 토스트를 띄운 후에는 상태를 다시 null로 초기화하여 중복 표시 방지
+
             viewModel.clearToastMessage()
         }
     }
@@ -237,10 +296,6 @@ fun BoardDetailScreen(
             }
     }
 
-    // 뷰모델 상태 올바르게 구독
-    val ui by viewModel.ui.collectAsState()
-    val boardState = ui.board
-
     // 공유 보드 초대 ViewModel 상태 구독
     val currentBoardMembers by viewModel.currentBoardMembers.collectAsState()
     val inviteResetSignal by viewModel.inviteResetSignal.collectAsState()
@@ -256,14 +311,6 @@ fun BoardDetailScreen(
     Box(modifier = Modifier.fillMaxSize()) {
 
         Scaffold(
-            snackbarHost = {
-                SnackbarHost(hostState = snackbarHostState) { snackbarData ->
-                    UndoSnackbar(
-                        message = snackbarData.visuals.message,
-                        onUndo = { snackbarData.performAction() }
-                    )
-                }
-            },
             containerColor = Color.White
         ) { paddingValues ->
             Column(
@@ -271,6 +318,9 @@ fun BoardDetailScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
+                // board source 가 "AI" 인지 확인
+                val isAiBoard = ui.board?.source == "AI"
+
                 DetailTopBar(
                     onBack = {
                         // 현재 보드의 최신 이름 전달
@@ -294,7 +344,8 @@ fun BoardDetailScreen(
                             BottomSheetType.BOARD_MEMBERS
                         }
                                   },
-                    isSelectionMode = isSelectionMode
+                    isSelectionMode = isSelectionMode,
+                    showSettingButton = !isAiBoard
                 )
                 BoardTitleBar(
                     title = ui.board?.name ?: boardTitle,
@@ -320,7 +371,24 @@ fun BoardDetailScreen(
                             }
                         )
                     }
-
+                    // 보드에 섹션/카드가 아무것도 없을 때 빈 상태 UI 표시
+                    if (boardItems.isEmpty() && cardItems.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize(),          // 남은 스크린 영역 전체 사용
+                            contentAlignment = Alignment.Center // 가운데 정렬
+                        ) {
+                            Text(
+                                text = "이 보드에는 아직 저장된 카드가 없어요!",
+                                style = b2_medium_16,
+                                color = GreyMain300,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp)
+                            )
+                        }
+                    } else {
                     BoardDetailContent(
                         boardItems = boardItems,
                         cardItems = cardItems,
@@ -379,7 +447,7 @@ fun BoardDetailScreen(
                         selectedSections = selectedSections,
                         selectedCards = selectedCards
                     )
-                } else {
+                } } else {
                     // 로딩 인디케이터를 가운데 정렬하기 위해 Box 사용
                     Box(
                         modifier = Modifier.fillMaxSize(), // 1. 남은 공간을 모두 채움
@@ -513,14 +581,29 @@ fun BoardDetailScreen(
                                 tempEditName = null
                                 tempEditShared = null
 
-                                // 이름이 변경되었을 때만 API 호출
+                                // 1) 이름이 변경되었을 때만 API 호출
                                 if (newName != currentBoard.name) {
                                     viewModel.renameCurrentBoard(newName)
                                 }
-                                // TODO: isShared 상태가 변경되었을 때 API 호출하는 로직 추가
 
-                                // 완료 후 바텀시트 전체 닫기
+                                // 2) 공유 보드 전환이 필요하면 호출
+                                //    (BoardEditSheet에서 넘어온 isShared 값을 그대로 사용)
+                                viewModel.convertToSharedIfNeeded(draftIsShared = isShared)
+
+                                // 3) 초대 예정 멤버가 있다면 초대 API 호출
+                                viewModel.sendInvitationsIfNeeded()
+
+                                // 4) 시트 닫기
                                 bottomSheetType = BottomSheetType.NONE
+
+                                // 5) 전역 토스트 띄우기
+                                scope.launch {
+                                    toastHostState.show(
+                                        title = buildAnnotatedString { append("보드 설정이 완료되었어요.") },
+                                        layout = AppToastLayout.TitleOnly,
+                                        type = AppToastType.POSITIVE
+                                    )
+                                }
                             }
                         )
                     }
@@ -645,7 +728,8 @@ fun BoardDetailScreen(
 fun DetailTopBar(
     onBack: () -> Unit,
     onMenuClick: () -> Unit,
-    isSelectionMode: Boolean
+    isSelectionMode: Boolean,
+    showSettingButton: Boolean,
 ) {
     val titleText = "나의 보드"
 
@@ -675,15 +759,16 @@ fun DetailTopBar(
         Spacer(modifier = Modifier.weight(1f))
 
         // 오른쪽 (설정 버튼)
-        Icon(
-            painter = painterResource(id = R.drawable.ic_board_setting),
-            contentDescription = "보드 설정",
-            tint = GreyMain300,
-            // 선택 모드일 때 비활성화하고, 투명도를 조절합니다.
-            modifier = Modifier
-                .size(20.dp)
-                .noRippleClickable(enabled = !isSelectionMode) { onMenuClick() }
-        )
+        if (showSettingButton) {     // ← 조건 추가
+            Icon(
+                painter = painterResource(id = R.drawable.ic_board_setting),
+                contentDescription = "보드 설정",
+                tint = GreyMain300,
+                modifier = Modifier
+                    .size(20.dp)
+                    .noRippleClickable(enabled = !isSelectionMode) { onMenuClick() }
+            )
+        }
     }
 }
 
@@ -734,6 +819,7 @@ fun BoardFilterButton(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             // 정렬 버튼
             SortFilterButton(
+                selectedTab = 0,
                 enabled = !isSelectionMode, //선택 모드일 때 버튼 비활성화
                 onSortSelected = { sortKey -> onRequestSort(sortKey) }
             )

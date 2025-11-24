@@ -57,8 +57,10 @@ import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.collect
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.text.AnnotatedString
 import com.example.components.toast.AppToastHost
 import com.example.components.toast.AppToastLayout
+import com.example.components.toast.AppToastType
 import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
@@ -96,34 +98,65 @@ fun MyBoardScreen(
     val toastHostState = rememberAppToastHostState()
     val toastMessage by boardViewModel.toastMessage.collectAsState()
 
-    // --- ViewModel의 toastMessage 변경을 감지하여 토스트 표시 및 새로고침 ---
-    LaunchedEffect(toastMessage) {
-        toastMessage?.let { message ->
+    // --- 삭제 완료 액션 토스트 구독 ---
+    LaunchedEffect(boardViewModel) {
+        boardViewModel.deleteToastEvent.collect { message ->
             scope.launch {
                 toastHostState.show(
-                    title = buildAnnotatedString { append(message) },
-                    layout = AppToastLayout.TitleOnly
+                    title = AnnotatedString(message),
+                    layout = AppToastLayout.TitleWithAction,
+                    type = AppToastType.NORMAL, // 삭제 완료는 Normal 타입
+                    actionLabel = "실행 취소",
+                    onAction = {
+                        scope.launch {
+                            boardViewModel.undoLastDeletion()
+                        }
+                    }
                 )
             }
-            // --- 실제 메시지("...되었습니다")와 일치하도록 조건문 수정 ---
-            if (message.contains("이동되었습니다") || message.contains("복제되었습니다")) {
-                cardViewModel.refresh()
-            }
-            boardViewModel.clearToastMessage()
         }
     }
 
-    // --- BoardDetailViewModel의 토스트 메시지(삭제 취소) 처리 ---
-    val detailToastMessage by boardDetailViewModel.toastMessage.collectAsState()
-    LaunchedEffect(detailToastMessage) {
-        detailToastMessage?.let { message ->
+    // --- ViewModel의 toastMessage 변경을 감지하여 토스트 표시 및 새로고침 ---
+    LaunchedEffect(toastMessage) {
+        toastMessage?.let { message ->
+
+            // 메시지 내용에 따라 토스트 타입 결정 (성공/실패)
+            val toastType = when {
+                message.contains("실패했어요.") -> AppToastType.NEGATIVE
+                message.contains("취소되었어요.") -> AppToastType.POSITIVE
+                message.contains("즐겨찾기가")->AppToastType.FAVORITE
+                else -> AppToastType.NORMAL
+            }
+
             scope.launch {
                 toastHostState.show(
                     title = buildAnnotatedString { append(message) },
-                    layout = AppToastLayout.TitleOnly
+                    layout = AppToastLayout.TitleOnly,
+                    type = toastType // 타입 적용
                 )
             }
-            if (message.contains("취소되었습니다")) {
+        }
+    }
+
+    // --- BoardDetailViewModel의 토스트 메시지 처리  ---
+    val detailToastMessage by boardDetailViewModel.toastMessage.collectAsState()
+    LaunchedEffect(detailToastMessage) {
+        detailToastMessage?.let { message ->
+            val toastType = when {
+                message.contains("실패했어요.") -> AppToastType.NEGATIVE
+                message.contains("완료되었어요.") || message.contains("취소되었어요.") -> AppToastType.POSITIVE
+                else -> AppToastType.NORMAL
+            }
+
+            scope.launch {
+                toastHostState.show(
+                    title = buildAnnotatedString { append(message) },
+                    layout = AppToastLayout.TitleOnly,
+                    type = toastType
+                )
+            }
+            if (message.contains("취소되었어요.")) {
                 cardViewModel.refresh()
             }
             boardDetailViewModel.clearToastMessage()
@@ -282,6 +315,7 @@ fun MyBoardScreen(
             // 검색 "진행 중"일 때 칩 감추기
             if (!(isSearchMode)) {
                 FilterButtons(
+                    selectedTab = selectedTab,
                     onRequestFilter = { f ->
                         if (selectedTab == 1) boardViewModel.setFilter(f) else cardViewModel.setFilter(f)
                     },
@@ -588,12 +622,15 @@ fun TitleBar(
 
 @Composable
 fun FilterButtons(
+    selectedTab: Int,
     onRequestFilter: (String) -> Unit,
     onRequestSort: (String) -> Unit,
     enabled: Boolean
 ) {
     val filters = listOf("즐겨찾기", "공유됨")
-    var selected by remember { mutableStateOf<String?>(null) }
+
+    // 탭이 바뀔 때마다 selected 를 새로 초기화
+    var selected by remember(selectedTab) { mutableStateOf<String?>(null) }
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -603,6 +640,7 @@ fun FilterButtons(
     ) {
         // 정렬 버튼
         SortFilterButton(
+            selectedTab = selectedTab,
             onSortSelected = { sortKey -> onRequestSort(sortKey) }
         )
         // 즐겨찾기, 공유됨 필터 버튼
@@ -712,7 +750,7 @@ fun ScrollableCardContent(
                 selectedCardIds = selectedCardIds
             )
         }
-        // ▼▼▼ 로딩 중일 때 하단에 인디케이터 표시 ▼▼▼
+        // 로딩 중일 때 하단에 인디케이터 표시
         if (isLoading) {
             item {
                 Box(
@@ -762,11 +800,12 @@ fun EmptyStateUI(modifier: Modifier = Modifier, iconRes: Int, message: String) {
 // 공통 정렬 UI
 @Composable
 fun SortFilterButton(
+    selectedTab: Int,
     enabled: Boolean = true,
     onSortSelected: (String) -> Unit
 ) {
-    // 버튼에 표시될 텍스트와 팝업 표시 여부를 관리하는 내부 상태
-    var currentSortText by remember { mutableStateOf("최근 저장순") }
+    // 탭이 바뀔 때마다 기본값으로 리셋
+    var currentSortText by remember(selectedTab) { mutableStateOf("최근 저장순") }
     var isPopupExpanded by remember { mutableStateOf(false) }
 
     // 화면에 표시될 텍스트와 서버에 보낼 값을 매핑

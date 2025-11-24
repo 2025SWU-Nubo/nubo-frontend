@@ -100,6 +100,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import com.example.components.toast.AppToastOverlay
 import com.example.components.toast.LocalAppToastHostState
 import com.example.components.toast.rememberAppToastHostState
+import com.example.nubo.ui.screen.learn.LearnScreenBerry
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -435,6 +436,20 @@ fun MainScreen(
                 composable("learn") {
                     // Learn keeps its own insets strategy
                     LearnScreen(navController = navController) // navController를 전달합니다.
+                }
+
+                composable(
+                    route = "learnBerry/{berryCount}",
+                    arguments = listOf(
+                        navArgument("berryCount") { type = NavType.IntType }
+                    )
+                ) { backStackEntry ->
+                    val berryCountArg = backStackEntry.arguments?.getInt("berryCount") ?: 0
+
+                    LearnScreenBerry(
+                        berryCount = berryCountArg,
+                        onBackClick = { navController.popBackStack() }
+                    )
                 }
 
                 composable("profile") {
