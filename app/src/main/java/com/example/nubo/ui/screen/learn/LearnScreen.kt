@@ -70,6 +70,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import com.example.nubo.ui.theme.Grey700
 import com.example.nubo.ui.theme.Purple100
 
 
@@ -87,6 +88,10 @@ fun LearnScreen(
     viewModel: LearnViewModel = hiltViewModel(),
     navController: NavController
 ) {
+    //인포 팝업 상태 관리
+    var showInfoPopup by rememberSaveable { mutableStateOf(true) }
+
+
     // ViewModel의 UI 상태를 구독
     val uiState by viewModel.uiState.collectAsState()
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
@@ -113,14 +118,14 @@ fun LearnScreen(
                 GraphicBackgroundView(
                     modifier = Modifier.fillMaxSize(),
                     todayVideoCount = 3, // 오늘 카운트 값 2D 그래픽 파일에 전달
-                    level = 4
+                    level = 3
                 )
                 Text(
-                    text = "시스템 오류가 발생했습니다.",
-                    style = AppTextStyles.title_semibold_24,
+                    text = "성장보드 정보를 불러오지 못했어요.",
+                    style = AppTextStyles.subtitle_semibold_20,
                     modifier = Modifier.align(Alignment.TopCenter)
-                        .padding(top=300.dp),
-                    color = Color.Black)
+                        .padding(top=100.dp),
+                    color = Grey700)
             }
 
             is DashboardUiState.Success -> {
@@ -165,7 +170,7 @@ fun LearnScreen(
                 ) {
                     TopBar(
                         title = "대시보드",
-                        onClickChart = { /* TODO */ }
+                        onClickInfo = { showInfoPopup = true }
                     )
                     Spacer(Modifier.height(12.dp))
 
@@ -214,16 +219,27 @@ fun LearnScreen(
                         onBerryAnimationDone = {
                             // ViewModel에 이 함수를 추가해야 합니다.
                             viewModel.onBerryAnimationFinished()
+                        },
+                        onClickBerryBadge = {
+                            // 베리 배지 클릭 시 모은 베리 화면으로 이동하면서 개수 전달
+                            navController.navigate("learnBerry/$berryCount")
                         }
                     )
                     Spacer(Modifier.height(130.dp))
                 }
             }
         }
+        // 누베리 획득 팝업
         if (berryGained) {
             NuberryPopup(
                 onDismiss = { viewModel.onBerryAnimationFinished() },
                 onClickBerryPage = { /* TODO: 나중에 베리 화면으로 이동 */ }
+            )
+        }
+        // 인포 팝업
+        if (showInfoPopup) {
+            LearnScreenInformation(
+                onClose = { showInfoPopup = false } // close on X or "시작하기"
             )
         }
     }
@@ -234,7 +250,7 @@ fun LearnScreen(
 @Composable
 private fun TopBar(
     title: String,
-    onClickChart: () -> Unit
+    onClickInfo: () -> Unit
 ) {
     // 상단 바: 타이틀 중앙 + 우측 아이콘 버튼
     Box(
@@ -257,8 +273,8 @@ private fun TopBar(
         Box(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .clip(CircleShape),
-            //.clickable(onClick = onClickChart),
+                .clip(CircleShape)
+                .noRippleClickable { onClickInfo() },
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -464,7 +480,8 @@ private fun BottomProgressCard(
     cardMinHeight: Dp = 50.dp,
     levelUpText: String,
     onLevelUpAnimationDone: () -> Unit,
-    onBerryAnimationDone: () -> Unit
+    onBerryAnimationDone: () -> Unit,
+    onClickBerryBadge: () -> Unit
 ) {
 
     // 현재 단계 값을 받아서 다음 단계로
@@ -605,7 +622,6 @@ private fun BottomProgressCard(
                     }
                 }
             }
-            // ▲ 변경
         }
         // 누베리 개수 원형 카드
         // 배지는 카드 콘텐츠와 독립적으로 Box(부모) 기준에 고정
@@ -616,6 +632,10 @@ private fun BottomProgressCard(
                 .shadow(6.dp, RoundedCornerShape(999.dp), clip = true)
                 .clip(RoundedCornerShape(999.dp))
                 .background(Color.White.copy(alpha = 0.80f))
+                .noRippleClickable {
+                    // 베리 배지 클릭 시 콜백 호출
+                    onClickBerryBadge()
+                }
                 .padding(horizontal = 12.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
