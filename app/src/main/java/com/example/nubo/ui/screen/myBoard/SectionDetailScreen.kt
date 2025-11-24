@@ -240,31 +240,51 @@ fun SectionDetailScreen(
                             }
                         )
                     }
-                    ScrollableCardContent(
-                        cards = cardItems,
-                        cardHeights = cardHeights,
-                        onCardClick = { cardId ->
-                            if (isSelectionMode) {
-                                selectedCards =
-                                    if (selectedCards.contains(cardId)) selectedCards - cardId else selectedCards + cardId
-                            } else {
-                                navController.navigate("card_detail/$cardId")
-                            }
-                        },
-                        onCardLongClick = {cardId ->
-                            // 롱클릭 시 선택 모드로 진입하고, 현재 카드 선택
-                            if (!isSelectionMode) {
-                                isSelectionMode = true
-                                bottomSheetType = BottomSheetType.SELECTION
-                                selectedCards = setOf(cardId) // 새 Set으로 첫 항목 선택
-                            }},
-                        isSelectionMode = isSelectionMode,
-                        selectedCardIds = selectedCards,
-                        onLoadMore = { viewModel.loadNextPage() },
-                        isLoading = ui.isLoading,
-                        isLastPage = ui.isLast
+                    // 섹션에 카드가 아무것도 없을 때 빈 상태 UI 표시
+                    if (cardItems.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize(), // 스크린 전체 사용
+                            contentAlignment = Alignment.Center // 가운데 정렬
+                        ) {
+                            Text(
+                                text = "이 섹션에는 아직 저장된 카드가 없어요",
+                                style = AppTextStyles.b2_medium_16,
+                                color = GreyMain300,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp)
+                            )
+                        }
+                    } else {
+                        ScrollableCardContent(
+                            cards = cardItems,
+                            cardHeights = cardHeights,
+                            onCardClick = { cardId ->
+                                if (isSelectionMode) {
+                                    selectedCards =
+                                        if (selectedCards.contains(cardId)) selectedCards - cardId else selectedCards + cardId
+                                } else {
+                                    navController.navigate("card_detail/$cardId")
+                                }
+                            },
+                            onCardLongClick = { cardId ->
+                                // 롱클릭 시 선택 모드로 진입하고, 현재 카드 선택
+                                if (!isSelectionMode) {
+                                    isSelectionMode = true
+                                    bottomSheetType = BottomSheetType.SELECTION
+                                    selectedCards = setOf(cardId) // 새 Set으로 첫 항목 선택
+                                }
+                            },
+                            isSelectionMode = isSelectionMode,
+                            selectedCardIds = selectedCards,
+                            onLoadMore = { viewModel.loadNextPage() },
+                            isLoading = ui.isLoading,
+                            isLastPage = ui.isLast
 
-                    )
+                        )
+                    }
                 }
             }
         }

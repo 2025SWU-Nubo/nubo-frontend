@@ -1,5 +1,6 @@
 package com.example.nubo.ui.screen.card
 
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -81,7 +82,7 @@ class CardDetailViewModel @Inject constructor(
                     val title = buildHighlightedTitle(
                         full = "Level Up!",
                         highlight = "Level Up!",
-                        highlightColor = PurpleMain500
+                        highlightColor = Color.White
                     )
                     val summary = "대시보드에서 나의 성장을 확인해보세요"
                     _toast2.value = Pair(title, summary)
@@ -92,7 +93,7 @@ class CardDetailViewModel @Inject constructor(
                     val title = buildHighlightedTitle(
                         full = "누베리 성장 완료!",
                         highlight = "누베리 성장 완료!",
-                        highlightColor = PurpleMain500
+                        highlightColor = Color.White
                     )
                     val summary = "대시보드에서 직접 수확해보세요"
                     _toast2.value = Pair(title, summary)

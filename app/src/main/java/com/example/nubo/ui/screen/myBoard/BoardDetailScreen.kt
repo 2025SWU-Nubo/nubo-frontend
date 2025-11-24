@@ -32,10 +32,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -89,6 +85,7 @@ import com.example.nubo.utils.REFRESH_TICK_KEY
 import kotlinx.coroutines.launch
 import com.example.components.toast.AppToastType
 import com.example.nubo.ui.component.noRippleClickable
+import com.example.nubo.ui.theme.AppTextStyles.b2_medium_16
 
 // 어떤 다이얼로그를 띄울지 구분하기 위한 sealed class
 sealed class InputDialogMode {
@@ -374,7 +371,24 @@ fun BoardDetailScreen(
                             }
                         )
                     }
-
+                    // 보드에 섹션/카드가 아무것도 없을 때 빈 상태 UI 표시
+                    if (boardItems.isEmpty() && cardItems.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize(),          // 남은 스크린 영역 전체 사용
+                            contentAlignment = Alignment.Center // 가운데 정렬
+                        ) {
+                            Text(
+                                text = "이 보드에는 아직 저장된 카드가 없어요!",
+                                style = b2_medium_16,
+                                color = GreyMain300,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp)
+                            )
+                        }
+                    } else {
                     BoardDetailContent(
                         boardItems = boardItems,
                         cardItems = cardItems,
@@ -433,7 +447,7 @@ fun BoardDetailScreen(
                         selectedSections = selectedSections,
                         selectedCards = selectedCards
                     )
-                } else {
+                } } else {
                     // 로딩 인디케이터를 가운데 정렬하기 위해 Box 사용
                     Box(
                         modifier = Modifier.fillMaxSize(), // 1. 남은 공간을 모두 채움

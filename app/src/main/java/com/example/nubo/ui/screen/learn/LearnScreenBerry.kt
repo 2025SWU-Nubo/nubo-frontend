@@ -27,11 +27,14 @@ import com.example.nubo.ui.theme.AppTextStyles.b2_medium_16
 import com.example.nubo.ui.theme.AppTextStyles.b2_regular_16
 import com.example.nubo.ui.theme.AppTextStyles.b2_semibold_16
 import com.example.nubo.ui.theme.AppTextStyles.b3_medium_14
+import com.example.nubo.ui.theme.AppTextStyles.b3_regular_14
 import com.example.nubo.ui.theme.AppTextStyles.subtitle_semibold_20
 import com.example.nubo.ui.theme.AppTextStyles.title_semibold_24
 import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.Grey1000
+import com.example.nubo.ui.theme.Grey200
+import com.example.nubo.ui.theme.GreyMain100
 import com.example.nubo.ui.theme.Purple200
 import com.example.nubo.ui.theme.PurpleMain500
 
@@ -124,18 +127,28 @@ fun LearnScreenBerry(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp)
-                        .padding(top = 32.dp)
+                        .padding(top = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         text = "성장 리워드",
                         style = subtitle_semibold_20,
-                        color = Grey1000
+                        color = Grey1000,
+                        textAlign = TextAlign.Center,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "베리를 모으면 성장보드의 다양한 모습을 볼 수 있어요.",
-                        style = b2_regular_16,
-                        color = Grey500
+                        style = b3_regular_14,
+                        color = Grey500,
+                        textAlign = TextAlign.Center,
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Divider(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp),
+                        color = Color(0xFFD0D0D0) // 예시 hex 컬러
                     )
                 }
             }
@@ -152,7 +165,7 @@ fun LearnScreenBerry(
             item {
                 BerryGridSection(
                     items = todayWeatherItems,
-                    modifier = Modifier.padding(horizontal = 24.dp)
+                    modifier = Modifier.padding(horizontal = 0.dp)
                 )
             }
 
@@ -169,7 +182,6 @@ fun LearnScreenBerry(
                 BerryGridSection(
                     items = cloudEmotionItems,
                     modifier = Modifier
-                        .padding(horizontal = 24.dp)
                         .padding(bottom = 36.dp)
                 )
             }
@@ -182,9 +194,6 @@ fun LearnScreenBerry(
 private fun BerryTopBar(
     onBackClick: () -> Unit
 ) {
-    // 상태바 높이 고려
-    val config = LocalConfiguration.current
-    val topBarHeight = 56.dp
 
     Surface(
         shadowElevation = 0.dp,
@@ -193,8 +202,8 @@ private fun BerryTopBar(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(topBarHeight)
-                .padding(horizontal = 22.dp),
+                .statusBarsPadding()
+                .padding(top=12.dp, bottom = 12.dp),
             contentAlignment = Alignment.Center
         ) {
             // 뒤로가기 버튼 (좌측 정렬)
@@ -203,9 +212,12 @@ private fun BerryTopBar(
                 modifier = Modifier.align(Alignment.CenterStart)
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    painter = painterResource(id = R.drawable.ic_arrow_back),
                     contentDescription = "뒤로가기",
-                    tint = Grey1000
+                    tint = Grey1000,
+                    modifier = Modifier
+                        .size(24.dp),
+
                 )
             }
 
@@ -304,26 +316,34 @@ private fun BerryGridSection(
     items: List<BerryItem>,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier) {
-        // 아이템을 3개씩 행으로 끊어서 배치
+    Column(
+        modifier = modifier.padding(horizontal = 24.dp) // 전체 그리드 좌우 여백 고정
+    ) {
+        val itemSpacing = 12.dp // 아이템 간 간격 (원하는 대로 조절 가능)
+
         items.chunked(3).forEach { rowItems ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 36.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(itemSpacing) // 균등 간격 설정
             ) {
                 rowItems.forEach { item ->
                     BerryGridItem(
                         item = item,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f) // 각 아이템 폭 동일
                     )
                 }
 
-                // 마지막 행에서 3개가 안될 경우 빈 공간 채우기
+                // 마지막 행이 3개 미만일 때 빈칸 채우기
                 if (rowItems.size < 3) {
                     repeat(3 - rowItems.size) {
-                        Spacer(modifier = Modifier.weight(1f))
+                        Spacer(
+                            modifier = Modifier
+                                .weight(1f)
+                                .aspectRatio(1f)
+                        )
                     }
                 }
             }
@@ -346,7 +366,7 @@ private fun BerryGridItem(
             painter = painterResource(id = item.imageRes),
             contentDescription = item.name,
             modifier = Modifier
-                .size(110.dp),
+                .size(105.dp),
             contentScale = ContentScale.Fit
         )
 
@@ -355,7 +375,7 @@ private fun BerryGridItem(
         Text(
             text = item.name,
             style = b2_medium_16,
-            color = if (item.isUnlocked) Grey500 else Grey1000,
+            color = if (item.isUnlocked) Grey1000 else GreyMain100,
             textAlign = TextAlign.Center
         )
     }

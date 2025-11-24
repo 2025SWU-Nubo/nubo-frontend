@@ -1,5 +1,6 @@
 package com.example.nubo.ui.screen.learn
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.tween
@@ -69,7 +70,13 @@ import java.time.format.DateTimeFormatter
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
+import com.example.components.toast.AppToastLayout
+import com.example.components.toast.AppToastOverlay
+import com.example.components.toast.AppToastType
+import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.ui.theme.Grey700
 import com.example.nubo.ui.theme.Purple100
 
@@ -88,9 +95,19 @@ fun LearnScreen(
     viewModel: LearnViewModel = hiltViewModel(),
     navController: NavController
 ) {
-    //인포 팝업 상태 관리
-    var showInfoPopup by rememberSaveable { mutableStateOf(true) }
+    // 인포 팝업 노출 상태
+    var showInfoPopup by rememberSaveable { mutableStateOf(false) }
 
+    // 화면 첫 진입 시 1회만 자동 표시
+    LaunchedEffect(Unit) {
+        if (!viewModel.hasSeenInfoPopup()) {
+            showInfoPopup = true
+            viewModel.markInfoPopupSeen()
+        }
+    }
+
+    // 커스텀 토스트 호스트 상태 생성
+    val toastHostState = rememberAppToastHostState()
 
     // ViewModel의 UI 상태를 구독
     val uiState by viewModel.uiState.collectAsState()
@@ -115,17 +132,23 @@ fun LearnScreen(
             }
 
             is DashboardUiState.Error -> {
+                val context = LocalContext.current
+
+                // 1. 배경 이미지 (Text 제거 후 배경만 유지)
                 GraphicBackgroundView(
                     modifier = Modifier.fillMaxSize(),
-                    todayVideoCount = 3, // 오늘 카운트 값 2D 그래픽 파일에 전달
+                    todayVideoCount = 3, // 에러 시 보여줄 기본 값 (필요에 따라 수정)
                     level = 3
                 )
-                Text(
-                    text = "성장보드 정보를 불러오지 못했어요.",
-                    style = AppTextStyles.subtitle_semibold_20,
-                    modifier = Modifier.align(Alignment.TopCenter)
-                        .padding(top=100.dp),
-                    color = Grey700)
+                // 화면 진입 시 커스텀 토스트 호출 (1회성)
+                LaunchedEffect(Unit) {
+                    toastHostState.show(
+                        title = AnnotatedString("정보를 불러오지 못했어요"),
+                        summary = "네트워크 확인 후 다시 시도해주세요.", // 두 번째 줄은 summary로 처리
+                        type = AppToastType.NEGATIVE,         // 에러 아이콘 타입
+                        layout = AppToastLayout.TitleWithSummary // 제목 + 설명 레이아웃
+                    )
+                }
             }
 
             is DashboardUiState.Success -> {
@@ -149,6 +172,7 @@ fun LearnScreen(
                 val berryCount = dashboardData.berryCount
                 val currentStage = dashboardData.stage
                 val nextStageRemaining = dashboardData.nextStageRemaining
+
 
                 // 오늘 학습 카운트 계산 (물방울 개수 적용)
                 val todayCount = bubbleCounts.getOrNull(todayIndex) ?: 0
@@ -233,7 +257,14 @@ fun LearnScreen(
         if (berryGained) {
             NuberryPopup(
                 onDismiss = { viewModel.onBerryAnimationFinished() },
-                onClickBerryPage = { /* TODO: 나중에 베리 화면으로 이동 */ }
+                onClickBerryPage = {
+                    // uiState가 Success 상태인지 확인하고 berryCount를 가져옴
+                    // 만약 로딩/에러 상태라면 안전하게 0으로 처리
+                    val currentCount = (uiState as? DashboardUiState.Success)?.data?.berryCount ?: 0
+
+                    // 가져온 개수를 경로에 포함시켜 이동
+                    navController.navigate("learnBerry/$currentCount")
+                }
             )
         }
         // 인포 팝업
@@ -242,6 +273,12 @@ fun LearnScreen(
                 onClose = { showInfoPopup = false } // close on X or "시작하기"
             )
         }
+        // 커스텀 토스트 오버레이 배치
+        // 화면 최상단 레이어에 위치
+        AppToastOverlay(
+            hostState = toastHostState,
+            extraBottomOffset = 100.dp // 하단 탭바 높이 등을 고려하여 위치 조정
+        )
     }
 }
 

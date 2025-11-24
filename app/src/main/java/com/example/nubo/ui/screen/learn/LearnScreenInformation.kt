@@ -177,7 +177,7 @@ private fun LearnInfoPageFirst(
             contentDescription = null,
             modifier = Modifier.matchParentSize(),
 
-            // [수정 포인트] 가로에 억지로 맞추지 않고, '중앙'을 기준으로 배치
+            // 가로에 억지로 맞추지 않고, '중앙'을 기준으로 배치
             alignment = Alignment.Center,
 
             // 옵션 1: 화면을 꽉 채우되, 중앙을 기준으로 자르기 (가장 추천)
@@ -193,8 +193,6 @@ private fun LearnInfoPageFirst(
                 .fillMaxSize()
                 .padding(horizontal = 18.dp, vertical = 16.dp),
         ) {
-
-            Spacer(modifier = Modifier.height(4.dp))
             // 상단 닫기 버튼
             IconButton(
                 onClick = onClose,

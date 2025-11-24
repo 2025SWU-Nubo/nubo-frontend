@@ -1,5 +1,7 @@
 package com.example.nubo.ui.screen.learn
 
+import android.app.Application
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.nubo.data.model.DashboardResponse
@@ -24,7 +26,8 @@ sealed class DashboardUiState {
 class LearnViewModel @Inject constructor(
     private val learnRepository: LearnRepository,
     private val authRepository: AuthRepository,
-    private val eventHolder: UserProgressEventHolder
+    private val eventHolder: UserProgressEventHolder,
+    application: Application
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<DashboardUiState>(DashboardUiState.Loading)
@@ -42,6 +45,17 @@ class LearnViewModel @Inject constructor(
     init {
         fetchDashboardData()
         observePendingEvents() // 앱 전역 이벤트 관찰 시작
+    }
+
+    private val prefs = application.getSharedPreferences("learn_prefs", Context.MODE_PRIVATE)
+
+    // 이미 팝업 본 적 있는지 여부
+    fun hasSeenInfoPopup(): Boolean {
+        return prefs.getBoolean("has_seen_info_popup", false)
+    }
+
+    fun markInfoPopupSeen() {
+        prefs.edit().putBoolean("has_seen_info_popup", true).apply()
     }
 
     private fun fetchDashboardData() {
