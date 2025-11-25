@@ -150,8 +150,12 @@ class BoardViewModel @Inject constructor(
                 size = res.size
                 isLast = res.last
             } catch (e: Exception) {
+                // 전체 초기 로딩일 때는 리스트 비우기
                 if (reset) _boards.value = emptyList()
                 Log.e("BoardViewModel", "Error fetching boards", e)
+
+                // 보드 목록 불러오기 실패 시 토스트 메시지 설정
+                _toastMessage.value = "정보를 불러오지 못했어요"
             }
         }
     }

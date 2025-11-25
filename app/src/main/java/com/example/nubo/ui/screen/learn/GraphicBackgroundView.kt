@@ -486,11 +486,11 @@ fun GraphicBackgroundView(
                 contentAlignment = Alignment.TopCenter
             ) {
                 // 물방울 개별 위치 로직 (이전과 동일)
-                val pos1 = Pair((-700).dp, (-270).dp)
-                val pos2 = Pair((-350).dp, (-200).dp)
-                val pos3 = Pair(0.dp, (-270).dp)
-                val pos4 = Pair(350.dp, (-200).dp)
-                val pos5 = Pair(700.dp, (-270).dp)
+                val pos1 = Pair((-700).dp, (-255).dp)
+                val pos2 = Pair((-350).dp, (-140).dp)
+                val pos3 = Pair(0.dp, (-225).dp)
+                val pos4 = Pair(350.dp, (-140).dp)
+                val pos5 = Pair(700.dp, (-255).dp)
 
                 val positionsToShow = when (dropCount) {
                     1 -> listOf(pos3)
@@ -515,18 +515,6 @@ fun GraphicBackgroundView(
                 }
             }
 
-            // Z-Order 4: 구름 (맨 위)
-            Image(
-                painter = painterResource(id = R.drawable.learn_cloud),
-                contentDescription = "구름",
-                modifier = Modifier
-                    .offset(y = -60.dp)
-                    .scale(scaleX = 1.9f, scaleY = 1.9f)
-                    .graphicsLayer {
-                        translationY = cloudOffsetY
-                    }
-            )
-
             // 구름 클릭 시
             val coroutineScope = rememberCoroutineScope()
 
@@ -534,7 +522,7 @@ fun GraphicBackgroundView(
                 painter = painterResource(id = R.drawable.learn_cloud),
                 contentDescription = "구름",
                 modifier = Modifier
-                    .offset(y = (-60).dp + cloudOffsetY.dp)
+                    .offset(y = (-57).dp + cloudOffsetY.dp)
                     .scale(1.9f * cloudScale)
                     .noRippleClickable{
                         if (!cloudClicked) {

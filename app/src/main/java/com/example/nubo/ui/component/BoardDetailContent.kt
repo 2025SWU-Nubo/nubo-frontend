@@ -48,7 +48,7 @@ fun BoardDetailContent(
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(20.dp),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 11.dp)
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 60.dp)
     ) {
         // [1] 보드(섹션) 2열 그리드
         items(boardItems.chunked(2)) { rowItems ->
