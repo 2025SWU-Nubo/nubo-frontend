@@ -45,7 +45,7 @@ fun OnboardingOutroPage(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-//            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(50.dp))
 
             // 페이지 번호
             Box(
@@ -64,24 +64,36 @@ fun OnboardingOutroPage(
                     textAlign = TextAlign.Center
                 )
             }
+
             Spacer(modifier = Modifier.height(6.dp))
 
+            // 제목 고정
             Text(
                 text = "Nubo에 공유하기만 하면\n영상 카드 추가가 완료!",
-                style = AppTextStyles.b1_bold_18,
-                color = Color.Black
+                style = AppTextStyles.title_bold_24,
+                color = Color.Black,
+                textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // TODO 카드 일러스트 PNG 배치
-            Image(
-                painter = painterResource(id = R.drawable.onboarding_outro_card),
-                contentDescription = null
-            )
+            // ✅ 중간: 카드 일러스트를 남은 영역 중앙에
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),                  // 중간 영역
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.onboarding_outro_card),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth(0.8f)
+                        .heightIn(max = 260.dp)
+                )
+            }
 
-            Spacer(modifier = Modifier.height(40.dp))
-
+            // ✅ 하단: 안내 카드
             OutroLinkGuideCard()
 
             Spacer(modifier = Modifier.height(20.dp))

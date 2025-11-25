@@ -91,7 +91,7 @@ fun OnBoardingInterestScreen(
                             )
                         }
                     }) {
-                        Text("건너뛰기", color = Grey200, style = AppTextStyles.b2_semibold_16)
+                        Text("건너뛰기", color = Color.Black, style = AppTextStyles.b2_semibold_16)
                     }
                 },
                 modifier = Modifier.drawBehind {
