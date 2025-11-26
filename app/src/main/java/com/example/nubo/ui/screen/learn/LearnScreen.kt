@@ -193,7 +193,7 @@ fun LearnScreen(
                         .fillMaxSize()
                 ) {
                     TopBar(
-                        title = "대시보드",
+                        title = "성장보드",
                         onClickInfo = { showInfoPopup = true }
                     )
                     Spacer(Modifier.height(12.dp))
@@ -500,7 +500,6 @@ private fun SpeechBubble(
         }
     }
 }
-
 //================= 하단 성장률 표시 카드 와 누베리 개수 원형 카드 =================
 
 @Composable
