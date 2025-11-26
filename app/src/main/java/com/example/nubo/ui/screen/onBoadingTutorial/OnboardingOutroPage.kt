@@ -21,7 +21,7 @@ import com.example.nubo.data.model.OnboardingPage
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.PurpleMain500
 
-// 마지막 온보딩 페이지 본문
+
 @Composable
 fun OnboardingOutroPage(
     stepNumber: Int,
@@ -29,14 +29,6 @@ fun OnboardingOutroPage(
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        // 배경 그라디언트 PNG 이미지
-        Image(
-            painter = painterResource(id = R.drawable.outro_bg),
-            contentDescription = null,      // 장식용 이미지라서 null
-            modifier = Modifier.matchParentSize(), // 화면 전체 채우기
-            contentScale = ContentScale.Crop       // 비율 유지하면서 꽉 채우기
-        )
-
         // 실제 텍스트와 카드 일러스트 영역
         Column(
             modifier = Modifier
@@ -77,7 +69,7 @@ fun OnboardingOutroPage(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ✅ 중간: 카드 일러스트를 남은 영역 중앙에
+            // 카드 일러스트 남은 영역 중앙에
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -93,14 +85,13 @@ fun OnboardingOutroPage(
                 )
             }
 
-            // ✅ 하단: 안내 카드
+            // 안내 카드
             OutroLinkGuideCard()
 
             Spacer(modifier = Modifier.height(20.dp))
         }
     }
 }
-
 
     @Composable
     fun OutroLinkGuideCard() {
@@ -109,7 +100,7 @@ fun OnboardingOutroPage(
                 .fillMaxWidth()
                 .background(
                     color = Color.White,
-                    shape = RoundedCornerShape(10.dp)  // 흰색 라운드 카드
+                    shape = RoundedCornerShape(10.dp)
                 )
         ){
             Column(
@@ -175,12 +166,4 @@ fun OnboardingOutroPage(
             }
         }
     }
-
-//@Preview(showBackground = true, showSystemUi = true)
-//@Composable
-//private fun OnboardingOutroPagePreview() {
-//    MaterialTheme {
-//        OnboardingOutroPage("5")
-//    }
-//}
 

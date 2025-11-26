@@ -15,7 +15,8 @@ import com.example.nubo.R
 fun OnboardingStep1Page() {
     StepBaseLayout(
         stepNumber = 1,
-        title = "1 버튼을 누르세요"
+        title = "버튼을 누르세요.",
+        showShareIcon = true
     ) {
         Box(
             modifier = Modifier

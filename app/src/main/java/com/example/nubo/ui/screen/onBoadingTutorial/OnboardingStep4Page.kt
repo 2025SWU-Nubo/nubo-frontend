@@ -38,7 +38,7 @@ fun OnboardingStep4Page() {
                 contentDescription = null,
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .offset(x = (17).dp, y = (-33).dp)
+                    .offset(x = (17).dp, y = (-23).dp)
                     .width(40.dp)
             )
         }

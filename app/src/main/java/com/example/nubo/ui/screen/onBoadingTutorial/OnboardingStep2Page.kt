@@ -22,7 +22,7 @@ import com.example.nubo.ui.theme.AppTextStyles
 fun OnboardingStep2Page() {
     StepBaseLayout(
         stepNumber = 2,
-        title = "공유 버튼을 누르세요"
+        title = "공유 버튼을 누르세요."
     ) {
         Box(
             modifier = Modifier

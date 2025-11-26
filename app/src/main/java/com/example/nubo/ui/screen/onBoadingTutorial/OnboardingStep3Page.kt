@@ -16,7 +16,7 @@ import com.example.nubo.R
 fun OnboardingStep3Page() {
     StepBaseLayout(
         stepNumber = 3,
-        title = "앱 목록을 쓸어넘겨\n더보기를 ••• 를 누르세요"
+        title = "앱 목록을 쓸어넘겨\n더보기를 ••• 를 누르세요."
     ) {
         Box(
             modifier = Modifier
