@@ -66,7 +66,7 @@ fun OnboardingStep1Page() {
                         contentDescription = null,
                         modifier = Modifier
                             .height(50.dp)  // 아이콘 크기
-                            .offset( x = (40).dp, y=(32).dp)
+                            .offset( x = (32).dp, y=(32).dp)
                     )
                 }
             }
