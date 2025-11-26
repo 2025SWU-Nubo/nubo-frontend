@@ -27,7 +27,7 @@ fun OnboardingStep4Page() {
                 painter = painterResource(id = R.drawable.onboarding_step_4),
                 contentDescription = null,
                 modifier = Modifier
-                    .fillMaxWidth(0.75f)
+                    .fillMaxWidth(0.70f)
                     .aspectRatio(9f / 16f),
                 contentScale = ContentScale.Fit
             )
@@ -38,7 +38,7 @@ fun OnboardingStep4Page() {
                 contentDescription = null,
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .offset(x = (40).dp, y = (-15).dp)
+                    .offset(x = (43).dp, y = (-23).dp)
                     .width(32.dp)
             )
         }

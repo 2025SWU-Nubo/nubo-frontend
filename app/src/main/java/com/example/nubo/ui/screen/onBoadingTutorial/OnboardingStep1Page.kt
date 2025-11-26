@@ -29,7 +29,7 @@ fun OnboardingStep1Page() {
             // 스크린샷과 오버레이를 감싸는 컨테이너
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.75f)
+                    .fillMaxWidth(0.7f)
                     .aspectRatio(9f / 16f) // 세로 긴 화면 비율
             ) {
                 Image(
@@ -43,7 +43,7 @@ fun OnboardingStep1Page() {
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         // 스크린샷 바깥 쪽으로 살짝 올려서 위치 맞추기
-                        .offset(x = (0).dp, y = (-90).dp)
+                        .offset(x = (-5).dp, y = (-115).dp)
                 ) {
                     // 텍스트와 아이콘을 한 덩어리로 배치
                     androidx.compose.foundation.layout.Column(
@@ -66,7 +66,7 @@ fun OnboardingStep1Page() {
                         contentDescription = null,
                         modifier = Modifier
                             .height(50.dp)  // 아이콘 크기
-                            .offset( x = (32).dp, y=(32).dp)
+                            .offset( x = (32).dp, y=(34).dp)
                     )
                 }
             }

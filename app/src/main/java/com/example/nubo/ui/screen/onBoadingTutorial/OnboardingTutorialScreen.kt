@@ -189,7 +189,7 @@ private fun OnboardingBottomBar(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         val buttonText =
@@ -207,11 +207,11 @@ private fun OnboardingBottomBar(
         ) {
             Text(
                 text = buttonText,
-                style = AppTextStyles.b2_medium_16
+                style = AppTextStyles.b2_semibold_16
             )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(26.dp))
     }
 }
 

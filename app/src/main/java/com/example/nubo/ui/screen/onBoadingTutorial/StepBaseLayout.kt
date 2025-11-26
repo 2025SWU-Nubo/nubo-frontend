@@ -55,7 +55,7 @@ fun StepBaseLayout(
             )
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // 타이틀 + (옵션) 공유 아이콘
         Row(
@@ -79,7 +79,7 @@ fun StepBaseLayout(
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // 각 페이지별 본문 영역
         content()

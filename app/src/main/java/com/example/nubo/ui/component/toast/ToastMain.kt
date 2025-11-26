@@ -143,7 +143,7 @@ data class AppToastData(
     @DrawableRes val iconRes: Int? = null,
     val iconTint: Color? = null,
     val durationMillis: Int = 2000,
-    val preDelayMillis: Int = 120,
+    val preDelayMillis: Int = 400,
     val actionLabel: String? = null,
     val onAction: (() -> Unit)? = null,
 )
@@ -256,7 +256,7 @@ class AppToastHostState {
         @DrawableRes iconRes: Int? = null,
         iconTint: Color? = null,
         durationMillis: Int = 2000,
-        preDelayMillis: Int = 120,
+        preDelayMillis: Int = 400,
         actionLabel: String? = null,
         onAction: (() -> Unit)? = null,
     ) = show(

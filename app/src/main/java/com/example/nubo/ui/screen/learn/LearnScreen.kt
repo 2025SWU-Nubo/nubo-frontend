@@ -249,7 +249,7 @@ fun LearnScreen(
                             navController.navigate("learnBerry/$berryCount")
                         }
                     )
-                    Spacer(Modifier.height(130.dp))
+                    Spacer(Modifier.height(140.dp))
                 }
             }
         }
@@ -664,7 +664,7 @@ private fun BottomProgressCard(
         Row(
             modifier = Modifier
                 .align(Alignment.TopEnd) // 부모(Box) 기준
-                .offset(y = (-52).dp)    // 스크린샷과 같은 시각적 위치
+                .offset(y = (-45).dp)    // 스크린샷과 같은 시각적 위치
                /* .shadow(6.dp, RoundedCornerShape(999.dp), clip = true)*/
                 .clip(RoundedCornerShape(999.dp))
                 .background(Color.White.copy(alpha = 0.80f))
@@ -987,7 +987,7 @@ private fun StaticLevelStepBar(
                     Text(
                         text = "${index + 1}",
                         style = AppTextStyles.b3_medium_14,
-                        color = if (isActive) Color.White else Grey1000
+                        color = if (isActive) Color.White else Color(0xFFA2A2A2)
                     )
                 }
             }
@@ -1260,7 +1260,7 @@ private fun StepBar(
                 Text(
                     text = "${i + 1}",
                     style = AppTextStyles.b3_medium_14,
-                    color = if (isActive) Color.White else Grey1000
+                    color = if (isActive) Color.White else Color(0xFFA2A2A2)
                 )
             }
         }

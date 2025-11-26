@@ -35,7 +35,7 @@ fun OnboardingStep2Page() {
                     painter = painterResource(id = R.drawable.onboarding_step_2),
                     contentDescription = null,
                     modifier = Modifier
-                        .fillMaxWidth(0.75f)
+                        .fillMaxWidth(0.7f)
                         .aspectRatio(9f / 16f),
                     contentScale = ContentScale.Fit
                 )

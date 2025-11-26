@@ -372,7 +372,7 @@ private fun ImageWithButton(
                     subtitleRight = "저장 플랫폼",
                     savedPlatformResId = when (item.videoPlatform.uppercase()) {
                         "YOUTUBE" -> R.drawable.youtube_logo
-                        "INSTAGRAM" -> R.drawable.btn_google_logo
+                        "INSTAGRAM" -> R.drawable.instagram_logo
                         else -> R.drawable.basic_profile_image
                     },
                     // Make it compact

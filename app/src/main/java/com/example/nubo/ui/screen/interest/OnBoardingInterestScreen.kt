@@ -125,9 +125,8 @@ fun OnBoardingInterestScreen(
                     },
                     enabled = selectedIds.isNotEmpty(),
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = MaterialTheme.shapes.large,
+                        .fillMaxWidth(),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
                         // 활성화 상태
                         containerColor = PurpleMain500,
@@ -137,8 +136,9 @@ fun OnBoardingInterestScreen(
                         disabledContentColor = Color.White
                     ),
                 ) {
-                    Text("시작하기", style = AppTextStyles.b1_bold_18)
+                    Text("시작하기", style = AppTextStyles.b2_semibold_16)
                 }
+                Spacer(modifier = Modifier.height(32.dp))
             }
         }
     ) { inner ->
@@ -155,7 +155,7 @@ fun OnBoardingInterestScreen(
                 .padding(horizontal = 20.dp)
         ) {
             Spacer(Modifier.height(50.dp))
-            Text("어떤 영상을 자주 보시나요?", style = AppTextStyles.headline_bold_26, modifier = Modifier.align(Alignment.CenterHorizontally),
+            Text("어떤 영상을 자주 보시나요?", style = AppTextStyles.title_bold_24, modifier = Modifier.align(Alignment.CenterHorizontally),
                 textAlign = TextAlign.Center)
             Spacer(Modifier.height(8.dp))
             Text(
@@ -336,6 +336,44 @@ private fun InterestCircleChip(
                 }
             }
         }
+    }
+}
+
+
+
+@Composable
+private fun InterestBottomBar(
+    currentPage: Int,
+    lastPageIndex: Int,
+    onNextClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        val buttonText =
+            if (currentPage == lastPageIndex) "모두 이해했어요" else "다음"
+
+        Button(
+            onClick = onNextClick,
+            modifier = Modifier.fillMaxWidth(),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (currentPage == lastPageIndex) PurpleMain500 else Purple100,
+                contentColor = if (currentPage == lastPageIndex) Color.White else PurpleMain500
+            ),
+            contentPadding = PaddingValues(0.dp)
+        ) {
+            Text(
+                text = buttonText,
+                style = AppTextStyles.b2_medium_16
+            )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 

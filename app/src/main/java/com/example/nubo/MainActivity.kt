@@ -856,7 +856,7 @@ fun MainScreen(
                 }
 
                 "REMINDER" -> {
-                    navController.navigate("learn") {
+                    navController.navigate("home") {
                         popUpTo("notification") { inclusive = false }
                         launchSingleTop = true
                     }

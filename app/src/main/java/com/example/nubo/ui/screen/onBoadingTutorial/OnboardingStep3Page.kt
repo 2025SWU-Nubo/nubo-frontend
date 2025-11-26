@@ -20,7 +20,7 @@ fun OnboardingStep3Page() {
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.75f)
+                .fillMaxWidth(0.7f)
                 .weight(1f),
             contentAlignment = Alignment.Center
         ) {
@@ -43,7 +43,7 @@ fun OnboardingStep3Page() {
                     contentDescription = null,
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .offset(x = (-15).dp, y = (-30).dp)
+                        .offset(x = (-15).dp, y = (-25).dp)
                         .width(200.dp)
                 )
             }

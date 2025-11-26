@@ -99,7 +99,7 @@ object PushChannels {
         return NotificationChannel(
             CH_REMINDER,
             "미시청 카드 추천",
-            NotificationManager.IMPORTANCE_DEFAULT  // DEFAULT = 배너 없이 조용히 알림
+            NotificationManager.IMPORTANCE_HIGH  // DEFAULT = 배너 없이 조용히 알림
         ).apply {
             description = "아직 보지 않은 카드를 정기적으로 추천해드립니다."
             enableVibration(false)  // 리마인더는 진동 없이
@@ -161,7 +161,7 @@ object PushChannels {
         return NotificationChannel(
             CH_DEFAULT,
             "기본 알림",
-            NotificationManager.IMPORTANCE_DEFAULT
+            NotificationManager.IMPORTANCE_HIGH
         ).apply {
             description = "분류되지 않은 일반 알림입니다."
             enableVibration(true)

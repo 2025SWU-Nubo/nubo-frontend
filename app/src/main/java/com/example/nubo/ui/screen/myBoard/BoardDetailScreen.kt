@@ -84,6 +84,7 @@ import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.utils.REFRESH_TICK_KEY
 import kotlinx.coroutines.launch
 import com.example.components.toast.AppToastType
+import com.example.components.toast.LocalAppToastHostState
 import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles.b2_medium_16
 
@@ -159,8 +160,9 @@ fun BoardDetailScreen(
     }
 
     // 토스트 상태 및 코루틴 스코프 선언
-    val toastHostState = rememberAppToastHostState()
+    val toastHost = LocalAppToastHostState.current
     val scope = rememberCoroutineScope()
+
     val toastMessage by viewModel.toastMessage.collectAsState()
 
     // --- ViewModel의 삭제 완료 이벤트를 구독하여 '개수'를 받아 액션 토스트 호출 ---
@@ -168,7 +170,7 @@ fun BoardDetailScreen(
         viewModel.deleteCompleteEvent.collect { count ->
             // 스낵바 대신 액션 토스트 사용 (섹션 생성 시 사용한 스타일 활용)
             scope.launch {
-                toastHostState.show(
+                toastHost.show(
                     title = AnnotatedString("${count}개의 항목이 삭제되었어요."),
                     layout = AppToastLayout.TitleWithAction,
                     type = AppToastType.NORMAL, // 삭제 알림은 Normal (또는 Positive 체크 아이콘 없이) 사용
@@ -191,7 +193,7 @@ fun BoardDetailScreen(
         toastEvent?.let { (message, source) ->
             if (source != "section") {   //  섹션 관련 토스트는 무시
                 scope.launch {
-                    toastHostState.show(
+                    toastHost.show(
                         title = AnnotatedString(message),
                         layout = AppToastLayout.TitleOnly,
                         type = if (message.contains("실패")) AppToastType.NEGATIVE else AppToastType.POSITIVE
@@ -216,7 +218,7 @@ fun BoardDetailScreen(
                     ?.maxByOrNull { it.id }
 
                 scope.launch {
-                    toastHostState.show(
+                    toastHost.show(
                         title = AnnotatedString(message),
                         layout = AppToastLayout.TitleWithAction,   // 액션 버튼 있는 레이아웃
                         actionLabel = "섹션으로 이동",
@@ -251,7 +253,7 @@ fun BoardDetailScreen(
                 }
 
                 scope.launch {
-                    toastHostState.show(
+                    toastHost.show(
                         title = AnnotatedString(message),
                         layout = AppToastLayout.TitleOnly,
                         type = toastType,
@@ -622,7 +624,7 @@ fun BoardDetailScreen(
 
                                 // 5) 전역 토스트 띄우기
                                 scope.launch {
-                                    toastHostState.show(
+                                    toastHost.show(
                                         title = buildAnnotatedString { append("보드 설정이 완료되었어요.") },
                                         layout = AppToastLayout.TitleOnly,
                                         type = AppToastType.POSITIVE
@@ -741,10 +743,6 @@ fun BoardDetailScreen(
             }
         )
     }*/
-    // 토스트 UI를 화면에 배치
-    AppToastHost(
-        hostState = toastHostState,
-        modifier = Modifier.padding(bottom = 40.dp))
 
 }
 
