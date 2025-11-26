@@ -165,7 +165,6 @@ data class AppToastStyle(
     @DrawableRes val backgroundRes: Int? = null,
     val scrim: Color = Color.Transparent
 )
-
 // ──────────────────────────────────────────────────────────────
 // 타입별 기본 스타일 제공자
 // ──────────────────────────────────────────────────────────────

@@ -84,7 +84,7 @@ class CardDetailViewModel @Inject constructor(
                         highlight = "Level Up!",
                         highlightColor = Color.White
                     )
-                    val summary = "대시보드에서 나의 성장을 확인해보세요"
+                    val summary = "성장보드에서 확인해보세요."
                     _toast2.value = Pair(title, summary)
 
                     // LearnScreen 애니메이션을 위해 EventHolder에 저장
@@ -95,7 +95,7 @@ class CardDetailViewModel @Inject constructor(
                         highlight = "누베리 성장 완료!",
                         highlightColor = Color.White
                     )
-                    val summary = "대시보드에서 직접 수확해보세요"
+                    val summary = "성장보드에서 수확해보세요."
                     _toast2.value = Pair(title, summary)
 
                     // LearnScreen 알림을 위해 EventHolder에 저장
