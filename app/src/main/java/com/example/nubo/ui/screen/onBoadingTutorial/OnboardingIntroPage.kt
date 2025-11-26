@@ -1,8 +1,6 @@
 package com.example.nubo.ui.screen.onBoadingTutorial
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
+
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -38,8 +36,6 @@ fun OnboardingIntroPage() {
             style = AppTextStyles.title_bold_24
         )
 
-//        Spacer(modifier = Modifier.height(24.dp))
-
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -48,6 +44,5 @@ fun OnboardingIntroPage() {
         ) {
             OrbitingLogos()
         }
-
     }
 }

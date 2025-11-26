@@ -1,7 +1,9 @@
 package com.example.nubo.data.repository
 
+import android.content.ContentValues.TAG
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import com.example.nubo.data.model.LoginRequest
 import com.example.nubo.data.model.LoginResponse
 import com.example.nubo.data.model.TokenCheckRequest
@@ -25,9 +27,14 @@ class AuthRepository @Inject constructor(
         context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
 
     companion object {
+        private const val TAG = "AuthRepository"
+
         private const val KEY_ACCESS_TOKEN = "access_token"
         private const val KEY_USER_ID = "user_id"
         private const val KEY_USER_INFO = "user_info"
+
+        private const val KEY_INTEREST_COMPLETED = "interest_completed"
+        private const val KEY_TUTORIAL_COMPLETED = "tutorial_completed"
     }
 
     private val _accessTokenFlow = MutableStateFlow<String?>(null)
@@ -36,12 +43,6 @@ class AuthRepository @Inject constructor(
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
         if (key == KEY_ACCESS_TOKEN) {
             _accessTokenFlow.value = prefs.getString(KEY_ACCESS_TOKEN, null)
-        }
-        if (key == KEY_USER_ID) {
-            // no-op here; kept for completeness
-        }
-        if (key == KEY_USER_INFO) {
-            // no-op here; kept for completeness
         }
     }
 
@@ -71,6 +72,7 @@ class AuthRepository @Inject constructor(
 
     // --- Token & user info persistence ---
     fun saveAccessToken(token: String) {
+        Log.d(TAG, "saveAccessToken() length=${token.length} preview=${token.take(10)}...")
         sharedPreferences.edit().apply {
             putString(KEY_ACCESS_TOKEN, token)
             apply()
@@ -78,6 +80,7 @@ class AuthRepository @Inject constructor(
     }
 
     fun saveUserId(userId: Int) {
+        Log.d(TAG, "saveUserId() id=$userId")
         sharedPreferences.edit().apply {
             putInt(KEY_USER_ID, userId)
             apply()
@@ -107,10 +110,13 @@ class AuthRepository @Inject constructor(
 
     // 모든 인증 관련 데이터 삭제
     fun clearAuthData() {
+        Log.d(TAG, "clearAuthData() remove all auth related prefs")
         sharedPreferences.edit().apply {
             remove(KEY_ACCESS_TOKEN)
             remove(KEY_USER_ID)
             remove(KEY_USER_INFO)
+            remove(KEY_INTEREST_COMPLETED)
+            remove(KEY_TUTORIAL_COMPLETED)
             apply()
         }
     }
@@ -118,6 +124,7 @@ class AuthRepository @Inject constructor(
     // UserInfo 저장
     fun saveUserInfo(userInfo: UserInfo) {
         val json = Gson().toJson(userInfo)
+        Log.d(TAG, "saveUserInfo() userId=${userInfo.id}")
         sharedPreferences.edit().apply {
             putString(KEY_USER_INFO, json)
             apply()
@@ -129,6 +136,72 @@ class AuthRepository @Inject constructor(
         val json = sharedPreferences.getString(KEY_USER_INFO, null)
         return json?.let { Gson().fromJson(it, UserInfo::class.java) }
     }
+
+    fun saveOnboardingFlags(
+        interestCompleted: Boolean,
+        tutorialCompleted: Boolean
+    ) {
+        Log.d(
+            TAG,
+            "saveOnboardingFlags() interest=$interestCompleted tutorial=$tutorialCompleted"
+        )
+        sharedPreferences.edit().apply {
+            putBoolean(KEY_INTEREST_COMPLETED, interestCompleted)
+            putBoolean(KEY_TUTORIAL_COMPLETED, tutorialCompleted)
+            apply()
+        }
+
+        // Log stored values right after save
+        Log.d(
+            TAG,
+            "saved flags now interest=${getInterestCompleted()} tutorial=${getTutorialCompleted()}"
+        )
+    }
+
+    // Update only interest flag (after interest onboarding finished)
+    fun setInterestCompleted(completed: Boolean) {
+        Log.d(TAG, "setInterestCompleted() completed=$completed")
+        sharedPreferences.edit().apply {
+            putBoolean(KEY_INTEREST_COMPLETED, completed)
+            apply()
+        }
+        Log.d(TAG, "stored interestCompleted=${getInterestCompleted()}")
+    }
+
+    // Update only tutorial flag (after tutorial finished)
+    fun setTutorialCompleted(completed: Boolean) {
+        Log.d(TAG, "setTutorialCompleted() completed=$completed")
+        sharedPreferences.edit().apply {
+            putBoolean(KEY_TUTORIAL_COMPLETED, completed)
+            apply()
+        }
+        Log.d(TAG, "stored tutorialCompleted=${getTutorialCompleted()}")
+    }
+
+    // Nullable: null means "unknown (never set yet)"
+    fun getInterestCompleted(): Boolean? {
+        return if (sharedPreferences.contains(KEY_INTEREST_COMPLETED)) {
+            val v = sharedPreferences.getBoolean(KEY_INTEREST_COMPLETED, false)
+            Log.d(TAG, "getInterestCompleted() exists=true value=$v")
+            v
+        } else {
+            Log.d(TAG, "getInterestCompleted() exists=false value=null")
+            null
+        }
+    }
+
+    fun getTutorialCompleted(): Boolean? {
+        return if (sharedPreferences.contains(KEY_TUTORIAL_COMPLETED)) {
+            val v = sharedPreferences.getBoolean(KEY_TUTORIAL_COMPLETED, false)
+            Log.d(TAG, "getTutorialCompleted() exists=true value=$v")
+            v
+        } else {
+            Log.d(TAG, "getTutorialCompleted() exists=false value=null")
+            null
+        }
+    }
+
+
 
 }
 

@@ -61,11 +61,9 @@ class OnBoardingViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private var notificationRepository: NotificationRepository
 ) : AndroidViewModel(application) {
+
     @SuppressLint("StaticFieldLeak")
     private val context: Context = application.applicationContext
-
-    // 새 사용자 여부를 저장할 변수 추가
-    private var _pendingIsNewUser: Boolean = false
 
     // FCM 토큰 캐시/등록 상태 저장용
     private val prefs = context.getSharedPreferences("push_prefs", Context.MODE_PRIVATE)
@@ -83,6 +81,14 @@ class OnBoardingViewModel @Inject constructor(
     private var pendingAccessToken: String? = null
     private val _shouldRequestNotificationPermission = MutableStateFlow(false)
     val shouldRequestNotificationPermission: StateFlow<Boolean> get() = _shouldRequestNotificationPermission
+
+    // permission 다이얼로그 후에 넘겨줄 온보딩 플래그
+    private var pendingNeedsTutorial: Boolean = false
+    private var pendingNeedsInterest: Boolean = false
+
+    // 로그인 응답에서 온 마지막 온보딩 플래그 (계정 전환용)
+    private var lastInterestSetupCompleted: Boolean = false
+    private var lastTutorialCompleted: Boolean = false
 
     private lateinit var googleSignInClient: com.google.android.gms.auth.api.signin.GoogleSignInClient
 
@@ -122,10 +128,10 @@ class OnBoardingViewModel @Inject constructor(
 
     private fun checkLoginStatus() {
         if (authRepository.isLoggedIn()) {
-            // ✅ AccessToken 이 존재 → 서버에 유효성 검사
+            // AccessToken 존재 → 서버에 유효성 검사
             validateTokenWithServer()
         } else {
-            // ❌ AccessToken 없음 → 로그인 버튼 표시
+            // AccessToken 없음 → 로그인 버튼 표시
             showLoginButton()
         }
     }
@@ -136,8 +142,9 @@ class OnBoardingViewModel @Inject constructor(
             try {
                 val call = authRepository.checkToken()
                 if (call == null) {
-                    // 토큰이 없으면 로그인 화면 표시
-                    showLoginButton(); return@launch
+                    // no local token -> show login
+                    showLoginButton()
+                    return@launch
                 }
 
                 call.enqueue(object : Callback<TokenValidationResponse> {
@@ -161,35 +168,35 @@ class OnBoardingViewModel @Inject constructor(
                         }
 
                         val result = response.body()
-                        if (result?.valid != true) {
-                            // 토큰 만료 → 로그인 필요
+                        // if token is not valid or explicitly expired -> treat as expired
+                        if (result?.valid != true || result.expired) {
                             handleTokenExpired()
                             return
                         }
 
-                        // ===== 여기부터 토큰 유효한 경우 =====
+
+                        // 2) 서버 플래그를 로컬에 싱크
+                        authRepository.saveOnboardingFlags(
+                            interestCompleted = result.interestSetupCompleted,
+                            tutorialCompleted = result.tutorialCompleted
+                        )
+
+                        // token is valid -> ensure push token registered
                         registerPushAfterLogin()
 
-                        // 서버에서 내려준 user 정보 (없으면 null)
-                        val user = result.user
-                        if (user != null) {
-                            // 로컬에도 저장해두면 이후에 쓸 수 있음
-                            authRepository.saveUserInfo(user)
+                        // 4) 온보딩 필요 여부는 "서버 응답" 기준으로 계산
+                        val needsTutorial = !result.tutorialCompleted
+                        val needsInterest = !result.interestSetupCompleted
 
-                            val interestCompleted = user.interestSetupCompleted
-                            val needsInterest = !interestCompleted
-
-                            navigateToMainWithInterest(needsInterest)
-                        } else {
-                            // user를 안 내려주는 경우에는 일단 관심사 스킵
-                            navigateToMainWithInterest(needsInterest = false)
-                        }
+                        navigateToMainWithOnboarding(
+                            needsTutorial = needsTutorial,
+                            needsInterest = needsInterest
+                        )
                     }
 
                     override fun onFailure(call: Call<TokenValidationResponse>, t: Throwable) {
                         _uiState.value = _uiState.value.copy(isLoading = false)
                         Log.e("TokenValidation", "Network error: ${t.localizedMessage}")
-                        // 네트워크 에러시에는 로그인 화면을 보여줌
                         showLoginButton()
                     }
                 })
@@ -210,12 +217,10 @@ class OnBoardingViewModel @Inject constructor(
 
     /** 권한 체크 후 메인으로 이동(필요 시 권한 다이얼로그를 띄워도 됨) */
     private fun checkNotificationPermissionAndNavigate() {
-//        if (NotificationPermissionHelper.shouldRequestNotificationPermission(context)) {
-//            _shouldRequestNotificationPermission.value = true
-//        } else {
-//            navigateToMain()
-//        }
-        navigateToMain()
+        navigateToMainWithOnboarding(
+            needsTutorial = false,
+            needsInterest = false
+        )
     }
 
     fun handleSignInResult(task: Task<GoogleSignInAccount>, onLoginComplete: (Intent) -> Unit) {
@@ -261,6 +266,10 @@ class OnBoardingViewModel @Inject constructor(
                     val newUser = loginRes.user
                     pendingAccessToken = loginRes.accessToken
 
+                    // 마지막 온보딩 플래그 기억해두기
+                    lastInterestSetupCompleted = loginRes.interestSetupCompleted
+                    lastTutorialCompleted = loginRes.tutorialCompleted
+
                     // isNewUser 저장
                     _uiState.value = _uiState.value.copy(isNewUser = loginRes.newUser)
 
@@ -270,7 +279,8 @@ class OnBoardingViewModel @Inject constructor(
                         saveUserAndNavigate(
                             user = newUser,
                             token = loginRes.accessToken,
-                            isNewUser = loginRes.newUser,
+                            interestCompleted = loginRes.interestSetupCompleted,
+                            tutorialCompleted = loginRes.tutorialCompleted,
                             onLoginComplete = onLoginComplete
                         )
                         pendingAccessToken = null
@@ -335,7 +345,7 @@ class OnBoardingViewModel @Inject constructor(
         showLoginButton()
     }
 
-    /** 계정 전환 시: 서버/로컬 모두 토큰 정리 후 새 계정으로 저장 및 이동 */
+
     /** 계정 전환 시: 서버/로컬 모두 토큰 정리 후 새 계정으로 저장 및 이동 */
     fun confirmAccountSwitch(onLoginComplete: (Intent) -> Unit) {
         val newUser = _uiState.value.loginResponseUser ?: return
@@ -345,10 +355,12 @@ class OnBoardingViewModel @Inject constructor(
         // 토큰 우선순위  로그인 응답 > 기존 저장 토큰
         val tokenToUse = accessTokenFromLogin ?: authRepository.getAccessToken() ?: return
 
+        // 로그인 응답에 있는 플래그를 그대로 넘김
         saveUserAndNavigate(
             user = newUser,
             token = tokenToUse,
-            isNewUser = isNewUser,
+            interestCompleted = lastInterestSetupCompleted,
+            tutorialCompleted = lastTutorialCompleted,
             onLoginComplete = onLoginComplete
         )
         pendingAccessToken = null
@@ -398,70 +410,93 @@ class OnBoardingViewModel @Inject constructor(
     // 로그인 후 알림 권한 처리 완료
     fun onLoginNotificationPermissionHandled() {
         _shouldRequestNotificationPermission.value = false
-        _pendingLoginComplete?.let { complete ->
-            complete(
-                Intent(context, MainActivity::class.java).apply {
+
+        val complete = _pendingLoginComplete
+        if (complete != null) {
+            val intent = Intent(context, MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                // 새 사용자면 관심사 설정 플래그 추가
-                if (_pendingIsNewUser) {
+                if (pendingNeedsTutorial) {
+                    putExtra("EXTRA_NEEDS_TUTORIAL", true)
+                }
+                if (pendingNeedsInterest) {
                     putExtra("EXTRA_NEEDS_INTEREST", true)
                 }
-            })
+            }
+            complete(intent)
             _pendingLoginComplete = null
-            return
+            pendingNeedsTutorial = false
+            pendingNeedsInterest = false
+        } else {
+            // Fallback
+            navigateToMainWithOnboarding(
+                needsTutorial = false,
+                needsInterest = false
+            )
         }
-
-        // Otherwise we came from token-validated path
-        navigateToMain()
     }
 
     private fun navigateToMain() {
-        navigateToMainWithInterest(needsInterest = false)
+        navigateToMainWithOnboarding(
+            needsTutorial = false,
+            needsInterest = false
+        )
     }
-
-    fun getGoogleSignInIntentWrapper(): Intent = googleSignInClient.signInIntent
 
     private fun saveUserAndNavigate(
         user: UserInfo,
         token: String,
-        isNewUser: Boolean,
+        interestCompleted: Boolean,
+        tutorialCompleted: Boolean,
         onLoginComplete: (Intent) -> Unit
     ) {
+        // 1) token & user persistence
         authRepository.saveAccessToken(token)
         authRepository.saveUserId(user.id)
-        authRepository.saveUserInfo(user)
+        authRepository.saveUserInfo(user)   // UserInfo 그대로 저장
 
-        // 로그인 성공시 푸시 토큰 등록 시도 (이제 스킵 안 됨)
+        // 2) onboarding flags are stored separately in AuthRepository
+        authRepository.saveOnboardingFlags(
+            interestCompleted = interestCompleted,
+            tutorialCompleted = tutorialCompleted
+        )
+
+        // 3) register push token
         registerPushAfterLogin()
 
-        // 1  서버가 내려준 관심사 완료 여부
-        val interestCompleted = user.interestSetupCompleted
-        // 2  관심사 설정이 아직 안 되어 있으면 온보딩 필요
-        val needsInterest = isNewUser || !interestCompleted
+        // 4) decide onboarding
+        val needsTutorial = !tutorialCompleted
+        val needsInterest = !interestCompleted
 
-        // 이하 기존 로직 그대로
+        // 5) notification permission flow
         if (NotificationPermissionHelper.shouldRequestNotificationPermission(context)) {
             _shouldRequestNotificationPermission.value = true
             _pendingLoginComplete = onLoginComplete
-            _pendingIsNewUser = needsInterest
-        } else {
-            // 권한 요청이 필요없을 때도 isNewUser 체크
-            val intent = Intent(context, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                if (needsInterest) putExtra("EXTRA_NEEDS_INTEREST", true)
-            }
-            onLoginComplete(intent)
+            pendingNeedsTutorial = needsTutorial
+            pendingNeedsInterest = needsInterest
+            return
         }
-    }
 
-    private fun navigateToMainWithInterest(needsInterest: Boolean) {
+        // 6) go MainActivity with flags
         val intent = Intent(context, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-            if (needsInterest) {
-                // MainActivity → MainScreen 에서 이 값을 보고 onboarding_interest 로 네비게이션
-                putExtra("EXTRA_NEEDS_INTEREST", true)
-            }
+            if (needsTutorial) putExtra("EXTRA_NEEDS_TUTORIAL", true)
+            if (needsInterest) putExtra("EXTRA_NEEDS_INTEREST", true)
+        }
+        onLoginComplete(intent)
+    }
+
+
+    /** MainActivity 로 바로 진입할 때 사용할 헬퍼 (토큰 검증 경로 등) */
+    private fun navigateToMainWithOnboarding(
+        needsTutorial: Boolean,
+        needsInterest: Boolean
+    ) {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            if (needsTutorial) putExtra("EXTRA_NEEDS_TUTORIAL", true)
+            if (needsInterest) putExtra("EXTRA_NEEDS_INTEREST", true)
         }
         context.startActivity(intent)
     }
+
 }
