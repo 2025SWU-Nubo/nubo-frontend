@@ -20,20 +20,20 @@ fun OnboardingStep3Page() {
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxWidth(0.75f)
                 .weight(1f),
             contentAlignment = Alignment.Center
         ) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.8f)
+                    .fillMaxWidth()
                     .aspectRatio(9f / 16f)
             ) {
                 // 기본 스크린샷
                 Image(
                     painter = painterResource(id = R.drawable.onboarding_step_3),
                     contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize() ,
                     contentScale = ContentScale.Fit
                 )
 
@@ -43,7 +43,7 @@ fun OnboardingStep3Page() {
                     contentDescription = null,
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .offset(x = (-15).dp, y = (-25).dp)
+                        .offset(x = (-15).dp, y = (-30).dp)
                         .width(200.dp)
                 )
             }

@@ -55,7 +55,7 @@ fun TutorialScreen(
 
     // 페이지별 배경 리소스 선택 / choose background per page
     val bgResId = when (pagerState.currentPage) {
-        0 -> null                                   // 인트로는 배경 없음
+        0 -> R.drawable.white_bg                                   // 인트로는 배경 없음
         TOTAL_PAGES - 1 -> R.drawable.outro_bg      // 마지막 페이지
         else -> R.drawable.onboading_step_bg        // 스텝 공통 배경
     }
@@ -133,6 +133,7 @@ private fun OnboardingTopBar(
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .statusBarsPadding()
             .background(Color.White)      // 상단 바만 흰색 배경 고정
             .drawBehind {
                 val y = size.height
@@ -143,12 +144,11 @@ private fun OnboardingTopBar(
                     strokeWidth = 1.dp.toPx()
                 )
             }
-            .padding(horizontal = 8.dp, vertical = 8.dp)
+            .padding(horizontal = 6.dp, vertical = 12.dp)
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -163,14 +163,13 @@ private fun OnboardingTopBar(
                     )
                 }
             }
-
             Spacer(modifier = Modifier.weight(1f))
 
             TextButton(onClick = onSkipClick) {
                 Text(
                     text = "건너뛰기",
                     color = Color.Black,
-                    style = AppTextStyles.b2_semibold_16
+                    style = AppTextStyles.b2_medium_16
                 )
             }
         }
@@ -189,7 +188,8 @@ private fun OnboardingBottomBar(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 16.dp),
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         val buttonText =
@@ -211,7 +211,7 @@ private fun OnboardingBottomBar(
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 

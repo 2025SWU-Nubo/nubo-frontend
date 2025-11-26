@@ -11,11 +11,8 @@ fun NuboAppTheme(
     useDarkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val colors = if (useDarkTheme) DarkColorScheme else LightColorScheme
-
-
     MaterialTheme(
-        colorScheme = colors,
+        colorScheme = LightColorScheme,
         typography = AppTypography,
         content = content
     )

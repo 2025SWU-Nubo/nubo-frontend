@@ -62,7 +62,7 @@ fun OnboardingOutroPage(
             // 제목 고정
             Text(
                 text = "Nubo에 공유하기만 하면\n영상 카드 추가가 완료!",
-                style = AppTextStyles.title_bold_24,
+                style = AppTextStyles.subtitle_bold_20,
                 color = Color.Black,
                 textAlign = TextAlign.Center
             )

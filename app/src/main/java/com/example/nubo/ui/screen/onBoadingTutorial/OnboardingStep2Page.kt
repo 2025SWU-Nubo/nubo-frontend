@@ -28,54 +28,17 @@ fun OnboardingStep2Page() {
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.TopCenter
         ) {
-            // 스크린샷과 오버레이를 감싸는 컨테이너
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.8f)
-                    .aspectRatio(9f / 16f) // 세로 긴 화면 비율
-            ) {
                 // 실제 영상 스크린샷
                 Image(
                     painter = painterResource(id = R.drawable.onboarding_step_2),
                     contentDescription = null,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth(0.75f)
+                        .aspectRatio(9f / 16f),
                     contentScale = ContentScale.Fit
                 )
-
-                // 상단 좌측 YouTube 안내 영역
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        // 스크린샷 바깥 쪽으로 살짝 올려서 위치 맞추기
-                        .offset(x = (-30).dp, y = (-120).dp)
-                ) {
-                    // 텍스트와 아이콘을 한 덩어리로 배치
-                    androidx.compose.foundation.layout.Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "YouTube일 때",
-                            style = AppTextStyles.label_SemiBold_12
-                        )
-                        Image(
-                            painter = painterResource(id = R.drawable.youtube_share),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .height(36.dp)  // 아이콘 크기
-//                                .offset( y = (-10).dp)
-                        )
-                    }
-                    Image(
-                        painter = painterResource(id = R.drawable.sub_arrow),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .height(50.dp)  // 아이콘 크기
-                                .offset( x = (40).dp, y=(27).dp)
-                    )
-                }
-            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))

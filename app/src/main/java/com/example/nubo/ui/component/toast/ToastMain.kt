@@ -723,7 +723,7 @@ fun ToastDemoScreen(
 @Composable
 fun AppToastOverlay(
     hostState: AppToastHostState,
-    extraBottomOffset: Dp = 52.dp,
+    extraBottomOffset: Dp = 12.dp,
 ) {
     val bottomInset = WindowInsets.navigationBars
         .asPaddingValues()

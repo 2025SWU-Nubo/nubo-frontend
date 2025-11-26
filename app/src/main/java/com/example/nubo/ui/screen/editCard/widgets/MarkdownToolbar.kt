@@ -59,7 +59,7 @@ fun MarkdownToolbar(
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = 8.dp, vertical = 10.dp)
+                .padding(horizontal = 12.dp, vertical = 12.dp)
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -74,7 +74,7 @@ fun MarkdownToolbar(
                     rtState.selection = TextRange(pos)
                     Log.d("Toolbar", "H2 clicked caret=$pos")
                 },
-                textSize = AppTextStyles.b2_semibold_16
+                textSize = AppTextStyles.b1_bold_18
             )
 
             // 부제목(H3)

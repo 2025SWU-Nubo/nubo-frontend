@@ -33,7 +33,7 @@ fun OnboardingIntroPage() {
         Text(
             text = "영상을 Nubo에 추가하는\n방법을 알려드릴게요.",
             textAlign = TextAlign.Center,
-            style = AppTextStyles.title_bold_24
+            style = AppTextStyles.title_bold_22
         )
 
         Box(

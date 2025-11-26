@@ -152,7 +152,7 @@ class MainActivity : AppCompatActivity() {
                         MainScreen(deepLinkEvents = deepLinkEvents)
                         AppToastOverlay(
                             hostState = toastHost,
-                            extraBottomOffset = 14.dp
+                            extraBottomOffset = 0.dp
                         )
                     }
                 }

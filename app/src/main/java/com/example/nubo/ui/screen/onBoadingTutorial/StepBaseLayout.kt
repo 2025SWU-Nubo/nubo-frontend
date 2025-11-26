@@ -32,10 +32,10 @@ fun StepBaseLayout(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp),
+            .padding(horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(50.dp))
+        Spacer(modifier = Modifier.height(40.dp))
 
         // 스텝 번호 동그라미 배지
         Box(
@@ -73,7 +73,7 @@ fun StepBaseLayout(
 
             Text(
                 text = title,
-                style = AppTextStyles.title_bold_24,
+                style = AppTextStyles.subtitle_bold_20,
                 color = Color.Black,
                 textAlign = TextAlign.Center
             )

@@ -45,7 +45,7 @@ fun OrbitingLogos(
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
             animation = tween(
-                durationMillis = 15000, // 전체 회전 지연 시간
+                durationMillis = 13000, // 전체 회전 지연 시간
                 easing = LinearEasing
             ),
             repeatMode = RepeatMode.Restart
