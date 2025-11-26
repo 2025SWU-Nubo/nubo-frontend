@@ -140,7 +140,7 @@ fun EditCardScreen(
 
     val contentBottomInset = when {
         showAiBar -> 300.dp
-        editorFocused && keyboardVisible && !showAiBar -> 64.dp + 12.dp
+        editorFocused && keyboardVisible && !showAiBar -> 72.dp + 12.dp
         else -> 0.dp
     }
 
@@ -311,7 +311,7 @@ fun EditCardScreen(
                     TextButton(onClick = {
                         Log.d("EditCardDebug", "━━━ 저장 시작 ━━━")
 
-                        // ✅ 3️⃣ standardizeMarkdown 사용
+                        // standardizeMarkdown 사용
                         val markdown = standardizeMarkdown(rtState.toMarkdown())
                         Log.d("EditCardDebug", "정규화 후: '${markdown}'")
 
@@ -391,7 +391,7 @@ fun EditCardScreen(
                                         .fillMaxWidth()
                                         //  - min: 기본 높이
                                         //  - max: 키보드 올라와도 화면 안에 들어갈 수 있게 적당히 작은 값
-                                        .heightIn(min = 220.dp, max = 320.dp)
+//                                        .heightIn(min = 220.dp, max = 320.dp)
                                         .focusRequester(editorFocusRequester)
 //                                        .bringIntoViewRequester(editorBringIntoView)
                                         .onGloballyPositioned { coords ->
@@ -516,7 +516,7 @@ fun EditCardScreen(
                     .padding(
                         end = 20.dp,
                         bottom = if (editorFocused && keyboardVisible && !showAiBar)
-                            60.dp else 45.dp
+                            70.dp else 60.dp
                     ),
                 enter = EnterTransition.None,
                 exit = ExitTransition.None

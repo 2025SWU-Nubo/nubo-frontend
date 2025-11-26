@@ -29,10 +29,12 @@ object AppTextStyles {
     val title_semibold_24 = style(24.sp, FontWeight.SemiBold)
     val title_regular_24 = style(24.sp, FontWeight.Normal)
 
+    val title_bold_22 = style(22.sp, FontWeight.Bold)
     val title_semibold_22 = style(22.sp, FontWeight.SemiBold)
 
     // Subtitle
     val subtitle_semibold_20 = style(20.sp, FontWeight.SemiBold)
+    val subtitle_bold_20 = style(20.sp, FontWeight.Bold)
     val subtitle_medium_16 = style(16.sp, FontWeight.Medium)
 
     // Body B1 (18)

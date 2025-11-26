@@ -101,6 +101,8 @@ import com.example.components.toast.AppToastOverlay
 import com.example.components.toast.LocalAppToastHostState
 import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.ui.screen.learn.LearnScreenBerry
+import com.example.nubo.ui.screen.onBoadingTutorial.OnBoardingTutorialRoute
+import com.example.nubo.ui.screen.onBoadingTutorial.OnBoardingTutorialViewModel
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -150,7 +152,7 @@ class MainActivity : AppCompatActivity() {
                         MainScreen(deepLinkEvents = deepLinkEvents)
                         AppToastOverlay(
                             hostState = toastHost,
-                            extraBottomOffset = 14.dp
+                            extraBottomOffset = 0.dp
                         )
                     }
                 }
@@ -358,26 +360,54 @@ fun MainScreen(
                 startDestination = "home",
                 modifier = Modifier.fillMaxSize()
             ) {
-                composable("onboarding_interest") {
-                    OnBoardingInterestRoute(
-                        onBack = { navController.popBackStack() },
-                        onHome = {
-                            // 완료 후 홈으로 전환
-                            navController.navigate("home") {
-                                popUpTo(navController.graph.id) { inclusive = true }
-//                                popUpTo("home") { inclusive = true } // 백스택 정리
-                                launchSingleTop = true
-                            }
-                        },
-                        thumbnailsRes = mapOf(
-                            // 보드ID → 이미지 리소스 매핑 (없으면 OnBoardingInterestScreen 쪽에서 placeholder 사용)
-                            59L to com.example.nubo.R.drawable.interest_education,
-                            60L to com.example.nubo.R.drawable.interest_education,
-                            61L to com.example.nubo.R.drawable.interest_education
-                            // ...필요시 추가
+                    // ① 튜토리얼
+                    composable(
+                        route = "onboarding_tutorial/{needsInterest}",
+                        arguments = listOf(
+                            navArgument("needsInterest") { type = NavType.BoolType }
                         )
-                    )
-                }
+                    ) { backStackEntry ->
+                        val needsInterestArg =
+                            backStackEntry.arguments?.getBoolean("needsInterest") ?: false
+
+                        OnBoardingTutorialRoute(
+                            needsInterest = needsInterestArg,
+                            onGoInterest = {
+                                // 튜토리얼 끝나고 관심사 설정으로
+                                navController.navigate("onboarding_interest") {
+                                    // 온보딩 스택은 정리
+                                    popUpTo(navController.graph.id) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            },
+                            onGoHome = {
+                                // 튜토리얼 끝났고 관심사도 필요 없으면 바로 홈
+                                navController.navigate("home") {
+                                    popUpTo(navController.graph.id) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            }
+                        )
+                    }
+
+                    // ② 기존 관심사 설정 라우트
+                    composable("onboarding_interest") {
+                        OnBoardingInterestRoute(
+                            onBack = { navController.popBackStack() },
+                            onHome = {
+                                navController.navigate("home") {
+                                    popUpTo(navController.graph.id) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            },
+                            thumbnailsRes = mapOf(
+                                59L to R.drawable.interest_education,
+                                60L to R.drawable.interest_education,
+                                61L to R.drawable.interest_education
+                            )
+                        )
+                    }
+
 
                 composable("home") { backStackEntry ->
                     val homeVm: HomeViewModel = hiltViewModel(backStackEntry)
@@ -686,22 +716,37 @@ fun MainScreen(
             return@LaunchedEffect
         }
 
-        // 온보딩 로그인 액티비티에서 전달한 플래그 확인
-        val needsInterest = (context as? MainActivity)
-            ?.intent
-            ?.getBooleanExtra("EXTRA_NEEDS_INTEREST", false)
-            ?: false
+        val activity = context as? MainActivity
+        val intent = activity?.intent
 
-        if (needsInterest) {
-            // 한 번만 처리하도록 플래그 제거(선택)
-            context?.intent?.removeExtra("EXTRA_NEEDS_INTEREST")
+        // 새로 추가할 플래그  OnBoardingViewModel 쪽에서 세팅해주면 됨
+        val needsTutorial = intent?.getBooleanExtra("EXTRA_NEEDS_TUTORIAL", false) ?: false
+        val needsInterest = intent?.getBooleanExtra("EXTRA_NEEDS_INTEREST", false) ?: false
 
-            // 관심사 설정 페이지로 이동
-            navController.navigate("onboarding_interest") {
-                popUpTo("home") { inclusive = true }
-                launchSingleTop = true
+        // 한 번만 쓰도록 제거
+        intent?.removeExtra("EXTRA_NEEDS_TUTORIAL")
+        intent?.removeExtra("EXTRA_NEEDS_INTEREST")
+
+        when {
+            needsTutorial -> {
+                // 튜토리얼부터 보여주고, 끝나면 관심사 필요 여부를 같이 넘김
+                navController.navigate("onboarding_tutorial/$needsInterest") {
+                    popUpTo("home") { inclusive = true }
+                    launchSingleTop = true
+                }
+                return@LaunchedEffect
             }
-            return@LaunchedEffect
+            needsInterest -> {
+                // 튜토리얼은 볼 필요 없고, 관심사만 설정해야 하는 경우
+                navController.navigate("onboarding_interest") {
+                    popUpTo("home") { inclusive = true }
+                    launchSingleTop = true
+                }
+                return@LaunchedEffect
+            }
+            else -> {
+                // 둘 다 필요 없으면 기존 딥링크 처리 로직 그대로
+            }
         }
 
         DeepLinkStore.pendingCardId?.let { raw ->

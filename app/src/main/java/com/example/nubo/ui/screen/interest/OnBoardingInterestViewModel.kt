@@ -82,7 +82,11 @@ class OnBoardingInterestViewModel @Inject constructor(
             runCatching { repo.submitSelectedBoards(accessToken, ids) }
                 .onSuccess { resp ->
                     _state.update { it.copy(submitInProgress = false) }
-                    if (resp.completed) onCompleted(resp.selectedCount)
+                    if (resp.completed) {
+                        //완료로 내부에도 저장
+                        authRepository.setInterestCompleted(true)
+                        onCompleted(resp.selectedCount)
+                    }
                     else onError("완료 상태를 확인하지 못했어요")
                 }
                 .onFailure { e ->
