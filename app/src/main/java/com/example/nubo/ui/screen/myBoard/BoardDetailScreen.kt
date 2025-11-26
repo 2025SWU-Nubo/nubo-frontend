@@ -371,6 +371,20 @@ fun BoardDetailScreen(
                             }
                         )
                     }
+                    // 공유 보드 여부
+                    val isSharedBoard = boardState.shared
+
+                    // 공유 보드인 경우에만 mine == true 인 카드들만 선택 가능하도록 ID 집합 구성
+                    val selectableCardIds: Set<Int> =
+                        if (isSharedBoard) {
+                            boardState.cards.content
+                                .filter { it.mine == true } // mine 이 true 인 카드만
+                                .map { it.id }              // id(Int) 리스트로 변환
+                                .toSet()
+                        } else {
+                            emptySet()
+                        }
+
                     // 보드에 섹션/카드가 아무것도 없을 때 빈 상태 UI 표시
                     if (boardItems.isEmpty() && cardItems.isEmpty()) {
                         Box(
@@ -396,6 +410,11 @@ fun BoardDetailScreen(
                         onCardClick = { cardId ->
                             // 카드 클릭 시 선택/해제 로직 추가
                             if (isSelectionMode) {
+                                // 공유 보드 + mine == false 카드면 선택 불가
+                                if (isSharedBoard && !selectableCardIds.contains(cardId)) {
+                                    // 선택 모드에서 남의 카드는 그냥 무시
+                                    return@BoardDetailContent
+                                }
                                 selectedCards = if (selectedCards.contains(cardId)) {
                                     selectedCards - cardId
                                 } else {
@@ -425,6 +444,11 @@ fun BoardDetailScreen(
                         },
                         onCardLongClick = { cardId ->
                             if (!isSelectionMode) {
+                                // 공유 보드에서 mine == false 카드면 선택 모드 진입 자체를 막음
+                                if (isSharedBoard && !selectableCardIds.contains(cardId)) {
+                                    // 아무 동작도 하지 않음 (롱클릭 무시)
+                                    return@BoardDetailContent
+                                }
                                 isSelectionMode = true
                                 bottomSheetType = BottomSheetType.SELECTION
                                 selectedCards = setOf(cardId) // 롱클릭한 카드를 첫 선택 항목으로 지정

@@ -248,7 +248,7 @@ fun SectionDetailScreen(
                             contentAlignment = Alignment.Center // 가운데 정렬
                         ) {
                             Text(
-                                text = "이 섹션에는 아직 저장된 카드가 없어요",
+                                text = "이 섹션에는 아직 저장된 카드가 없어요!",
                                 style = AppTextStyles.b2_medium_16,
                                 color = GreyMain300,
                                 textAlign = TextAlign.Center,
@@ -552,27 +552,3 @@ fun CardItemDto.toMyCardItem(): MyCardItem {
     )
 }
 
-@Composable
-fun EmptyDetailView() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(bottom = 60.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            painter = painterResource(id = R.drawable.error_face),
-            contentDescription = "빈 화면",
-            modifier = Modifier.size(48.dp),
-            tint = Color.Unspecified
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = "안에 아직 저장한 게 없어요.\n영상을 추가해서 저장해봐요!",
-            style = AppTextStyles.b3_medium_14,
-            color = Grey1000,
-            textAlign = TextAlign.Center
-        )
-    }
-}

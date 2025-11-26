@@ -4,6 +4,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.EaseInOutSine
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.EaseIn
+import androidx.compose.animation.core.EaseOutBack
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -11,7 +13,6 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +28,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.nubo.R
 import com.example.nubo.ui.component.noRippleClickable
@@ -34,7 +36,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.sin
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * 2D PNG 이미지를 사용하여 대시보드 배경을 렌더링하는 Composable
@@ -86,8 +87,8 @@ fun GraphicBackgroundView(
         label = "RaindropTime"
     )
 
-    // Y축 오프셋 계산 (sin 함수)
-    val animatedRaindropY = sin(raindropTime) * bobbingAmount.value
+    // Y축 오프셋 계산 (sin 함수) - 모든 물방울이 공유하는 둥실거림 값
+    val animatedRaindropBobbingY = sin(raindropTime) * bobbingAmount.value
 
     //-----------------------------
     // 클릭 상태 관리
@@ -147,7 +148,7 @@ fun GraphicBackgroundView(
             contentAlignment = Alignment.Center // 자식들을 이 Box의 중앙에 겹침
         ) {
             when (level) {
-                0 -> {// 레벨 0 새싹
+                1 -> {// 레벨 1 새싹
 
                     // --- 애니메이션 설정 ---
                     val transition = rememberInfiniteTransition(label = "leaf-wave-L1")
@@ -184,7 +185,7 @@ fun GraphicBackgroundView(
                     )
                 }
 
-                1 -> {// 레벨 1 묘목
+                2 -> {// 레벨 2 묘목
 
                     // --- 애니메이션 설정 ---
                     val transition = rememberInfiniteTransition(label = "leaf-wave-L1")
@@ -248,7 +249,7 @@ fun GraphicBackgroundView(
                     )
                 }
 
-                2 -> {// 레벨 2 꽃봉오리
+                3 -> {// 레벨 3 꽃봉오리
 
                     // --- 애니메이션 설정 ---
                     val transition = rememberInfiniteTransition(label = "leaf-wave-L1")
@@ -329,7 +330,7 @@ fun GraphicBackgroundView(
                     )
                 }
 
-                3 -> { // 레벨 3 꽃
+                4 -> { // 레벨 4 꽃
 
                     // --- 애니메이션 설정 ---
                     val transition = rememberInfiniteTransition(label = "leaf-wave-L1")
@@ -410,7 +411,7 @@ fun GraphicBackgroundView(
                     )
                 }
 
-                4 -> {// 레벨 4 열매
+                5 -> {// 레벨 5 열매
 
                     // --- 애니메이션 설정 ---
                     val transition = rememberInfiniteTransition(label = "leaf-wave-L1")
@@ -486,11 +487,11 @@ fun GraphicBackgroundView(
                 contentAlignment = Alignment.TopCenter
             ) {
                 // 물방울 개별 위치 로직 (이전과 동일)
-                val pos1 = Pair((-700).dp, (-270).dp)
-                val pos2 = Pair((-350).dp, (-200).dp)
-                val pos3 = Pair(0.dp, (-270).dp)
-                val pos4 = Pair(350.dp, (-200).dp)
-                val pos5 = Pair(700.dp, (-270).dp)
+                val pos1 = Pair((-700).dp, (-255).dp)
+                val pos2 = Pair((-350).dp, (-140).dp)
+                val pos3 = Pair(0.dp, (-225).dp)
+                val pos4 = Pair(350.dp, (-140).dp)
+                val pos5 = Pair(700.dp, (-255).dp)
 
                 val positionsToShow = when (dropCount) {
                     1 -> listOf(pos3)
@@ -501,31 +502,17 @@ fun GraphicBackgroundView(
                     else -> emptyList()
                 }
 
+                // 각 물방울을 그릴 때 개별 애니메이션 상태를 유지하기 위해
+                // 별도의 Composable 함수(RaindropItem)를 호출합니다.
                 positionsToShow.forEach { (xOffset, yOffset) ->
-                    val finalY = yOffset + animatedRaindropY.dp
-
-                    Image(
-                        painter = painterResource(id = R.drawable.learn_waterdrop3),
-                        contentDescription = "물방울",
-                        modifier = Modifier
-                            .scale(scaleX = 0.9f, scaleY = 1f)
-                            .align(Alignment.TopCenter)
-                            .offset(x = xOffset, y = finalY)
+                    RaindropItem(
+                        xOffset = xOffset,
+                        yOffset = yOffset,
+                        bobbingY = animatedRaindropBobbingY,
+                        modifier = Modifier.align(Alignment.TopCenter)
                     )
                 }
             }
-
-            // Z-Order 4: 구름 (맨 위)
-            Image(
-                painter = painterResource(id = R.drawable.learn_cloud),
-                contentDescription = "구름",
-                modifier = Modifier
-                    .offset(y = -60.dp)
-                    .scale(scaleX = 1.9f, scaleY = 1.9f)
-                    .graphicsLayer {
-                        translationY = cloudOffsetY
-                    }
-            )
 
             // 구름 클릭 시
             val coroutineScope = rememberCoroutineScope()
@@ -534,7 +521,7 @@ fun GraphicBackgroundView(
                 painter = painterResource(id = R.drawable.learn_cloud),
                 contentDescription = "구름",
                 modifier = Modifier
-                    .offset(y = (-60).dp + cloudOffsetY.dp)
+                    .offset(y = (-130).dp + cloudOffsetY.dp)
                     .scale(1.9f * cloudScale)
                     .noRippleClickable{
                         if (!cloudClicked) {
@@ -548,4 +535,51 @@ fun GraphicBackgroundView(
             )
         }
     }
+}
+
+/**
+ * 개별 물방울 아이템
+ * 자체적인 클릭 상태와 바운스 애니메이션을 관리
+ */
+@Composable
+fun RaindropItem(
+    xOffset: Dp,
+    yOffset: Dp,
+    bobbingY: Float,
+    modifier: Modifier = Modifier
+) {
+    val scope = rememberCoroutineScope()
+    // 클릭 시 바운스 되는 추가 Y 오프셋 (기본 0)
+    val bounceOffsetY = remember { Animatable(0f) }
+
+    // 클릭 중복 방지
+    var isBouncing by remember { mutableStateOf(false) }
+
+    Image(
+        painter = painterResource(id = R.drawable.learn_waterdrop3),
+        contentDescription = "물방울",
+        modifier = modifier
+            .scale(scaleX = 0.9f, scaleY = 1f)
+            // 위치: 기본 좌표 + 둥실거림(bobbing) + 클릭 바운스(bounce)
+            .offset(x = xOffset, y = yOffset + bobbingY.dp + bounceOffsetY.value.dp)
+            .noRippleClickable {
+                if (!isBouncing) {
+                    isBouncing = true
+                    scope.launch {
+                        // 1. 아래로 크게 떨어짐 (가속)
+                        // 좌표계가 0.13배 축소되어 있으므로 600f 정도면 화면상에서 꽤 큰 움직임입니다.
+                        bounceOffsetY.animateTo(
+                            targetValue = 500f,
+                            animationSpec = tween(durationMillis = 300, easing = EaseIn)
+                        )
+                        // 2. 다시 원래 위치로 복귀 (바운스 효과)
+                        bounceOffsetY.animateTo(
+                            targetValue = 0f,
+                            animationSpec = tween(durationMillis = 600, easing = EaseOutBack)
+                        )
+                        isBouncing = false
+                    }
+                }
+            }
+    )
 }

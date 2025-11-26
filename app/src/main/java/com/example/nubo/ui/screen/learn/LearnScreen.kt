@@ -193,7 +193,7 @@ fun LearnScreen(
                         .fillMaxSize()
                 ) {
                     TopBar(
-                        title = "대시보드",
+                        title = "성장보드",
                         onClickInfo = { showInfoPopup = true }
                     )
                     Spacer(Modifier.height(12.dp))
@@ -232,7 +232,7 @@ fun LearnScreen(
                         // 레벨업 후 텍스트를 동적으로 생성하여 전달
                         levelUpText = levelUpStage?.let { newStage ->
                             // getStageName이 1단계부터 이름을 반환한다고 가정
-                            "레벨${newStage}. ${getStageName(newStage)}로 성장했어요."
+                            "레벨${newStage}. ${getStageName(newStage)}으로 성장했어요."
                         } ?: "", // null일 경우 빈 문자열 (보일 일 없음)
                         currentProgressFromServer = growthRate / 100f,
 
@@ -500,7 +500,6 @@ private fun SpeechBubble(
         }
     }
 }
-
 //================= 하단 성장률 표시 카드 와 누베리 개수 원형 카드 =================
 
 @Composable
@@ -567,7 +566,7 @@ private fun BottomProgressCard(
             },
             cornerRadius = 11.dp,
             shadowColor = Color.Black,
-            shadowAlpha = 0.2f,
+            shadowAlpha = 0.0f,
             shadowBlurRadius = 8.dp,
             offsetX = 6.dp,
             offsetY = 6.dp
@@ -666,7 +665,7 @@ private fun BottomProgressCard(
             modifier = Modifier
                 .align(Alignment.TopEnd) // 부모(Box) 기준
                 .offset(y = (-52).dp)    // 스크린샷과 같은 시각적 위치
-                .shadow(6.dp, RoundedCornerShape(999.dp), clip = true)
+               /* .shadow(6.dp, RoundedCornerShape(999.dp), clip = true)*/
                 .clip(RoundedCornerShape(999.dp))
                 .background(Color.White.copy(alpha = 0.80f))
                 .noRippleClickable {
@@ -893,7 +892,7 @@ private fun StaticLevelStepBar(
     }
 
     // 현재 단계 인덱스를 0..totalSteps-1 로 보정
-    val clampedStep = currentStep.coerceIn(0, totalSteps - 1)
+    val clampedStep = (currentStep - 1).coerceIn(0, totalSteps - 1)
 
     Column(modifier = modifier) {
 
@@ -1092,7 +1091,7 @@ private fun LevelUpSection(
             // 스냅 지점 도달 순간 체크 생성
             if (!spawned && value >= trigger) {
                 spawned = true
-                checkedCount = nextStep
+                checkedCount = nextStep - 1
                 showCheck = true
                 // 체크 "톡" 효과 잠깐 보여주고 해제
                 launch {

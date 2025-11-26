@@ -63,6 +63,7 @@ import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.AppToastType
@@ -96,6 +97,7 @@ fun CardDetailScreen(
     toastMessage: String?,
     onConsumeToast: () -> Unit,
     toastDelayMillis : Int = 0,
+    navController: NavController,
     // 레벨업 토스트 파라미터
     toastMessage2: Pair<AnnotatedString, String>?,
     onConsumeToast2: () -> Unit,
@@ -136,16 +138,26 @@ fun CardDetailScreen(
 
     // 레벨업/열매 토스트 표시
     LaunchedEffect(toastMessage2) {
-        toastMessage2?.let { msgPair ->
-            toastHost.show(
-                title = msgPair.first,      // 제목 전달
-                summary = msgPair.second,   // 요약 전달
-                layout = AppToastLayout.TitleWithSummary, // 2줄 레이아웃 사용
-                type = AppToastType.POSITIVE,
-                durationMillis = 2000
-            )
-            onConsumeToast2()
-        }
+        val msgPair = toastMessage2 ?: return@LaunchedEffect
+
+        val (title, summary) = msgPair
+
+
+        // Show action toast
+        toastHost.show(
+            title = title,
+            layout = AppToastLayout.TitleWithSummaryAndAction,
+            type = AppToastType.NORMAL,
+            summary = summary,
+            actionLabel = "바로가기",
+            onAction = {
+                navController.navigate("learn")
+            },
+            durationMillis = 2800
+        )
+
+        // Consume toast so it will not show again
+        onConsumeToast2()
     }
 
     Scaffold(
