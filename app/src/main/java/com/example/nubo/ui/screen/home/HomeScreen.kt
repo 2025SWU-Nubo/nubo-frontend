@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -133,13 +134,13 @@ fun HomeScreen(
 //    }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             CustomTopBar(
                 onLogoClick = onLogoClick,
                 onNotificationsClick = onNotificationsClick
                 )
         },
-        contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
 
         val mergedPadding = PaddingValues(
@@ -210,18 +211,17 @@ fun CustomTopBar(
 ){
 
     CenterAlignedTopAppBar(
-        modifier = Modifier.padding(horizontal = 12.dp),
-        // If you prefer title centered text, set `title = { Text("Nubo") }`
+        windowInsets = WindowInsets.statusBars,
         navigationIcon = {
-            // Left logo (clickable)
+            //  누보 로고
             IconButton(
                 onClick = { onLogoClick?.invoke() },
-                modifier = Modifier.size(68.dp)
+                modifier = Modifier.size(80.dp).padding(start = 16.dp)
             ) {
                 Icon(
                     painter = painterResource(R.drawable.nubo_logo),
                     contentDescription = "앱 로고",
-                    tint = PurpleMain500
+                    tint = PurpleMain500,
 
                 )
             }
@@ -229,10 +229,10 @@ fun CustomTopBar(
         title = { /* keep empty or place brand text */ },
         actions = {
             IconButton(onClick = { onNotificationsClick?.invoke() }) {
-                // You can use painterResource or Material Icons
                 Icon(
-                    painter = painterResource(R.drawable.alarm),
-                    contentDescription = "알림"
+                    painter = painterResource(R.drawable.bell),
+                    contentDescription = "알림",
+                    modifier = Modifier.size(26.dp)
                 )
 
             }
@@ -248,7 +248,7 @@ fun RecentBoardSection(
 ) {
 
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-        Text(text = "최근 본 보드", style = AppTextStyles.title_semibold_24)
+        Text(text = "최근 본 보드", style = AppTextStyles.b1_semibold_18)
         Spacer(modifier = Modifier.height(14.dp))
 
         if (items.isEmpty()){
@@ -260,7 +260,7 @@ fun RecentBoardSection(
             ){
                 Text(
                     text = "아직 최근 본 보드가 없어요!",
-                    style = AppTextStyles.b2_semibold_16,
+                    style = AppTextStyles.b3_regular_14,
                     color = GreyMain300
                 )
             }
@@ -300,7 +300,7 @@ private fun RecentBoardCard(
     val cardShape = RoundedCornerShape(8.dp)
     Card(
         modifier = Modifier
-            .size(width = 120.dp, height = 110.dp)
+            .size(width = 120.dp, height = 102.dp)
             .clickable(enabled = boardId > 0) { onClick(boardId, boardName) },
         shape = cardShape, // 카드 모양
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -327,10 +327,10 @@ private fun RecentBoardCard(
         ) {
             Text(
                 text = boardName,
-                style = AppTextStyles.b2_medium_16,
+                style = AppTextStyles.label_medium_12,
                 color = Color.Black,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+//                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -346,7 +346,7 @@ fun RecommendedVideosSection(
     onCardClick: (CardItem) -> Unit
 ) {
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-        Text(text = "추천 영상", style = AppTextStyles.title_semibold_24)
+        Text(text = "추천 영상", style = AppTextStyles.b1_semibold_18)
     }
     Spacer(modifier = Modifier.height(16.dp))
     //칩 컨포넌트
@@ -357,7 +357,7 @@ fun RecommendedVideosSection(
 
     Spacer(modifier = Modifier.height(12.dp))
 
-    Column(modifier = Modifier.padding(horizontal = 16.dp))
+    Column(modifier = Modifier.padding(horizontal = 10.dp))
     {     CardContent(cards = cards, onCardClick = onCardClick) }
 
 }
