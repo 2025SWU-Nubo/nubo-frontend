@@ -73,6 +73,14 @@ fun BottomSheetHost(
     // 보드 생성 완료 시 토스트 + 콜백 처리
     LaunchedEffect(ui.created) {
         ui.created?.let { created ->
+
+            // 1 초대 상태 먼저 리셋
+            inviteResetVersion++          // InviteViewModel 에 "초기화 신호" 보내기
+            invitedUserPreview = emptyList()
+            createBoardViewModel.setInvitedEmails(emptyList())
+            createBoardViewModel.resetForNewBoard()   // 필요하다면 전체 초기화
+
+            // 2 토스트 + 상위 콜백
             showToast(
                 "보드 생성이 완료되었어요.",
                 AppToastType.NORMAL,
@@ -84,7 +92,9 @@ fun BottomSheetHost(
 
             // 기존 상위 처리 유지 (리스트 갱신 등)
             onCreateBoard(created.name, ui.isShared)
+            // 3 created 플래그 소비
             createBoardViewModel.consumeCreated()
+            // 4 부모에 시트 닫기 알리기
             onDismiss()
         }
     }
