@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.nubo.data.model.BoardResponse
 import com.example.nubo.data.model.CardDetailResponse
 import com.example.nubo.data.model.CardResponse
+import com.example.nubo.data.model.GroupDto
 import com.example.nubo.data.model.PagedResponse
 import com.example.nubo.data.model.RecentBoardResponse
 import com.example.nubo.data.network.CardSort
@@ -19,6 +20,7 @@ import com.example.nubo.model.home.RecommendChipItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.serialization.builtins.LongArraySerializer
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -63,6 +65,27 @@ class HomeViewModel @Inject constructor(
 
     private val _selectedChipId = MutableLiveData("all")
     val selectedChipId: LiveData<String> = _selectedChipId
+
+
+    // 추천 카드 그룹 상태
+    private val _recommendGroups = MutableLiveData<List<GroupDto>>()
+    val recommendGroups: LiveData<List<GroupDto>> = _recommendGroups
+
+    // 추천 카드 그룹 불러오기
+    fun loadRecommendationGroups() {
+
+        val token = authRepository.getAccessToken() ?: return
+        viewModelScope.launch {
+            cardRepository.getRecommendCards(token)
+                .onSuccess { response ->
+                    _recommendGroups.value = response.groups
+                }
+                .onFailure {
+                    _recommendGroups.value = emptyList()
+                }
+        }
+    }
+
 
 
     init {

@@ -71,15 +71,20 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.nubo.data.model.CardDetailResponse
+import com.example.nubo.data.model.GroupDto
 import com.example.nubo.data.model.RecentBoardResponse
+import com.example.nubo.data.model.RecommendCardResponse
 import com.example.nubo.model.card.CardDetailItem
 import com.example.nubo.model.card.CardItem
 import com.example.nubo.model.home.RecommendChipItem
+import com.example.nubo.ui.component.RecommendCardContent
 import com.example.nubo.ui.component.RecommendationChipsRow
 import com.example.nubo.ui.screen.card.CardDetailScreen
 import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.PurpleMain500
 import formatIsoDateToDisplayLegacy
+import androidx.compose.foundation.lazy.items
+import com.example.nubo.ui.theme.Purple50
 
 
 // com/example/nubo/ui/screen/home/HomeScreen.kt
@@ -89,6 +94,7 @@ fun HomeScreen(
     onMoreClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     onOpenCardDetail:(Int) -> Unit,
+    onOpenRecommendCard:(Int) -> Unit,
     onLogoClick: (() -> Unit)? = null,
     onNotificationsClick: (() -> Unit)? = null,
     onOpenBoard: (Int, String) -> Unit = { _, _ -> }
@@ -100,11 +106,16 @@ fun HomeScreen(
     val cards by vm.cards.observeAsState(emptyList())
     val chips by vm.chips.observeAsState(emptyList())
     val selectedChipId by vm.selectedChipId.observeAsState("all")
+
     // 최근 본 보드
     val recentBoards by vm.recentBoards.observeAsState(emptyList())
 
+    // 추천 그룹 상태
+    val recommendGroups by vm.recommendGroups.observeAsState(emptyList())
+
     LaunchedEffect(Unit) {
         vm.refreshAll()
+        vm.loadRecommendationGroups()
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -118,6 +129,7 @@ fun HomeScreen(
                 if (firstResumeConsumed) {
                     vm.refreshForCurrentSelection()
                     vm.loadRecentBoards()
+                    vm.loadRecommendationGroups()
                 } else {
                     firstResumeConsumed = true
                 }
@@ -185,8 +197,27 @@ fun HomeScreen(
                     Spacer(Modifier.height(20.dp))
                 }
             }
+            items(recommendGroups) { group ->
+                RecommendVideoSection(
+                    group = group,
+                    onCardClick = { cardId ->
+                        onOpenRecommendCard(cardId)
+                    }
+                )
+                Column {
+                    Spacer(Modifier.height(16.dp))
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .background(Grey10)
+                    )
+                    Spacer(Modifier.height(20.dp))
+                }
+            }
+
             item {
-                RecommendedVideosSection(
+                UnviewedVideosSection(
                     cards = cards,
                     chips = chips,
                     selectedChipId = selectedChipId,
@@ -329,16 +360,51 @@ private fun RecentBoardCard(
                 text = boardName,
                 style = AppTextStyles.label_medium_12,
                 color = Color.Black,
-                maxLines = 1,
-//                overflow = TextOverflow.Ellipsis
+                maxLines = 2,
             )
+        }
+    }
+}
+
+@Composable
+fun RecommendVideoSection(
+    group: GroupDto,
+    onCardClick: (Int) -> Unit
+){
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)) {
+        Text(
+            text = group.title,
+            style = AppTextStyles.b1_semibold_18
+            )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        LazyRow {
+            itemsIndexed(group.cards) { index, card ->
+                // first and last padding tweak
+                val startPadding = if (index == 0) 2.dp else 8.dp
+                val endPadding = if (index == group.cards.lastIndex) 2.dp else 0.dp
+
+                Box(
+                    modifier = Modifier.padding(start = startPadding, end = endPadding)
+                ) {
+                    RecommendCardContent(
+                        cardId = card.cardId,
+                        videoThumbnailUrl = card.videoThumbnailUrl,
+                        onClick = onCardClick
+                    )
+                }
+            }
         }
     }
 }
 
 
 @Composable
-fun RecommendedVideosSection(
+fun UnviewedVideosSection(
     cards: List<CardResponse>,
     chips: List<RecommendChipItem>,
     selectedChipId: String,
@@ -346,7 +412,7 @@ fun RecommendedVideosSection(
     onCardClick: (CardItem) -> Unit
 ) {
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-        Text(text = "추천 영상", style = AppTextStyles.b1_semibold_18)
+        Text(text = "아직 안 본 영상", style = AppTextStyles.b1_semibold_18)
     }
     Spacer(modifier = Modifier.height(16.dp))
     //칩 컨포넌트
@@ -357,7 +423,7 @@ fun RecommendedVideosSection(
 
     Spacer(modifier = Modifier.height(12.dp))
 
-    Column(modifier = Modifier.padding(horizontal = 10.dp))
+    Column(modifier = Modifier.padding(horizontal = 14.dp))
     {     CardContent(cards = cards, onCardClick = onCardClick) }
 
 }

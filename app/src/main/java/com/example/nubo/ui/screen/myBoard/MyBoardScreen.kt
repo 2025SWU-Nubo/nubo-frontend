@@ -507,7 +507,7 @@ fun TabHeader(
                         // 인디케이터 설정
                         Box(
                             modifier = Modifier
-                                .width(83.dp)
+                                .width(80.dp)
                                 .height(1.5.dp)
                                 .background(textColor)
                         )
@@ -545,7 +545,7 @@ fun TitleBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (!isSearchMode) {
-                Text(text = titleText, style = AppTextStyles.headline_regular_26)
+                Text(text = titleText, style = AppTextStyles.title_semibold_24)
                 Icon(
                     painter = painterResource(id = R.drawable.ic_board_search),
                     contentDescription = "검색",

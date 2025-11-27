@@ -441,6 +441,10 @@ fun MainScreen(
                             navController.navigate("board_detail/$boardId/$encoded")
                         },
                         onOpenCardDetail = { id -> navController.navigate("card_detail/$id") },
+                        // 추천 카드 상세
+                        onOpenRecommendCard = { id ->
+                            navController.navigate("recommend_card_detail/$id")
+                        },
                         onNotificationsClick = {
                             navController.navigate("notification") {
                                 launchSingleTop = true
@@ -706,6 +710,30 @@ fun MainScreen(
                         )
                     }
                 }
+
+                // 추천 카드 상세 라우트
+//                composable(
+//                    route = "recommend_card_detail/{cardId}",
+//                    arguments = listOf(navArgument("cardId") { type = NavType.IntType })
+//                ) { backStackEntry ->
+//                    val cardId = backStackEntry.arguments?.getInt("cardId") ?: return@composable
+//                    val vm: HomeViewModel = hiltViewModel(backStackEntry)
+//
+//                    LaunchedEffect(cardId) {
+//                        vm.get()
+//                    }
+//
+//                    Box(
+//                        Modifier
+//                            .fillMaxSize()
+//                            .padding(innerPadding)
+//                    ) {
+//                        RecommendCardDetailRoute(
+//                            viewModel = vm,
+//                            onBack = { navController.popBackStack() }
+//                        )
+//                    }
+//                }
             }
     }
 
