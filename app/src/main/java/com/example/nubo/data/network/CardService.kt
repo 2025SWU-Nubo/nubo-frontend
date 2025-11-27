@@ -14,6 +14,8 @@ import com.example.nubo.data.model.EditSummaryAiRequest
 import com.example.nubo.data.model.EditSummaryRequest
 import com.example.nubo.data.model.EditSummaryResponse
 import com.example.nubo.data.model.PagedResponse
+import com.example.nubo.data.model.RecommendCardDetailResponse
+import com.example.nubo.data.model.RecommendCardResponse
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.http.Body
@@ -38,8 +40,6 @@ interface CardService {
         @Query("page") page: Int? = null,
         @Query("size") size: Int? = null
     ): PagedResponse<CardResponse>
-
-
 
 
     @POST("api/card")
@@ -111,4 +111,19 @@ interface CardService {
         @Body body: CardRestoreRequest
     ): CardRestoreResponse
 
+    // 홈 : 추천 카드 조회
+    @GET("/api/home/recommendation")
+    suspend fun recommendCards(
+        @Header("Authorization") authorization: String,
+        @Header("Accept") accept: String = "application/json",
+    ): RecommendCardResponse
+
+
+    // 홈: 특정 추천 카드 상세 조회
+    @GET("/api/home/recommendation/{cardId}")
+    suspend fun recommendCardDetail(
+        @Header("Authorization") authorization: String,
+        @Header("Accept") accept: String = "application/json",
+        @Path("cardId") cardId: Int,
+    ):RecommendCardDetailResponse
 }

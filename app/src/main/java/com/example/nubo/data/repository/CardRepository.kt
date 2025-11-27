@@ -10,6 +10,8 @@ import com.example.nubo.data.model.EditSummaryAiRequest
 import com.example.nubo.data.model.EditSummaryRequest
 import com.example.nubo.data.model.EditSummaryResponse
 import com.example.nubo.data.model.PagedResponse
+import com.example.nubo.data.model.RecommendCardDetailResponse
+import com.example.nubo.data.model.RecommendCardResponse
 import com.example.nubo.data.network.CardService
 import com.example.nubo.data.network.CardSort
 import com.example.nubo.domain.model.CardFilter
@@ -46,12 +48,9 @@ class CardRepository @Inject constructor(private val apiService: CardService) {
         )
     }
 
-
     fun getUnviewedCardsByBoard(token: String, boardId: Long, limit: Int = 10): Call<List<CardResponse>> {
         return apiService.getUnviewedCardsByBoard("Bearer $token", boardId, limit)
     }
-
-
 
     fun uploadCard(
         token: String,
@@ -78,5 +77,27 @@ class CardRepository @Inject constructor(private val apiService: CardService) {
     // 카드 즐겨찾기 수정
     fun updateFavorite(token: String,cardId:Int,body: CardFavoriteRequest):Call<CardFavoriteResponse>{
         return apiService.updateCardFavorite("Bearer $token", "application/json", cardId, body)
+    }
+
+    // 홈 추천 카드 그룹 조회
+    suspend fun getRecommendCards(
+        token: String
+    ): Result<RecommendCardResponse> = runCatching {
+        apiService.recommendCards(
+            authorization = "Bearer $token",
+            accept = "application/json"
+        )
+    }
+
+    // 홈 추천 카드 상세 조회
+    suspend fun getRecommendCardDetail(
+        token: String,
+        cardId: Int
+    ): Result<RecommendCardDetailResponse> = runCatching {
+        apiService.recommendCardDetail(
+            authorization = "Bearer $token",
+            accept = "application/json",
+            cardId = cardId
+        )
     }
 }
