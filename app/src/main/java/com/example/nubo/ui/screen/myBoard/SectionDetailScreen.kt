@@ -26,10 +26,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -44,15 +40,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.components.toast.AppToastHost
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.AppToastType
-import com.example.components.toast.rememberAppToastHostState
+import com.example.components.toast.LocalAppToastHostState
 import com.example.nubo.R
 import com.example.nubo.data.model.CardItemDto
 import com.example.nubo.model.myBoard.MyCardItem
@@ -60,15 +54,12 @@ import com.example.nubo.ui.component.cardHeightForIndex
 import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.AppTextStyles.subtitle_medium_16
-import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.ui.theme.PurpleMain500
 import com.example.nubo.ui.theme.GreyMain300
-import com.example.nubo.ui.theme.RedError
 import com.example.nubo.utils.REFRESH_TICK_KEY
 import kotlinx.coroutines.launch
-import com.example.nubo.utils.postRefreshTick
 
 @Composable
 fun SectionDetailScreen(
@@ -79,9 +70,6 @@ fun SectionDetailScreen(
     // BoardDetailViewModel을 재사용
     viewModel: BoardDetailViewModel = hiltViewModel(),
 ) {
-    // 이름 변경 내용 기록
-    var dialogMode by remember { mutableStateOf<InputDialogMode?>(null) }
-
     // ---  선택 모드 관리를 위한 상태 변수 ---
     var isSelectionMode by remember { mutableStateOf(false) }
     // 섹션 상세 화면에서는 카드만 선택 가능
@@ -108,13 +96,14 @@ fun SectionDetailScreen(
     BackHandler(enabled = isSelectionMode) {
         resetSelectionState()
     }
-
     // 삭제 다이얼로그
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     // 토스트 상태 및 코루틴 스코프 선언
-    val toastHostState = rememberAppToastHostState()
     val scope = rememberCoroutineScope()
+
+    // 전역 토스트 사용
+    val toastHost = LocalAppToastHostState.current
     val toastMessage by viewModel.toastMessage.collectAsState()
 
     val toastEvent by viewModel.toastEvent.collectAsState()
@@ -124,7 +113,7 @@ fun SectionDetailScreen(
         toastEvent?.let { (message, source) ->
             if (source == "section") {   // 섹션 관련 메시지만 표시
                 scope.launch {
-                    toastHostState.show(
+                    toastHost.show(
                         title = AnnotatedString(message),
                         layout = AppToastLayout.TitleOnly,
                         type = if (message.contains("실패")) AppToastType.NEGATIVE else AppToastType.POSITIVE
@@ -134,7 +123,6 @@ fun SectionDetailScreen(
             viewModel.clearToastEvent()
         }
     }
-
     // ViewModel의 toastMessage 변경을 감지하여 토스트 표시
     LaunchedEffect(toastMessage) {
         toastMessage?.let { message ->
@@ -143,9 +131,8 @@ fun SectionDetailScreen(
                 message.contains("완료되었어요") -> AppToastType.POSITIVE
                 else -> AppToastType.NORMAL
             }
-
             scope.launch {
-                toastHostState.show(
+                toastHost.show(
                     title = AnnotatedString(message),
                     layout = AppToastLayout.TitleOnly,
                     type = toastType,
@@ -161,7 +148,7 @@ fun SectionDetailScreen(
         viewModel.deleteCompleteEvent.collect { count ->
             scope.launch {
                 // 삭제 알림은 Action Toast 사용 (스낵바 대체)
-                toastHostState.show(
+                toastHost.show(
                     title = AnnotatedString("${count}개의 항목이 삭제되었어요."),
                     layout = AppToastLayout.TitleWithAction,
                     type = AppToastType.NORMAL,
@@ -288,6 +275,7 @@ fun SectionDetailScreen(
                 }
             }
         }
+
         // 바텀 시트 로직을 bottomSheetType에 따라 분기하여 표시
         AnimatedVisibility(
             visible = bottomSheetType != BottomSheetType.NONE,
@@ -376,31 +364,8 @@ fun SectionDetailScreen(
                 else -> {}
             }
         }
-        // 이름 변경 다이얼로그
-        when (val m = dialogMode) {
-            is InputDialogMode.Rename -> NuboInputDialog(
-                visible = true,
-                title = "섹션 이름 변경",
-                confirmText = "완료",
-                placeholder = "새 이름",
-                initialValue = m.currentName,
-                // 이름 변경 시 viewModel.renameCurrentBoard(newName)를 호출
-                onConfirm = { newName -> viewModel.renameCurrentBoard(newName = newName) },
-                onDismiss = { dialogMode = null },
-                // 유효성 검사 실패 시 보여줄 메시지 UI
-                validationContent = {
-                    Text(
-                        text = "섹션 이름을 2자 이상 입력해주세요.",
-                        style = AppTextStyles.b3_regular_14,
-                        color = RedError,
-                        modifier = Modifier.padding(top = 4.dp, start = 16.dp)
-                    )
-                }
-            )
-
-            else -> Unit // 섹션 생성 다이얼로그는 없음
-        }
     }
+
     // --- 다이얼로그의 삭제/제거 버튼에 올바른 ViewModel 함수 연결 ---
     if (showDeleteDialog) {
         DeleteConfirmationDialog(
@@ -416,15 +381,9 @@ fun SectionDetailScreen(
             }
         )
     }
-    // 토스트 UI를 화면에 배치
-    AppToastHost(hostState = toastHostState,
-        modifier = Modifier.padding(bottom = 40.dp))
 }
 
-/**
- * 섹션 상세 화면 전용 상단바.
- * 이전 화면(보드)의 타이틀을 받아와 표시합니다.
- */
+// 섹션 상세 화면 탑바
 @Composable
 fun SectionDetailTopBar(
     title: String,
@@ -438,14 +397,12 @@ fun SectionDetailTopBar(
     } catch (e: Exception) {
         title // 디코딩 실패 시 원본 사용
     }
-
     // 6자가 넘으면 말줄임표 처리
     val displayTitle = if (decodedTitle.length > 10) {
         "${decodedTitle.take(10)}..."
     } else {
         decodedTitle
     }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -512,7 +469,6 @@ fun SectionFilterButton(
                 enabled = !isSelectionMode,//선택 모드일 때 버튼 비활성화
                 onSortSelected = { sortKey -> onRequestSort(sortKey) }
             )
-
             // 즐겨찾기 버튼
             val isFavoriteSelected = selected == "즐겨찾기"
             OutlinedButton(
@@ -551,4 +507,3 @@ fun CardItemDto.toMyCardItem(): MyCardItem {
         isFavorite = this.favorite ?: false
     )
 }
-

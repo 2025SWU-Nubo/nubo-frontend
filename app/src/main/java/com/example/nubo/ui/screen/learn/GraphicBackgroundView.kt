@@ -1,16 +1,19 @@
 package com.example.nubo.ui.screen.learn
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.EaseInOut
-import androidx.compose.animation.core.EaseInOutSine
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.EaseIn
+import androidx.compose.animation.core.EaseInOut
+import androidx.compose.animation.core.EaseInOutBack
+import androidx.compose.animation.core.EaseInOutSine
 import androidx.compose.animation.core.EaseOutBack
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -24,6 +27,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -32,8 +37,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.nubo.R
 import com.example.nubo.ui.component.noRippleClickable
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -150,7 +155,35 @@ fun GraphicBackgroundView(
             when (level) {
                 1 -> {// 레벨 1 새싹
 
-                    // --- 애니메이션 설정 ---
+                    // 새싹 머리 클릭 시
+                    val sproutShakeAnim = remember { Animatable(0f) }
+
+                    val onClick: () -> Unit = {
+                        coroutineScope.launch {
+                            sproutShakeAnim.snapTo(0f) // 리셋
+
+                            // 기존 살랑거림보다 크게 2번 왕복
+                            repeat(2) {
+                                // 한쪽으로 휙
+                                sproutShakeAnim.animateTo(
+                                    targetValue = 30f,
+                                    animationSpec = tween(durationMillis = 150, easing = EaseInOutSine)
+                                )
+                                // 반대쪽으로 휙
+                                sproutShakeAnim.animateTo(
+                                    targetValue = -10f,
+                                    animationSpec = tween(durationMillis = 150, easing = EaseInOutSine)
+                                )
+                            }
+                            // 제자리로 복귀 (탄성 효과)
+                            sproutShakeAnim.animateTo(
+                                targetValue = 0f,
+                                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+                            )
+                        }
+                    }
+
+                    // --- 애니메이션 설정 (기본 살랑거림) ---
                     val transition = rememberInfiniteTransition(label = "leaf-wave-L1")
                     val leafWaveRotation by transition.animateFloat(
                         initialValue = -9f,
@@ -161,6 +194,7 @@ fun GraphicBackgroundView(
                         ),
                         label = "leafWave"
                     )
+
                     // --- 이미지 파일 설정 ---
                     // 1. 새싹 줄기
                     Image(
@@ -177,26 +211,66 @@ fun GraphicBackgroundView(
                         contentDescription = "새싹 머리",
                         modifier = Modifier
                             .scale(0.8f)
-                            .offset(y = 69.dp, x = 2.dp)
+                            .offset(y = 169.dp, x = (-8).dp)
                             .graphicsLayer {
-                                transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 1.0f)
-                                rotationY = leafWaveRotation
+                                // 머리 하단 중앙 고정
+                                transformOrigin = TransformOrigin(pivotFractionX = 1.0f, pivotFractionY = 0.9f)
+
+                                rotationY = leafWaveRotation + sproutShakeAnim.value
                             }
+                            .noRippleClickable(onClick = onClick)
                     )
                 }
 
                 2 -> {// 레벨 2 묘목
 
-                    // --- 애니메이션 설정 ---
+                    // 클릭하면 묘목 잎 으쓱
+                    val saplingShrugAnim = remember { Animatable(0f) }
+
+                    val onClick: () -> Unit = {
+                        coroutineScope.launch {
+                            saplingShrugAnim.snapTo(0f)
+                            repeat(2) {
+                                saplingShrugAnim.animateTo(
+                                    targetValue = 5f,
+                                    animationSpec = tween(durationMillis = 200, easing = EaseInOutSine)
+                                )
+                                // 아래로 살짝 (-4도)
+                                saplingShrugAnim.animateTo(
+                                    targetValue = -4f,
+                                    animationSpec = tween(durationMillis = 200, easing = EaseInOutSine)
+                                )
+                            }
+                            saplingShrugAnim.animateTo(
+                                targetValue = 0f,
+                                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+                            )
+                        }
+                    }
+
+                    // --- 기본 애니메이션 설정 (바람 + 으쓱) ---
                     val transition = rememberInfiniteTransition(label = "leaf-wave-L1")
-                    val leafWaveRotation by transition.animateFloat(
-                        initialValue = -9f, // -8도 (왼쪽)
-                        targetValue = 9f,  // +8도 (오른쪽)
+
+                    // 1. 기본 펄럭임 (Y축: 앞뒤 입체감)
+                    val leafWaveY by transition.animateFloat(
+                        initialValue = -8f,
+                        targetValue = 8f,
                         animationSpec = infiniteRepeatable(
-                            animation = tween(durationMillis = 2700, easing = EaseInOutSine), // 2.7초
-                            repeatMode = RepeatMode.Reverse // 부드럽게 왕복
+                            animation = tween(durationMillis = 2500, easing = EaseInOutSine),
+                            repeatMode = RepeatMode.Reverse
                         ),
-                        label = "leafWave"
+                        label = "leafWaveY"
+                    )
+
+                    // 2. 기본 으쓱임 (Z축: 위아래 들썩임)
+                    val leafShrugZ by transition.animateFloat(
+                        initialValue = -3f,  // 살짝 내려갔다가
+                        targetValue = 3f,   // 위로 12도 정도 들림 (숨쉬는 느낌)
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(durationMillis = 2500, easing = EaseInOutSine),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "leafShrugZ"
                     )
 
                     // --- 이미지 파일 설정 ---
@@ -215,11 +289,17 @@ fun GraphicBackgroundView(
                         contentDescription = "묘목 왼쪽 잎",
                         modifier = Modifier
                             .scale(2.3f)
-                            .offset(y = -13.dp)
+                            .offset(x = (-10).dp, y = 27.dp)
                             .graphicsLayer {
-                                transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 1.1f)
-                                rotationY = leafWaveRotation
+                                // 오른쪽 끝 하단 고정
+                                transformOrigin = TransformOrigin(pivotFractionX = 1.0f, pivotFractionY = 0.9f)
+
+                                // Y축: 기본 펄럭임
+                                rotationY = leafWaveY
+                                // Z축: 기본 으쓱임 + 클릭했을 때 강한 으쓱임
+                                rotationZ = leafShrugZ + saplingShrugAnim.value
                             }
+                            .noRippleClickable(onClick = onClick)
                     )
 
                     // 3. 묘목 오른쪽 잎
@@ -228,28 +308,40 @@ fun GraphicBackgroundView(
                         contentDescription = "묘목 오른쪽 잎",
                         modifier = Modifier
                             .scale(2.3f)
-                            .offset(y = -13.dp)
+                            .offset(y = 25.dp, x = 4.dp)
                             .graphicsLayer {
-                                transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 1.1f)
-                                rotationY = -leafWaveRotation
+                                // 왼쪽 끝 하단 고정
+                                transformOrigin = TransformOrigin(pivotFractionX = 0.0f, pivotFractionY = 0.9f)
+
+                                // 반대 방향 움직임
+                                rotationY = -leafWaveY
+                                rotationZ = -leafShrugZ - saplingShrugAnim.value
                             }
+                            .noRippleClickable(onClick = onClick)
                     )
 
-                    // 2. 묘목 3번째 잎
+                    // 4. 묘목 3번째 잎 (중앙 뒤)
                     Image(
                         painter = painterResource(id = R.drawable.learn_1_leaf3),
                         contentDescription = "묘목 3번째 잎",
                         modifier = Modifier
                             .scale(2.3f)
-                            .offset(y = -13.dp, x = (-0.5).dp)
+                            .offset(y = 70.dp, x = 8.dp)
                             .graphicsLayer {
-                                transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 1.1f)
-                                rotationY = -leafWaveRotation
+                                transformOrigin = TransformOrigin(pivotFractionX = 0.0f, pivotFractionY = 0.4f)
+
+                                rotationY = -leafWaveY * 0.4f
+                                // 뒤쪽 잎은 으쓱임을 절반만 적용해서 깊이감 주기
+                                rotationZ = (-leafShrugZ - saplingShrugAnim.value) * 0.5f
                             }
+                            .noRippleClickable(onClick = onClick)
                     )
                 }
 
                 3 -> {// 레벨 3 꽃봉오리
+
+                    // 꽃봉오리 클릭 시 "가로로 커졌다가 작아지기"
+                    val budScaleAnim = remember { Animatable(1f) }
 
                     // --- 애니메이션 설정 ---
                     val transition = rememberInfiniteTransition(label = "leaf-wave-L1")
@@ -276,7 +368,7 @@ fun GraphicBackgroundView(
                                 durationMillis = 2300,
                                 easing = EaseInOut // 부드럽게 시작하고 끝나도록
                             ),
-                            // RepeatMode.Reverse: -8 -> 8로 갔다가 8 -> -8로 돌아옵니다. (왕복)
+                            // 왕복
                             repeatMode = RepeatMode.Reverse
                         ),
                         label = "flower_y_translation"
@@ -289,7 +381,7 @@ fun GraphicBackgroundView(
                         contentDescription = "줄기",
                         modifier = Modifier
                             .scale(scaleX = 0.9f, scaleY = 1.1f)
-                            .offset(y = -25.dp)
+                            .offset(y = (-25).dp)
                     )
 
                     // 2. 꽃봉오리
@@ -297,10 +389,24 @@ fun GraphicBackgroundView(
                         painter = painterResource(id = R.drawable.learn_2_flower),
                         contentDescription = "꽃봉오리",
                         modifier = Modifier
-                            .scale(0.8f)
-                            .offset(y = 13.dp)
+                            .scale(scaleX = 0.8f* budScaleAnim.value,scaleY=0.8f)
+                            .offset(y = 110.dp)
                             .graphicsLayer {
+                                // 커질 때 줄기에서 자라나듯 하단 고정
+                                transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 1.0f)
                                 this.translationY = translationY
+                            }
+                            .noRippleClickable {
+                                coroutineScope.launch {
+                                    // 1.2배로 커졌다가
+                                    budScaleAnim.animateTo(1.4f, tween(200))
+                                    // 원래대로 쫀득하게 복귀
+                                    // 2. 부드럽게 돌아오기 (EaseInOutSine) - 튕김 제거
+                                    budScaleAnim.animateTo(
+                                        targetValue = 1f,
+                                        animationSpec = tween(durationMillis = 250, easing = EaseInOutSine)
+                                    )
+                                }
                             }
                     )
                     // 3. 잎 왼쪽
@@ -331,6 +437,9 @@ fun GraphicBackgroundView(
                 }
 
                 4 -> { // 레벨 4 꽃
+
+                    // 꽃 클릭 시 좌우로 크게 3번 흔들흔들
+                    val flowerShakeAnim = remember { Animatable(0f)}
 
                     // --- 애니메이션 설정 ---
                     val transition = rememberInfiniteTransition(label = "leaf-wave-L1")
@@ -366,24 +475,6 @@ fun GraphicBackgroundView(
                             .offset(y = 20.dp)
                     )
 
-                    // 2. 꽃
-                    Image(
-                        painter = painterResource(id = R.drawable.learn_3_flower),
-                        contentDescription = "꽃",
-                        modifier = Modifier
-                            .scale(0.9f)
-                            .offset(y = 22.dp)
-                            .graphicsLayer {
-                                // rotationZ를 사용하여 Z축(화면을 뚫는 축) 기준으로 회전시킵니다.
-                                rotationZ = flowerRotation
-
-                                // [전문가 팁]
-                                // 꽃이 줄기 끝(하단 중앙)을 기준으로 흔들리게 하려면
-                                // 회전 중심(transformOrigin)을 변경하세요.
-                                // 기본값은 (0.5f, 0.5f) - 중앙입니다.
-                            }
-                    )
-
                     // 3. 잎 왼쪽
                     Image(
                         painter = painterResource(id = R.drawable.learn_3_leafl),
@@ -409,9 +500,67 @@ fun GraphicBackgroundView(
                                 rotationY = -leafWaveRotation
                             }
                     )
+
+                    // 2. 꽃
+                    Image(
+                        painter = painterResource(id = R.drawable.learn_3_flower),
+                        contentDescription = "꽃",
+                        modifier = Modifier
+                            .scale(0.9f)
+                            // Y 오프셋에 바운스 값 추가 (아래로 내려갔다 옴)
+                            .offset(x=(-1).dp,y = 110.dp)
+                            .graphicsLayer {
+                                transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 0.1f)
+
+                                // 기본 살랑거림 + 클릭 시 큰 흔들림 합산
+                                rotationZ = flowerRotation + flowerShakeAnim.value
+
+                                // 꽃이 줄기 끝(하단 중앙)을 기준으로 흔들리게 하려면
+                                // 회전 중심(transformOrigin)을 변경
+                                // 기본값은 (0.5f, 0.5f) - 중앙
+                            }
+                            .noRippleClickable {
+                                coroutineScope.launch {
+                                    // 이미 흔들리고 있다면 리셋
+                                    flowerShakeAnim.snapTo(0f)
+
+                                    // 좌우로 크게 3번 왕복 (총 4번 이동)
+                                    repeat(2) {
+                                        // 왼쪽으로 휙 (-25도)
+                                        flowerShakeAnim.animateTo(
+                                            targetValue = -15f,
+                                            animationSpec = tween(durationMillis = 200, easing = EaseInOutSine)
+                                        )
+                                        // 오른쪽으로 휙 (25도)
+                                        flowerShakeAnim.animateTo(
+                                            targetValue = 15f,
+                                            animationSpec = tween(durationMillis = 200, easing = EaseInOutSine)
+                                        )
+                                    }
+                                    // 중앙으로 복귀 (탄성 효과)
+                                    flowerShakeAnim.animateTo(
+                                        targetValue = 0f,
+                                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+                                    )
+                                }
+                            }
+                    )
                 }
 
                 5 -> {// 레벨 5 열매
+                    // ★ 모든 베리가 공유하는 클릭 상태
+                    var areBerriesActive by remember { mutableStateOf(false) }
+
+                    // 클릭 시 실행할 동작 (한 번 누르면 0.3초간 모든 베리 변신)
+                    val onBerryClick = {
+                        if (!areBerriesActive) {
+                            coroutineScope.launch {
+                                areBerriesActive = true
+                                delay(300) // 0.3초 유지
+                                areBerriesActive = false
+                            }
+                        }
+                    }
 
                     // --- 애니메이션 설정 ---
                     val transition = rememberInfiniteTransition(label = "leaf-wave-L1")
@@ -435,41 +584,46 @@ fun GraphicBackgroundView(
                             .offset(y = 55.dp)
                     )
 
-                    // 2. 베리1
-                    Image(
-                        painter = painterResource(id = R.drawable.learn_4_berry),
-                        contentDescription = "베리1",
-                        modifier = Modifier
-                            .scale(0.82f)
-                            .offset(y = 15.dp)
-                            .graphicsLayer {
-                                transformOrigin = TransformOrigin(pivotFractionX = 0.6f, pivotFractionY = 1f)
-                                rotationY = leafWaveRotation
-                            }
+                    // 3. 베리2 (왼쪽 아래) -> 노란색(Yellow)으로 변신
+                    BerryItem(
+                        resId = R.drawable.learn_4_berry2,
+                        clickedResId = R.drawable.learn_4_berry_orange, // 업로드해주신 파일명
+                        offsetX = (-33).dp,
+                        offsetY = 102.dp,
+                        scale = 0.82f,
+                        clickedScale = 0.82f,
+                        swayRotation = leafWaveRotation,
+                        swayOrigin = TransformOrigin(0.5f, 1.3f),
+                        isActive = areBerriesActive,
+                        onClick = { onBerryClick() }
                     )
-                    // 3. 베리2
-                    Image(
-                        painter = painterResource(id = R.drawable.learn_4_berry2),
-                        contentDescription = "베리2",
-                        modifier = Modifier
-                            .scale(0.82f)
-                            .offset(y = 50.dp, x=(-3).dp)
-                            .graphicsLayer {
-                                transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 1f)
-                                rotationY = leafWaveRotation
-                            }
+
+                    // 4. 베리3 (오른쪽 아래) -> 주황색(Orange)으로 변신
+                    BerryItem(
+                        resId = R.drawable.learn_4_berry3,
+                        clickedResId = R.drawable.learn_4_berry_yellow, // 업로드해주신 파일명
+                        offsetX = 23.dp,
+                        offsetY = 107.dp,
+                        scale = 0.82f,
+                        clickedScale = 0.82f,
+                        swayRotation = -leafWaveRotation,
+                        swayOrigin = TransformOrigin(0.5f, 1.3f),
+                        isActive = areBerriesActive,
+                        onClick = { onBerryClick() }
                     )
-                    // 4. 베리3
-                    Image(
-                        painter = painterResource(id = R.drawable.learn_4_berry3),
-                        contentDescription = "베리3",
-                        modifier = Modifier
-                            .scale(0.82f)
-                            .offset(y = 50.dp, x =(-4).dp)
-                            .graphicsLayer {
-                                transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 1f)
-                                rotationY = -leafWaveRotation
-                            }
+
+                    // 2. 베리1 (중앙) -> 빨간색(Red)으로 변신
+                    BerryItem(
+                        resId = R.drawable.learn_4_berry,
+                        clickedResId = R.drawable.learn_4_berry_red, // 업로드해주신 파일명
+                        offsetX = (-2).dp,
+                        offsetY = 90.dp,
+                        scale = 0.82f,
+                        clickedScale = 0.82f, // 클릭 시 커지는 크기
+                        swayRotation = leafWaveRotation,
+                        swayOrigin = TransformOrigin(0.6f, 1.3f),
+                        isActive = areBerriesActive, // 공유 상태 전달
+                        onClick = { onBerryClick() } // 공유 클릭 함수 전달
                     )
                 }
 
@@ -582,4 +736,47 @@ fun RaindropItem(
                 }
             }
     )
+}
+// 베리 클릭 애니메이션
+@Composable
+fun BerryItem(
+    resId: Int,          // 기본 이미지
+    clickedResId: Int,   // 클릭 시 보여줄 이미지
+    offsetX: Dp,
+    offsetY: Dp,
+    scale: Float,        // 기본 크기
+    clickedScale: Float, // 클릭 시 커질 크기
+    swayRotation: Float, // 흔들림 각도
+    swayOrigin: TransformOrigin, // 매달린 위치
+    isActive: Boolean,   // ★ 부모가 내려주는 활성 상태 (true면 변신)
+    onClick: () -> Unit  // ★ 클릭 이벤트 리스너
+) {
+    // isActive 상태에 따라 크기 애니메이션
+    val currentScale by animateFloatAsState(
+        targetValue = if (isActive) clickedScale else scale,
+        animationSpec = tween(durationMillis = 500, easing = EaseInOutSine),
+        label = "berryScale"
+    )
+
+    // 1. 바깥 Box: 줄기에 매달려 살랑거리는 역할
+    Box(
+        modifier = Modifier
+            .scale(1f) // 박스 스케일은 고정
+            .offset(x = offsetX, y = offsetY)
+            .graphicsLayer {
+                transformOrigin = swayOrigin
+                rotationY = swayRotation
+            }
+    ) {
+        // 2. 안쪽 Image: 클릭 시 이미지 교체 + 크기 변경
+        Image(
+            // 활성 상태면 클릭 이미지, 아니면 기본 이미지 표시
+            painter = painterResource(id = if (isActive) clickedResId else resId),
+            contentDescription = "베리",
+            modifier = Modifier
+                .align(Alignment.Center)
+                .scale(currentScale) // 애니메이션된 크기 적용
+                .noRippleClickable { onClick() } // 클릭 시 부모에게 알림
+        )
+    }
 }

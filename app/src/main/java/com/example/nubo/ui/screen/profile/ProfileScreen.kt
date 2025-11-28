@@ -1,9 +1,7 @@
 package com.example.nubo.ui.screen.profile
 
-import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,16 +25,13 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.components.toast.AppToastHostState
 import com.example.components.toast.AppToastLayout
-import com.example.components.toast.AppToastOverlay
 import com.example.components.toast.AppToastType
-import com.example.components.toast.rememberAppToastHostState
+import com.example.components.toast.LocalAppToastHostState
 import com.example.nubo.R
 import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey10
-import com.example.nubo.ui.theme.Grey20
 import com.example.nubo.ui.theme.Purple300
 
 // Route: ViewModel과 상태 바인딩
@@ -69,8 +64,8 @@ fun ProfileRoute(
     // 서버에서 가져온 프로필 UI 상태 구독
     val state by viewModel.uiState.collectAsState()
 
-    // 커스텀 토스트 호스트 상태 생성
-    val toastHostState = rememberAppToastHostState()
+    // 전역 토스트 호스트
+    val toastHostState = LocalAppToastHostState.current
 
     when {
         // 로딩 상태
@@ -79,8 +74,6 @@ fun ProfileRoute(
         }
         // 에러 상태
         state.error != null -> {
-            val context = LocalContext.current
-
             // 에러가 발생했을 때 한 번만 토스트 출력
             // 화면 진입 시 커스텀 토스트 호출 (1회성)
             LaunchedEffect(Unit) {
@@ -98,7 +91,6 @@ fun ProfileRoute(
                 email = "이메일 없음",
                 profileImageUrl = null,
                 onBack = onBack,
-                toastHostState = toastHostState,
                 onBellClick = onBellClick,
                 onEditProfileImage = onEditProfileImage,
                 onMyInfo = onMyInfo,
@@ -119,7 +111,6 @@ fun ProfileRoute(
                 email = email,
                 profileImageUrl = imageUrl,
                 onBack = onBack,
-                toastHostState = toastHostState,
                 onBellClick = onBellClick,
                 onEditProfileImage = onEditProfileImage,
                 onMyInfo = onMyInfo,
@@ -138,7 +129,6 @@ fun ProfileScreen(
     email: String,
     profileImageUrl: String?,
     onBack: () -> Unit = {},
-    toastHostState: AppToastHostState,
     onBellClick: () -> Unit = {},
     onEditProfileImage: () -> Unit = {},
     onMyInfo: () -> Unit = {},
@@ -274,12 +264,6 @@ fun ProfileScreen(
                 SettingsItem(title = "개인정보 처리방침", onClick = onPrivacy)
             }
         }
-        // 커스텀 토스트 오버레이 배치
-        // 화면 최상단 레이어에 위치
-        AppToastOverlay(
-            hostState = toastHostState,
-            extraBottomOffset = 100.dp // 하단 탭바 높이 등을 고려하여 위치 조정
-        )
     }
 }
 
