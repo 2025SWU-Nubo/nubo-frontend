@@ -216,19 +216,18 @@ fun MainScreen(
     val toastScope = rememberCoroutineScope()
 
     // message, type, duration, preDelay, actionLabel, onAction
-    val showToast: (
-        String,
-        AppToastType,
-        Int,
-        Int,
-        String?,
-        (() -> Unit)?
-    ) -> Unit = { msg, type, duration, preDelay, actionLabel, onAction ->
+    fun showToast(
+        msg: String,
+        type: AppToastType,
+        duration: Int = 2000,
+        preDelay: Int = 0,
+        actionLabel: String? = null,
+        onAction: (() -> Unit)? = null
+    ) {
         toastScope.launch {
             toastHost.show(
                 title = AnnotatedString(msg),
                 type = type,
-                // If action exists, use action layout  otherwise title only
                 layout = if (actionLabel != null && onAction != null) {
                     AppToastLayout.TitleWithAction
                 } else {
@@ -267,11 +266,11 @@ fun MainScreen(
                     Triple(ev.message, AppToastType.NEGATIVE, 2200)
             }
             toastScope.launch {
-                toastHost.show(
-                    title = AnnotatedString(msg),
+                showToast(
+                    msg = msg,
                     type = type,
-                    layout = AppToastLayout.TitleOnly,
-                    durationMillis = dur
+                    duration = dur,
+                    preDelay = 800
                 )
             }
 
@@ -723,7 +722,6 @@ fun MainScreen(
                     val vm: RecommendCardDetailViewModel = hiltViewModel(backStackEntry)
                     val uiState by vm.uiState.collectAsState()
                     val saveState by vm.saveState.collectAsState()
-                    val toastHost = LocalAppToastHostState.current
 
                     // 처음 진입 시 상세 로드
                     LaunchedEffect(Unit) {
@@ -734,25 +732,29 @@ fun MainScreen(
                     LaunchedEffect(saveState) {
                         when (val s = saveState) {
                             is SaveUiState.Success -> {
-                                toastHost.show(
-                                    title = AnnotatedString("내 카드에 저장했어요"),
-                                    layout = AppToastLayout.TitleOnly,
-                                    type = AppToastType.POSITIVE,
-                                    durationMillis = 2000
-                                )
                                 // 응답으로 받은 cardId 로 일반 카드 상세로 이동
                                 navController.navigate("card_detail/${s.cardId}") {
                                     popUpTo("home") { inclusive = false }
                                     launchSingleTop = true
                                 }
+                                showToast(
+                                    "내 카드에 저장했어요",
+                                    AppToastType.POSITIVE,
+                                    duration = 1800,
+                                    preDelay = 600,          // 여기서 전체 지연 조절
+                                    actionLabel = null,
+                                    onAction = null
+                                )
                             }
 
                             is SaveUiState.Error -> {
-                                toastHost.show(
-                                    title = AnnotatedString(s.message),
-                                    layout = AppToastLayout.TitleOnly,
-                                    type = AppToastType.NEGATIVE,
-                                    durationMillis = 2200
+                                showToast(
+                                    s.message,
+                                    AppToastType.NEGATIVE,
+                                    duration = 2200,
+                                    preDelay = 150,
+                                    actionLabel = null,
+                                    onAction = null
                                 )
                             }
 
@@ -1010,7 +1012,7 @@ fun MainScreen(
                 launchSingleTop = true
             }
         },
-        showToast = showToast
+        showToast = ::showToast
     )
 }
 

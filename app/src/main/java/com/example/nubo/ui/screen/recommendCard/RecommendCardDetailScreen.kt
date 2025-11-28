@@ -73,6 +73,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
 import com.example.nubo.R
 import com.example.nubo.model.card.CardDetailItem
+import com.example.nubo.model.card.RecommendCardDetailItem
 import com.example.nubo.ui.component.InfoBubble
 import com.example.nubo.ui.component.KeywordChip
 import com.example.nubo.ui.screen.card.CardDetailViewModel
@@ -91,7 +92,7 @@ import kotlin.math.max
 
 @Composable
 fun RecommendCardDetailScreen(
-    item: CardDetailItem,
+    item: RecommendCardDetailItem,
     onBack: () -> Unit,
     onSaveClick: () -> Unit,
     onInfoClick: (() -> Unit)? = null,
@@ -118,7 +119,7 @@ fun RecommendCardDetailScreen(
 
 @Composable
 private fun RecommendCardDetailContent(
-    item: CardDetailItem,
+    item: RecommendCardDetailItem,
     onBack: () -> Unit,
     onSaveClick: () -> Unit,
     showInfoBubble: Boolean,
@@ -253,7 +254,7 @@ private fun CustomTopBar(
  */
 @Composable
 private fun ImageWithButton(
-    item: CardDetailItem,
+    item: RecommendCardDetailItem,
     onInfoClick: () -> Unit,
     onPlayClick: () -> Unit,
     showInfoBubble: Boolean = false,
@@ -310,7 +311,7 @@ private fun ImageWithButton(
                     .padding(top = 6.dp, end = 48.dp)
             ) {
                 InfoBubble(
-                    title = "#${item.boardName}",
+                    title = "#${item.aiCategoryName}",
                     subtitleLeft = "AI 카테고리",
                     centerValue = item.createdAt,
                     subtitleCenter = "저장한 날짜",
@@ -516,52 +517,52 @@ private fun rememberImeOrNavBottomPadding(extra: Dp = 0.dp): Dp {
     return with(density) { bottomPx.toDp() } + extra
 }
 
-@Preview(showBackground = true)
-@Composable
-private fun PreviewRecommendCardDetailScreen() {
-    val dummyItem = CardDetailItem(
-        cardId = 0,
-        videoThumbnailUrl = "",
-        videoUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        title = "프리뷰용 추천 카드 제목입니다 프리뷰용 추천 카드 제목입니다",
-        boardName = "개발 · 프로덕트",
-        summary = """
-            - 이 카드는 프리뷰에서 보여주는 더미 요약 노트입니다
-            - 실제 데이터가 들어오면 서버에서 받은 마크다운을 렌더링합니다
-
-            ### 주요 내용
-            1. 숏폼을 저장하고
-            2. 요약 노트를 확인하고
-            3. 추천 카드에서 내 카드로 저장할 수 있어요
-            
-             ### 주요 내용
-            1. 숏폼을 저장하고
-            2. 요약 노트를 확인하고
-            3. 추천 카드에서 내 카드로 저장할 수 있어요
-            
-             ### 주요 내용
-            1. 숏폼을 저장하고
-            2. 요약 노트를 확인하고
-            3. 추천 카드에서 내 카드로 저장할 수 있어요
-        """.trimIndent(),
-        videoPlatform = "YOUTUBE",
-        createdAt = "2025.11.27",
-        updatedAt = "2025.11.27",
-        tags = listOf("Productivity", "Study hack", "Nubo"),
-        isFavorite = false,
-        stage = 0,
-        stageUp = false,
-        berryGained = false
-    )
-
-    NuboAppTheme {
-        RecommendCardDetailContent(
-            item = dummyItem,
-            onBack = {},
-            onSaveClick = {},
-            showInfoBubble = false,
-            onInfoClick = {},
-            onDismissInfo = {}
-        )
-    }
-}
+//@Preview(showBackground = true)
+//@Composable
+//private fun PreviewRecommendCardDetailScreen() {
+//    val dummyItem = CardDetailItem(
+//        cardId = 0,
+//        videoThumbnailUrl = "",
+//        videoUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+//        title = "프리뷰용 추천 카드 제목입니다 프리뷰용 추천 카드 제목입니다",
+//        boardName = "개발 · 프로덕트",
+//        summary = """
+//            - 이 카드는 프리뷰에서 보여주는 더미 요약 노트입니다
+//            - 실제 데이터가 들어오면 서버에서 받은 마크다운을 렌더링합니다
+//
+//            ### 주요 내용
+//            1. 숏폼을 저장하고
+//            2. 요약 노트를 확인하고
+//            3. 추천 카드에서 내 카드로 저장할 수 있어요
+//
+//             ### 주요 내용
+//            1. 숏폼을 저장하고
+//            2. 요약 노트를 확인하고
+//            3. 추천 카드에서 내 카드로 저장할 수 있어요
+//
+//             ### 주요 내용
+//            1. 숏폼을 저장하고
+//            2. 요약 노트를 확인하고
+//            3. 추천 카드에서 내 카드로 저장할 수 있어요
+//        """.trimIndent(),
+//        videoPlatform = "YOUTUBE",
+//        createdAt = "2025.11.27",
+//        updatedAt = "2025.11.27",
+//        tags = listOf("Productivity", "Study hack", "Nubo"),
+//        isFavorite = false,
+//        stage = 0,
+//        stageUp = false,
+//        berryGained = false
+//    )
+//
+//    NuboAppTheme {
+//        RecommendCardDetailContent(
+//            item = dummyItem,
+//            onBack = {},
+//            onSaveClick = {},
+//            showInfoBubble = false,
+//            onInfoClick = {},
+//            onDismissInfo = {}
+//        )
+//    }
+//}

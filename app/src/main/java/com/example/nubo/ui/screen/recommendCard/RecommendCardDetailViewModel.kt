@@ -8,6 +8,7 @@ import com.example.nubo.data.model.SaveRecommendationCardRequest
 import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.data.repository.CardRepository
 import com.example.nubo.model.card.CardDetailItem
+import com.example.nubo.model.card.RecommendCardDetailItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import formatIsoDateToDisplayLegacy
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +20,7 @@ import javax.inject.Inject
 // UI state for recommend card detail
 sealed interface RecommendDetailUiState {
     data object Loading : RecommendDetailUiState
-    data class Success(val item: CardDetailItem) : RecommendDetailUiState
+    data class Success(val item: RecommendCardDetailItem) : RecommendDetailUiState
     data class Error(val message: String) : RecommendDetailUiState
 }
 
@@ -106,22 +107,18 @@ class RecommendCardDetailViewModel @Inject constructor(
     }
 
     // Map recommend detail response → CardDetailItem (reuse existing UI model)
-    private fun RecommendCardDetailResponse.toUi(): CardDetailItem {
-        return CardDetailItem(
-            cardId = recommendationCardId,              // 아직 내 카드 id 는 아님
-            videoThumbnailUrl = videoThumbnailUrl,
-            videoUrl = videoUrl,
+    private fun RecommendCardDetailResponse.toUi(): RecommendCardDetailItem {
+        return RecommendCardDetailItem(
+            recommendationCardId = recommendationCardId,   // 아직 내 카드 id 는 아님
             title = title,
-            boardName = aiCategoryName,
             summary = summary,
-            videoPlatform = videoPlatform,
-            createdAt = formatIsoDateToDisplayLegacy(createdAt),
-            updatedAt = formatIsoDateToDisplayLegacy(updatedAt),
             tags = tags,
-            isFavorite = false, // 추천 카드는 항상 false
-            stage = 0,
-            stageUp = false,
-            berryGained = false
+            videoUrl = videoUrl,
+            videoThumbnailUrl = videoThumbnailUrl,
+            videoPlatform = videoPlatform,
+            aiCategoryName = aiCategoryName,
+            createdAt = formatIsoDateToDisplayLegacy(createdAt),
+            updatedAt = formatIsoDateToDisplayLegacy(updatedAt)
         )
     }
 }

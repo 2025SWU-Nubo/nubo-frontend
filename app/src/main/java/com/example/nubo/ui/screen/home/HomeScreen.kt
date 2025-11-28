@@ -139,12 +139,6 @@ fun HomeScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-//    LaunchedEffect(Unit) {
-//        vm.loadBoards()
-//        vm.loadRecentBoards()
-//        vm.refreshForCurrentSelection()
-//    }
-
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         topBar = {
@@ -198,13 +192,12 @@ fun HomeScreen(
                 }
             }
             items(recommendGroups) { group ->
-                RecommendVideoSection(
-                    group = group,
-                    onCardClick = { cardId ->
-                        onOpenRecommendCard(cardId)
-                    }
-                )
-                Column {
+
+                    RecommendVideoSection(
+                        group = group,
+                        onCardClick = { cardId -> onOpenRecommendCard(cardId) }
+                    )
+
                     Spacer(Modifier.height(16.dp))
                     Box(
                         Modifier
@@ -213,7 +206,8 @@ fun HomeScreen(
                             .background(Grey10)
                     )
                     Spacer(Modifier.height(20.dp))
-                }
+
+
             }
 
             item {
@@ -374,33 +368,51 @@ fun RecommendVideoSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)) {
+            .padding(horizontal = 16.dp)
+    ) {
         Text(
             text = group.title,
             style = AppTextStyles.b1_semibold_18
-            )
+        )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        LazyRow {
-            itemsIndexed(group.cards) { index, card ->
-                // first and last padding tweak
-                val startPadding = if (index == 0) 2.dp else 8.dp
-                val endPadding = if (index == group.cards.lastIndex) 2.dp else 0.dp
+        if (group.cards.isEmpty()) {
+            // Empty state when group has no cards
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "누보가 열심히 찾는 중이에요!",
+                    style = AppTextStyles.b3_regular_14,
+                    color = GreyMain300,
+                    textAlign = TextAlign.Center
+                )
+            }
+        } else {
+            LazyRow {
+                itemsIndexed(group.cards) { index, card ->
+                    val startPadding = if (index == 0) 2.dp else 8.dp
+                    val endPadding = if (index == group.cards.lastIndex) 2.dp else 0.dp
 
-                Box(
-                    modifier = Modifier.padding(start = startPadding, end = endPadding)
-                ) {
-                    RecommendCardContent(
-                        cardId = card.cardId,
-                        videoThumbnailUrl = card.videoThumbnailUrl,
-                        onClick = onCardClick
-                    )
+                    Box(
+                        modifier = Modifier.padding(start = startPadding, end = endPadding)
+                    ) {
+                        RecommendCardContent(
+                            cardId = card.cardId,
+                            videoThumbnailUrl = card.videoThumbnailUrl,
+                            onClick = onCardClick
+                        )
+                    }
                 }
             }
         }
     }
 }
+
 
 
 @Composable
