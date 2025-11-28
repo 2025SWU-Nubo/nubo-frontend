@@ -52,16 +52,13 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.collect
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.text.AnnotatedString
-import com.example.components.toast.AppToastHost
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.AppToastType
-import com.example.components.toast.rememberAppToastHostState
+import com.example.components.toast.LocalAppToastHostState
 import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
 import com.example.nubo.ui.theme.Grey1000
@@ -94,8 +91,8 @@ fun MyBoardScreen(
 ) {
     val scope = rememberCoroutineScope()
 
-    // --- 토스트 메시지를 boardViewModel에서 구독 ---
-    val toastHostState = rememberAppToastHostState()
+    // 전역 토스트 사용
+    val toastHostState = LocalAppToastHostState.current  //  전역 호스트
     val toastMessage by boardViewModel.toastMessage.collectAsState()
 
     // --- 삭제 완료 액션 토스트 구독 ---
@@ -253,9 +250,28 @@ fun MyBoardScreen(
 
     // 뒤 화면에서 변경 사항 적용 시 바로 적용
     val handle = navController.currentBackStackEntry?.savedStateHandle
-    val needsRefresh by handle?.getLiveData<Boolean>("needs_refresh")?.observeAsState() ?: mutableStateOf(false)
-    val renamedBoardId by handle?.getLiveData<Int>("renamed_board_id")?.observeAsState() ?: mutableStateOf(null)
-    val renamedBoardName by handle?.getLiveData<String>("renamed_board_name")?.observeAsState() ?: mutableStateOf(null)
+
+    // Boolean 기본값 false
+    val needsRefresh by (
+        handle
+            ?.getLiveData<Boolean>("needs_refresh")
+            ?.observeAsState(initial = false)     // LiveData -> State
+            ?: remember { mutableStateOf(false) } // default state, remembered
+        )
+    // Int? 기본값 null
+    val renamedBoardId by (
+        handle
+            ?.getLiveData<Int>("renamed_board_id")
+            ?.observeAsState()                    // State<Int?>
+            ?: remember { mutableStateOf<Int?>(null) }
+        )
+    // String? 기본값 null
+    val renamedBoardName by (
+        handle
+            ?.getLiveData<String>("renamed_board_name")
+            ?.observeAsState()                    // State<String?>
+            ?: remember { mutableStateOf<String?>(null) }
+        )
 
     LaunchedEffect(needsRefresh) {
         if (needsRefresh == true) {
@@ -449,16 +465,10 @@ fun MyBoardScreen(
                 }
             }
         }
-        // -토스트 UI를 화면에 배치 ---
-        AppToastHost(
-            hostState = toastHostState,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 100.dp) // 스낵바와 겹치지 않도록 패딩 추가
-        )
     }
 }
 
-
-// 상단 카드 / 보드 탭바
+// 상단 (카드 / 보드) 탭바
 @Composable
 fun TabHeader(
     selectedTabIndex: Int,
@@ -637,7 +647,7 @@ fun TitleBar(
     }
 }
 
-
+// 정렬, 필터 버튼
 @Composable
 fun FilterButtons(
     selectedTab: Int,
@@ -717,8 +727,7 @@ fun FilterButtons(
     }
 }
 
-
-// 나의 카드 탭 선택 시 -> 카드 콘텐츠 영역 스크롤 가능하도록
+// 나의 카드 탭 : 카드 콘텐츠 스크롤 영역
 @Composable
 fun ScrollableCardContent(
     cards: List<MyCardItem>,
@@ -749,7 +758,6 @@ fun ScrollableCardContent(
                 }
             }
     }
-
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -784,7 +792,7 @@ fun ScrollableCardContent(
     }
 }
 
-// 검색결과 없을 때 UI
+// 검색 결과 없을 때 UI
 @Composable
 fun EmptyStateUI(modifier: Modifier = Modifier, iconRes: Int, message: String) {
     // 가운데 정렬된 심플한 빈 상태 UI
@@ -903,7 +911,7 @@ fun SortFilterButton(
     }
 }
 
-// 로딩 인디케이터
+// 검색 로딩 인디케이터
 @Composable
 private fun SearchingIndicator(
     message: String = "검색 중..."
@@ -925,6 +933,3 @@ private fun SearchingIndicator(
         )
     }
 }
-
-
-

@@ -74,9 +74,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import com.example.components.toast.AppToastHost
 import com.example.components.toast.AppToastLayout
-import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.ui.theme.AppTextStyles.b3_regular_14
 import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey500
@@ -91,7 +89,6 @@ import com.example.nubo.ui.theme.AppTextStyles.b2_medium_16
 // 어떤 다이얼로그를 띄울지 구분하기 위한 sealed class
 sealed class InputDialogMode {
     data object CreateSection : InputDialogMode()
-    data class Rename(val sectionId: Int, val currentName: String) : InputDialogMode()
 }
 
 @Composable
@@ -203,7 +200,6 @@ fun BoardDetailScreen(
             viewModel.clearToastEvent()
         }
     }
-
     // view 모델 결과에 따른 토스트 출력
     LaunchedEffect(toastMessage) {
         toastMessage?.let { message ->
@@ -239,7 +235,6 @@ fun BoardDetailScreen(
                         }
                     )
                 }
-
             }  else {
                 // 나머지 토스트는 기존 로직 그대로 유지
                 val toastType = when {
@@ -264,7 +259,6 @@ fun BoardDetailScreen(
             viewModel.clearToastMessage()
         }
     }
-
     // SectionDetailScreen에서 이름 변경 결과를 수신하는 부분
     LaunchedEffect(navController.currentBackStackEntry) {
         val handle = navController.currentBackStackEntry?.savedStateHandle
@@ -277,7 +271,6 @@ fun BoardDetailScreen(
             handle.remove<String>("renamed_section_name")
         }
     }
-
     // 섹션 상세에서 기능 사용 시 새로고침 신호 수신
     LaunchedEffect(Unit) {
         // 현재 화면의 SavedStateHandle을 가져옴
@@ -297,7 +290,6 @@ fun BoardDetailScreen(
                 }
             }
     }
-
     // 공유 보드 초대 ViewModel 상태 구독
     val currentBoardMembers by viewModel.currentBoardMembers.collectAsState()
     val inviteResetSignal by viewModel.inviteResetSignal.collectAsState()
@@ -550,22 +542,6 @@ fun BoardDetailScreen(
                         }
                     )
                 }
-
-                /*BottomSheetType.BOARD_SETTINGS -> {
-                    // 새로 추가된 보드 설정 바텀 시트
-                    BoardSettingsContent(
-                        onDeleteClick = {
-                            // --- 새 다이얼로그를 띄우도록 상태 변경 ---
-                            showBoardDeleteDialog = true
-                            bottomSheetType = BottomSheetType.NONE // 바텀 시트 닫기
-                        },
-                        onSettingsClick = {
-                            // 설정 버튼 클릭 시 BOARD_EDIT 상태로 변경
-                            bottomSheetType = BottomSheetType.BOARD_EDIT
-                        },
-                        onDismiss = { bottomSheetType = BottomSheetType.NONE }
-                    )
-                }*/
                 // BOARD_EDIT 상태일 때 BoardEditSheet를 보여주는 case
                 BottomSheetType.BOARD_EDIT -> {
                     // 현재 보드 정보가 있을 때만 설정 화면을 보여줌
@@ -675,11 +651,10 @@ fun BoardDetailScreen(
                         isOwner = ui.board?.owner ?: false,
                     )
                 }
-
                 else -> {}
             }
         }
-        // ==== 다이얼로그 표시 ====
+        // ==== 섹션 추가 다이얼로그 ====
         when (val m = dialogMode) {
             InputDialogMode.CreateSection -> NuboInputDialog(
                 visible = true,
@@ -698,7 +673,6 @@ fun BoardDetailScreen(
                     )
                 }
             )
-
             null -> Unit
             // Rename 등 나머지 케이스를 처리하기 위한 else 분기
             else -> { /* Do nothing for other cases */
@@ -720,32 +694,8 @@ fun BoardDetailScreen(
             }
         )
     }
-    /*// --- 보드 전체 삭제 다이얼로그 ---
-    if (showBoardDeleteDialog) {
-        BoardDeleteConfirmationDialog(
-            visible = true,
-            onDismiss = { showBoardDeleteDialog = false },
-            onDelete = {
-                scope.launch {
-                    // 1. BoardViewModel의 삭제 함수 호출하고 결과(삭제된 개수)를 받음
-                    val deletedCount = boardViewModel.deleteBoards(setOf(boardId))
-
-                    // 2. 삭제에 성공했다면
-                    if (deletedCount != null && deletedCount > 0) {
-                        // 3. 이전 화면의 SavedStateHandle에 결과를 저장
-                        navController.previousBackStackEntry
-                            ?.savedStateHandle
-                            ?.set("deleted_board_count", deletedCount)
-                    }
-                    // 4. 화면을 닫음
-                    navController.popBackStack()
-                }
-            }
-        )
-    }*/
-
 }
-
+// 탑바
 @Composable
 fun DetailTopBar(
     onBack: () -> Unit,
@@ -776,7 +726,6 @@ fun DetailTopBar(
                 color = GreyMain300
             )
         }
-
         // 중간을 채우는 빈 공간
         Spacer(modifier = Modifier.weight(1f))
 
@@ -793,8 +742,7 @@ fun DetailTopBar(
         }
     }
 }
-
-
+// 타이틀 바
 @Composable
 fun BoardTitleBar(title: String) {
     val decodedTitle = URLDecoder.decode(title, "utf-8")
@@ -817,7 +765,7 @@ fun BoardTitleBar(title: String) {
         }
     }
 }
-
+// 정렬, 필터 버튼
 @Composable
 fun BoardFilterButton(
     favoriteSelected: Boolean,
@@ -845,7 +793,6 @@ fun BoardFilterButton(
                 enabled = !isSelectionMode, //선택 모드일 때 버튼 비활성화
                 onSortSelected = { sortKey -> onRequestSort(sortKey) }
             )
-
             // 즐겨찾기 버튼
             val isFavoriteSelected = selected == "즐겨찾기"
             OutlinedButton(
@@ -897,8 +844,7 @@ fun BoardFilterButton(
         }
     }
 }
-
-
+// 섹션 아이템 변환
 fun SectionDto.toBoardItem(): BoardItem {
     return BoardItem(
         id = this.id.toInt(),              // ← Long → Int
@@ -911,7 +857,7 @@ fun SectionDto.toBoardItem(): BoardItem {
         imageUrl = this.thumbnailUrl
     )
 }
-
+// 카드 아이템 변환
 fun CardItemDto.toCardItem(): CardItem {
     return CardItem(
         id = this.id,
@@ -923,8 +869,7 @@ fun CardItemDto.toCardItem(): CardItem {
         isFavorite = this.favorite ?: false
     )
 }
-
-// 섹션 이름 입력 다이얼로그
+// 섹션 추가 다이얼로그
 @Composable
 fun NuboInputDialog(
     // 다이얼로그 표시 여부
@@ -967,7 +912,6 @@ fun NuboInputDialog(
                 // 이름 변경 모드: 2글자 이상이면서, 이전 이름과 다를 때 활성화
                 text.trim().length >= 2 && text.trim() != initialValue
             }
-
             // 헤더 영역: X 버튼 + 타이틀 + 우측 확인 텍스트 버튼
             Row(
                 modifier = Modifier
@@ -982,7 +926,6 @@ fun NuboInputDialog(
                         .size(24.dp)
                         .clickable { onDismiss() } // 왼쪽 X 클릭 시 닫기
                 )
-
                 // 가운데 타이틀
                 Text(
                     text = title,
@@ -992,7 +935,6 @@ fun NuboInputDialog(
                         .weight(1f),
                     textAlign = TextAlign.Center
                 )
-
                 // 우측 텍스트 버튼
                 Text(
                     text = confirmText,
@@ -1006,7 +948,6 @@ fun NuboInputDialog(
                         .padding(end = 4.dp)
                 )
             }
-
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
