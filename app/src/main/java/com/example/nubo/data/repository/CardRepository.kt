@@ -12,6 +12,8 @@ import com.example.nubo.data.model.EditSummaryResponse
 import com.example.nubo.data.model.PagedResponse
 import com.example.nubo.data.model.RecommendCardDetailResponse
 import com.example.nubo.data.model.RecommendCardResponse
+import com.example.nubo.data.model.SaveRecommendationCardRequest
+import com.example.nubo.data.model.SaveRecommendationCardResponse
 import com.example.nubo.data.network.CardService
 import com.example.nubo.data.network.CardSort
 import com.example.nubo.domain.model.CardFilter
@@ -92,12 +94,26 @@ class CardRepository @Inject constructor(private val apiService: CardService) {
     // 홈 추천 카드 상세 조회
     suspend fun getRecommendCardDetail(
         token: String,
-        cardId: Int
+        recommendationCardId: Int
     ): Result<RecommendCardDetailResponse> = runCatching {
-        apiService.recommendCardDetail(
-            authorization = "Bearer $token",
-            accept = "application/json",
-            cardId = cardId
+        apiService.getRecommendationCardDetail(
+            token = "Bearer $token",
+            id = recommendationCardId
         )
     }
+
+    suspend fun saveRecommendationCard(
+        token: String,
+        recommendationCardId: Int,
+        boardIds: List<Int>? = null
+    ): Result<SaveRecommendationCardResponse> = runCatching {
+        apiService.saveRecommendationCard(
+            token = "Bearer $token",
+            body = SaveRecommendationCardRequest(
+                recommendationCardId = recommendationCardId,
+                boardIds = boardIds
+            )
+        )
+    }
+
 }

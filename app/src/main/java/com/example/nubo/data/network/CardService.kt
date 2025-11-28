@@ -16,6 +16,8 @@ import com.example.nubo.data.model.EditSummaryResponse
 import com.example.nubo.data.model.PagedResponse
 import com.example.nubo.data.model.RecommendCardDetailResponse
 import com.example.nubo.data.model.RecommendCardResponse
+import com.example.nubo.data.model.SaveRecommendationCardRequest
+import com.example.nubo.data.model.SaveRecommendationCardResponse
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.http.Body
@@ -119,11 +121,19 @@ interface CardService {
     ): RecommendCardResponse
 
 
-    // 홈: 특정 추천 카드 상세 조회
-    @GET("/api/home/recommendation/{cardId}")
-    suspend fun recommendCardDetail(
-        @Header("Authorization") authorization: String,
+    // 추천 카드 상세 조회
+    @GET("/api/home/recommendation/{recommendationCardId}")
+    suspend fun getRecommendationCardDetail(
+        @Header("Authorization") token: String,
         @Header("Accept") accept: String = "application/json",
-        @Path("cardId") cardId: Int,
-    ):RecommendCardDetailResponse
+        @Path("recommendationCardId") id: Int
+    ): RecommendCardDetailResponse
+
+    // 추천 카드 저장
+    @POST("/api/home/recommendation/save")
+    suspend fun saveRecommendationCard(
+        @Header("Authorization") token: String,
+        @Header("Accept") accept: String = "application/json",
+        @Body body: SaveRecommendationCardRequest
+    ): SaveRecommendationCardResponse
 }

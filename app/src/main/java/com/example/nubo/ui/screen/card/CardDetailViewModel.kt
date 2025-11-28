@@ -173,26 +173,3 @@ private fun Throwable.humanMessage(): String = when (this) {
     else -> message ?: "다시 시도 해주세요."
 }
 
-
-
-// Mapper from API model to UI model
-private fun CardDetailResponse.toUi(): CardDetailItem {
-    // NOTE: Adjust fields to match your real response model
-    return CardDetailItem(
-        cardId = cardId,
-        videoThumbnailUrl = videoThumbnailUrl.orEmpty(),
-        videoUrl = videoUrl.orEmpty(),
-        title = title ?: "제목 없음",
-        boardName = aiCategoryName ?: "카테고리 없음",
-        summary = summary ?: "설명 없음",
-        videoPlatform = videoPlatform ?: "알 수 없음",
-        createdAt = formatIsoDateToDisplayLegacy(createdAt), // 기존 유틸 재사용
-        updatedAt = formatIsoDateToDisplayLegacy(updatedAt),
-        tags = tags,
-        isFavorite = isFavorite ?: false,
-        // 레벨업 필드 매칭
-        stage = stage,
-        stageUp = stageUp,
-        berryGained = berryGained
-    )
-}
