@@ -91,16 +91,6 @@ class CardUploadActivity : AppCompatActivity() {
             return
         }
 
-        // 업로드 진행 안내 커스텀 토스트
-        lifecycleScope.launch {
-            showAppToast(
-                title = "카드 생성 중입니다…",
-                type = AppToastType.FAVORITE, // 필요 시 NORMAL 등으로 변경 가능
-                layout = AppToastLayout.TitleOnly,
-                duration = 1200
-            )
-        }
-
         CardUploadService.startService(
             context = this,
             accessToken = token,

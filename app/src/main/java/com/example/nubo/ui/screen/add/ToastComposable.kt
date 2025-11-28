@@ -54,7 +54,7 @@ fun SheetTopToast(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 24.dp), // 모달 위쪽 여백
+                    .padding(horizontal = 16.dp), // 모달 위쪽 여백
                 contentAlignment = Alignment.TopCenter
             ) {
                 Box(

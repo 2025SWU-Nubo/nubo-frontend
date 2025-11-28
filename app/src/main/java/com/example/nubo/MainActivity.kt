@@ -99,6 +99,7 @@ import kotlinx.coroutines.launch
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import com.example.components.toast.LocalAppToastHostState
+import com.example.nubo.ui.component.toast.GlobalToastBus
 import com.example.nubo.ui.screen.learn.LearnScreenBerry
 import com.example.nubo.ui.screen.onBoadingTutorial.OnBoardingTutorialRoute
 import com.example.nubo.ui.screen.recommendCard.RecommendCardDetailScreen
@@ -251,34 +252,43 @@ fun MainScreen(
 
             delay(180)
 
-            val (msg, type, dur) = when (ev) {
-                CardUploadViewModel.UploadEvent.Started ->
-                    Triple("카드 생성 중이에요", AppToastType.UPLOAD, 1000)
+            when (ev) {
+                // Started는 토스트 안 띄우고, 각 화면에서 로딩 UI로만 처리
+                CardUploadViewModel.UploadEvent.Started -> Unit
+
                 CardUploadViewModel.UploadEvent.Succeeded -> {
-                    // MyBoard에 새로고침 신호 전송
-                    // 유틸리티 함수를 사용해 "myboard" 라우트에 신호를 보냄
                     navController.postRefreshTick("myboard")
-                    Triple("카드 생성을 완료했어요!", AppToastType.POSITIVE, 1500)
+                    showToast(
+                        msg = "카드 생성을 완료했어요!",
+                        type = AppToastType.POSITIVE,
+                        duration = 1500,
+                        preDelay = 800
+                    )
                 }
-                CardUploadViewModel.UploadEvent.AlreadyExists ->
-                    Triple("이미 생성된 카드예요", AppToastType.NEGATIVE, 2000)
-                is CardUploadViewModel.UploadEvent.Failed ->
-                    Triple(ev.message, AppToastType.NEGATIVE, 2200)
-            }
-            toastScope.launch {
-                showToast(
-                    msg = msg,
-                    type = type,
-                    duration = dur,
-                    preDelay = 800
-                )
+
+                CardUploadViewModel.UploadEvent.AlreadyExists -> {
+                    showToast(
+                        msg = "이미 추가된 영상이에요",
+                        type = AppToastType.NEGATIVE,
+                        duration = 1500,
+                        preDelay = 800
+                    )
+                }
+
+                is CardUploadViewModel.UploadEvent.Failed -> {
+                    showToast(
+                        msg = ev.message,
+                        type = AppToastType.NEGATIVE,
+                        duration = 2000,
+                        preDelay = 800
+                    )
+                }
             }
 
-            // 업로드 성공/이미 있음 -> 홈에게 새로고침 신호 발사
+            // Succeeded/AlreadyExists이면 home refresh 신호
             if (ev is CardUploadViewModel.UploadEvent.Succeeded ||
                 ev is CardUploadViewModel.UploadEvent.AlreadyExists
             ) {
-                // 홈 목적지에 time-based tick으로 신호(같은 값 중복 방지)
                 navController.getBackStackEntry("home")
                     .savedStateHandle["refresh_home"] = System.currentTimeMillis()
             }
@@ -311,6 +321,23 @@ fun MainScreen(
             return@LaunchedEffect
         }
     }
+
+    // Listen global toast bus (for Service etc.) and show via host
+    LaunchedEffect(Unit) {
+        GlobalToastBus.events.collectLatest { event ->
+            toastHost.show(
+                title = AnnotatedString(event.message),
+                type = event.type,
+                layout = event.layout,
+                durationMillis = event.durationMillis,
+                preDelayMillis = event.preDelayMillis,
+                actionLabel = event.actionLabel,
+                onAction = event.onAction
+            )
+        }
+    }
+
+
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route

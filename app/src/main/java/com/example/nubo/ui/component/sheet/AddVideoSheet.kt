@@ -399,12 +399,6 @@ fun AddVideoSheet(
                                     boardId = selectedIds.firstOrNull()   // 서버가 단일 보드만 받는다면
                                 )
 
-                                // 카드 생성 시작 토스트
-                                showToast("카드를 생성 중이에요", AppToastType.UPLOAD, 3000)
-
-                                // 기존 viewModel 업로드 호출은 중복이니까 제거해도 됨
-                                // cardUploadViewModel.uploadCard(...) ← 이거는 빼는 쪽 추천
-
                                 // UI 상태 초기화 + 시트 닫기
                                 page = SheetPage.SAVE_VIDEO
                                 input = ""
@@ -444,7 +438,7 @@ fun AddVideoSheet(
             visible = toastVisible,
             onDismiss = { toastVisible = false },
             durationMillis = 3000L, // 3초
-            bottomOffset = 240.dp
+            bottomOffset = 220.dp
         )
     }
 
@@ -457,7 +451,7 @@ fun AddVideoSheet(
             visible = networkErrorToastVisible,
             onDismiss = { networkErrorToastVisible = false },
             durationMillis = 3000L,
-            bottomOffset = 240.dp
+            bottomOffset = 220.dp
         )
     }
 // 보드 선택용 토스트

@@ -8,6 +8,7 @@ import android.content.Context
 import android.os.Build
 import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.push.PushChannels
+import com.example.nubo.utils.AppForegroundTracker
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
@@ -17,6 +18,8 @@ class NuboApp : Application() {
         super.onCreate()
         // 앱 시작 시 한 번만 호출하여 0+ 기기에서 알림 채널 보장 생성
         PushChannels.ensure(this)
+
+        AppForegroundTracker.init()
     }
 }
 
