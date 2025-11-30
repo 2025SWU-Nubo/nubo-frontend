@@ -157,11 +157,6 @@ class CardUploadService: Service() {
                         Log.d("CardUploadService", "카드 업로드 성공: ${response.body()}")
 
                         stopForeground(true)
-
-                        toastOnMain(
-                            msg = "카드를 생성 중이에요",
-                            type = AppToastType.UPLOAD
-                        )
                     } else {
                         Log.e(
                             "CardUploadService",

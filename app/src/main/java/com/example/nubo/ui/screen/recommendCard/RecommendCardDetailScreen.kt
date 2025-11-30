@@ -54,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -63,6 +64,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -350,32 +352,32 @@ private fun ImageWithButton(
 @Composable
 private fun DetailBodyMarkdown(
     description: String,
-    maxCollapseLines: Int = 9,
+    visibleLines: Int = 3,
     modifier: Modifier = Modifier
 ) {
-    var isExpanded by remember { mutableStateOf(false) }
-
+    // 1. 전체 마크다운 정규화
     val normalizedMd = remember(description) {
         standardizeMarkdown(description)
     }
 
-    val collapsedMd = remember(normalizedMd, maxCollapseLines) {
-        val lines = normalizedMd.lines()
-        lines.take(minOf(lines.size, maxCollapseLines)).joinToString("\n")
-    }
-
-    val mdToShow = if (isExpanded) normalizedMd else collapsedMd
-
+    // 2. 에디터 상태
     val richTextState = rememberRichTextState()
 
-    LaunchedEffect(mdToShow) {
-        if (richTextState.toMarkdown() != mdToShow) {
-            richTextState.setMarkdown(mdToShow)
+    LaunchedEffect(normalizedMd) {
+        if (richTextState.toMarkdown() != normalizedMd) {
+            richTextState.setMarkdown(normalizedMd)
         }
     }
 
-    val canCollapse = remember(normalizedMd, maxCollapseLines) {
-        normalizedMd.lineSequence().count() > maxCollapseLines
+    // 3. 줄 수가 maxCollapseLines 보다 많은지 체크
+    val hasMore = remember(normalizedMd) {
+        normalizedMd.length > 40
+    }
+
+    // 4. 3줄 정도 높이만 보여 주도록 Box 높이 계산
+    val lineHeightSp = 24.sp
+    val visibleHeight = with(LocalDensity.current) {
+        (lineHeightSp.toPx() * visibleLines).toDp()
     }
 
     Card(
@@ -394,10 +396,14 @@ private fun DetailBodyMarkdown(
             )
             Spacer(Modifier.height(8.dp))
 
-            Box(modifier = Modifier.fillMaxWidth()) {
+            Box(modifier = Modifier
+                .fillMaxWidth()
+                .height(visibleHeight)
+                .clipToBounds()
+            ) {
                 ProvideTextStyle(
                     value = MaterialTheme.typography.bodyMedium.copy(
-                        lineHeight = 22.sp,
+                        lineHeight = lineHeightSp,
                         platformStyle = PlatformTextStyle(includeFontPadding = true),
                         lineHeightStyle = LineHeightStyle(
                             alignment = LineHeightStyle.Alignment.Proportional,
@@ -411,18 +417,20 @@ private fun DetailBodyMarkdown(
                     )
                 }
 
-                if (!isExpanded && canCollapse) {
+                // 5. 아래쪽 흰색 그라데이션 오버레이
+                if (hasMore) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .height(56.dp)
+                            .height(50.dp)
                             .background(
                                 Brush.verticalGradient(
                                     listOf(
                                         Color.Transparent,
+                                        Color.White.copy(alpha = 0.4f),
                                         Color.White.copy(alpha = 0.7f),
-                                        Color.White
+                                        Color.White.copy(alpha = 0.9f)
                                     )
                                 )
                             )
@@ -430,31 +438,15 @@ private fun DetailBodyMarkdown(
                 }
             }
 
-            if (canCollapse) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { isExpanded = !isExpanded }
-                        .padding(top = 20.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val label = if (isExpanded) "접기" else "펼치기"
-                    Text(
-                        text = label,
-                        style = AppTextStyles.b1_semibold_18,
-                        color = PurpleMain500
-                    )
-                    Spacer(Modifier.width(2.dp))
-                    Icon(
-                        painter = painterResource(
-                            if (isExpanded) R.drawable.keyboard_arrow_up else R.drawable.ic_arrow_down
-                        ),
-                        contentDescription = label,
-                        tint = PurpleMain500,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+            if (hasMore) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = "저장하면 요약노트를 모두 볼 수 있어요.",
+                    style = AppTextStyles.b2_semibold_16,
+                    color = PurpleMain500,
+                    modifier = Modifier.fillMaxWidth(),   // 중앙 정렬 위해 폭 채우기
+                    textAlign = TextAlign.Center
+                )
             }
         }
     }
@@ -517,52 +509,48 @@ private fun rememberImeOrNavBottomPadding(extra: Dp = 0.dp): Dp {
     return with(density) { bottomPx.toDp() } + extra
 }
 
-//@Preview(showBackground = true)
-//@Composable
-//private fun PreviewRecommendCardDetailScreen() {
-//    val dummyItem = CardDetailItem(
-//        cardId = 0,
-//        videoThumbnailUrl = "",
-//        videoUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-//        title = "프리뷰용 추천 카드 제목입니다 프리뷰용 추천 카드 제목입니다",
-//        boardName = "개발 · 프로덕트",
-//        summary = """
-//            - 이 카드는 프리뷰에서 보여주는 더미 요약 노트입니다
-//            - 실제 데이터가 들어오면 서버에서 받은 마크다운을 렌더링합니다
-//
-//            ### 주요 내용
-//            1. 숏폼을 저장하고
-//            2. 요약 노트를 확인하고
-//            3. 추천 카드에서 내 카드로 저장할 수 있어요
-//
-//             ### 주요 내용
-//            1. 숏폼을 저장하고
-//            2. 요약 노트를 확인하고
-//            3. 추천 카드에서 내 카드로 저장할 수 있어요
-//
-//             ### 주요 내용
-//            1. 숏폼을 저장하고
-//            2. 요약 노트를 확인하고
-//            3. 추천 카드에서 내 카드로 저장할 수 있어요
-//        """.trimIndent(),
-//        videoPlatform = "YOUTUBE",
-//        createdAt = "2025.11.27",
-//        updatedAt = "2025.11.27",
-//        tags = listOf("Productivity", "Study hack", "Nubo"),
-//        isFavorite = false,
-//        stage = 0,
-//        stageUp = false,
-//        berryGained = false
-//    )
-//
-//    NuboAppTheme {
-//        RecommendCardDetailContent(
-//            item = dummyItem,
-//            onBack = {},
-//            onSaveClick = {},
-//            showInfoBubble = false,
-//            onInfoClick = {},
-//            onDismissInfo = {}
-//        )
-//    }
-//}
+@Preview(showBackground = true)
+@Composable
+private fun PreviewRecommendCardDetailScreen() {
+    val dummyItem = RecommendCardDetailItem(
+        recommendationCardId = 0,
+        title = "프리뷰용 추천 카드 제목입니다 프리뷰용 추천 카드 제목입니다",
+        summary ="""
+            - 이 카드는 프리뷰에서 보여주는 더미 요약 노트입니다
+            - 실제 데이터가 들어오면 서버에서 받은 마크다운을 렌더링합니다
+
+            ### 주요 내용
+            1. 숏폼을 저장하고
+            2. 요약 노트를 확인하고
+            3. 추천 카드에서 내 카드로 저장할 수 있어요
+
+             ### 주요 내용
+            1. 숏폼을 저장하고
+            2. 요약 노트를 확인하고
+            3. 추천 카드에서 내 카드로 저장할 수 있어요
+
+             ### 주요 내용
+            1. 숏폼을 저장하고
+            2. 요약 노트를 확인하고
+            3. 추천 카드에서 내 카드로 저장할 수 있어요
+        """.trimIndent(),
+        tags = listOf("Productivity", "Study hack", "Nubo"),
+        videoThumbnailUrl = "",
+        videoUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        videoPlatform = "YOUTUBE",
+        aiCategoryName = "개발 · 프로덕트",
+        createdAt = "2025.11.27",
+        updatedAt = "2025.11.27",
+    )
+
+    NuboAppTheme {
+        RecommendCardDetailContent(
+            item = dummyItem,
+            onBack = {},
+            onSaveClick = {},
+            showInfoBubble = false,
+            onInfoClick = {},
+            onDismissInfo = {}
+        )
+    }
+}
