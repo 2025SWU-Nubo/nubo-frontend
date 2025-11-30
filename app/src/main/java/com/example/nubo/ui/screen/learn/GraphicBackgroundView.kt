@@ -136,7 +136,7 @@ fun GraphicBackgroundView(
     ) {
         // Layer 1: 배경 (맨 밑)
         Image(
-            painter = painterResource(id = R.drawable.learn_background),
+            painter = painterResource(id = R.drawable.learn_bg),
             contentDescription = "배경",
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
@@ -644,8 +644,8 @@ fun GraphicBackgroundView(
                 val pos1 = Pair((-700).dp, (-195).dp)
                 val pos2 = Pair((-350).dp, (-95).dp)
                 val pos3 = Pair(0.dp, (-170).dp)
-                val pos4 = Pair(350.dp, (-100).dp)
-                val pos5 = Pair(700.dp, (-95).dp)
+                val pos4 = Pair(350.dp, (-95).dp)
+                val pos5 = Pair(700.dp, (-195).dp)
 
                 val positionsToShow = when (dropCount) {
                     1 -> listOf(pos3)
