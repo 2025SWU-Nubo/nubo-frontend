@@ -15,9 +15,11 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -28,8 +30,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
@@ -94,15 +98,17 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import com.example.components.toast.AppToastOverlay
 import com.example.components.toast.LocalAppToastHostState
-import com.example.components.toast.rememberAppToastHostState
+import com.example.nubo.ui.component.toast.GlobalToastBus
 import com.example.nubo.ui.screen.learn.LearnScreenBerry
 import com.example.nubo.ui.screen.onBoadingTutorial.OnBoardingTutorialRoute
-import com.example.nubo.ui.screen.onBoadingTutorial.OnBoardingTutorialViewModel
+import com.example.nubo.ui.screen.recommendCard.RecommendCardDetailScreen
+import com.example.nubo.ui.screen.recommendCard.RecommendCardDetailViewModel
+import com.example.nubo.ui.screen.recommendCard.RecommendDetailUiState
+import com.example.nubo.ui.screen.recommendCard.SaveUiState
+import com.example.nubo.ui.theme.AppTextStyles
+import com.example.nubo.ui.theme.Grey500
+import com.example.nubo.ui.theme.GreyMain300
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -211,19 +217,18 @@ fun MainScreen(
     val toastScope = rememberCoroutineScope()
 
     // message, type, duration, preDelay, actionLabel, onAction
-    val showToast: (
-        String,
-        AppToastType,
-        Int,
-        Int,
-        String?,
-        (() -> Unit)?
-    ) -> Unit = { msg, type, duration, preDelay, actionLabel, onAction ->
+    fun showToast(
+        msg: String,
+        type: AppToastType,
+        duration: Int = 2000,
+        preDelay: Int = 0,
+        actionLabel: String? = null,
+        onAction: (() -> Unit)? = null
+    ) {
         toastScope.launch {
             toastHost.show(
                 title = AnnotatedString(msg),
                 type = type,
-                // If action exists, use action layout  otherwise title only
                 layout = if (actionLabel != null && onAction != null) {
                     AppToastLayout.TitleWithAction
                 } else {
@@ -247,34 +252,43 @@ fun MainScreen(
 
             delay(180)
 
-            val (msg, type, dur) = when (ev) {
-                CardUploadViewModel.UploadEvent.Started ->
-                    Triple("카드 생성 중이에요", AppToastType.UPLOAD, 1000)
+            when (ev) {
+                // Started는 토스트 안 띄우고, 각 화면에서 로딩 UI로만 처리
+                CardUploadViewModel.UploadEvent.Started -> Unit
+
                 CardUploadViewModel.UploadEvent.Succeeded -> {
-                    // MyBoard에 새로고침 신호 전송
-                    // 유틸리티 함수를 사용해 "myboard" 라우트에 신호를 보냄
                     navController.postRefreshTick("myboard")
-                    Triple("카드 생성을 완료했어요!", AppToastType.POSITIVE, 1500)
+                    showToast(
+                        msg = "카드 생성을 완료했어요!",
+                        type = AppToastType.POSITIVE,
+                        duration = 1500,
+                        preDelay = 800
+                    )
                 }
-                CardUploadViewModel.UploadEvent.AlreadyExists ->
-                    Triple("이미 생성된 카드예요", AppToastType.NEGATIVE, 2000)
-                is CardUploadViewModel.UploadEvent.Failed ->
-                    Triple(ev.message, AppToastType.NEGATIVE, 2200)
-            }
-            toastScope.launch {
-                toastHost.show(
-                    title = AnnotatedString(msg),
-                    type = type,
-                    layout = AppToastLayout.TitleOnly,
-                    durationMillis = dur
-                )
+
+                CardUploadViewModel.UploadEvent.AlreadyExists -> {
+                    showToast(
+                        msg = "이미 추가된 영상이에요",
+                        type = AppToastType.NEGATIVE,
+                        duration = 1500,
+                        preDelay = 800
+                    )
+                }
+
+                is CardUploadViewModel.UploadEvent.Failed -> {
+                    showToast(
+                        msg = ev.message,
+                        type = AppToastType.NEGATIVE,
+                        duration = 2000,
+                        preDelay = 800
+                    )
+                }
             }
 
-            // 업로드 성공/이미 있음 -> 홈에게 새로고침 신호 발사
+            // Succeeded/AlreadyExists이면 home refresh 신호
             if (ev is CardUploadViewModel.UploadEvent.Succeeded ||
                 ev is CardUploadViewModel.UploadEvent.AlreadyExists
             ) {
-                // 홈 목적지에 time-based tick으로 신호(같은 값 중복 방지)
                 navController.getBackStackEntry("home")
                     .savedStateHandle["refresh_home"] = System.currentTimeMillis()
             }
@@ -307,6 +321,23 @@ fun MainScreen(
             return@LaunchedEffect
         }
     }
+
+    // Listen global toast bus (for Service etc.) and show via host
+    LaunchedEffect(Unit) {
+        GlobalToastBus.events.collectLatest { event ->
+            toastHost.show(
+                title = AnnotatedString(event.message),
+                type = event.type,
+                layout = event.layout,
+                durationMillis = event.durationMillis,
+                preDelayMillis = event.preDelayMillis,
+                actionLabel = event.actionLabel,
+                onAction = event.onAction
+            )
+        }
+    }
+
+
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -711,29 +742,91 @@ fun MainScreen(
                     }
                 }
 
-                // 추천 카드 상세 라우트
-//                composable(
-//                    route = "recommend_card_detail/{cardId}",
-//                    arguments = listOf(navArgument("cardId") { type = NavType.IntType })
-//                ) { backStackEntry ->
-//                    val cardId = backStackEntry.arguments?.getInt("cardId") ?: return@composable
-//                    val vm: HomeViewModel = hiltViewModel(backStackEntry)
-//
-//                    LaunchedEffect(cardId) {
-//                        vm.get()
-//                    }
-//
-//                    Box(
-//                        Modifier
-//                            .fillMaxSize()
-//                            .padding(innerPadding)
-//                    ) {
-//                        RecommendCardDetailRoute(
-//                            viewModel = vm,
-//                            onBack = { navController.popBackStack() }
-//                        )
-//                    }
-//                }
+                composable(
+                    route = "recommend_card_detail/{cardId}",
+                    arguments = listOf(navArgument("cardId") { type = NavType.IntType })
+                ) { backStackEntry ->
+                    val vm: RecommendCardDetailViewModel = hiltViewModel(backStackEntry)
+                    val uiState by vm.uiState.collectAsState()
+                    val saveState by vm.saveState.collectAsState()
+
+                    // 처음 진입 시 상세 로드
+                    LaunchedEffect(Unit) {
+                        vm.load()
+                    }
+
+                    // 저장 결과 처리
+                    LaunchedEffect(saveState) {
+                        when (val s = saveState) {
+                            is SaveUiState.Success -> {
+                                // 응답으로 받은 cardId 로 일반 카드 상세로 이동
+                                navController.navigate("card_detail/${s.cardId}") {
+                                    popUpTo("home") { inclusive = false }
+                                    launchSingleTop = true
+                                }
+                                showToast(
+                                    "내 카드에 저장했어요",
+                                    AppToastType.POSITIVE,
+                                    duration = 1800,
+                                    preDelay = 600,          // 여기서 전체 지연 조절
+                                    actionLabel = null,
+                                    onAction = null
+                                )
+                            }
+
+                            is SaveUiState.Error -> {
+                                showToast(
+                                    s.message,
+                                    AppToastType.NEGATIVE,
+                                    duration = 2200,
+                                    preDelay = 150,
+                                    actionLabel = null,
+                                    onAction = null
+                                )
+                            }
+
+                            else -> Unit
+                        }
+                    }
+
+                    when (val s = uiState) {
+                        RecommendDetailUiState.Loading -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(innerPadding),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
+                            }
+                        }
+
+                        is RecommendDetailUiState.Error -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(innerPadding),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = s.message,
+                                    style = AppTextStyles.b2_regular_16,
+                                    color = Grey500,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+
+                        is RecommendDetailUiState.Success -> {
+                            RecommendCardDetailScreen(
+                                item = s.item,
+                                onBack = { navController.popBackStack() },
+                                onSaveClick = { vm.saveToMyCards() }
+                            )
+                        }
+                    }
+                }
+
             }
     }
 
@@ -946,7 +1039,7 @@ fun MainScreen(
                 launchSingleTop = true
             }
         },
-        showToast = showToast
+        showToast = ::showToast
     )
 }
 

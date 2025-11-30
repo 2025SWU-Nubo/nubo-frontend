@@ -84,6 +84,7 @@ import com.mohamedrejeb.richeditor.ui.material3.RichText
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.max
+import com.example.nubo.ui.component.KeywordChip
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -268,7 +269,7 @@ private fun CustomTopBar(
         title = {
             Text(
                 text = title,
-                style = AppTextStyles.subtitle_semibold_20,
+                style = AppTextStyles.b1_semibold_18,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -558,7 +559,7 @@ private fun CardKeyword(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     keywords.forEach { keyword ->
-                        keywordChip(
+                        KeywordChip(
                             text = keyword,
                         )
                     }
@@ -578,26 +579,7 @@ private fun rememberImeOrNavBottomPadding(extra: Dp = 0.dp): Dp {
     return with(density) { bottomPx.toDp() } + extra
 }
 
-@Composable
-fun keywordChip(
-    text: String,
-    modifier: Modifier = Modifier,
-    textColor: Color = PurpleMain500,
-    backgroundColor: Color = Purple50,
-    ){
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(999.dp))
-            .background(backgroundColor)
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-    ){
-        Text(
-            text = text,
-            style = AppTextStyles.b3_medium_14,
-            color = textColor
-        )
-    }
-}
+
 
 // 프리뷰용 더미 데이터
 //@Preview(showBackground = true, showSystemUi = true)

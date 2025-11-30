@@ -135,7 +135,7 @@ fun InfoBubble(
                 .padding(horizontal = 8.dp, vertical = 10.dp)
                 .height(IntrinsicSize.Min), // 구분선 높이 자동 조정
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp) // 균등 간격
+            horizontalArrangement = Arrangement.spacedBy(6.dp) // 균등 간격
         ) {
             // ── AI 카테고리 컨테이너 ──
             InfoSection(

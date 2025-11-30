@@ -15,9 +15,12 @@ import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
+import com.example.components.toast.AppToastType
 import com.example.nubo.data.model.CardUploadRequest
 import com.example.nubo.data.model.CardUploadResponse
 import com.example.nubo.data.repository.CardRepository
+import com.example.nubo.ui.component.toast.GlobalToastBus
+import com.example.nubo.utils.AppForegroundTracker
 import dagger.hilt.android.AndroidEntryPoint
 import retrofit2.Call
 import retrofit2.Callback
@@ -93,9 +96,20 @@ class CardUploadService: Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
 
-    private fun toastOnMain(msg: String) {
-        Handler(Looper.getMainLooper()).post {
-            Toast.makeText(applicationContext, msg, Toast.LENGTH_SHORT).show()
+    private fun toastOnMain(msg: String,type: AppToastType = AppToastType.NORMAL) {
+        if (AppForegroundTracker.isForeground) {
+            // 앱이 포그라운드일 때만 커스텀 토스트
+            GlobalToastBus.showMessage(
+                message = msg,
+                type = type,
+                durationMillis = 2200,
+                preDelayMillis = 350
+            )
+        } else {
+            // 앱이 떠 있지 않을 때는 시스템 토스트만
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(applicationContext, msg, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -117,41 +131,56 @@ class CardUploadService: Service() {
         return builder.build()
     }
 
-    private fun uploadCard(accessToken: String,videoUrl: String,boardId: Long?) {
-        //업로드 요청 객체 생성
+    private fun uploadCard(accessToken: String, videoUrl: String, boardId: Long?) {
         val request = CardUploadRequest(videoUrl)
 
-        cardRepository.uploadCard(accessToken,request).enqueue(object : Callback<CardUploadResponse>{
-            override fun onResponse(call: Call<CardUploadResponse?>, response: Response<CardUploadResponse?>) {
-                // 409: 이미 추가된 영상
-                if (response.code() == 409) {
-                    Log.w("CardUploadService", "이미 추가된 영상(409)")
-                    // 진행중 알림 제거
-                    stopForeground(true) // 포그라운드 해제 + 알림 제거
-                    // 안내 토스트
-                    toastOnMain("이미 추가된 영상이에요.")
-                    // 서비스 종료
+        cardRepository.uploadCard(accessToken, request)
+            .enqueue(object : Callback<CardUploadResponse> {
+                override fun onResponse(
+                    call: Call<CardUploadResponse?>,
+                    response: Response<CardUploadResponse?>
+                ) {
+                    // 1) 이미 추가된 영상 (409) 먼저 처리
+                    if (response.code() == 409) {
+                        Log.w("CardUploadService", "이미 추가된 영상(409)")
+                        stopForeground(true)
+                        toastOnMain(
+                            msg = "이미 추가된 영상이에요",
+                            type = AppToastType.NEGATIVE
+                        )
+                        stopSelf()
+                        return
+                    }
+
+                    // 2) 그 외 성공이면 → 이제부터 카드 생성 프로세스 시작됨
+                    if (response.isSuccessful) {
+                        Log.d("CardUploadService", "카드 업로드 성공: ${response.body()}")
+
+                        stopForeground(true)
+                    } else {
+                        Log.e(
+                            "CardUploadService",
+                            "카드 업로드 실패: ${response.code()} ${response.message()}"
+                        )
+                        stopForeground(true)
+                        toastOnMain(
+                            msg = "업로드에 실패했어요. 잠시 후 다시 시도해 주세요.",
+                            type = AppToastType.NEGATIVE
+                        )
+                    }
                     stopSelf()
-                    return
                 }
 
-                if (response.isSuccessful) {
-                    Log.d("CardUploadService", "카드 업로드 성공: ${response.body()}")
+                override fun onFailure(call: Call<CardUploadResponse?>, t: Throwable) {
+                    Log.e("CardUploadService", "카드 업로드 네트워크 에러", t)
                     stopForeground(true)
-//                    showResultNotification(true, "영상이 누보에 저장되었어요. 확인하러 갈까요?👉🏻")
-                } else {
-                    Log.e("CardUploadService", "카드 업로드 실패: ${response.code()} ${response.message()}")
-                    stopForeground(true)
+                    toastOnMain(
+                        msg = "네트워크 오류로 업로드에 실패했어요.",
+                        type = AppToastType.NEGATIVE
+                    )
+                    stopSelf()
                 }
-                stopSelf()
-            }
-
-            override fun onFailure(call: Call<CardUploadResponse?>, t: Throwable) {
-                Log.e("CardUploadService", "카드 업로드 네트워크 에러", t)
-                stopForeground(true)
-                stopSelf()
-            }
-        })
+            })
     }
 
 }
