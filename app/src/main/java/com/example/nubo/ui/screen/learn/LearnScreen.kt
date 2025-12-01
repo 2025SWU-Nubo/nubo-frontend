@@ -442,7 +442,7 @@ private fun SpeechBubble(
 
             // 내용 (물방울 + n개)
             Row(
-                modifier = Modifier.padding(end = 6.dp, start = 3.dp),
+                modifier = Modifier.padding(end = 9.dp, start = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
@@ -451,7 +451,7 @@ private fun SpeechBubble(
                     painter = painterResource(id = R.drawable.learn_waterdrop_calender),
                     contentDescription = null, // decorative image
                     modifier = Modifier
-                        .size(24.dp) // icon size
+                        .size(20.dp) // icon size
                 )
                 Text(
                     text = "${count}개",
@@ -921,7 +921,7 @@ private fun StaticLevelStepBar(
                         PurpleMain500
                     } else {
                         val t = index.toFloat() / clampedStep.toFloat() // 0f ~ 1f
-                        val start = Color(0xFF7272FF)   // 새싹 단계용 밝은 보라
+                        val start = Color(0xFF727EFF)   // 새싹 단계용 밝은 보라
                         val end = PurpleMain500        // 마지막 단계 메인 퍼플
                         lerp(start, end, t)
                     }

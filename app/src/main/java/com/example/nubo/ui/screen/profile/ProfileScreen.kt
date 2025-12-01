@@ -253,7 +253,7 @@ fun ProfileScreen(
                     text = "설정",
                     style = AppTextStyles.b2_regular_16,
                     color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 15.dp)
+                    modifier = Modifier.padding(start = 32.dp, top = 8.dp, bottom = 15.dp)
                 )
 
                 SettingsItem(title = "내 정보", onClick = onMyInfo)

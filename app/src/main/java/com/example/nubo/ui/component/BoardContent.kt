@@ -198,7 +198,7 @@ fun BoardCardWithText(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            painter = painterResource(id = R.drawable.nubo_logo), // 아이콘을 nubo_logo로 변경
+                            painter = painterResource(id = R.drawable.board_nubo_logo), // 아이콘을 nubo_logo로 변경
                             contentDescription = null,
                             tint = Purple300, //  연한 보라
                             modifier = Modifier.size(100.dp) // 로고 크기 조절
