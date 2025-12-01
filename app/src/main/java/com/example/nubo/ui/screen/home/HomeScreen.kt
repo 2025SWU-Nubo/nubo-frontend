@@ -84,6 +84,7 @@ import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.PurpleMain500
 import formatIsoDateToDisplayLegacy
 import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.collectAsState
 import com.example.nubo.ui.theme.Purple50
 
 
@@ -112,6 +113,8 @@ fun HomeScreen(
 
     // 추천 그룹 상태
     val recommendGroups by vm.recommendGroups.observeAsState(emptyList())
+
+    val hasUnread by vm.hasUnread.collectAsState()
 
     LaunchedEffect(Unit) {
         vm.refreshAll()
@@ -143,6 +146,7 @@ fun HomeScreen(
         contentWindowInsets = WindowInsets(0),
         topBar = {
             CustomTopBar(
+                hasUnread = hasUnread,
                 onLogoClick = onLogoClick,
                 onNotificationsClick = onNotificationsClick
                 )
@@ -231,6 +235,7 @@ fun HomeScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomTopBar(
+    hasUnread : Boolean,
     onLogoClick: (() -> Unit)?,
     onNotificationsClick: (() -> Unit)?
 ){
@@ -255,7 +260,7 @@ fun CustomTopBar(
         actions = {
             IconButton(onClick = { onNotificationsClick?.invoke() }) {
                 Icon(
-                    painter = painterResource(R.drawable.bell),
+                    painter =   if (hasUnread)painterResource(R.drawable.bell_noti) else painterResource(R.drawable.bell),
                     contentDescription = "알림",
                     modifier = Modifier.size(26.dp)
                 )

@@ -3,6 +3,7 @@ package com.example.nubo.data.network
 import com.example.nubo.data.dto.DeleteDeviceTokenRequest
 import com.example.nubo.data.dto.NotificationDto
 import com.example.nubo.data.dto.RegisterDeviceTokenRequest
+import com.example.nubo.data.model.UnreadNotificationExistsResponse
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.HTTP
@@ -55,4 +56,10 @@ interface NotificationService {
         @Path("invitationId") invitationId: Int,
         @Header("Accept") accept: String = "application/json",
     ): retrofit2.Response<Unit>
+
+    @GET("/api/notification/unread-exists")
+    suspend fun unreadNotifications(
+        @Header("Authorization") authorization: String,
+        @Header("Accept") accept: String = "application/json",
+    ): retrofit2.Response<UnreadNotificationExistsResponse>
 }

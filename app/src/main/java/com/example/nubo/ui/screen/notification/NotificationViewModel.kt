@@ -22,8 +22,6 @@ sealed class NotiEvent {
     object GoLearn : NotiEvent()
     object GoNotificationCenter : NotiEvent()
     data class GoBoard(val boardId: String) : NotiEvent()
-//    data class InviteAccepted(val invitationId: String, val boardId: String?) : NotiEvent()
-//    data class InviteRejected(val invitationId: String, val boardId: String?) : NotiEvent()
 }
 
 @HiltViewModel
@@ -66,7 +64,15 @@ class NotificationViewModel @Inject constructor(
         markReadLocal(item.notificationId)
 
         viewModelScope.launch {
-            runCatching { repository.markRead(item.notificationId) }
+            runCatching {
+                repository.markRead(item.notificationId)
+            }.onSuccess {
+                // 서버 반영 후 전체 플래그 재조회
+                val token = authRepository.getAccessToken()
+                if (!token.isNullOrBlank()) {
+                    repository.refreshUnreadFlag(token)
+                }
+            }
         }
 
         // 타입에 따라 라우팅 이벤트 발생

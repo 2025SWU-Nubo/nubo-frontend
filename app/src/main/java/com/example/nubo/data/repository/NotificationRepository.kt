@@ -16,6 +16,9 @@ import java.time.Instant
 import java.time.ZoneId
 import javax.inject.Inject
 import androidx.core.content.edit
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 
 /**
@@ -28,6 +31,9 @@ class NotificationRepository @Inject constructor(
     @ApplicationContext private val context: Context,
 ){
     private val prefs = context.getSharedPreferences("push_prefs", Context.MODE_PRIVATE)
+
+    private val _hasUnread = MutableStateFlow(false)
+    val hasUnread: StateFlow<Boolean> = _hasUnread.asStateFlow()
 
     companion object {
         private const val KEY_REGISTERED_TOKEN = "registered_fcm_token"
@@ -42,6 +48,17 @@ class NotificationRepository @Inject constructor(
         object SkippedBlank : RegisterOutcome()
         object Success : RegisterOutcome()
         data class Failure(val error: Throwable) : RegisterOutcome()
+    }
+
+    suspend fun refreshUnreadFlag(token: String) {
+        runCatching {
+            // hasUnreadNotification 은 네가 만든 함수
+            hasUnreadNotification(token)          // Boolean 반환
+        }.onSuccess { exists ->
+            _hasUnread.value = exists
+        }.onFailure {
+            // 실패 시에는 기존 상태 유지
+        }
     }
 
     /**
@@ -155,9 +172,13 @@ class NotificationRepository @Inject constructor(
 
         // DTO -> App 모델로 변환 (타임존 기본값은 KST)
         val appList: List<AppNotification> = serverList.toAppModels(defaultZone)
+        val feed = appList.toFeedState(now)
+
+        val existsUnread = feed.recent.any { it.unread } || feed.past.any { it.unread }
+        _hasUnread.value = existsUnread
 
         // 0~2일/3~7일 섹션 분리 + 미시청 추천 접기 규칙 적용
-        return appList.toFeedState(now)
+        return feed
     }
 
     // 알림 목록을 서버에서 받아 앱 모델로 변환해 반환함
@@ -179,6 +200,23 @@ class NotificationRepository @Inject constructor(
     // 모든 알림 일괄 읽음 처리
     suspend fun markAllRead() {
         api.markAllRead()
+        _hasUnread.value = false
     }
+
+    suspend fun hasUnreadNotification(token:String): Boolean{
+        return try {
+            val token = "Bearer $token"
+            val response = api.unreadNotifications(token)
+
+            if (response.isSuccessful) {
+                response.body()?.exists ?: false
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
 
 }

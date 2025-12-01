@@ -15,10 +15,14 @@ import com.example.nubo.data.network.CardSort
 import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.data.repository.BoardRepository
 import com.example.nubo.data.repository.CardRepository
+import com.example.nubo.data.repository.NotificationRepository
 import com.example.nubo.domain.model.CardFilter
 import com.example.nubo.model.home.RecommendChipItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.builtins.LongArraySerializer
 import retrofit2.Call
@@ -30,6 +34,7 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val cardRepository: CardRepository,
     private val boardRepository: BoardRepository,
+    private val notiRepository: NotificationRepository,
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
@@ -66,6 +71,9 @@ class HomeViewModel @Inject constructor(
     private val _selectedChipId = MutableLiveData("all")
     val selectedChipId: LiveData<String> = _selectedChipId
 
+    // --- notifications ---
+    val hasUnread: StateFlow<Boolean> = notiRepository.hasUnread
+
 
     // 추천 카드 그룹 상태
     private val _recommendGroups = MutableLiveData<List<GroupDto>>()
@@ -92,22 +100,24 @@ class HomeViewModel @Inject constructor(
         // Try once with whatever token exists
         refreshAll()
 
-        // Retry a few times in case token arrives slightly later (no Flow dependency)
         viewModelScope.launch {
             repeat(10) {
-                if (!authRepository.getAccessToken().isNullOrBlank()) {
+                val token = authRepository.getAccessToken()
+                if (!token.isNullOrBlank()) {
                     refreshAll()
                     return@launch
                 }
                 delay(300)
             }
         }
+
     }
 
     fun refreshAll() {
         loadBoards()
         loadRecentBoards()
         refreshForCurrentSelection()
+        loadUnreadFlag()
     }
 
     fun refreshForCurrentSelection(){
@@ -276,41 +286,6 @@ class HomeViewModel @Inject constructor(
                     _selectedChipId.value = "all"
                     Log.e("HomeViewModel", "❌ Failed to load home boards for chips: ${e.localizedMessage}", e)
                 }
-
-//            boardRepository.getMyBoards(
-//                token = token,
-//                sort = com.example.nubo.domain.model.BoardCardSort.LATEST,
-//                filter = com.example.nubo.domain.model.BoardCardFilter.ALL,
-//                page = 0,
-//                size = 20
-//            )
-//
-//                .onSuccess { paged ->
-//                    val list = paged.items
-//                    _boards.value = list
-//                    Log.d("HomeViewModel", "✅ Boards loaded: size=${list.size}, data=$list")
-//
-//                    val built = buildList {
-//                        add(RecommendChipItem(id = "all", title = "전체", isSelected = false))
-//                        list.forEach { b ->
-//                            add(RecommendChipItem(id = b.id.toString(), title = b.name, isSelected = false))
-//                        }
-//                    }
-//                    val current = _selectedChipId.value ?: "all"
-//                    val adjusted = if (current == "all" || built.any { it.id == current }) {
-//                        built.map { it.copy(isSelected = it.id == current) }
-//                    } else {
-//                        _selectedChipId.value = "all"
-//                        built.map { it.copy(isSelected = it.id == "all") }
-//                    }
-//                    _chips.value = adjusted
-//                }
-//                .onFailure { e ->
-//                    _boards.value = emptyList()
-//                    _chips.value = listOf(RecommendChipItem("all", "전체", isSelected = true))
-//                    _selectedChipId.value = "all"
-//                    Log.e("HomeViewModel", "❌ Failed to load boards: ${e.localizedMessage}", e)
-//                }
         }
     }
 
@@ -324,8 +299,6 @@ class HomeViewModel @Inject constructor(
         refreshForCurrentSelection()
 
     }
-
-
 
 
     fun getCardDetail(cardId: Int) {
@@ -359,6 +332,13 @@ class HomeViewModel @Inject constructor(
 
     fun clearCardDetail() {
         _cardDetail.value = null
+    }
+
+    fun loadUnreadFlag() {
+        val token = authRepository.getAccessToken() ?: return
+        viewModelScope.launch {
+            notiRepository.refreshUnreadFlag(token)
+        }
     }
 }
 
