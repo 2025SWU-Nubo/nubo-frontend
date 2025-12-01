@@ -632,7 +632,7 @@ private fun BottomProgressCard(
                     // 베리 배지 클릭 시 콜백 호출
                     onClickBerryBadge()
                 }
-                .padding(horizontal = 12.dp, vertical = 4.dp),
+                .padding(start=14.dp,end = 16.dp, top = 4.dp,bottom=4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Image(
@@ -641,7 +641,6 @@ private fun BottomProgressCard(
                 modifier = Modifier
                     .size(28.dp)
             )
-            Spacer(Modifier.width(3.dp))
             Text(
                 text = "${topBadgeCount}개",
                 style = AppTextStyles.b2_medium_16,
@@ -762,10 +761,17 @@ fun AnimatedProgressBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(10.dp) // 원하는 높이
+            .height(10.dp) // desired height
             .clip(RoundedCornerShape(999.dp))
-            .background(GreyMain300) // 배경 (연한 회색/투명)
-    ) {
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFFBEBEBE), // top color
+                        Color(0xFFC8C8C8)  // bottom color
+                    )
+                )
+            )
+    ){
         Box(
             modifier = Modifier
                 .fillMaxHeight()
@@ -833,7 +839,7 @@ private fun StaticLevelStepBar(
     // 보라색 바 그라디언트 (좌 → 우)
     val barGradient = remember {
         Brush.horizontalGradient(
-            listOf(Color(0xFF7272FF), PurpleMain500)
+            listOf(Color(0xFF727EFF), PurpleMain500)
         )
     }
 
