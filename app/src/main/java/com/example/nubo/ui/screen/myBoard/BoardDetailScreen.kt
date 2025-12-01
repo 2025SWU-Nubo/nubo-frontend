@@ -148,9 +148,6 @@ fun BoardDetailScreen(
     var dialogMode by remember { mutableStateOf<InputDialogMode?>(null) }
     // 섹션 및 카드 삭제 다이얼로그
     var showDeleteDialog by remember { mutableStateOf(false) }
-    // 보드 전체 삭제 다이얼로그
-    var showBoardDeleteDialog by remember { mutableStateOf(false) }
-
 
     // 진입 시 한 번 초기 로드
     LaunchedEffect(boardId) {

@@ -59,8 +59,7 @@ fun BoardContent(
     onFavoriteClick: (BoardItem) -> Unit, // 즐겨찾기 클릭 콜백
     //선택 관련 파라미터
     isSelectionMode: Boolean,
-    selectedBoardIds: Set<Int>,
-    listState: LazyListState
+    selectedBoardIds: Set<Int>
 
 ) {
     Row(

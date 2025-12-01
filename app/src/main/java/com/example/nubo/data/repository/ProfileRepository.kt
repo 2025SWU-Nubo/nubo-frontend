@@ -112,7 +112,7 @@ class ProfileRepository @Inject constructor(
         return result
     }
 
-    /*// 안 읽은 알림 존재 여부 조회
+    // 안 읽은 알림 존재 여부 조회
     suspend fun hasUnreadNotification(): Boolean {
         return runCatching {
             // 1. 액세스 토큰 가져오기
@@ -123,5 +123,5 @@ class ProfileRepository @Inject constructor(
         }.getOrElse {
             false
         }
-    }*/
+    }
 }

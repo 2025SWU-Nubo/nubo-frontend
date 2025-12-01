@@ -310,21 +310,6 @@ fun MyBoardScreen(
         }
     }
 
-    // 스크롤 상태 감지
-    val listState = rememberLazyListState()
-    // header(show/hide) 상태 (검색과 필터 영역)
-    var showHeader by remember { mutableStateOf(true) }
-
-    // 스크롤 방향 감지
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemScrollOffset }
-            .pairWithPrevious()
-            .collect { (prev, curr) ->
-                val scrollingUp = curr < prev // 위로 스크롤 하면 true
-                showHeader = scrollingUp
-            }
-    }
-
     // 필터 + 검색 헤더에서 사용
     val onRequestFilter: (String) -> Unit = { filter ->
         if (selectedTab == 1) boardViewModel.setFilter(filter)
@@ -335,7 +320,6 @@ fun MyBoardScreen(
         if (selectedTab == 1) boardViewModel.setSort(sortKey)
         else cardViewModel.setSort(sortKey)
     }
-
 
     Column(
         modifier = Modifier
@@ -359,17 +343,18 @@ fun MyBoardScreen(
         // 2) 전체 스크롤은 LazyColumn 하나로 담당
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            state = listState,
             contentPadding = PaddingValues(bottom = 60.dp) // 바텀네비 고려
         ) {
-            // 상단 타이틀 + 검색 + 필터
-            item {
-                TitleBar(
-                    selectedTab = selectedTab,
-                )
+            // 상단 타이틀 - 검색 모드일 때 숨김
+            if (!isSearchMode) {
+                item {
+                    TitleBar(
+                        selectedTab = selectedTab,
+                    )
+                }
             }
 
-           // 2) Sticky Header — 필터 + 검색 / 검색창
+           //  Sticky Header — 필터 + 검색 / 검색창
             stickyHeader {
                 FilterSearchStickyHeader(
                     isSearchMode = isSearchMode,
@@ -467,8 +452,7 @@ fun MyBoardScreen(
                                                 )
                                             },
                                             isSelectionMode = isBoardSelectionMode, // 선택모드 상태 전달
-                                            selectedBoardIds = selectedBoardIds, // 선택된 ID 전달
-                                            listState = listState
+                                            selectedBoardIds = selectedBoardIds // 선택된 ID 전달
                                         )
                                     }
                                 }
@@ -486,8 +470,7 @@ fun MyBoardScreen(
                                     )
                                 },
                                 isSelectionMode = isBoardSelectionMode,
-                                selectedBoardIds = selectedBoardIds,
-                                listState = listState    // ← 추가!
+                                selectedBoardIds = selectedBoardIds
                             )
                         }
                     }
