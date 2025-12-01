@@ -32,7 +32,9 @@ data class ProfileUiState(
     val error: String? = null,
     // ── 알림 설정 UI 상태 (서버 초기값이 있다면 refresh() 완료 시 채움)
     val pushEnabled: Boolean = true,
-    val remindEnabled: Boolean = false
+    val remindEnabled: Boolean = false,
+    // 안 읽은 알림 있는지 확인
+    val hasUnreadNotification: Boolean = false
 )
 
 @HiltViewModel
@@ -181,6 +183,23 @@ class ProfileViewModel @Inject constructor(
                         )
                     )
                 }
+        }
+    }
+
+    // 안 읽은 알림 존재하는지 확인
+    fun loadUnreadNotificationState() {
+        viewModelScope.launch {
+            runCatching {
+                // call repository api
+                profileRepository.hasUnreadNotification()
+            }.onSuccess { exists ->
+                // update ui state with unread flag
+                _uiState.value = _uiState.value.copy(
+                    hasUnreadNotification = exists
+                )
+            }.onFailure {
+                // failure case: do nothing or log, keep previous state
+            }
         }
     }
 }
