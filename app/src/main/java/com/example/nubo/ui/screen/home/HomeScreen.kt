@@ -419,7 +419,6 @@ fun RecommendVideoSection(
 }
 
 
-
 @Composable
 fun UnviewedVideosSection(
     cards: List<CardResponse>,
