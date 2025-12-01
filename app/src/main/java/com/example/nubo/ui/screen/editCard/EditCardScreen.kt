@@ -417,7 +417,7 @@ fun EditCardScreen(
             /* AI 로딩 오버레이 */
             val aiOverlayBottomPadding by animateDpAsState(
                 targetValue = when {
-                    showAiBar -> 300.dp
+                    showAiBar -> 100.dp
                     else -> 0.dp
                 },
                 animationSpec = tween(
