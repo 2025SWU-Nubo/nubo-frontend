@@ -70,6 +70,7 @@ import com.example.components.toast.AppToastType
 import com.example.components.toast.LocalAppToastHostState
 import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
+import com.example.nubo.ui.theme.AppTextStyles.label_SemiBold_12
 import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Purple50
@@ -919,21 +920,19 @@ fun SortFilterButton(
                 )
         ) {
             sortOptions.keys.forEach { optionText ->
+                val isSelected = currentSortText == optionText
                 DropdownMenuItem(
-                    text = { Text(optionText, style = AppTextStyles.label_medium_12) },
+                    text = {
+                        Text(
+                            text = optionText,
+                            style = if (isSelected)label_SemiBold_12 else AppTextStyles.label_medium_12,
+                            color = if (isSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
+                        )
+                    },
                     onClick = {
                         currentSortText = optionText
                         isPopupExpanded = false
                         onSortSelected(sortOptions[optionText]!!)
-                    },
-                    //  현재 선택된 메뉴에 체크 아이콘 추가
-                    trailingIcon = {
-                        if (currentSortText == optionText) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_board_check_small), // 체크 아이콘 리소스
-                                contentDescription = "Selected"
-                            )
-                        }
                     }
                 )
             }
