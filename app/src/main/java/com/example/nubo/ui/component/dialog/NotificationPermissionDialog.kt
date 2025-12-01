@@ -154,7 +154,7 @@ fun NotificationPermissionDialog(
         visible = visible,
         title = "알림 권한 설정",
         body1 = "'누보'에서 알림을 보내고자 합니다.",
-        body2 = "알림을 켜야 영상을 저장했을 때 바로 알려드릴 수 있어요.",
+        body2 = "알림을 켜면 영상이 저장됐을 때 바로 알 수 있어요.",
 
         primaryButtonText = "알림 켜기",
         secondaryButtonText = "나중에",

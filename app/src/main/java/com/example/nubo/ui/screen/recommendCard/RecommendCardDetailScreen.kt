@@ -146,7 +146,7 @@ private fun RecommendCardDetailContent(
                     .fillMaxWidth()
                     .background(Color.White)
                     .navigationBarsPadding() // 시스템 인셋 먼저 처리
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
                 Button(
                     onClick = onSaveClick,

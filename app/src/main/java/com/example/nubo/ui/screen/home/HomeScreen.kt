@@ -114,6 +114,7 @@ fun HomeScreen(
     // 추천 그룹 상태
     val recommendGroups by vm.recommendGroups.observeAsState(emptyList())
 
+    // 새로운 알림 여부
     val hasUnread by vm.hasUnread.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -302,7 +303,7 @@ fun RecentBoardSection(
         LazyRow {
             itemsIndexed(items) { index, item ->
                 //맨 처음과 맨 끝 보드는 패딩값 0으로
-                val leftPadding = if (index == 0) 2.dp else 12.dp
+                val leftPadding = if (index == 0) 2.dp else 8.dp
                 val rightPadding = if (index == items.lastIndex) 2.dp else 0.dp
 
                 Box(
@@ -402,7 +403,7 @@ fun RecommendVideoSection(
         } else {
             LazyRow {
                 itemsIndexed(group.cards) { index, card ->
-                    val startPadding = if (index == 0) 2.dp else 8.dp
+                    val startPadding = if (index == 0) 2.dp else 4.dp
                     val endPadding = if (index == group.cards.lastIndex) 2.dp else 0.dp
 
                     Box(
@@ -432,14 +433,14 @@ fun UnviewedVideosSection(
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Text(text = "아직 안 본 영상", style = AppTextStyles.b1_semibold_18)
     }
-    Spacer(modifier = Modifier.height(16.dp))
+    Spacer(modifier = Modifier.height(12.dp))
     //칩 컨포넌트
     RecommendationChipsRow(
         chips = chips,
         onChipClick = onChipClick
     )
 
-    Spacer(modifier = Modifier.height(12.dp))
+    Spacer(modifier = Modifier.height(10.dp))
 
     Column(modifier = Modifier.padding(horizontal = 14.dp))
     {     CardContent(cards = cards, onCardClick = onCardClick) }
