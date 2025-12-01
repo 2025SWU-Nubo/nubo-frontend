@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -235,7 +236,7 @@ fun BoardDetailScreen(
                         }
                     )
                 }
-            }  else {
+            } else {
                 // 나머지 토스트는 기존 로직 그대로 유지
                 val toastType = when {
                     message.contains("실패했어요") -> AppToastType.NEGATIVE
@@ -244,6 +245,7 @@ fun BoardDetailScreen(
                         message.contains("취소되었어요.") ||
                         message.contains("취소가 완료되었어요.") ->
                         AppToastType.POSITIVE
+
                     else -> AppToastType.NORMAL
                 }
 
@@ -302,19 +304,14 @@ fun BoardDetailScreen(
     val activeMembers by viewModel.activeMembers.collectAsState()
     val pendingMembers by viewModel.pendingMembers.collectAsState()
 
+    // board source 가 "AI" 인지 확인
+    val isAiBoard = ui.board?.source == "AI"
+
     Box(modifier = Modifier.fillMaxSize()) {
 
         Scaffold(
-            containerColor = Color.White
-        ) { paddingValues ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            ) {
-                // board source 가 "AI" 인지 확인
-                val isAiBoard = ui.board?.source == "AI"
-
+            containerColor = Color.White,
+            topBar = {
                 DetailTopBar(
                     onBack = {
                         // 현재 보드의 최신 이름 전달
@@ -337,141 +334,159 @@ fun BoardDetailScreen(
                             viewModel.loadBoardMembers() // 멤버 목록 데이터 로드
                             BottomSheetType.BOARD_MEMBERS
                         }
-                                  },
+                    },
                     isSelectionMode = isSelectionMode,
                     showSettingButton = !isAiBoard
                 )
-                BoardTitleBar(
-                    title = ui.board?.name ?: boardTitle,
-                )
-                // 즐겨찾기 필터만 뷰모델과 연결 (정렬 버튼은 UI만 유지, 서버 쿼리는 LATEST 고정)
-                BoardFilterButton(
-                    favoriteSelected = ui.favoriteOnly,
-                    onToggleFavorite = { enabled -> viewModel.setFavoriteFilter(enabled) },
-                    onAddClick = { dialogMode = InputDialogMode.CreateSection },
-                    onRequestSort = { sortKey -> viewModel.setSort(sortKey) },
-                    isSelectionMode = isSelectionMode, // 선택 상태 변수 전달
-                )
-
-                if (boardState != null) {
-                    val boardItems = boardState.sections?.map { it.toBoardItem() } ?: emptyList()
-                    // 페이징 래퍼에서 실제 리스트 꺼내기
-                    val cardItems = boardState.cards.content.map { it.toCardItem() }
-                    // 카드 배열 길이가 바뀌면 index 기반으로 높이 재생성
-                    val cardHeights by remember(boardId, cardItems.size) {
-                        mutableStateOf(
-                            cardItems.mapIndexed { index, _ ->
-                                cardHeightForIndex(index)
-                            }
+            }
+        ) { paddingValues ->
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                item {
+                    BoardTitleBar(
+                        title = ui.board?.name ?: boardTitle,
+                    )
+                }
+                stickyHeader {
+                    Box(
+                        Modifier
+                            .background(Color.White)  // 중요 (안 하면 투명해짐)
+                    ) {
+                        // 즐겨찾기 필터만 뷰모델과 연결 (정렬 버튼은 UI만 유지, 서버 쿼리는 LATEST 고정)
+                        BoardFilterButton(
+                            favoriteSelected = ui.favoriteOnly,
+                            onToggleFavorite = { enabled -> viewModel.setFavoriteFilter(enabled) },
+                            onAddClick = { dialogMode = InputDialogMode.CreateSection },
+                            onRequestSort = { sortKey -> viewModel.setSort(sortKey) },
+                            isSelectionMode = isSelectionMode, // 선택 상태 변수 전달
                         )
                     }
-                    // 공유 보드 여부
-                    val isSharedBoard = boardState.shared
-
-                    // 공유 보드인 경우에만 mine == true 인 카드들만 선택 가능하도록 ID 집합 구성
-                    val selectableCardIds: Set<Int> =
-                        if (isSharedBoard) {
-                            boardState.cards.content
-                                .filter { it.mine == true } // mine 이 true 인 카드만
-                                .map { it.id }              // id(Int) 리스트로 변환
-                                .toSet()
-                        } else {
-                            emptySet()
+                }
+                item {
+                    if (boardState != null) {
+                        val boardItems = boardState.sections?.map { it.toBoardItem() } ?: emptyList()
+                        // 페이징 래퍼에서 실제 리스트 꺼내기
+                        val cardItems = boardState.cards.content.map { it.toCardItem() }
+                        // 카드 배열 길이가 바뀌면 index 기반으로 높이 재생성
+                        val cardHeights by remember(boardId, cardItems.size) {
+                            mutableStateOf(
+                                cardItems.mapIndexed { index, _ ->
+                                    cardHeightForIndex(index)
+                                }
+                            )
                         }
+                        // 공유 보드 여부
+                        val isSharedBoard = boardState.shared
 
-                    // 보드에 섹션/카드가 아무것도 없을 때 빈 상태 UI 표시
-                    if (boardItems.isEmpty() && cardItems.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize(),          // 남은 스크린 영역 전체 사용
-                            contentAlignment = Alignment.Center // 가운데 정렬
-                        ) {
-                            Text(
-                                text = "이 보드에는 아직 저장된 카드가 없어요!",
-                                style = b2_medium_16,
-                                color = GreyMain300,
-                                textAlign = TextAlign.Center,
+                        // 공유 보드인 경우에만 mine == true 인 카드들만 선택 가능하도록 ID 집합 구성
+                        val selectableCardIds: Set<Int> =
+                            if (isSharedBoard) {
+                                boardState.cards.content
+                                    .filter { it.mine == true } // mine 이 true 인 카드만
+                                    .map { it.id }              // id(Int) 리스트로 변환
+                                    .toSet()
+                            } else {
+                                emptySet()
+                            }
+
+                        // 보드에 섹션/카드가 아무것도 없을 때 빈 상태 UI 표시
+                        if (boardItems.isEmpty() && cardItems.isEmpty()) {
+                            Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 24.dp)
+                                    .padding(top = 170.dp),
+                                contentAlignment = Alignment.Center // 가운데 정렬
+                            ) {
+                                Text(
+                                    text = "이 보드에는 아직 저장된 카드가 없어요!",
+                                    style = b2_medium_16,
+                                    color = GreyMain300,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 24.dp)
+                                )
+                            }
+                        } else {
+                            BoardDetailContent(
+                                boardItems = boardItems,
+                                cardItems = cardItems,
+                                cardHeights = cardHeights,
+                                onCardClick = { cardId ->
+                                    // 카드 클릭 시 선택/해제 로직 추가
+                                    if (isSelectionMode) {
+                                        // 공유 보드 + mine == false 카드면 선택 불가
+                                        if (isSharedBoard && !selectableCardIds.contains(cardId)) {
+                                            // 선택 모드에서 남의 카드는 그냥 무시
+                                            return@BoardDetailContent
+                                        }
+                                        selectedCards = if (selectedCards.contains(cardId)) {
+                                            selectedCards - cardId
+                                        } else {
+                                            selectedCards + cardId
+                                        }
+                                    } else {
+                                        navController.navigate("card_detail/$cardId")
+                                    }
+                                },
+                                onSectionClick = { section ->
+                                    if (isSelectionMode) {
+                                        selectedSections = if (selectedSections.contains(section.id)) {
+                                            selectedSections - section.id
+                                        } else {
+                                            selectedSections + section.id
+                                        }
+                                    } else {
+                                        val encodedTitle = java.net.URLEncoder.encode(section.title, "utf-8")
+
+                                        // 현재 보드의 타이틀 가져오기
+                                        val currentBoardTitle = ui.board?.name ?: boardTitle
+                                        val encodedBoardTitle = java.net.URLEncoder.encode(currentBoardTitle, "utf-8")
+
+                                        // 라우트에 boardTitle을 추가하여 전달
+                                        navController.navigate("section_detail/${section.id}/$encodedTitle/$encodedBoardTitle")
+                                    }
+                                },
+                                onCardLongClick = { cardId ->
+                                    if (!isSelectionMode) {
+                                        // 공유 보드에서 mine == false 카드면 선택 모드 진입 자체를 막음
+                                        if (isSharedBoard && !selectableCardIds.contains(cardId)) {
+                                            // 아무 동작도 하지 않음 (롱클릭 무시)
+                                            return@BoardDetailContent
+                                        }
+                                        isSelectionMode = true
+                                        bottomSheetType = BottomSheetType.SELECTION
+                                        selectedCards = setOf(cardId) // 롱클릭한 카드를 첫 선택 항목으로 지정
+                                    }
+                                },
+                                onSectionLongClick = { section ->
+                                    if (!isSelectionMode) {
+                                        isSelectionMode = true
+                                        bottomSheetType = BottomSheetType.SELECTION
+                                        selectedSections = setOf(section.id) // 롱클릭한 섹션을 첫 선택 항목으로 지정
+                                    }
+                                },
+                                onFavoriteClick = { section: BoardItem ->
+                                    viewModel.toggleSectionFavorite(
+                                        sectionId = section.id,
+                                        currentFavorite = section.isBookmarked
+                                    )
+                                },
+                                isSelectionMode = isSelectionMode,
+                                selectedSections = selectedSections,
+                                selectedCards = selectedCards
                             )
                         }
                     } else {
-                    BoardDetailContent(
-                        boardItems = boardItems,
-                        cardItems = cardItems,
-                        cardHeights = cardHeights,
-                        onCardClick = { cardId ->
-                            // 카드 클릭 시 선택/해제 로직 추가
-                            if (isSelectionMode) {
-                                // 공유 보드 + mine == false 카드면 선택 불가
-                                if (isSharedBoard && !selectableCardIds.contains(cardId)) {
-                                    // 선택 모드에서 남의 카드는 그냥 무시
-                                    return@BoardDetailContent
-                                }
-                                selectedCards = if (selectedCards.contains(cardId)) {
-                                    selectedCards - cardId
-                                } else {
-                                    selectedCards + cardId
-                                }
-                            } else {
-                                navController.navigate("card_detail/$cardId")
-                            }
-                        },
-                        onSectionClick = { section ->
-                            if (isSelectionMode) {
-                                selectedSections = if (selectedSections.contains(section.id)) {
-                                    selectedSections - section.id
-                                } else {
-                                    selectedSections + section.id
-                                }
-                            } else {
-                                val encodedTitle = java.net.URLEncoder.encode(section.title, "utf-8")
-
-                                // 현재 보드의 타이틀 가져오기
-                                val currentBoardTitle = ui.board?.name ?: boardTitle
-                                val encodedBoardTitle = java.net.URLEncoder.encode(currentBoardTitle, "utf-8")
-
-                                // 라우트에 boardTitle을 추가하여 전달
-                                navController.navigate("section_detail/${section.id}/$encodedTitle/$encodedBoardTitle")
-                            }
-                        },
-                        onCardLongClick = { cardId ->
-                            if (!isSelectionMode) {
-                                // 공유 보드에서 mine == false 카드면 선택 모드 진입 자체를 막음
-                                if (isSharedBoard && !selectableCardIds.contains(cardId)) {
-                                    // 아무 동작도 하지 않음 (롱클릭 무시)
-                                    return@BoardDetailContent
-                                }
-                                isSelectionMode = true
-                                bottomSheetType = BottomSheetType.SELECTION
-                                selectedCards = setOf(cardId) // 롱클릭한 카드를 첫 선택 항목으로 지정
-                            }
-                        },
-                        onSectionLongClick = { section ->
-                            if (!isSelectionMode) {
-                                isSelectionMode = true
-                                bottomSheetType = BottomSheetType.SELECTION
-                                selectedSections = setOf(section.id) // 롱클릭한 섹션을 첫 선택 항목으로 지정
-                            }
-                        },
-                        onFavoriteClick = { section: BoardItem ->
-                            viewModel.toggleSectionFavorite(
-                                sectionId = section.id,
-                                currentFavorite = section.isBookmarked
-                            )
-                        },
-                        isSelectionMode = isSelectionMode,
-                        selectedSections = selectedSections,
-                        selectedCards = selectedCards
-                    )
-                } } else {
-                    // 로딩 인디케이터를 가운데 정렬하기 위해 Box 사용
-                    Box(
-                        modifier = Modifier.fillMaxSize(), // 1. 남은 공간을 모두 채움
-                        contentAlignment = Alignment.Center // 2. 자식을 가운데 정렬
-                    ) {
-                        CircularProgressIndicator() // 3. 로딩 인디케이터
+                        // 로딩 인디케이터를 가운데 정렬하기 위해 Box 사용
+                        Box(
+                            modifier = Modifier.fillMaxSize(), // 1. 남은 공간을 모두 채움
+                            contentAlignment = Alignment.Center // 2. 자식을 가운데 정렬
+                        ) {
+                            CircularProgressIndicator() // 3. 로딩 인디케이터
+                        }
                     }
                 }
             }
@@ -630,7 +645,7 @@ fun BoardDetailScreen(
                         resetSignal = inviteResetSignal,
                         // 이미 선택된 이메일들을 넘겨줌 (체크 상태 유지)
                         initialSelected = currentBoardMembers.map { it.email },
-                        useTopPadding= true
+                        useTopPadding = true
                     )
                 }
                 // 참여자 목록 화면 연결
@@ -651,6 +666,7 @@ fun BoardDetailScreen(
                         isOwner = ui.board?.owner ?: false,
                     )
                 }
+
                 else -> {}
             }
         }
@@ -673,6 +689,7 @@ fun BoardDetailScreen(
                     )
                 }
             )
+
             null -> Unit
             // Rename 등 나머지 케이스를 처리하기 위한 else 분기
             else -> { /* Do nothing for other cases */
@@ -695,6 +712,7 @@ fun BoardDetailScreen(
         )
     }
 }
+
 // 탑바
 @Composable
 fun DetailTopBar(
@@ -708,7 +726,7 @@ fun DetailTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 14.dp, end = 16.dp, top = 30.dp, bottom = 10.dp),
+            .padding(start = 14.dp, end = 16.dp, top = 60.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 왼쪽 (뒤로가기 버튼 + 타이틀)
@@ -742,16 +760,17 @@ fun DetailTopBar(
         }
     }
 }
+
 // 타이틀 바
 @Composable
 fun BoardTitleBar(title: String) {
     val decodedTitle = URLDecoder.decode(title, "utf-8")
 
-    Column(modifier = Modifier.padding(top = 27.dp)) {
+    Column(modifier = Modifier.padding(top = 29.dp)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 18.dp, end = 16.dp, bottom = 15.dp),
+                .padding(start = 18.dp, end = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -765,6 +784,7 @@ fun BoardTitleBar(title: String) {
         }
     }
 }
+
 // 정렬, 필터 버튼
 @Composable
 fun BoardFilterButton(
@@ -781,7 +801,7 @@ fun BoardFilterButton(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, bottom = 18.dp),
+            .padding(start = 16.dp, end = 16.dp, bottom = 18.dp, top=15.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -844,6 +864,7 @@ fun BoardFilterButton(
         }
     }
 }
+
 // 섹션 아이템 변환
 fun SectionDto.toBoardItem(): BoardItem {
     return BoardItem(
@@ -857,6 +878,7 @@ fun SectionDto.toBoardItem(): BoardItem {
         imageUrl = this.thumbnailUrl
     )
 }
+
 // 카드 아이템 변환
 fun CardItemDto.toCardItem(): CardItem {
     return CardItem(
@@ -869,6 +891,7 @@ fun CardItemDto.toCardItem(): CardItem {
         isFavorite = this.favorite ?: false
     )
 }
+
 // 섹션 추가 다이얼로그
 @Composable
 fun NuboInputDialog(

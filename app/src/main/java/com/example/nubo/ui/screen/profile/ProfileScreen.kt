@@ -64,6 +64,11 @@ fun ProfileRoute(
     // 서버에서 가져온 프로필 UI 상태 구독
     val state by viewModel.uiState.collectAsState()
 
+    /*// 화면 최초 진입 시 unread 알림 여부 조회
+    LaunchedEffect(Unit) {
+        viewModel.loadUnreadNotificationState()
+    }*/
+
     // 전역 토스트 호스트
     val toastHostState = LocalAppToastHostState.current
 
@@ -96,7 +101,8 @@ fun ProfileRoute(
                 onMyInfo = onMyInfo,
                 onNotification = onNotification,
                 onHelp = onHelp,
-                onPrivacy = onPrivacy
+                onPrivacy = onPrivacy,
+                hasUnreadNotification = false
             )
         }
 
@@ -116,7 +122,8 @@ fun ProfileRoute(
                 onMyInfo = onMyInfo,
                 onNotification = onNotification,
                 onHelp = onHelp,
-                onPrivacy = onPrivacy
+                onPrivacy = onPrivacy,
+                hasUnreadNotification = state.hasUnreadNotification
             )
         }
     }
@@ -135,6 +142,7 @@ fun ProfileScreen(
     onNotification: () -> Unit = {},
     onHelp: () -> Unit = {},
     onPrivacy: () -> Unit = {},
+    hasUnreadNotification: Boolean = false
 ) {
     // ---- 레이아웃 기준값 ----
     val headerHeight = 344.dp        // 상단 헤더 높이
@@ -183,7 +191,9 @@ fun ProfileScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        painter = painterResource(id = R.drawable.bell),
+                        painter = painterResource(
+                            id = if (hasUnreadNotification) R.drawable.bell_noti else R.drawable.bell
+                        ),
                         contentDescription = "알림",
                         tint = Color.Unspecified,
                         modifier = Modifier.size(26.dp)

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -58,80 +59,86 @@ fun BoardContent(
     onFavoriteClick: (BoardItem) -> Unit, // 즐겨찾기 클릭 콜백
     //선택 관련 파라미터
     isSelectionMode: Boolean,
-    selectedBoardIds: Set<Int>
+    selectedBoardIds: Set<Int>,
+    listState: LazyListState
+
 ) {
-    LazyColumn(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-        contentPadding = PaddingValues(top=3.dp,bottom = 110.dp)
+            .padding(horizontal = 16.dp), // 좌우 16dp
     ) {
-        items(boards.chunked(2)) { rowItems ->
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                // --- 첫 번째 아이템 ---
-                // Column을 사용하고 weight(1f)를 주어 공간을 50% 차지
-                Column(modifier = Modifier.weight(1f)) {
-                    Box {
-                    BoardCardWithText(
-                        board = rowItems[0], // 첫 번째 아이템
-                        onClick = { onBoardClick(rowItems[0]) },
-                        onLongClick = { onBoardLongClick(rowItems[0]) },
-                        onFavoriteClick = onFavoriteClick,
-                        isSelectionMode = isSelectionMode,
-                        // ID 비교
-                        isSelected = selectedBoardIds.contains(rowItems[0].serverBoardId)
-                    )
-                        // AI 마크 아이콘을 밖에서 그림
-                        if (rowItems[0].source == "AI") {
-                            Icon(
-                                painter = painterResource(id = R.drawable.board_ai_mark),
-                                contentDescription = "AI 보드 마크",
-                                tint = Color.Unspecified,
-                                modifier = Modifier
-                                    .align(Alignment.TopStart) // 정렬 기준
-                                    .padding(start = 8.dp) // 좌측 여백
-                                    .offset(y = (-1).dp)
-                                    .size(32.dp)
-                            )
-                        }
-                    }
-                }
-                // --- 두 번째 아이템 (또는 빈 공간) ---
-                if (rowItems.size > 1) {
-                    // 두 번째 아이템이 있으면, 동일하게 weight(1f)를 가진 Column에 배치
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            boards.chunked(2).forEach { rowItems ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // --- 첫 번째 아이템 ---
+                    // Column을 사용하고 weight(1f)를 주어 공간을 50% 차지
                     Column(modifier = Modifier.weight(1f)) {
                         Box {
-                        BoardCardWithText(
-                            board = rowItems[1], // 두 번째 아이템
-                            onClick = { onBoardClick(rowItems[1]) },
-                            onLongClick = { onBoardLongClick(rowItems[1]) },
-                            onFavoriteClick = onFavoriteClick,
-                            isSelectionMode = isSelectionMode,
-                            // ID 비교
-                            isSelected = selectedBoardIds.contains(rowItems[1].serverBoardId)
-                        )
+                            BoardCardWithText(
+                                board = rowItems[0], // 첫 번째 아이템
+                                onClick = { onBoardClick(rowItems[0]) },
+                                onLongClick = { onBoardLongClick(rowItems[0]) },
+                                onFavoriteClick = onFavoriteClick,
+                                isSelectionMode = isSelectionMode,
+                                // ID 비교
+                                isSelected = selectedBoardIds.contains(rowItems[0].serverBoardId)
+                            )
                             // AI 마크 아이콘을 밖에서 그림
-                            if (rowItems[1].source == "AI") {
+                            if (rowItems[0].source == "AI") {
                                 Icon(
                                     painter = painterResource(id = R.drawable.board_ai_mark),
                                     contentDescription = "AI 보드 마크",
                                     tint = Color.Unspecified,
                                     modifier = Modifier
-                                        .align(Alignment.TopStart)
-                                        .padding(start = 8.dp)
+                                        .align(Alignment.TopStart) // 정렬 기준
+                                        .padding(start = 8.dp) // 좌측 여백
                                         .offset(y = (-1).dp)
                                         .size(32.dp)
                                 )
                             }
                         }
                     }
-                } else {
-                    // 아이템이 하나뿐이면, 오른쪽 절반을 빈 Spacer로 채움
-                    Spacer(modifier = Modifier.weight(1f))
+                    // --- 두 번째 아이템 (또는 빈 공간) ---
+                    if (rowItems.size > 1) {
+                        // 두 번째 아이템이 있으면, 동일하게 weight(1f)를 가진 Column에 배치
+                        Column(modifier = Modifier.weight(1f)) {
+                            Box {
+                                BoardCardWithText(
+                                    board = rowItems[1], // 두 번째 아이템
+                                    onClick = { onBoardClick(rowItems[1]) },
+                                    onLongClick = { onBoardLongClick(rowItems[1]) },
+                                    onFavoriteClick = onFavoriteClick,
+                                    isSelectionMode = isSelectionMode,
+                                    // ID 비교
+                                    isSelected = selectedBoardIds.contains(rowItems[1].serverBoardId)
+                                )
+                                // AI 마크 아이콘을 밖에서 그림
+                                if (rowItems[1].source == "AI") {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.board_ai_mark),
+                                        contentDescription = "AI 보드 마크",
+                                        tint = Color.Unspecified,
+                                        modifier = Modifier
+                                            .align(Alignment.TopStart)
+                                            .padding(start = 8.dp)
+                                            .offset(y = (-1).dp)
+                                            .size(32.dp)
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        // 아이템이 하나뿐이면, 오른쪽 절반을 빈 Spacer로 채움
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
             }
         }
+        Spacer(modifier = Modifier.height(80.dp))
     }
 }
 

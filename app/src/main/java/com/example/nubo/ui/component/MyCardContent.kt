@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.getValue
@@ -97,6 +98,7 @@ fun MyCardContent(
             }
         }
     }
+    Spacer(modifier = Modifier.height(80.dp))
 }
 
     @OptIn(ExperimentalFoundationApi::class)
