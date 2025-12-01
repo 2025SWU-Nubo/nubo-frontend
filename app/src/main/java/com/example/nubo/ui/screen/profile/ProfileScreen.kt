@@ -64,10 +64,10 @@ fun ProfileRoute(
     // 서버에서 가져온 프로필 UI 상태 구독
     val state by viewModel.uiState.collectAsState()
 
-    // 화면 최초 진입 시 unread 알림 여부 조회
+    /*// 화면 최초 진입 시 unread 알림 여부 조회
     LaunchedEffect(Unit) {
         viewModel.loadUnreadNotificationState()
-    }
+    }*/
 
     // 전역 토스트 호스트
     val toastHostState = LocalAppToastHostState.current

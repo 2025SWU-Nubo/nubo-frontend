@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -45,14 +46,18 @@ fun BoardDetailContent(
     // 카드 Masonry 블록 패턴 생성
     val (leftItems, rightItems) = buildMasonryBlocks(cardItems)
 
-    LazyColumn(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 60.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         // [1] 보드(섹션) 2열 그리드
-        items(boardItems.chunked(2)) { rowItems ->
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        boardItems.chunked(2).forEach { rowItems ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 // --- 첫 번째 아이템 ---
                 // Column에 weight(1f)를 주어 50% 공간 차지
                 Column(modifier = Modifier.weight(1f)) {
@@ -86,50 +91,51 @@ fun BoardDetailContent(
                     Spacer(modifier = Modifier.weight(1f))
                 }
             }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+    }
+
+    // [2] 카드 Masonry
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            leftItems.forEach { (item, height) ->
+                MyMasonryCard(
+                    height = height,
+                    imageUrl = item.imageUrl,
+                    onClick = { onCardClick(item.id) },
+                    onLongClick = { onCardLongClick(item.id) },
+                    isSelectionMode = isSelectionMode,
+                    isSelected = selectedCards.contains(item.id),
+                    isFavorite = item.isFavorite
+                )
+            }
         }
 
-        // [2] 카드 Masonry
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp) // 가운데 4dp
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp) // 세로 4dp
-                ) {
-                    leftItems.forEach { (item, height) ->
-                        MyMasonryCard(
-                            height = height,
-                            imageUrl = item.imageUrl,
-                            onClick = { onCardClick(item.id) },
-                            onLongClick = { onCardLongClick(item.id) },
-                            isSelectionMode = isSelectionMode,
-                            isSelected = selectedCards.contains(item.id),
-                            isFavorite = item.isFavorite
-                        )
-                    }
-                }
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp) // 세로 4dp
-                ) {
-                    rightItems.forEach { (item, height) ->
-                        MyMasonryCard(
-                            height = height,
-                            imageUrl = item.imageUrl,
-                            onClick = { onCardClick(item.id) },
-                            onLongClick = { onCardLongClick(item.id) },
-                            isSelectionMode = isSelectionMode,
-                            isSelected = selectedCards.contains(item.id),
-                            isFavorite = item.isFavorite
-                        )
-                    }
-                }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp) // 세로 4dp
+        ) {
+            rightItems.forEach { (item, height) ->
+                MyMasonryCard(
+                    height = height,
+                    imageUrl = item.imageUrl,
+                    onClick = { onCardClick(item.id) },
+                    onLongClick = { onCardLongClick(item.id) },
+                    isSelectionMode = isSelectionMode,
+                    isSelected = selectedCards.contains(item.id),
+                    isFavorite = item.isFavorite
+                )
             }
         }
     }
+    Spacer(modifier = Modifier.height(80.dp))
 }
 
 fun cardHeightForIndex(index: Int): Dp {

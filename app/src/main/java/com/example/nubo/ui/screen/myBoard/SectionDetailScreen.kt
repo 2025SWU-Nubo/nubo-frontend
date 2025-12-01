@@ -5,10 +5,10 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -35,6 +37,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -52,6 +55,7 @@ import com.example.nubo.data.model.CardItemDto
 import com.example.nubo.model.myBoard.MyCardItem
 import com.example.nubo.ui.component.cardHeightForIndex
 import com.example.nubo.ui.component.noRippleClickable
+import com.example.nubo.ui.component.MyCardContent
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.AppTextStyles.subtitle_medium_16
 import com.example.nubo.ui.theme.Grey200
@@ -59,6 +63,7 @@ import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.ui.theme.PurpleMain500
 import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.utils.REFRESH_TICK_KEY
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 @Composable
@@ -174,103 +179,143 @@ fun SectionDetailScreen(
     val ui by viewModel.ui.collectAsState()
     val detailState = ui.board
 
+    val lazyListState = rememberLazyListState()
+
+    // 카드 무한 스크롤 감지 로직
+    LaunchedEffect(lazyListState, ui.isLoading, ui.isLast) {
+        snapshotFlow { lazyListState.canScrollForward }
+            .distinctUntilChanged()
+            .collect { canScrollForward ->
+                if (!canScrollForward && !ui.isLoading && !ui.isLast) {
+                    viewModel.loadNextPage()
+                }
+            }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
-            containerColor = Color.White
+            containerColor = Color.White,
+            topBar = {
+                SectionDetailTopBar(
+                    title = boardTitle, // 전달받은 boardTitle 사용
+                    onBack = {
+                        val latestName = ui.board?.name ?: sectionTitle
+                        navController.previousBackStackEntry?.savedStateHandle?.set("renamed_section_id", sectionId)
+                        navController.previousBackStackEntry?.savedStateHandle?.set("renamed_section_name", latestName)
+
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.set(REFRESH_TICK_KEY, System.currentTimeMillis())
+
+                        navController.popBackStack()
+                    },// 메뉴 버튼 클릭 시 보드 설정 바텀 시트 표시
+                    onMenuClick = { bottomSheetType = BottomSheetType.SECTION_SETTINGS },
+                    isSelectionMode = isSelectionMode
+                )
+            }
+
         ) { paddingValues ->
-            Column(
+            LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                SectionDetailTopBar(
-                   title = boardTitle, // 전달받은 boardTitle 사용
-                  onBack = {
-                    val latestName = ui.board?.name ?: sectionTitle
-                    navController.previousBackStackEntry?.savedStateHandle?.set("renamed_section_id", sectionId)
-                    navController.previousBackStackEntry?.savedStateHandle?.set("renamed_section_name", latestName)
+                // 1) 타이틀바 (스크롤되면 위로 사라짐)
+                item {
+                    BoardTitleBar(
+                        title = detailState?.name ?: sectionTitle,
+                    )
+                }
 
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.set(REFRESH_TICK_KEY, System.currentTimeMillis())
-
-                    navController.popBackStack()
-                },// 메뉴 버튼 클릭 시 보드 설정 바텀 시트 표시
-                    onMenuClick = { bottomSheetType = BottomSheetType.SECTION_SETTINGS},
-                    isSelectionMode = isSelectionMode
-                )
-                // 패딩 조절된 TitleBar 사용
-                BoardTitleBar(
-                    title = detailState?.name ?: sectionTitle,)
-
-                SectionFilterButton(
-                    favoriteSelected = ui.favoriteOnly,
-                    onToggleFavorite = { enabled -> viewModel.setFavoriteFilter(enabled) },
-                    onRequestSort = { sortKey -> viewModel.setSort(sortKey) },
-                    isSelectionMode = isSelectionMode
-                )
-
-                if (ui.isLoading && detailState == null) {
-                    // 로딩 인디케이터를 가운데 정렬하기 위해 Box 사용
+                // 2) 필터 영역 (sticky header)
+                stickyHeader {
                     Box(
-                        modifier = Modifier.fillMaxSize(), // 1. 남은 공간을 모두 채움
-                        contentAlignment = Alignment.Center // 2. 자식을 가운데 정렬
+                        Modifier
+                            .fillMaxWidth()
+                            .background(Color.White)
                     ) {
-                        CircularProgressIndicator() // 3. 로딩 인디케이터
-                    }
-                } else if (detailState != null) {
-                    val cardItems = detailState.cards.content.map { it.toMyCardItem() }
-                    val cardHeights by remember(sectionId, cardItems.size) {
-                        mutableStateOf(
-                            cardItems.mapIndexed { index, _ ->
-                                cardHeightForIndex(index)
-                            }
+                        SectionFilterButton(
+                            favoriteSelected = ui.favoriteOnly,
+                            onToggleFavorite = { enabled -> viewModel.setFavoriteFilter(enabled) },
+                            onRequestSort = { sortKey -> viewModel.setSort(sortKey) },
+                            isSelectionMode = isSelectionMode
                         )
                     }
-                    // 섹션에 카드가 아무것도 없을 때 빈 상태 UI 표시
-                    if (cardItems.isEmpty()) {
+                }
+
+                // 3) 카드 Masonry 전체 스크롤
+                item {
+                    if (ui.isLoading && detailState == null) {
+                        // 로딩 인디케이터를 가운데 정렬하기 위해 Box 사용
                         Box(
-                            modifier = Modifier
-                                .fillMaxSize(), // 스크린 전체 사용
-                            contentAlignment = Alignment.Center // 가운데 정렬
+                            modifier = Modifier.fillMaxSize(), // 1. 남은 공간을 모두 채움
+                            contentAlignment = Alignment.Center // 2. 자식을 가운데 정렬
                         ) {
-                            Text(
-                                text = "이 섹션에는 아직 저장된 카드가 없어요!",
-                                style = AppTextStyles.b2_medium_16,
-                                color = GreyMain300,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 24.dp)
+                            CircularProgressIndicator() // 3. 로딩 인디케이터
+                        }
+                    } else if (detailState != null) {
+                        val cardItems = detailState.cards.content.map { it.toMyCardItem() }
+                        val cardHeights by remember(sectionId, cardItems.size) {
+                            mutableStateOf(
+                                cardItems.mapIndexed { index, _ ->
+                                    cardHeightForIndex(index)
+                                }
                             )
                         }
-                    } else {
-                        ScrollableCardContent(
-                            cards = cardItems,
-                            cardHeights = cardHeights,
-                            onCardClick = { cardId ->
-                                if (isSelectionMode) {
-                                    selectedCards =
-                                        if (selectedCards.contains(cardId)) selectedCards - cardId else selectedCards + cardId
-                                } else {
-                                    navController.navigate("card_detail/$cardId")
-                                }
-                            },
-                            onCardLongClick = { cardId ->
-                                // 롱클릭 시 선택 모드로 진입하고, 현재 카드 선택
-                                if (!isSelectionMode) {
-                                    isSelectionMode = true
-                                    bottomSheetType = BottomSheetType.SELECTION
-                                    selectedCards = setOf(cardId) // 새 Set으로 첫 항목 선택
-                                }
-                            },
-                            isSelectionMode = isSelectionMode,
-                            selectedCardIds = selectedCards,
-                            onLoadMore = { viewModel.loadNextPage() },
-                            isLoading = ui.isLoading,
-                            isLastPage = ui.isLast
-
-                        )
+                        // 섹션에 카드가 아무것도 없을 때 빈 상태 UI 표시
+                        if (cardItems.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .padding(top = 170.dp),
+                                contentAlignment = Alignment.Center // 가운데 정렬
+                            ) {
+                                Text(
+                                    text = "이 섹션에는 아직 저장된 카드가 없어요!",
+                                    style = AppTextStyles.b2_medium_16,
+                                    color = GreyMain300,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 24.dp)
+                                )
+                            }
+                        } else {
+                            MyCardContent(
+                                cards = cardItems,
+                                cardHeights = cardHeights,
+                                onCardClick = { cardId ->
+                                    if (isSelectionMode) {
+                                        selectedCards =
+                                            if (selectedCards.contains(cardId)) selectedCards - cardId else selectedCards + cardId
+                                    } else {
+                                        navController.navigate("card_detail/$cardId")
+                                    }
+                                },
+                                onCardLongClick = { cardId ->
+                                    // 롱클릭 시 선택 모드로 진입하고, 현재 카드 선택
+                                    if (!isSelectionMode) {
+                                        isSelectionMode = true
+                                        bottomSheetType = BottomSheetType.SELECTION
+                                        selectedCards = setOf(cardId) // 새 Set으로 첫 항목 선택
+                                    }
+                                },
+                                isSelectionMode = isSelectionMode,
+                                selectedCardIds = selectedCards
+                            )
+                        }
+                    }
+                }
+                // 4) 로딩 인디케이터
+                if (ui.isLoading) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
                     }
                 }
             }
@@ -322,6 +367,7 @@ fun SectionDetailScreen(
                                                     selectedCardIds = selectedCards
                                                 )
                                             }
+
                                             BoardAction.MOVE -> {
                                                 viewModel.moveSelectedItems(
                                                     targetBoardId = targetId.toLong(),
@@ -329,6 +375,7 @@ fun SectionDetailScreen(
                                                     selectedCardIds = selectedCards
                                                 )
                                             }
+
                                             null -> {}
                                         }
                                     }
@@ -338,6 +385,7 @@ fun SectionDetailScreen(
                         }
                     )
                 }
+
                 BottomSheetType.SECTION_SETTINGS -> {
                     ui.board?.let { currentBoard ->
                         // 새로 추가된 섹션 설정 바텀 시트
@@ -361,6 +409,7 @@ fun SectionDetailScreen(
                         )
                     }
                 }
+
                 else -> {}
             }
         }
@@ -406,7 +455,7 @@ fun SectionDetailTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 14.dp, end = 16.dp, top = 30.dp, bottom = 10.dp),
+            .padding(start = 14.dp, end = 16.dp, top = 60.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 왼쪽 (뒤로가기 버튼 + 타이틀)
@@ -457,7 +506,7 @@ fun SectionFilterButton(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, bottom = 20.dp),
+            .padding(start = 16.dp, end = 16.dp, top=15.dp, bottom = 18.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -489,7 +538,7 @@ fun SectionFilterButton(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        painter = painterResource(if(isFavoriteSelected) R.drawable.selected_star else R.drawable.ic_filter_star),
+                        painter = painterResource(if (isFavoriteSelected) R.drawable.selected_star else R.drawable.ic_filter_star),
                         contentDescription = "즐겨찾기",
                         modifier = Modifier.size(16.dp)
                     )

@@ -1,5 +1,12 @@
 package com.example.nubo.ui.screen.myBoard
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +63,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Surface
 import androidx.compose.ui.text.AnnotatedString
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.AppToastType
@@ -66,6 +75,8 @@ import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.ui.theme.PurpleMain500
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 
 @Composable
@@ -202,7 +213,6 @@ fun MyBoardScreen(
     val currentIsSearching = if (selectedTab == 0) isSearchingCard else isSearchingBoard
 
 
-
     // 검색 모드 닫는 로직
     val closeSearchMode = {
         isSearchMode = false
@@ -300,67 +310,84 @@ fun MyBoardScreen(
         }
     }
 
+    // 스크롤 상태 감지
+    val listState = rememberLazyListState()
+    // header(show/hide) 상태 (검색과 필터 영역)
+    var showHeader by remember { mutableStateOf(true) }
 
-    Box(Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(vertical = 20.dp)
+    // 스크롤 방향 감지
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemScrollOffset }
+            .pairWithPrevious()
+            .collect { (prev, curr) ->
+                val scrollingUp = curr < prev // 위로 스크롤 하면 true
+                showHeader = scrollingUp
+            }
+    }
+
+    // 필터 + 검색 헤더에서 사용
+    val onRequestFilter: (String) -> Unit = { filter ->
+        if (selectedTab == 1) boardViewModel.setFilter(filter)
+        else cardViewModel.setFilter(filter)
+    }
+
+    val onRequestSort: (String) -> Unit = { sortKey ->
+        if (selectedTab == 1) boardViewModel.setSort(sortKey)
+        else cardViewModel.setSort(sortKey)
+    }
+
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
+        //1) 탭헤더 (고정)
+        TabHeader(
+            selectedTabIndex = selectedTab,
+            onTabSelected = { newTab ->
+                // 탭 변경 시 검색모드라면 닫기
+                if (isSearchMode) {
+                    closeSearchMode()
+                }
+                // 부모(Route)가 전달해준 람다를 호출
+                // (새로고침 로직은 MyBoardRoute로 이동됨)
+                onTabSelected(newTab)
+            },
+            isSelectionMode = isCardSelectionMode || isBoardSelectionMode
+        )
+
+        // 2) 전체 스크롤은 LazyColumn 하나로 담당
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            state = listState,
+            contentPadding = PaddingValues(bottom = 60.dp) // 바텀네비 고려
         ) {
-            TabHeader(
-                selectedTabIndex = selectedTab,
-                onTabSelected = { newTab ->
-                    // 탭 변경 시 검색모드라면 닫기
-                    if (isSearchMode) {
-                        closeSearchMode()
-                    }
-                    // 부모(Route)가 전달해준 람다를 호출
-                    // (새로고침 로직은 MyBoardRoute로 이동됨)
-                    onTabSelected(newTab)
-                },
-                isSelectionMode = isCardSelectionMode || isBoardSelectionMode
-            )
-            TitleBar(
-                selectedTab = selectedTab,
-                isSearchMode = isSearchMode,
-                searchText = searchText,
-                onSearchTextChange = { searchText = it },
-                onSearchOpen = { isSearchMode = true },
-                onSearchClose = { closeSearchMode() }, // 검색 닫는 공통 로직 추가
-                onSearchSubmit = {
-                    /* no-op: 실시간 검색으로만 처리 */
-//                    focusManager.clearFocus()
-//                    keyboard?.hide()
-//                    val q = searchText.trim()
-//                    if (q.isNotBlank()) {
-//                        hasSearched = true
-//                        // 선택된 탭에 따라 다른 ViewModel의 함수 호출
-//                        when (selectedTab) {
-//                            0 -> cardViewModel.searchCards(q) // 카드 탭
-//                            1 -> boardViewModel.searchBoards(q) // 보드 탭
-//                        }
-//                    }
-                },
-                focusRequester = focusRequester,
-                isSelectionMode = isCardSelectionMode,
-                isSearching = currentIsSearching
-            )
-
-            // 검색 "진행 중"일 때 칩 감추기
-            if (!(isSearchMode)) {
-                FilterButtons(
+            // 상단 타이틀 + 검색 + 필터
+            item {
+                TitleBar(
                     selectedTab = selectedTab,
-                    onRequestFilter = { f ->
-                        if (selectedTab == 1) boardViewModel.setFilter(f) else cardViewModel.setFilter(f)
-                    },
-                    onRequestSort = { s ->
-                        if (selectedTab == 1) boardViewModel.setSort(s) else cardViewModel.setSort(s)
-                    },
-                    enabled = !isCardSelectionMode
                 )
             }
 
-            Box(modifier = Modifier.weight(1f)) {
+           // 2) Sticky Header — 필터 + 검색 / 검색창
+            stickyHeader {
+                FilterSearchStickyHeader(
+                    isSearchMode = isSearchMode,
+                    searchText = searchText,
+                    onSearchTextChange = { searchText = it },
+                    onSearchOpen = { isSearchMode = true },
+                    onSearchClose = { closeSearchMode() },
+                    selectedTab = selectedTab,
+                    onRequestFilter = onRequestFilter,
+                    onRequestSort = onRequestSort,
+                    enabled = !isCardSelectionMode,
+                    focusRequester = focusRequester
+                )
+            }
+
+
+            // 3) 콘텐츠 영역
+            item {
                 when (selectedTab) {
                     0 -> { // 카드 탭 UI 로직
                         val isSearching by cardViewModel.isSearching
@@ -440,7 +467,8 @@ fun MyBoardScreen(
                                                 )
                                             },
                                             isSelectionMode = isBoardSelectionMode, // 선택모드 상태 전달
-                                            selectedBoardIds = selectedBoardIds // 선택된 ID 전달
+                                            selectedBoardIds = selectedBoardIds, // 선택된 ID 전달
+                                            listState = listState
                                         )
                                     }
                                 }
@@ -458,7 +486,8 @@ fun MyBoardScreen(
                                     )
                                 },
                                 isSelectionMode = isBoardSelectionMode,
-                                selectedBoardIds = selectedBoardIds
+                                selectedBoardIds = selectedBoardIds,
+                                listState = listState    // ← 추가!
                             )
                         }
                     }
@@ -467,6 +496,7 @@ fun MyBoardScreen(
         }
     }
 }
+
 
 // 상단 (카드 / 보드) 탭바
 @Composable
@@ -477,7 +507,7 @@ fun TabHeader(
 ) {
     val tabs = listOf("보드", "카드")
 
-    Column(modifier = Modifier.padding(top = 32.dp)) {
+    Column(modifier = Modifier.padding(top = 52.dp)) {
         // 탭 전체 중앙 정렬
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -531,121 +561,160 @@ fun TabHeader(
 // 타이틀 & 검색
 @Composable
 fun TitleBar(
-    selectedTab: Int,
+    selectedTab: Int
+) {
+    Text(
+        text = if (selectedTab == 0) "나의 카드" else "나의 보드",
+        style = AppTextStyles.title_semibold_24,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top=20.dp,start = 18.dp, end = 18.dp, bottom = 8.dp)
+    )
+}
+
+// 필터 +  검색 헤더
+@Composable
+fun FilterSearchStickyHeader(
     isSearchMode: Boolean,
     searchText: String,
     onSearchTextChange: (String) -> Unit,
     onSearchOpen: () -> Unit,
     onSearchClose: () -> Unit,
-    onSearchSubmit: () -> Unit,
-    focusRequester: FocusRequester,
-    isSelectionMode: Boolean,
-    isSearching: Boolean
+    selectedTab: Int,
+    onRequestFilter: (String) -> Unit,
+    onRequestSort: (String) -> Unit,
+    enabled: Boolean,
+    focusRequester: FocusRequester
 ) {
-    // 검색 입력 포커스 상태
     var searchFocused by remember { mutableStateOf(false) }
-    val titleText = if (selectedTab == 0) "나의 카드" else "나의 보드"
+    val placeholderText =
+        if (selectedTab == 0) "카드명 또는 키워드로 카드 검색"
+        else "보드명으로 보드 검색"
 
-    Column(modifier = Modifier.padding(top = 24.dp)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 18.dp, end = 18.dp, bottom = 15.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (!isSearchMode) {
-                Text(text = titleText, style = AppTextStyles.title_semibold_24)
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_board_search),
-                    contentDescription = "검색",
-                    modifier = Modifier
-                        .size(24.dp)
-                        .noRippleClickable { if (!isSelectionMode) onSearchOpen() }
-                )
-            } // 검색 모드
-            else {
-                // 탭별 플레이스홀더
-                val placeholderText =
-                    if (selectedTab == 0) "카드명 또는 키워드로 카드 검색"
-                    else "보드명으로 보드 검색"
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // 입력 박스
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(36.dp)
-                            .clip(RoundedCornerShape(7.dp))
-                            .background(Color.White)
-                            .border(
-                                0.8.dp,
-                                if (searchFocused) PurpleMain500 else Grey50,
-                                RoundedCornerShape(7.dp)
-                            )
-                            .focusRequester(focusRequester)
-                            .padding(horizontal = 12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // 좌측 검색 아이콘 (선택)
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_board_search),
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White),
+        color = Color.White
+    ) {
 
-                            // 입력 필드
-                            BasicTextField(
-                                value = searchText,
-                                onValueChange = onSearchTextChange,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .onFocusChanged { searchFocused = it.isFocused },
-                                singleLine = true,
-                                textStyle = AppTextStyles.b3_medium_14.copy(
-                                    color = MaterialTheme.colorScheme.onSurface
-                                ),
-                                cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                                keyboardActions = KeyboardActions(onDone = { /* no-op: 실시간 검색으로만 처리 */ }),
-                                //플레이스홀더
-                                decorationBox = { inner ->
-                                    Box(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        contentAlignment = Alignment.CenterStart
-                                    ) {
-                                        if (searchText.isEmpty()) {
-                                            Text(
-                                                text = placeholderText,        // ← 여기만 교체
-                                                style = AppTextStyles.label_medium_12,
-                                                color = Grey200
-                                            )
-                                        }
-                                        inner()
-                                    }
-                                }
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(10.dp))
+        // ─────────────────────────────
+        // ① 검색 모드가 아닐 때: 필터 + 검색 아이콘 같은 줄
+        // ─────────────────────────────
+        if (!isSearchMode) {
+            // 불필요한 상위 Column 및 패딩 제거, Row로 바로 시작
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 16.dp), // 전체 헤더 패딩
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween // 양끝 정렬
+            ) {
+                    // 필터 버튼들 (왼쪽 정렬)
+                    FilterButtons(
+                        selectedTab = selectedTab,
+                        onRequestFilter = onRequestFilter,
+                        onRequestSort = onRequestSort,
+                        enabled = enabled
+                    )
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    // 검색 아이콘 (오른쪽 끝)
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_board_close),
-                        contentDescription = "닫기",
+                        painter = painterResource(id = R.drawable.ic_board_search),
+                        contentDescription = "검색",
                         modifier = Modifier
                             .size(24.dp)
-                            .noRippleClickable { onSearchClose() }
+                            .noRippleClickable { if (enabled) onSearchOpen() }
                     )
                 }
+            }
+        // ─────────────────────────────
+        // ② 검색 모드일 때: 검색창 한 줄
+        // ─────────────────────────────
+        else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
+                // 입력 박스
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(36.dp)
+                        .clip(RoundedCornerShape(7.dp))
+                        .background(Color.White)
+                        .border(
+                            0.8.dp,
+                            if (searchFocused) PurpleMain500 else Grey50,
+                            RoundedCornerShape(7.dp)
+                        )
+                        .focusRequester(focusRequester)
+                        .padding(horizontal = 12.dp)
+                ) {
+
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_board_search),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+
+                        BasicTextField(
+                            value = searchText,
+                            onValueChange = onSearchTextChange,
+                            modifier = Modifier
+                                .weight(1f)
+                                .onFocusChanged { searchFocused = it.isFocused },
+                            singleLine = true,
+                            textStyle = AppTextStyles.b3_medium_14.copy(
+                                color = MaterialTheme.colorScheme.onSurface
+                            ),
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            decorationBox = { inner ->
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    if (searchText.isEmpty()) {
+                                        Text(
+                                            text = placeholderText,
+                                            style = AppTextStyles.label_medium_12,
+                                            color = Grey200
+                                        )
+                                    }
+                                    inner()
+                                }
+                            }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                // 닫기 버튼
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_board_close),
+                    contentDescription = "닫기",
+                    modifier = Modifier
+                        .size(24.dp)
+                        .noRippleClickable { onSearchClose() }
+                )
             }
         }
     }
 }
+
 
 // 정렬, 필터 버튼
 @Composable
@@ -663,8 +732,6 @@ fun FilterButtons(
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
     ) {
         // 정렬 버튼
         SortFilterButton(
@@ -705,7 +772,7 @@ fun FilterButtons(
                 // --- '즐겨찾기'일 때는 아이콘만, 아닐 때는 기존 UI를 보여주도록 분기 ---
                 if (label == "즐겨찾기") {
                     Icon(
-                        painter = painterResource(if(isSelected) R.drawable.selected_star else R.drawable.ic_filter_star),
+                        painter = painterResource(if (isSelected) R.drawable.selected_star else R.drawable.ic_filter_star),
                         contentDescription = "즐겨찾기",
                         modifier = Modifier.size(16.dp)
                     )
@@ -719,13 +786,14 @@ fun FilterButtons(
                             color = if (isSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.width(2.dp))
-             
+
                     }
                 }
             }
         }
     }
 }
+
 
 // 나의 카드 탭 : 카드 콘텐츠 스크롤 영역
 @Composable
@@ -736,57 +804,36 @@ fun ScrollableCardContent(
     onCardLongClick: (Int) -> Unit,
     isSelectionMode: Boolean = false,
     selectedCardIds: Set<Int> = emptySet(),
-    // 무한 스크롤을 위한 파라미터 추가
     onLoadMore: () -> Unit,
     isLoading: Boolean,
-    isLastPage: Boolean
+    isLastPage: Boolean,
 ) {
 
-    // LazyColumn의 스크롤 상태를 감지하기 위한 State
-    val lazyListState = rememberLazyListState()
-
-    // 스크롤 상태 감지 및 `onLoadMore` 호출 로직
-    LaunchedEffect(lazyListState, isLoading, isLastPage) {
-        // lazyListState의 스크롤 상태 변경을 Flow로 관찰
-        snapshotFlow { lazyListState.canScrollForward }
-            .distinctUntilChanged() // 값이 실제로 바뀔 때만 수신
-            .collect { canScrollForward ->
-                // 스크롤이 맨 아래에 도달했고(더 이상 앞으로 못 감),
-                // 로딩 중이 아니며, 마지막 페이지가 아닐 때
-                if (!canScrollForward && !isLoading && !isLastPage) {
-                    onLoadMore()
-                }
-            }
-    }
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(top = 4.dp),
-        contentPadding = PaddingValues(bottom = 130.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-        state = lazyListState
+    // 이 함수는 스크롤러가 아니므로 조용히 UI만 구성해야 함
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        item {
-            MyCardContent(
-                cards = cards,
-                cardHeights = cardHeights,
-                onCardClick = onCardClick,
-                onCardLongClick = onCardLongClick,
-                isSelectionMode = isSelectionMode,
-                selectedCardIds = selectedCardIds
-            )
-        }
-        // 로딩 중일 때 하단에 인디케이터 표시
+
+        // Masonry 카드 목록 바로 출력
+        MyCardContent(
+            cards = cards,
+            cardHeights = cardHeights,
+            onCardClick = onCardClick,
+            onCardLongClick = onCardLongClick,
+            isSelectionMode = isSelectionMode,
+            selectedCardIds = selectedCardIds
+        )
+
+        // 로딩 인디케이터 (부모 LazyColumn에서 공간 확보됨)
         if (isLoading) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
             }
         }
     }
@@ -931,5 +978,15 @@ private fun SearchingIndicator(
             color = Grey1000,
             textAlign = TextAlign.Center
         )
+    }
+}
+
+// 스크롤 방향 감지 확장 함수
+fun <T> Flow<T>.pairWithPrevious(): Flow<Pair<T, T>> = flow {
+    var previous: T? = null
+    collect { value ->
+        val prev = previous
+        if (prev != null) emit(prev to value)
+        previous = value
     }
 }

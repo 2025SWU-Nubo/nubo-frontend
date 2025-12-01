@@ -396,7 +396,7 @@ fun BoardDetailScreen(
                         if (boardItems.isEmpty() && cardItems.isEmpty()) {
                             Box(
                                 modifier = Modifier
-                                    .fillMaxSize(),          // 남은 스크린 영역 전체 사용
+                                    .padding(top = 170.dp),
                                 contentAlignment = Alignment.Center // 가운데 정렬
                             ) {
                                 Text(
@@ -726,7 +726,7 @@ fun DetailTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 14.dp, end = 16.dp, top = 30.dp, bottom = 10.dp),
+            .padding(start = 14.dp, end = 16.dp, top = 60.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 왼쪽 (뒤로가기 버튼 + 타이틀)
@@ -766,11 +766,11 @@ fun DetailTopBar(
 fun BoardTitleBar(title: String) {
     val decodedTitle = URLDecoder.decode(title, "utf-8")
 
-    Column(modifier = Modifier.padding(top = 27.dp)) {
+    Column(modifier = Modifier.padding(top = 29.dp)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 18.dp, end = 16.dp, bottom = 15.dp),
+                .padding(start = 18.dp, end = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -801,7 +801,7 @@ fun BoardFilterButton(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, bottom = 18.dp),
+            .padding(start = 16.dp, end = 16.dp, bottom = 18.dp, top=15.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
