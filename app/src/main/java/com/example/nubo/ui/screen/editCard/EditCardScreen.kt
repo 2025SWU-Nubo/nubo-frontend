@@ -150,44 +150,59 @@ fun EditCardScreen(
     val scrollState = rememberScrollState()
     var rootHeight by remember { mutableStateOf(0) } // px
 
+//    var didAdjustForKeyboard by remember { mutableStateOf(false) }
+//
+//// keyboardVisible / editorFocused 변화마다 플래그 리셋
+//    LaunchedEffect(keyboardVisible, editorFocused) {
+//        if (!keyboardVisible || !editorFocused) {
+//            didAdjustForKeyboard = false
+//        }
+//    }
+//
+//    LaunchedEffect(
+//        keyboardVisible,
+//        editorFocused,
+//        showAiBar,
+//        editorBounds,
+//        rootHeight,
+//        imeBottom,
+//        didAdjustForKeyboard
+//    ) {
+//        // Guard conditions
+//        if (!keyboardVisible) return@LaunchedEffect
+//        if (!editorFocused) return@LaunchedEffect
+//        if (showAiBar) return@LaunchedEffect
+//        if (didAdjustForKeyboard) return@LaunchedEffect
+//
+//        // ✅ 처음 진입해서 아직 스크롤 안 한 상태(=0)에서는 자동 스크롤 하지 않기
+//        if (scrollState.value == 0) return@LaunchedEffect
+//
+//        val bounds = editorBounds ?: return@LaunchedEffect
+//        if (rootHeight == 0) return@LaunchedEffect
+//
+//        val visibleHeight = (rootHeight - imeBottom).coerceAtLeast(0)
+//        if (visibleHeight == 0) return@LaunchedEffect
+//
+//        val visibleBottom = visibleHeight.toFloat()
+//        val editorBottom = bounds.bottom
+//
+//        val marginPx = with(density) { 24.dp.toPx() }
+//
+//        if (editorBottom > visibleBottom - marginPx) {
+//            val overlap = editorBottom - visibleBottom + marginPx
+//
+//            val currentScroll = scrollState.value.toFloat()
+//            val targetScroll = (currentScroll + overlap)
+//                .coerceIn(0f, scrollState.maxValue.toFloat())
+//
+//            if (kotlin.math.abs(targetScroll - currentScroll) > 4f) {
+//                scrollState.animateScrollTo(targetScroll.toInt())
+//            }
+//        }
+//
+//        didAdjustForKeyboard = true
+//    }
 
-    LaunchedEffect(
-        keyboardVisible,
-        editorFocused,
-        showAiBar,
-        editorBounds,
-        rtState.selection, // cursor move also triggers re-centering
-        rootHeight,
-        imeBottom
-    ) {
-        // Guard conditions
-        if (!keyboardVisible) return@LaunchedEffect
-        if (!editorFocused) return@LaunchedEffect
-        if (showAiBar) return@LaunchedEffect
-
-        val bounds = editorBounds ?: return@LaunchedEffect
-        if (rootHeight == 0) return@LaunchedEffect
-
-        // Visible height = whole content - IME overlay
-        val visibleHeight = (rootHeight - imeBottom).coerceAtLeast(0)
-        if (visibleHeight == 0) return@LaunchedEffect
-
-        // Editor center in parent's coordinate space
-        val editorCenter = bounds.top + bounds.height / 2f
-
-        // We want editorCenter to be at visible center
-        val visibleCenter = visibleHeight / 2f
-
-        val currentScroll = scrollState.value.toFloat()
-        val diff = editorCenter - visibleCenter
-        val targetScroll = (currentScroll + diff)
-            .coerceIn(0f, scrollState.maxValue.toFloat())
-
-        // Avoid tiny oscillations
-        if (kotlin.math.abs(targetScroll - currentScroll) > 4f) {
-            scrollState.animateScrollTo(targetScroll.toInt())
-        }
-    }
 
     // 바 높이(대략치) — 토스트를 바 위로 띄우기 위한 패딩
     val aiBarHeight = 84.dp
