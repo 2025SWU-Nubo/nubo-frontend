@@ -928,8 +928,8 @@ fun MainScreen(
                     return@collectLatest // 기존 포맷을 처리했으므로 조기 반환함
                 }
                 DeepLinkContract.TARGET_CARD_UNREAD_LIST -> {
-                    navController.navigate("notification") {
-                        popUpTo("home") { inclusive = false }
+                    navController.navigate("home") {
+                        popUpTo("notification") { inclusive = false }
                         launchSingleTop = true
                     }
                     return@collectLatest // 한 줄 주석: 기존 포맷 처리 완료

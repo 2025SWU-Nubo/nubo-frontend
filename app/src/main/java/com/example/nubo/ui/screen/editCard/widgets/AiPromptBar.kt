@@ -80,7 +80,7 @@ fun AiPromptBar(
         listOf(
             PresetAction("더 간결하게", R.drawable.arrows_inside),
             PresetAction("더 자세하게", R.drawable.arrows_outward),
-            PresetAction("핵심만 하이라이트", R.drawable.format_ink_highlighter)
+//            PresetAction("핵심만 하이라이트", R.drawable.format_ink_highlighter)
         )
     }
 

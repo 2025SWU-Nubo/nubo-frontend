@@ -262,7 +262,9 @@ fun CustomTopBar(
                 Icon(
                     painter =   if (hasUnread)painterResource(R.drawable.bell_noti) else painterResource(R.drawable.bell),
                     contentDescription = "알림",
-                    modifier = Modifier.size(26.dp)
+                    modifier = Modifier.size(26.dp),
+                    tint = Color.Unspecified
+
                 )
 
             }

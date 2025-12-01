@@ -33,7 +33,8 @@ fun AiLoadingOverlay(
 ) {
     AnimatedVisibility(
         visible = visible,
-        modifier = modifier,
+        modifier = Modifier
+        .fillMaxSize(),
         enter = fadeIn() + slideInVertically(initialOffsetY = { it / 6 }),
         exit  = fadeOut() + slideOutVertically(targetOffsetY = { it / 6 })
     ) {
@@ -51,8 +52,11 @@ fun AiLoadingOverlay(
                 ),
             contentAlignment = Alignment.Center
         ) {
-
             Column(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .padding(top =230.dp, bottom = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
