@@ -61,55 +61,62 @@ fun BottomSheetHost(
 //    var invitedEmails by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var inviteResetVersion by remember { mutableStateOf(0) }
 
-    // 참여자 프리뷰 정보 (닉네임, 프로필 이미지)
-    var invitedUserPreview by remember { mutableStateOf<List<InviteUser>>(emptyList()) }
+
 
     val createBoardViewModel: CreateBoardViewModel = hiltViewModel()
+    val inviteViewModel: InviteViewModel = hiltViewModel()
+
+    // 참여자 프리뷰 정보 (닉네임, 프로필 이미지)
+    var invitedUserPreview by remember { mutableStateOf<List<InviteUser>>(emptyList()) }
+    var pendingToastMessage by rememberSaveable { mutableStateOf<String?>(null) }
+
     val ui by createBoardViewModel.ui.collectAsState() // CreateBoardUiState(name, isShared, isLoading, nameError, created)
 
-    var pendingToastMessage by rememberSaveable { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+
+    // 참여자/보드 생성 관련 상태를 한 번에 초기화하는 헬퍼
+    fun resetAllBoardSheetState() {
+        createBoardViewModel.resetForNewBoard()  // name, isShared, invitedEmails 모두 초기화
+        invitedUserPreview = emptyList()         // 프리뷰 칩 초기화
+        inviteViewModel.resetAll()               // 검색어 + 초대 선택 + 선택 유저 초기화
+    }
 
     // 보드 생성 완료 시 토스트 + 콜백 처리
     LaunchedEffect(ui.created) {
         ui.created?.let { created ->
+            // 1) 상태 초기화 (VM + preview + Invite)
+            resetAllBoardSheetState()
 
-            // 1 초대 상태 먼저 리셋
-            inviteResetVersion++          // InviteViewModel 에 "초기화 신호" 보내기
-            invitedUserPreview = emptyList()
-            createBoardViewModel.setInvitedEmails(emptyList())
-            createBoardViewModel.resetForNewBoard()   // 필요하다면 전체 초기화
-
-            // 2 토스트 + 상위 콜백
+            // 2) 토스트 + 상위 콜백
             showToast(
                 "보드 생성이 완료되었어요.",
                 AppToastType.NORMAL,
                 2600,
                 550,
-                "바로가기",                           // actionLabel
-                { onClickCreatedBoard(created.id, created.name) }  // onAction: 네비게이션 콜백
+                "바로가기",
+                { onClickCreatedBoard(created.id, created.name) }
             )
 
-            // 기존 상위 처리 유지 (리스트 갱신 등)
             onCreateBoard(created.name, ui.isShared)
-            // 3 created 플래그 소비
+
+            // 3) created 플래그만 소비
             createBoardViewModel.consumeCreated()
-            // 4 부모에 시트 닫기 알리기
+
+            // 4) 시트 닫기
             onDismiss()
         }
     }
 
+    fun resetSheetState() {
+        inviteResetVersion++
+        invitedUserPreview = emptyList()
+        createBoardViewModel.setInvitedEmails(emptyList())
+        createBoardViewModel.resetForNewBoard()
+    }
+
     ModalBottomSheet(
         onDismissRequest = {
-            // 1) invited 상태 초기화
-            inviteResetVersion++
-            createBoardViewModel.setInvitedEmails(emptyList())
-            invitedUserPreview = emptyList()
-
-            // 2) board 생성 UI 전체 리셋
-            createBoardViewModel.resetForNewBoard()
-
-            // 3) 외부에 시트 닫힘 알리기 (route = null 등)
+            resetAllBoardSheetState()
             onDismiss()
         },
         sheetState = sheetState,
@@ -130,19 +137,12 @@ fun BottomSheetHost(
                 SheetRoute.CreateBoard -> {
                     // 보드 만들기 시트 -> 추가 생성하기 시트로 이동
                     // (공유 보드였다면 선택한 참여자도 초기화)
-                    if (ui.isShared) {
-                        inviteResetVersion++
-                        createBoardViewModel.setInvitedEmails(emptyList())
-                        invitedUserPreview = emptyList()
-                    }
+                    resetAllBoardSheetState()
                     onBackToAddMenu()
                 }
 
                 SheetRoute.AddMenu -> {
-                    // 추가 생성하기 시트에서 뒤로가기 -> 바텀시트 닫기
-                    inviteResetVersion++
-                    createBoardViewModel.setInvitedEmails(emptyList())
-                    invitedUserPreview = emptyList()
+                    resetAllBoardSheetState()
                     onDismiss()
                 }
 
@@ -153,10 +153,7 @@ fun BottomSheetHost(
                 }
 
                 null -> {
-                    // 안전장치: route가 null이면 그냥 닫기
-                    inviteResetVersion++
-                    createBoardViewModel.setInvitedEmails(emptyList())
-                    invitedUserPreview = emptyList()
+                    resetAllBoardSheetState()
                     onDismiss()
                 }
             }
@@ -202,18 +199,22 @@ fun BottomSheetHost(
         ) { target ->
             when (target) {
                 SheetRoute.AddMenu -> AddMenuSheet(
-                    onClose = onDismiss,
+                    onClose = {
+                        // Treat close button as full sheet dismiss
+                        resetAllBoardSheetState()
+                        onDismiss()
+                    },
                     onVideoClick = onGoAddVideo,
-                    onBoardClick = onGoCreateBoard
+                    onBoardClick = {
+                        // "보드 만들기"를 새로 시작하면 무조건 새 플로우
+                        resetAllBoardSheetState()
+                        onGoCreateBoard()
+                    }
                 )
                 SheetRoute.CreateBoard -> CreateBoardSheet(
                     onClose = onDismiss,
                     onBack = {
-                        if (ui.isShared) {
-//                            ui.invitedEmails = emptyList()
-                            inviteResetVersion++
-                            createBoardViewModel.setInvitedEmails(emptyList())
-                        }
+                        resetAllBoardSheetState()
                         onBackToAddMenu()
                     },
                     onInviteClick = onGoInvite,
@@ -244,7 +245,6 @@ fun BottomSheetHost(
                     resetSignal = inviteResetVersion,
                     initialSelected = ui.invitedEmails,
                     onComplete = { emails, users ->
-//                        invitedEmails = emails
                         invitedUserPreview = users
                         // 1) 부모에 초대 이메일 전달(서버 전송은 부모/VM에서 처리 권장)
                         createBoardViewModel.setInvitedEmails(emails)

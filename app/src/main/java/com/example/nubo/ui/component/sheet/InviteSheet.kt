@@ -82,17 +82,6 @@ fun InviteSheet (
     val selected by viewModel.selected.collectAsState()
     val selectedUsers by viewModel.selectedUsers.collectAsState()
 
-    // resetSignal + initialSelected 처리
-    LaunchedEffect(resetSignal, initialSelected) {
-        // Clear only when signal changes
-        viewModel.applyResetSignal(resetSignal)
-
-        // After reset, restore already invited emails from parent if any
-        if (initialSelected.isNotEmpty()) {
-            viewModel.setSelection(initialSelected)
-        }
-    }
-
     val hasSelection = selected.isNotEmpty()
 
     Column(

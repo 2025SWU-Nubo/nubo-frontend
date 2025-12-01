@@ -28,9 +28,6 @@ import javax.inject.Inject
 class InviteViewModel @Inject constructor(
     private val repo: InviteRepository
 ) : ViewModel(){
-
-    private var lastResetSignal: Int = -1
-
     // 검색어 상태
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
@@ -124,14 +121,6 @@ class InviteViewModel @Inject constructor(
         _query.value = ""
     }
 
-    fun applyResetSignal(signal:Int){
-        if(signal != lastResetSignal){
-            lastResetSignal = signal
-            clearSelection()
-            clearQuery()
-        }
-    }
-
 
     // 외부에서 선택 복원
     fun setSelection(emails: Collection<String>) {
@@ -148,6 +137,7 @@ class InviteViewModel @Inject constructor(
     fun resetAll() {
         _query.value = ""
         _selected.value = emptySet()
+        _selectedUsers.value = emptyList()
     }
 
     // 초대 실행
