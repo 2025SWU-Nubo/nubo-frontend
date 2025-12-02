@@ -193,7 +193,7 @@ fun HomeScreen(
                             .height(6.dp)
                             .background(Grey10)
                     )
-                    Spacer(Modifier.height(20.dp))
+                    Spacer(Modifier.height(16.dp))
                 }
             }
             items(recommendGroups) { group ->
@@ -210,7 +210,7 @@ fun HomeScreen(
                             .height(6.dp)
                             .background(Grey10)
                     )
-                    Spacer(Modifier.height(20.dp))
+                    Spacer(Modifier.height(16.dp))
 
 
             }

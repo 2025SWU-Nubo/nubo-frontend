@@ -47,10 +47,10 @@ fun RecommendationChipsRow(
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
-    Box(modifier = modifier.fillMaxWidth().height(30.dp)){
+    Box(modifier = modifier.fillMaxWidth()){
         LazyRow(
             state = listState,
-            modifier = modifier.fillMaxWidth().padding(horizontal = 15.dp),
+            modifier = modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ){
             itemsIndexed(chips) {
