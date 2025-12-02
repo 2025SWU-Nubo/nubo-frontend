@@ -43,7 +43,8 @@ class BoardViewModel @Inject constructor(
     // Paging states
     private var page: Int = 0
     private var size: Int = 20
-    private var isLast: Boolean = false
+    private val _isLast = mutableStateOf(false)
+    val isLast: State<Boolean> get() = _isLast
     private var sort: String = "LATEST"   // LATEST | OLDEST | ALPHABET
     private var filter: String = "ALL"    // ALL | FAVORITE | SHARED
 
@@ -85,6 +86,11 @@ class BoardViewModel @Inject constructor(
     private val _deleteToastEvent = MutableSharedFlow<String>()
     val deleteToastEvent = _deleteToastEvent.asSharedFlow()
 
+    // 로딩 상태
+    private val _isLoading = mutableStateOf(false)
+    val isLoading: State<Boolean> get() = _isLoading
+
+
     // Route 등에서 삭제가 완료되었음을 알릴 때 호출
     fun triggerDeleteToast(count: Int, isBoard: Boolean) {
         val message = if (isBoard) "${count}개의 보드를 삭제했어요." else "${count}개의 카드를 삭제했어요."
@@ -100,13 +106,13 @@ class BoardViewModel @Inject constructor(
     /** Refresh from page 0 */
     fun refresh() {
         page = 0
-        isLast = false
+        _isLast.value = false
         fetchBoards(reset = true)
     }
 
     /** Load next page if available */
     fun loadMore() {
-        if (isLast) return
+        if ( _isLast.value) return
         fetchBoards(reset = false)
     }
 
@@ -116,7 +122,7 @@ class BoardViewModel @Inject constructor(
                 val token = authRepository.getAccessToken()
                 if (token.isNullOrBlank()) {
                     _boards.value = emptyList()
-                    isLast = true
+                    _isLast.value = true
                     return@launch
                 }
 
@@ -148,7 +154,7 @@ class BoardViewModel @Inject constructor(
                 // update paging flags
                 page = res.number
                 size = res.size
-                isLast = res.last
+                _isLast.value = res.last
             } catch (e: Exception) {
                 // 전체 초기 로딩일 때는 리스트 비우기
                 if (reset) _boards.value = emptyList()
