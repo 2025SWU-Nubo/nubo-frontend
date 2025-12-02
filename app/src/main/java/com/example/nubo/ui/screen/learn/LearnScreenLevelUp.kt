@@ -59,8 +59,8 @@ fun LevelUpSection(
     onStepAnimDone: () -> Unit,
 ) {
     // 1) 시작/목표 퍼센트 (목표는 체크 지점으로 스냅)
-    val fromFrac = stepToFraction(prevStep - 1, totalSteps).coerceIn(0f, 1f)
-    val toFrac = stepToFraction(nextStep - 1, totalSteps)
+    val fromFrac = stepToFraction(prevStep, totalSteps).coerceIn(0f, 1f)
+    val toFrac = stepToFraction(nextStep, totalSteps)
 
     // 2) 진행도는 단순 Float 상태로 관리 (프레임마다 값 갱신)
     var barProgress by remember { mutableFloatStateOf(fromFrac) }
