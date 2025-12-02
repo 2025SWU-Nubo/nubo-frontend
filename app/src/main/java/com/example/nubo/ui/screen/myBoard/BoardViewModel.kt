@@ -86,7 +86,7 @@ class BoardViewModel @Inject constructor(
     private val _deleteToastEvent = MutableSharedFlow<String>()
     val deleteToastEvent = _deleteToastEvent.asSharedFlow()
 
-    // 로딩 상태
+    // 페이징 로딩 상태
     private val _isLoading = mutableStateOf(false)
     val isLoading: State<Boolean> get() = _isLoading
 
@@ -119,6 +119,8 @@ class BoardViewModel @Inject constructor(
     private fun fetchBoards(reset: Boolean) {
         viewModelScope.launch {
             try {
+                _isLoading.value = true
+
                 val token = authRepository.getAccessToken()
                 if (token.isNullOrBlank()) {
                     _boards.value = emptyList()
@@ -162,6 +164,8 @@ class BoardViewModel @Inject constructor(
 
                 // 보드 목록 불러오기 실패 시 토스트 메시지 설정
                 _toastMessage.value = "정보를 불러오지 못했어요"
+            } finally {
+                _isLoading.value = false
             }
         }
     }

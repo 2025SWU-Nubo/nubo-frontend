@@ -74,7 +74,7 @@ fun LearnScreenInformation(
                 .padding(horizontal = 24.dp)
                 // 화면 상단에서 조금 띄워서 배치
                 .padding(top = 72.dp)
-                .height(580.dp)
+                .height(528.dp)
                 // 카드 전체에서 좌우 스와이프 제스처 처리
                 .pointerInput(pageIndex) {
                     detectHorizontalDragGestures(
