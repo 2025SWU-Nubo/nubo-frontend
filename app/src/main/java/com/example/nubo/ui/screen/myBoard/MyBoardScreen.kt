@@ -344,7 +344,7 @@ fun MyBoardScreen(
         // 2) 전체 스크롤은 LazyColumn 하나로 담당
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 60.dp) // 바텀네비 고려
+            contentPadding = PaddingValues(bottom = 140.dp) // 바텀네비 고려
         ) {
             // 상단 타이틀 - 검색 모드일 때 숨김
             if (!isSearchMode) {

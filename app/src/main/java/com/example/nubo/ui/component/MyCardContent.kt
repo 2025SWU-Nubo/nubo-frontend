@@ -98,7 +98,6 @@ fun MyCardContent(
             }
         }
     }
-    Spacer(modifier = Modifier.height(80.dp))
 }
 
     @OptIn(ExperimentalFoundationApi::class)
