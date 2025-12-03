@@ -6,6 +6,10 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
@@ -29,6 +33,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.nubo.R
@@ -36,7 +41,8 @@ import com.example.nubo.ui.theme.AppTextStyles.b2_regular_16
 import com.example.nubo.ui.theme.AppTextStyles.b2_semibold_16
 import com.example.nubo.ui.theme.AppTextStyles.b3_regular_14
 import com.example.nubo.ui.theme.AppTextStyles.label_semibold_14
-import com.example.nubo.ui.theme.AppTextStyles.title_semibold_24
+import com.example.nubo.ui.theme.AppTextStyles.title_semibold_22
+import com.example.nubo.ui.theme.AppTextStyles.subtitle_semibold_20
 import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.Purple100
@@ -47,17 +53,16 @@ fun LearnScreenInformation(
     modifier: Modifier = Modifier,
     onClose: () -> Unit,      // 마지막 시작하기 또는 닫기 버튼 눌렀을 때 호출
 ) {
-    // 현재 페이지 인덱스 상태 0 ~ 3
-    var pageIndex by remember { mutableIntStateOf(0) }
     val totalPages = 4
 
-    // 스와이프 판정 기준 거리(dp → px)
-    val density = LocalDensity.current
-    val swipeThresholdPx = with(density) { 60.dp.toPx() }
+    // Pager 상태 (현재 페이지 / 애니메이션 스크롤 등에 사용)
+    val pagerState = rememberPagerState(
+        initialPage = 0,
+        pageCount = { totalPages }
+    )
 
-    // 드래그 누적 거리
-    var dragX by remember { mutableFloatStateOf(0f) }
-
+    // 버튼 클릭 시 부드럽게 페이지 이동시키기 위한 코루틴 스코프
+    val scope = rememberCoroutineScope()
 
     // 전체 화면을 덮는 어두운 배경과 팝업 카드 레이아웃
     Box(
@@ -71,86 +76,74 @@ fun LearnScreenInformation(
             modifier = Modifier
                 // 좌우 여백 24dp 확보 후 가로는 꽉 차게
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                // 화면 상단에서 조금 띄워서 배치
-                .padding(top = 72.dp)
-                .height(528.dp)
-                // 카드 전체에서 좌우 스와이프 제스처 처리
-                .pointerInput(pageIndex) {
-                    detectHorizontalDragGestures(
-                        onHorizontalDrag = { change, dragAmount ->
-                            // 다른 제스처로 전달되지 않도록 소비
-                            change.consume()
-                            dragX += dragAmount
-                        },
-                        onDragEnd = {
-                            when {
-                                // 오른쪽으로 밀었을 때 → 다음 페이지
-                                // 마지막 페이지에서는 동작하지 않도록 조건
-                                dragX > swipeThresholdPx && pageIndex >0 -> {
-                                    pageIndex -= 1
-                                }
-                                // 왼쪽으로 밀었을 때 → 이전 페이지
-                                // 0번 페이지에서는 동작하지 않도록 조건
-                                dragX < -swipeThresholdPx && pageIndex < totalPages - 1 -> {
-                                    pageIndex += 1
-                                }
-                            }
-                            dragX = 0f
-                        },
-                        onDragCancel = {
-                            dragX = 0f
-                        }
-                    )
-                },
+                .padding(horizontal = 24.dp, vertical = 120.dp)
+                .height(500.dp),
             shape = RoundedCornerShape(14.dp),
             colors = CardDefaults.cardColors(
-                containerColor = if (pageIndex == 0) Color.White else Color.White
+                containerColor = Color.White
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            when (pageIndex) {
-                // 1번 화면: 배경 전체 이미지
-                0 -> LearnInfoPageFirst(
-                    onNext = { pageIndex = 1 },
-                    onClose = onClose
-                )
-                // 나머지 3개 화면
-                1 -> LearnInfoContentPage(
-                    pageIndex = 1,
-                    title = "식물 키우는 법",
-                    description = "카드 열람 1회마다 물방울이 1개 만들어집니다\n물방울 5개면 다음 단계로 성장해요",
-                    imageRes = R.drawable.learn_popup_bg2,
-                    buttonText = "다음",
-                    currentPage = pageIndex,
-                    totalPages = totalPages,
-                    onNext = { pageIndex = 2 },
-                    onClose = onClose
-                )
+            // 페이지를 좌우로 넘기는 영역
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                when (page) {
+                    // 0번 화면: 배경 전체 이미지
+                    0 -> LearnInfoPageFirst(
+                        onClose = onClose
+                    )
 
-                2 -> LearnInfoContentPage(
-                    pageIndex = 2,
-                    title = "성장 단계",
-                    description = "식물은 총 5단계로 성장하며\n마지막 단계에서 베리를 수확할 수 있어요",
-                    imageRes = R.drawable.learn_popup_bg3,
-                    buttonText = "다음",
-                    currentPage = pageIndex,
-                    totalPages = totalPages,
-                    onNext = { pageIndex = 3 },
-                    onClose = onClose
-                )
+                    // 나머지 3개 화면
+                    1 -> LearnInfoContentPage(
+                        pageIndex = 1,
+                        title = "식물 키우는 법",
+                        description = "카드 열람 1회마다 물방울이 1개 만들어집니다\n물방울 5개면 다음 단계로 성장해요",
+                        imageRes = R.drawable.learn_popup_bg2,
+                        buttonText = "다음",
+                        currentPage = page,        // 인디케이터에 현재 페이지 전달
+                        totalPages = totalPages,
+                        onNext = {
+                            // 버튼 클릭 시 부드럽게 다음 페이지로 이동
+                            scope.launch {
+                                pagerState.animateScrollToPage(2)
+                            }
+                        },
+                        onClose = onClose
+                    )
 
-                3 -> LearnInfoContentPage(
-                    pageIndex = 3,
-                    title = "베리 리워드",
-                    description = "베리로 성장보드의 새로운 모습을 얻을 수 있어요\n접속할 때마다 달라지는 보드를 만나보세요",
-                    imageRes = R.drawable.learn_popup_bg4,
-                    buttonText = "시작하기",
-                    currentPage = pageIndex,
-                    totalPages = totalPages,
-                    onNext = onClose,
-                    onClose = onClose
-                )
+                    2 -> LearnInfoContentPage(
+                        pageIndex = 2,
+                        title = "성장 단계",
+                        description = "식물은 총 5단계로 성장하며\n마지막 단계에서 베리를 수확할 수 있어요",
+                        imageRes = R.drawable.learn_popup_bg3,
+                        buttonText = "다음",
+                        currentPage = page,
+                        totalPages = totalPages,
+                        onNext = {
+                            scope.launch {
+                                pagerState.animateScrollToPage(3)
+                            }
+                        },
+                        onClose = onClose
+                    )
+
+                    3 -> LearnInfoContentPage(
+                        pageIndex = 3,
+                        title = "베리 리워드",
+                        description = "베리로 성장보드의 새로운 모습을 얻을 수 있어요\n접속할 때마다 달라지는 보드를 만나보세요",
+                        imageRes = R.drawable.learn_popup_bg4,
+                        buttonText = "시작하기",
+                        currentPage = page,
+                        totalPages = totalPages,
+                        onNext = {
+                            // 마지막 페이지에서는 시작하기 → 인포 닫기
+                            onClose()
+                        },
+                        onClose = onClose
+                    )
+                }
             }
         }
     }
@@ -159,7 +152,6 @@ fun LearnScreenInformation(
 // 성장보드 첫번째 인포 페이지
 @Composable
 private fun LearnInfoPageFirst(
-    onNext: () -> Unit,
     onClose: () -> Unit
 ) {
     // 카드 전체를 배경 이미지로 채움
@@ -172,16 +164,11 @@ private fun LearnInfoPageFirst(
         Image(
             painter = painterResource(id = R.drawable.learn_popup_bg1),
             contentDescription = null,
-            modifier = Modifier.matchParentSize(),
-
-            // 가로에 억지로 맞추지 않고, '중앙'을 기준으로 배치
-            alignment = Alignment.Center,
-
-            // 옵션 1: 화면을 꽉 채우되, 중앙을 기준으로 자르기 (가장 추천)
-            contentScale = ContentScale.Crop
-
-            // 옵션 2: 만약 이미지가 잘리는 게 싫고 세로 전체를 다 보여주고 싶다면 아래 사용
-            // contentScale = ContentScale.FillHeight
+            modifier = Modifier
+                .fillMaxWidth()              // 가로를 부모 너비에 딱 맞춤
+                .align(Alignment.Center), // 가운데 정렬
+            alignment = Alignment.BottomCenter, // 잘릴 때 기준이 되는 위치
+            contentScale = ContentScale.FillWidth // 가로 기준으로 맞추고 세로는 넘치는 부분만 잘림
         )
 
         // 내용 오버레이
@@ -189,39 +176,44 @@ private fun LearnInfoPageFirst(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 18.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // 상단 닫기 버튼
-            IconButton(
-                onClick = onClose,
-                modifier = Modifier.size(24.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "닫기",
-                    tint = Grey1000
-                )
+                IconButton(
+                    onClick = onClose,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "닫기",
+                        tint = Grey1000
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(235.dp))
 
+            // 타이틀 텍스트
             Text(
-                modifier = Modifier.padding(start = 3.dp),
                 text = "성장보드",
-                style = title_semibold_24,
+                style = title_semibold_22,
                 color = Grey1000
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                modifier = Modifier.padding(start = 3.dp),
                 text = "숏폼을 볼 때마다 식물이 자라는",
                 style = b2_semibold_16,
                 color = Grey1000
             )
 
             Text(
-                modifier = Modifier.padding(start = 3.dp),
                 text = "당신의 성장을 보여주는 공간입니다",
                 style = b2_regular_16,
                 color = Grey1000
@@ -256,59 +248,67 @@ private fun LearnInfoContentPage(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 18.dp, vertical = 16.dp)
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // 상단 닫기 버튼
-        IconButton(
-            onClick = onClose,
-            modifier = Modifier
-                .size(24.dp)
-                .padding(0.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "닫기",
-                tint = Grey1000
+            IconButton(
+                onClick = onClose,
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "닫기",
+                    tint = Grey1000
+                )
+            }
+        }
+
+        // 닫기 버튼과 카드 이미지 사이 간격
+        Spacer(modifier = Modifier.height(18.dp))
+
+        // 상단 이미지 카드 영역
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Image(
+                painter = painterResource(id = imageRes),
+                contentDescription = null,
+                modifier = Modifier.fillMaxWidth(),      // 가로를 카드에 맞춤
+                contentScale = ContentScale.FillWidth    // 비율 유지 + 가로 기준으로 맞추기
             )
         }
 
-        Spacer(modifier = Modifier.height(84.dp))
+        // 이미지와 타이틀 사이 간격 (시안 24)
+        Spacer(modifier = Modifier.height(24.dp))
 
+        //타이틀
         Text(
-            modifier = Modifier.padding(start = 3.dp),
             text = title,
-            style = title_semibold_24,
+            style = subtitle_semibold_20,
             color = Grey1000
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            modifier = Modifier.padding(start = 3.dp),
             text = description,
             style = b3_regular_14,
             color = Grey500,
-            lineHeight = 20.sp
+            lineHeight = 20.sp,
+            textAlign = TextAlign.Center,      // 가운데 정렬
+            modifier = Modifier.fillMaxWidth() // 줄 기준 폭을 넓게 잡아주면 더 확실
         )
 
-        Spacer(modifier = Modifier.height(46.dp))
-
-        // 중앙 이미지 영역: 가로는 카드 너비에 맞추고, 세로는 원본 비율 유지
-        Card(
-            modifier = Modifier
-                .fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-        ) {
-            Image(
-                painter = painterResource(id = imageRes),
-                contentDescription = null,
-                modifier = Modifier.fillMaxWidth(),      // 가로만 부모에 맞춤
-                contentScale = ContentScale.FillWidth    // 비율 유지 + 가로 기준으로 맞추기
-            )
-        }
-
-
-        Spacer(modifier = Modifier.height(14.dp))
+        // 아래 영역을 채워서 인디케이터/버튼을 하단 쪽에 배치
+        Spacer(modifier = Modifier.weight(1f))
 
         // 페이지 인디케이터
         LearnInfoIndicator(
@@ -318,7 +318,7 @@ private fun LearnInfoContentPage(
                 .align(Alignment.CenterHorizontally)
         )
 
-        Spacer(modifier = Modifier.height(69.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // 하단 버튼
         Button(
@@ -338,7 +338,7 @@ private fun LearnInfoContentPage(
             )
         }
 
-        Spacer(modifier = Modifier.height(5.dp))
+        Spacer(modifier = Modifier.height(8.dp))
     }
 }
 

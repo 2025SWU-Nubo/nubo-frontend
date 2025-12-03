@@ -99,9 +99,6 @@ fun CardDetailScreen(
     onConsumeToast: () -> Unit,
     toastDelayMillis : Int = 0,
     navController: NavController,
-    // 레벨업 토스트 파라미터
-    toastMessage2: Pair<AnnotatedString, String>?,
-    onConsumeToast2: () -> Unit,
     viewModel: CardDetailViewModel = hiltViewModel()
 ) {
     // 뒤로가기 처리
@@ -117,6 +114,9 @@ fun CardDetailScreen(
     val scope = rememberCoroutineScope()
 
     val infoState by viewModel.infoState.collectAsState()
+
+    // ViewModel의 레벨업 토스트 상태를 여기서 직접 구독
+    val levelUpToast by viewModel.toast2.collectAsState()
 
     //  토스트 메시지가 들어오면 지연 후 노출
     LaunchedEffect(toastMessage, toastDelayMillis) {
@@ -137,28 +137,24 @@ fun CardDetailScreen(
         }
     }
 
-    // 레벨업/열매 토스트 표시
-    LaunchedEffect(toastMessage2) {
-        val msgPair = toastMessage2 ?: return@LaunchedEffect
-
+    // 레벨업/열매 토스트 처리
+    LaunchedEffect(levelUpToast) {
+        val msgPair = levelUpToast ?: return@LaunchedEffect
         val (title, summary) = msgPair
 
-
-        // Show action toast
+        // 전역 토스트 띄우기
         toastHost.show(
             title = title,
             layout = AppToastLayout.TitleWithSummaryAndAction,
             type = AppToastType.NORMAL,
             summary = summary,
             actionLabel = "바로가기",
-            onAction = {
-                navController.navigate("learn")
-            },
+            onAction = { navController.navigate("learn") },
             durationMillis = 2800
         )
 
-        // Consume toast so it will not show again
-        onConsumeToast2()
+        // ViewModel에게 "토스트 띄웠으니 상태 초기화해" 라고 알림
+        viewModel.consumeToast2()
     }
 
     Scaffold(

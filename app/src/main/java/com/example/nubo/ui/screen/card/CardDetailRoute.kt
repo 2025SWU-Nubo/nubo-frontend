@@ -102,9 +102,6 @@ fun CardDetailRoute(
                     }
                 },
                 toastDelayMillis = toastDelayMs,
-                // 레벨업 토스트와 consume 함수 전달
-                toastMessage2 = toast2,
-                onConsumeToast2 = { viewModel.consumeToast2() },
                 navController = navController
             )
         }

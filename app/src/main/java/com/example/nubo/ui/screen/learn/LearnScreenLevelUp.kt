@@ -43,12 +43,18 @@ import kotlinx.coroutines.launch
 private const val STEP_ANIM_MS = 700   // 바(프로그레스) 옆칸 이동 시간
 private const val CHECK_BOUNCE_MS = 150 // 체크 살짝 튀는 시간
 
-// 단계 → 퍼센트 보조 함수
+// 레벨 값(1~total)을 0~1 구간으로 바꿔주는 보조 함수
 private fun stepToFraction(step: Int, total: Int): Float {
     if (total <= 1) return 1f
-    val s = step.coerceIn(0, total - 1)
-    return s.toFloat() / (total - 1).toFloat()
+
+    // 레벨(1~total)을 인덱스(0~total-1)로 변환
+    val index = (step - 1).coerceIn(0, total - 1)
+
+    // 0번 동그라미(첫 단계) → 0f
+    // 마지막 동그라미(마지막 단계) → 1f
+    return index.toFloat() / (total - 1).toFloat()
 }
+
 
 @Composable
 fun LevelUpSection(
@@ -59,14 +65,14 @@ fun LevelUpSection(
     onStepAnimDone: () -> Unit,
 ) {
     // 1) 시작/목표 퍼센트 (목표는 체크 지점으로 스냅)
-    val fromFrac = stepToFraction(prevStep, totalSteps).coerceIn(0f, 1f)
+    val fromFrac = stepToFraction(prevStep-1, totalSteps).coerceIn(0f, 1f)
     val toFrac = stepToFraction(nextStep, totalSteps)
 
     // 2) 진행도는 단순 Float 상태로 관리 (프레임마다 값 갱신)
     var barProgress by remember { mutableFloatStateOf(fromFrac) }
 
     // 3) 체크 개수/튀는 효과
-    var checkedCount by remember { mutableStateOf(prevStep) }
+    var checkedCount by remember { mutableStateOf(prevStep-1) }
     var showCheck by remember { mutableStateOf(false) }
     val checkScale by animateFloatAsState(
         targetValue = if (showCheck) 1f else 0.6f,
@@ -93,8 +99,13 @@ fun LevelUpSection(
             // 스냅 지점 도달 순간 체크 생성
             if (!spawned && value >= trigger) {
                 spawned = true
-                checkedCount = nextStep - 1
+
+                // 다음 레벨까지 바가 도달한 시점이므로,
+                // 체크 개수도 다음 레벨로 맞춰줌
+                checkedCount = nextStep
+
                 showCheck = true
+
                 // 체크 "톡" 효과 잠깐 보여주고 해제
                 launch {
                     delay(220)
