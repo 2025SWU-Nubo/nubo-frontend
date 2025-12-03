@@ -35,6 +35,7 @@ import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.PurpleMain500
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
@@ -97,7 +98,7 @@ fun AiPromptBar(
     ) {
         Column(Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
 
@@ -177,12 +178,12 @@ fun AiPromptBar(
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
                     .padding(vertical = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(0.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(painter = painterResource(R.drawable.ai_prompt_logo), contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(30.dp))
 
-                Spacer(Modifier.width(8.dp))
+//                Spacer(Modifier.width(2.dp))
 
                 Box(Modifier.weight(1f)) {
                     TextField(
@@ -197,6 +198,9 @@ fun AiPromptBar(
                             selectedPreset = null
                         },
                         modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                        textStyle = AppTextStyles.b2_regular_16.copy(
+                            platformStyle = PlatformTextStyle(includeFontPadding = false)
+                        ),
                         placeholder = { Text(text = if (loading) " AI가 편집 중입니다..." else " 더 간결하게 요약해줘.", color = GreyMain100, style = AppTextStyles.b2_regular_16) },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
@@ -222,7 +226,7 @@ fun AiPromptBar(
                     }
                 }
 
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(2.dp))
 
                 val sendContentColor = if (canSend) PurpleMain500 else GreyMain100
                 FilledIconButton(

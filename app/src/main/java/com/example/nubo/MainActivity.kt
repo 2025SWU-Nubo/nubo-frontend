@@ -635,6 +635,12 @@ fun MainScreen(
                                 NotiEvent.GoNotificationCenter -> {
                                     // 이미 알림 화면에 있으므로 필요 시 no-op 또는 스낵바 등
                                 }
+                                NotiEvent.GoHome ->{
+                                    navController.navigate("home") {
+                                        popUpTo("home") { inclusive = false }
+                                        launchSingleTop = true
+                                    }
+                                }
                                 is NotiEvent.GoBoard -> {
                                     // 필요 시 보드 상세 라우팅 규격에 맞춰 이동
                                     e.boardId.toIntOrNull()?.let { bId ->
@@ -883,7 +889,7 @@ fun MainScreen(
         // 미시청 목록(학습 탭) 진입 플래그가 있으면 이동함
         if (DeepLinkStore.pendingGoUnread) {
             DeepLinkStore.pendingGoUnread = false
-            navController.navigate("myboard") {
+            navController.navigate("home") {
                 popUpTo("home") { inclusive = false }
                 launchSingleTop = true
             }

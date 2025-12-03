@@ -158,8 +158,8 @@ fun InfoBubble(
             // ── 저장 플랫폼 컨테이너 ──
             Column(
                 modifier = Modifier
-                    .weight(0.6f)
-                    .padding(start = 4.dp, end = 10.dp),
+                    .weight(0.8f)
+                    .padding(start = 4.dp, end = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -223,7 +223,7 @@ private fun VerticalDivider() {
         Modifier
             .fillMaxHeight() // Row의 높이에 맞춤
             .width(1.dp)
-            .padding(vertical = 8.dp)
+            .padding(vertical = 4.dp)
             .background(Grey200)
     )
 }

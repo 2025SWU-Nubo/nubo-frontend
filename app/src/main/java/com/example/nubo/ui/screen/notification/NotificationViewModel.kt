@@ -21,6 +21,7 @@ sealed class NotiEvent {
     data class GoCardDetail(val cardId: String) : NotiEvent()
     object GoLearn : NotiEvent()
     object GoNotificationCenter : NotiEvent()
+    object GoHome : NotiEvent()
     data class GoBoard(val boardId: String) : NotiEvent()
 }
 
@@ -81,7 +82,7 @@ class NotificationViewModel @Inject constructor(
                 if (item.cardId != null) {
                     emit(NotiEvent.GoCardDetail(item.cardId))
                 } else {
-                    emit(NotiEvent.GoLearn)
+                    emit(NotiEvent.GoHome)
                 }
             }
             NotiType.NewCard -> {

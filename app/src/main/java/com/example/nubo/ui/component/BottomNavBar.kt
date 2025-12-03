@@ -75,7 +75,7 @@ fun BottomNavBar(
                 unselectedIconColor = Grey900,
                 selectedTextColor = MaterialTheme.colorScheme.primary,
                 unselectedTextColor = Grey500,
-                indicatorColor = Color.Unspecified
+                indicatorColor = Color.Transparent
             ),
             interactionSource = remember { MutableInteractionSource() }
         )
