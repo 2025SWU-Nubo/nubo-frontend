@@ -39,6 +39,53 @@ enum class ListType {
 // ────────────────────────────────────────────────────────────────
 //
 
+// - 복잡한 세그먼트 매칭 대신 "줄 번호 기준"으로 바로 매핑
+private fun mapCursorToMarkdownLineSimple(state: RichTextState): LineMapping {
+    val displayText = state.annotatedString.text
+    val md = state.toMarkdown()
+    val cursorPos = clamp(state.selection.end, displayText.length)
+
+    // 화면 기준 현재 줄 인덱스 계산
+    val displayLineIndex = displayText
+        .substring(0, cursorPos)
+        .count { it == '\n' }
+
+    val displayLines = displayText.split('\n')
+    val mdLines = md.split('\n')
+
+    val safeIndex = displayLineIndex.coerceIn(0, mdLines.lastIndex)
+    val mdLine = mdLines[safeIndex]
+    val displayLine = displayLines.getOrElse(safeIndex) { "" }
+
+    // 화면 텍스트에서 현재 줄 시작 위치 계산
+    var displayLineStart = 0
+    for (i in 0 until safeIndex) {
+        displayLineStart += displayLines[i].length + 1 // 개행 포함
+    }
+    val displayLineEnd = displayLineStart + displayLine.length
+
+    // 마크다운 텍스트에서 현재 줄 시작 위치 계산
+    var mdLineStart = 0
+    for (i in 0 until safeIndex) {
+        mdLineStart += mdLines[i].length + 1
+    }
+    val mdLineEnd = mdLineStart + mdLine.length
+
+    return LineMapping(
+        mdLineStart = mdLineStart,
+        mdLineEnd = mdLineEnd,
+        mdLine = mdLine,
+        matchedLineIndex = safeIndex,
+        displayLineStart = displayLineStart,
+        displayLineEnd = displayLineEnd,
+        selectedSegmentText = displayLine,
+        segmentOffsetInDisplayLine = 0,
+        segmentContentStartInSegment = 0,
+        cursorOffsetInDisplayedContent = cursorPos - displayLineStart
+    )
+}
+
+
 /**
  * 서버에서 내려오는 마크다운을
  * 에디터 / 내부 유틸에서 공통으로 처리하기 쉽게 정규화하는 함수
@@ -175,7 +222,15 @@ private fun normalizeListBlocks(src: String): String {
         items.forEachIndexed { idx, (indent, isOrd, content) ->
             val normalizedIndent = normalizeIndent(indent)
             out.append(normalizedIndent)
-            out.append(if (isOrd) "1. " else "- ")
+
+            if (isOrd) {
+                // Renumber ordered list from 1 for each block
+                val number = idx + 1
+                out.append("$number. ")
+            } else {
+                out.append("- ")
+            }
+
             out.append(content)
             if (idx != items.lastIndex) out.append('\n')
         }
@@ -203,11 +258,17 @@ private fun normalizeListBlocks(src: String): String {
  *   ...
  */
 private fun normalizeIndent(indent: String): String {
+    // - 들여쓰기 개수를 4칸 단위로 반올림
+    // - 최종적으로 0칸 또는 4칸까지만 허용
+    //   0칸  → 최상위 리스트
+    //   4칸  → 하위 리스트 1단계
     if (indent.isEmpty()) return ""
     val spaces = indent.length
-    // 4칸 단위 반올림
+    // Round to multiple of 4
     val normalized = ((spaces + 2) / 4) * 4
-    return " ".repeat(normalized)
+    // Limit indent to one level (4 spaces)
+    val clamped = normalized.coerceAtMost(4)
+    return " ".repeat(clamped)
 }
 
 /**
@@ -284,13 +345,17 @@ private fun normalizeText(text: String): String {
     return text
         .replace("\t", " ")
         .trimStart()
-        .replace(Regex("^[•●○◦▪▫]\\s+"), "")   // 불릿 기호 제거
-        .replace(Regex("^[-*+]\\s+"), "")       // '-', '*', '+' 리스트 마커 제거
-        .replace(Regex("^\\d+\\.\\s+"), "")     // "1. " 형태 번호 제거
-        .replace(Regex("^#{1,6}\\s+"), "")      // 헤딩 마커 제거
-        .replace(Regex("\\*\\*(.+?)\\*\\*"), "$1") // 굵게(** **) 마커 제거
+        // 1) heading marker first
+        .replace(Regex("^#{1,6}\\s+"), "")
+        // 2) then bullets and list markers
+        .replace(Regex("^[•●○◦▪▫]\\s+"), "")
+        .replace(Regex("^[-*+]\\s+"), "")
+        .replace(Regex("^\\d+\\.\\s+"), "")
+        // 3) bold markers
+        .replace(Regex("\\*\\*(.+?)\\*\\*"), "$1")
         .trim()
 }
+
 
 /**
  * 한 줄의 화면 표시 문자열에서
@@ -348,10 +413,26 @@ private fun findListTokensInDisplayLine(displayLine: String): List<Int> {
  * 4) targetSegment의 "마크다운 기호 제거 + 정규화 텍스트"와
  *    전체 마크다운 mdLines들을 비교해서 가장 잘 맞는 줄을 찾는다
  */
+/**
+ * RichTextState 상의 현재 커서 위치를 기준으로
+ * "어떤 마크다운 줄(mdLines[index])에 매핑되는지" 계산하는 핵심 함수
+ *
+ * 단계
+ * 1) 화면 표시 텍스트에서 커서가 속한 줄 전체를 구한다
+ * 2) 해당 줄을 여러 세그먼트(불릿/번호/2칸 이상 공백 기준)로 나눈다
+ * 3) 커서가 속한 세그먼트를 targetSegment로 잡는다
+ * 4) targetSegment의 "마크다운 기호 제거 + 정규화 텍스트"와
+ *    전체 마크다운 mdLines들을 비교해서 가장 잘 맞는 줄을 찾는다
+ */
 private fun mapCursorToMarkdownLine(state: RichTextState): LineMapping {
     val displayText = state.annotatedString.text
     val md = state.toMarkdown()
     val cursorPos = clamp(state.selection.end, displayText.length)
+
+
+    Log.d(DEBUG_TAG, "cursorPos=$cursorPos, displayLen=${displayText.length}")
+    Log.d(DEBUG_TAG, "displayText='${displayText.replace("\n", "\\n")}'")
+    Log.d(DEBUG_TAG, "md='${md.replace("\n", "\\n")}'")
 
     // 1) 화면 표시 기준 현재 줄 구하기
     val displayLineStart = lineStartInAnnotated(displayText, cursorPos)
@@ -362,7 +443,9 @@ private fun mapCursorToMarkdownLine(state: RichTextState): LineMapping {
     val tokens = findListTokensInDisplayLine(displayLine)
     val rel = (cursorPos - displayLineStart).coerceAtLeast(0)
     val boundaries = buildList {
-        add(0); addAll(tokens); add(displayLine.length)
+        add(0)
+        addAll(tokens)
+        add(displayLine.length)
     }.distinct().sorted()
 
     // 3) 커서가 속한 세그먼트 범위 찾기
@@ -436,10 +519,10 @@ private fun mapCursorToMarkdownLine(state: RichTextState): LineMapping {
         }
     }
 
-    // 7) 그래도 못 찾은 경우(매칭 실패) → 줄 번호 기준으로 폴백
+    // 7) 그래도 못 찾은 경우(매칭 실패) → 심플 매핑으로 폴백
     if (bestMatchIndex == -1) {
-        val lineNumber = displayText.substring(0, displayLineStart).count { it == '\n' }
-        bestMatchIndex = lineNumber.coerceIn(0, mdLines.lastIndex)
+        // 여기서 우리가 만든 심플 버전을 폴백으로 사용
+        return mapCursorToMarkdownLineSimple(state)
     }
 
     // 8) 선택된 mdLines[bestMatchIndex]의 시작/끝 오프셋 계산
@@ -475,6 +558,7 @@ private fun mapCursorToMarkdownLine(state: RichTextState): LineMapping {
     )
 }
 
+
 //
 // ────────────────────────────────────────────────────────────────
 // 5. 현재 줄이 헤딩/리스트/본문인지 감지하는 함수
@@ -493,17 +577,30 @@ fun detectLineMarkdown(state: RichTextState): LineMarkdownState {
     return try {
         val mapping = mapCursorToMarkdownLine(state)
         val mdLine = mapping.mdLine
+        Log.d(DEBUG_TAG, "mdLine raw='${mapping.mdLine}'")
+
+
+        // 🔥 앞 공백 날리고 판별해야 숫자 소제목도 인식됨
+        val trimmed = mdLine.trimStart()
 
         val headingLevel = when {
-            mdLine.startsWith("### ") -> 3
-            mdLine.startsWith("## ") || mdLine.startsWith("# ") -> 2
+            trimmed.startsWith("### ") -> 3
+            trimmed.startsWith("## ") || trimmed.startsWith("# ") -> 2
             else -> null
         }
 
-        val listType = when {
-            mdLine.matches(Regex("^\\s*\\d+\\.\\s+.+$")) -> ListType.ORDERED
-            mdLine.matches(Regex("^\\s*[-*+•●○◦▪▫]\\s+.+$")) -> ListType.UNORDERED
-            else -> null
+        val isHeadingLine = headingLevel != null
+
+        // 리스트는 "헤딩이 아닌 줄"에서만 검사
+        val targetForList = trimmed
+        val listType = if (!isHeadingLine) {
+            when {
+                targetForList.matches(Regex("^\\d+\\.\\s+.+$")) -> ListType.ORDERED
+                targetForList.matches(Regex("^[-*+•●○◦▪▫]\\s+.+$")) -> ListType.UNORDERED
+                else -> null
+            }
+        } else {
+            null
         }
 
         LineMarkdownState(headingLevel, listType)
@@ -542,6 +639,11 @@ fun toggleListForSelection(state: RichTextState, ordered: Boolean) {
     val isOrdered = lineNoIndent.matches(Regex("^\\d+\\.\\s+.*"))
     val isUnordered = lineNoIndent.matches(Regex("^[-*+•●○◦▪▫]\\s+.*"))
     val isHeading = lineNoIndent.matches(Regex("^#{1,6}\\s+.*"))
+
+    // 헤딩 줄에서는 "숫자 리스트" 생성 금지 (본문에서만 허용)
+    if (isHeading && ordered) {
+        return
+    }
 
     // 이미 같은 타입의 리스트라면 아무 작업도 하지 않음
     if ((ordered && isOrdered) || (!ordered && isUnordered)) {
