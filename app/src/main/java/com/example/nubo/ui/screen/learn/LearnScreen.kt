@@ -38,6 +38,7 @@ import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.PurpleMain500
 import java.time.LocalDate
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -62,6 +63,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.times
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.AppToastType
 import com.example.components.toast.LocalAppToastHostState
@@ -482,7 +484,7 @@ private fun BottomProgressCard(
 
     // 현재 단계 값을 받아서 다음 단계로
     var state by rememberSaveable { mutableStateOf("normal") }
-    val nextStep = (currentStep + 1).coerceAtMost(5)
+    val nextStep = (currentStep).coerceAtMost(5)
 
     // 카드 앞/뒤 상태와 높이/회전 애니메이션
     var isFlipped by rememberSaveable { mutableStateOf(false) }
@@ -490,9 +492,22 @@ private fun BottomProgressCard(
     // 회전 값 애니메이션
     val rotationYAnim by animateFloatAsState(
         targetValue = if (isFlipped) 180f else 0f,
-        animationSpec = tween(durationMillis = 1300),
+        animationSpec = tween(durationMillis = 1400),
         label = "cardFlip"
     )
+
+    val peak = 90f
+    val start = 25f
+    val angle = rotationYAnim
+
+    // 중심(90도)에서 멀어진 정도
+    val dist = (peak - kotlin.math.abs(angle - peak)).coerceAtLeast(0f)
+
+    // 0~1 정규화 (25도 이하에서는 0)
+    val moveProgress = ((dist - start) / (peak - start)).coerceIn(0f, 1f)
+
+    // 최종 배지 offset
+    val badgeOffsetY = (-45).dp + (moveProgress * 3.dp)
 
     // 애니메이션 전환 (기존 UI → levelup → next)
     LaunchedEffect(showLevelUp) {
@@ -621,11 +636,12 @@ private fun BottomProgressCard(
         }
         // 누베리 개수 원형 카드
         // 배지는 카드 콘텐츠와 독립적으로 Box(부모) 기준에 고정
+
         Row(
             modifier = Modifier
                 .align(Alignment.TopEnd) // 부모(Box) 기준
-                .offset(y = (-45).dp)    // 스크린샷과 같은 시각적 위치
-               /* .shadow(6.dp, RoundedCornerShape(999.dp), clip = true)*/
+                .offset(y = badgeOffsetY)
+                /* .shadow(6.dp, RoundedCornerShape(999.dp), clip = true)*/
                 .clip(RoundedCornerShape(999.dp))
                 .background(Color.White.copy(alpha = 0.80f))
                 .noRippleClickable {
