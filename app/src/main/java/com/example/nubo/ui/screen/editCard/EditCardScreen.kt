@@ -57,6 +57,7 @@ import com.example.components.toast.AppToastType
 import com.example.components.toast.LocalAppToastHostState
 import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.ui.component.dialog.EditCardAlertDialog
+import com.example.nubo.ui.component.toast.GlobalToastBus
 import com.example.nubo.ui.screen.editCard.widgets.AiPromptBar
 import com.example.nubo.ui.screen.editCard.widgets.MarkdownToolbar
 import com.example.nubo.ui.screen.editCard.widgets.NoSelectionToolbar
@@ -70,40 +71,43 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EditCardScreen(
     onBack: () -> Unit,
-    onSave: () -> Unit,
-    onSaveWithToast: (String) -> Unit,
+    onSavedWithToast: (String) -> Unit,
     viewModel: EditCardViewModel = hiltViewModel()
 ) {
-    // 에디터 상태
+    // Rich text editor state
     val rtState = rememberRichTextState()
 
-    // 뷰모델 상태
+    // Flag for auto numbered list handling
+    var isHandlingAutoList by remember { mutableStateOf(false) }
+
+    // ViewModel state
     val uiState by viewModel.uiState.collectAsState()
     val showAiBar by viewModel.showAiBar.collectAsState()
     val aiQuery by viewModel.aiQuery.collectAsState()
     val aiLoading by viewModel.aiLoading.collectAsState()
     val toast by viewModel.toast.collectAsState()
-    val toastHost = LocalAppToastHostState.current
+//    val toastHost = LocalAppToastHostState.current
     val canUndo by viewModel.canUndoAiEdit.collectAsState()
     val uiEventFlow = viewModel.uiEvent
 
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
-
     val scope = rememberCoroutineScope()
-//    val editorBringIntoView = remember { BringIntoViewRequester() }
 
-    var initialMarkdown by rememberSaveable { mutableStateOf("") }
-    var currentMarkdown by rememberSaveable { mutableStateOf("") }
+    // Initial markdown from server (used as "original" for change detection)
+    var initialMarkdown by rememberSaveable { mutableStateOf<String?>(null) }
+
+    // Track whether user edited before server data arrived
+    var hasUserEdited by rememberSaveable { mutableStateOf(false) }
+
+    // Suppress VM sync when editor content is replaced programmatically
     var suppressVmSync by remember { mutableStateOf(false) }
 
-
-    // AI 편집 적용 시 커서 위치 보존
+    // Handle one-time UI events
     LaunchedEffect(Unit) {
         uiEventFlow.collect { event ->
             when (event) {
@@ -113,7 +117,6 @@ fun EditCardScreen(
 
                     val normalized = standardizeMarkdown(event.markdown)
                     rtState.setMarkdown(normalized)
-                    currentMarkdown = normalized
 
                     val newLength = rtState.toMarkdown().length
                     val restoredCursor = currentSelection.end.coerceIn(0, newLength)
@@ -121,6 +124,7 @@ fun EditCardScreen(
 
                     suppressVmSync = false
                 }
+
                 EditCardUiEvent.HideKeyboard -> {
                     keyboardController?.hide()
                 }
@@ -128,14 +132,14 @@ fun EditCardScreen(
         }
     }
 
-    // 포커스/경계
+    // Focus / bounds
     var editorFocused by remember { mutableStateOf(false) }
     var editorBounds by remember { mutableStateOf<Rect?>(null) }
     var toolbarBounds by remember { mutableStateOf<Rect?>(null) }
 
     val editorFocusRequester = remember { FocusRequester() }
 
-    // 키보드 표시 여부 관찰
+    // Keyboard visibility
     val keyboardVisible by rememberKeyboardVisible()
 
     val contentBottomInset = when {
@@ -145,12 +149,9 @@ fun EditCardScreen(
     }
 
     val density = LocalDensity.current
-    val imeBottom = WindowInsets.ime.getBottom(density) // px
-
     val scrollState = rememberScrollState()
-    var rootHeight by remember { mutableStateOf(0) } // px
 
-    // 바 높이(대략치) — 토스트를 바 위로 띄우기 위한 패딩
+    // Toast bottom padding (현재는 직접 사용하지 않지만 향후 확장용)
     val aiBarHeight = 84.dp
     val mdBarHeight = 64.dp
     val toastBottomPadding = when {
@@ -159,49 +160,51 @@ fun EditCardScreen(
         else -> 16.dp
     }
 
-    var didInit by rememberSaveable { mutableStateOf(false) }
-
-    // 서버에서 받아온 "초기 요약 마크다운"을 저장해두어 변경 여부 판단
-    val hasUnsavedChangesState = remember {
-        derivedStateOf { currentMarkdown != initialMarkdown }
-    }
-
-    // "뒤로가기 확인" 다이얼로그 노출 상태
-    var showLeaveConfirm by rememberSaveable { mutableStateOf(false) }
-
-    // 초기화 LaunchedEffect 수정
-    LaunchedEffect(uiState, didInit) {
-        val ready = uiState as? EditCardUiState.Ready ?: return@LaunchedEffect
-
-        Log.d("EditCardDebug", "━━━ 서버 데이터 수신 ━━━")
-        Log.d("EditCardDebug", "원본 summary: '${ready.summary}'")
-
-        val normalized = standardizeMarkdown(ready.summary)
-
-        Log.d("EditCardDebug", "정규화 후: '${normalized}'")
-
-        if (!didInit) {
-            if (rtState.toMarkdown() != normalized) {
-                Log.d("EditCardDebug", "setMarkdown 호출")
-                rtState.setMarkdown(normalized)
-            }
-
-            initialMarkdown = normalized
-            currentMarkdown = normalized
-            didInit = true
+    // Whether current content is different from original
+    val hasUnsavedChanges by remember(uiState, initialMarkdown) {
+        derivedStateOf {
+            val ready = uiState as? EditCardUiState.Ready ?: return@derivedStateOf false
+            val init = initialMarkdown ?: return@derivedStateOf false
+            standardizeMarkdown(ready.summary) != init
         }
     }
 
-    // 2️⃣ 에디터 → VM 동기화 수정
+    // Leave confirmation dialog state
+    var showLeaveConfirm by rememberSaveable { mutableStateOf(false) }
+
+    // Initialize editor with server data (only when we have not set initialMarkdown yet)
+    LaunchedEffect(uiState) {
+        val ready = uiState as? EditCardUiState.Ready ?: return@LaunchedEffect
+        val normalized = standardizeMarkdown(ready.summary)
+
+        // Only set original value once
+        if (initialMarkdown == null) {
+            initialMarkdown = normalized
+
+            // If user has not edited yet, we can safely set editor content from server
+            if (!hasUserEdited && rtState.toMarkdown() != normalized) {
+                suppressVmSync = true
+                rtState.setMarkdown(normalized)
+                suppressVmSync = false
+            }
+        }
+    }
+
+
     LaunchedEffect(rtState) {
-        snapshotFlow { rtState.toMarkdown() }
-            .map { raw -> standardizeMarkdown(raw) }
-            .distinctUntilChanged()
-            .collectLatest { normalized ->
-                currentMarkdown = normalized
+        snapshotFlow { rtState.annotatedString.text }   // ← 텍스트 변경을 기준으로 감지
+            .collectLatest {
+                // 매번 현재 markdown 다시 계산
+                val normalized = standardizeMarkdown(rtState.toMarkdown())
+
+                // 사용자가 뭔가 입력했다는 플래그
+                if (normalized.isNotEmpty()) {
+                    hasUserEdited = true
+                }
+
                 if (!suppressVmSync) {
-                    (uiState as? EditCardUiState.Ready)?.let {
-                        if (it.summary != normalized) {
+                    (uiState as? EditCardUiState.Ready)?.let { state ->
+                        if (state.summary != normalized) {
                             viewModel.updateSummary(normalized)
                         }
                     }
@@ -209,34 +212,88 @@ fun EditCardScreen(
             }
     }
 
-    // 키보드 내려가면 AI 바 닫기
+
+    // Auto numbered list feature
+    LaunchedEffect(rtState) {
+        snapshotFlow { rtState.annotatedString.text to rtState.selection }
+            .collect { (text, selection) ->
+                if (isHandlingAutoList) return@collect
+
+                val cursor = selection.end
+                if (cursor <= 0 || cursor > text.length) return@collect
+
+                if (text[cursor - 1] != '\n') return@collect
+
+                val prevLineEnd = cursor - 1
+                val prevLineStart = text.lastIndexOf('\n', prevLineEnd - 1).let {
+                    if (it == -1) 0 else it + 1
+                }
+                val prevLine = text.substring(prevLineStart, prevLineEnd)
+
+                val match = Regex("^(\\s*)(\\d+)\\.\\s+(.+)$").find(prevLine) ?: return@collect
+
+                val indent = match.groupValues[1]
+                val number = match.groupValues[2].toIntOrNull() ?: return@collect
+                val nextNumber = number + 1
+
+                val currLineEnd = text.indexOf('\n', cursor).let { if (it == -1) text.length else it }
+                val currLine = text.substring(cursor, currLineEnd)
+                if (currLine.isNotEmpty()) return@collect
+
+                val insertText = "$indent$nextNumber. "
+
+                val newText = buildString {
+                    append(text.substring(0, cursor))
+                    append(insertText)
+                    append(text.substring(cursor))
+                }
+
+                isHandlingAutoList = true
+                suppressVmSync = true
+
+                rtState.setMarkdown(newText)
+
+                val newCursor = cursor + insertText.length
+                rtState.selection = TextRange(newCursor)
+
+                suppressVmSync = false
+                isHandlingAutoList = false
+            }
+    }
+
+    // Hide AI bar when keyboard disappears
     LaunchedEffect(keyboardVisible) {
         if (!keyboardVisible && showAiBar) {
             viewModel.toggleAiBar(false)
         }
     }
 
-    // VM의 문자열 토스트를 커스텀 토스트로 라우팅
     LaunchedEffect(toast) {
-        toast?.let { msg ->
-            delay(400)
+        val msg = toast ?: return@LaunchedEffect
 
-            toastHost.show(
-                title = AnnotatedString(msg),
-                layout = AppToastLayout.TitleOnly,
-                type = AppToastType.AI_RESULT,
-                durationMillis = 2000
-            )
-            viewModel.consumeToast()
+        // 전역 토스트 버스로 이벤트 전송  딜레이 없음
+        GlobalToastBus.showMessage(
+            message = msg,
+            type = AppToastType.POSITIVE,
+            durationMillis = 2000,
+            preDelayMillis = 0
+        )
+
+        viewModel.consumeToast()
+    }
+
+
+    // Handle system back button
+    BackHandler(enabled = !aiLoading) {
+        focusManager.clearFocus(force = true)
+        if (hasUnsavedChanges) {
+            showLeaveConfirm = true
+        } else {
+            onBack()
         }
     }
 
-    // 하드웨어 뒤로가기도 다이얼로그
-    BackHandler(enabled = !aiLoading) {
-        focusManager.clearFocus(force = true)
-        if (hasUnsavedChangesState.value) showLeaveConfirm = true else onBack()
-    }
-
+    // Leave confirmation dialog
     EditCardAlertDialog(
         visible = showLeaveConfirm,
         onKeepEditing = {
@@ -261,32 +318,54 @@ fun EditCardScreen(
                     IconButton(
                         onClick = {
                             focusManager.clearFocus(force = true)
-                            if (hasUnsavedChangesState.value) showLeaveConfirm = true else onBack()
+                            if (hasUnsavedChanges) {
+                                showLeaveConfirm = true
+                            } else {
+                                onBack()
+                            }
                         },
                         enabled = !aiLoading
                     ) {
-                        Icon(painterResource(R.drawable.arrow_back), contentDescription = "뒤로가기")
+                        Icon(
+                            painter = painterResource(R.drawable.arrow_back),
+                            contentDescription = "뒤로가기"
+                        )
                     }
                 },
                 actions = {
-                    TextButton(onClick = {
-                        Log.d("EditCardDebug", "━━━ 저장 시작 ━━━")
+                    TextButton(
+                        onClick = {
+                            if (aiLoading) return@TextButton
 
-                        // standardizeMarkdown 사용
-                        val markdown = standardizeMarkdown(rtState.toMarkdown())
-                        Log.d("EditCardDebug", "정규화 후: '${markdown}'")
+                            Log.d("EditCardDebug", "━━━ 저장 시작 ━━━")
+                            val markdown = standardizeMarkdown(rtState.toMarkdown())
+                            Log.d("EditCardDebug", "정규화 후: '$markdown'")
 
-                        viewModel.updateSummary(markdown)
-                        initialMarkdown = markdown
-                        currentMarkdown = markdown
+                            // Sync current editor content to ViewModel
+                            viewModel.updateSummary(markdown)
 
-                        focusManager.clearFocus(force = true)
-                        viewModel.save(onSuccess = { onSaveWithToast("요약 노트 수정 완료되었어요.") })
-                        onSave()
-                    },
+                            // Clear focus
+                            focusManager.clearFocus(force = true)
+
+                            // Save to server
+                            viewModel.save(
+                                onSuccess = {
+                                    // After successful save, update initialMarkdown
+                                    val ready = viewModel.uiState.value as? EditCardUiState.Ready
+                                    val canonical = standardizeMarkdown(ready?.summary.orEmpty())
+                                    initialMarkdown = canonical
+
+                                    onSavedWithToast("요약 노트 수정이 완료되었어요.")
+                                }
+                            )
+                        },
                         enabled = !aiLoading
                     ) {
-                        Text(text = "완료", style = AppTextStyles.b1_bold_18, color = PurpleMain500)
+                        Text(
+                            text = "완료",
+                            style = AppTextStyles.b1_bold_18,
+                            color = PurpleMain500
+                        )
                     }
                 },
                 modifier = Modifier.drawBehind {
@@ -294,23 +373,17 @@ fun EditCardScreen(
                     drawLine(
                         color = Grey50,
                         start = androidx.compose.ui.geometry.Offset(0f, y),
-                        end   = androidx.compose.ui.geometry.Offset(size.width, y),
+                        end = androidx.compose.ui.geometry.Offset(size.width, y),
                         strokeWidth = 1.dp.toPx()
                     )
                 }
             )
-        },
+        }
     ) { innerPadding ->
-
-
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .onGloballyPositioned { coords ->
-                    // 전체 뷰포트 높이 저장
-                    rootHeight = coords.size.height
-                }
                 .pointerInput(editorBounds, toolbarBounds) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = true)
@@ -320,9 +393,9 @@ fun EditCardScreen(
                         if (inToolbar) return@awaitEachGesture
                         if (!inEditor) focusManager.clearFocus(force = true)
                     }
-                },
+                }
         ) {
-            /* 본문 */
+            // Main content
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -346,25 +419,28 @@ fun EditCardScreen(
                                     colors = RichTextEditorDefaults.richTextEditorColors(
                                         containerColor = Color.Transparent,
                                         focusedIndicatorColor = Color.Transparent,
-                                        unfocusedIndicatorColor = Color.Transparent,
+                                        unfocusedIndicatorColor = Color.Transparent
                                     ),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        //  - min: 기본 높이
-                                        //  - max: 키보드 올라와도 화면 안에 들어갈 수 있게 적당히 작은 값
-//                                        .heightIn(min = 220.dp, max = 320.dp)
                                         .focusRequester(editorFocusRequester)
-//                                        .bringIntoViewRequester(editorBringIntoView)
                                         .onGloballyPositioned { coords ->
-                                            Log.d("EditCardDebug", "에디터 렌더링 크기: ${coords.size}")
-                                            Log.d("EditCardDebug", "에디터 표시 텍스트: '${rtState.annotatedString.text}'")
-                                            Log.d("EditCardDebug", "에디터 표시 길이: ${rtState.annotatedString.text.length}")
-                                        } .onFocusChanged { fs ->
-                                            // editor focus flag for toolbar and scroll logic
+                                            Log.d(
+                                                "EditCardDebug",
+                                                "에디터 렌더링 크기: ${coords.size}"
+                                            )
+                                            Log.d(
+                                                "EditCardDebug",
+                                                "에디터 표시 텍스트: '${rtState.annotatedString.text}'"
+                                            )
+                                            Log.d(
+                                                "EditCardDebug",
+                                                "에디터 표시 길이: ${rtState.annotatedString.text.length}"
+                                            )
+                                        }
+                                        .onFocusChanged { fs ->
                                             editorFocused = fs.isFocused
-
                                             if (fs.isFocused) {
-                                                // when editor gains focus, AI bar는 닫아두기
                                                 viewModel.toggleAiBar(false)
                                             }
                                         }
@@ -375,12 +451,9 @@ fun EditCardScreen(
                 }
             }
 
-            /* AI 로딩 오버레이 */
+            // AI loading overlay
             val aiOverlayBottomPadding by animateDpAsState(
-                targetValue = when {
-                    showAiBar -> 100.dp
-                    else -> 0.dp
-                },
+                targetValue = if (showAiBar) 100.dp else 0.dp,
                 animationSpec = tween(
                     durationMillis = 120,
                     easing = FastOutLinearInEasing
@@ -400,10 +473,14 @@ fun EditCardScreen(
                 rightDotResId = R.drawable.ai_loading3,
                 consumeTouch = true
             ) {
-                Text("AI가 요약 노트를 다듬고 있어요", style = AppTextStyles.b2_medium_16, color = Grey700)
+                Text(
+                    "AI가 요약 노트를 다듬고 있어요",
+                    style = AppTextStyles.b2_medium_16,
+                    color = Grey700
+                )
             }
 
-            /* 마크다운 툴바 */
+            // Markdown toolbar
             AnimatedVisibility(
                 visible = editorFocused && keyboardVisible && !showAiBar,
                 modifier = Modifier
@@ -431,12 +508,13 @@ fun EditCardScreen(
                 )
             }
 
-            /* AI 프롬프트 바 */
+            // AI prompt bar
             AnimatedVisibility(
                 visible = showAiBar,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .imePadding()
+                    .navigationBarsPadding()
                     .fillMaxWidth()
                     .zIndex(20f),
                 enter = fadeIn(animationSpec = tween(50)) +
@@ -456,7 +534,6 @@ fun EditCardScreen(
                     onValueChange = viewModel::onAiQueryChange,
                     onClose = { if (!aiLoading) viewModel.toggleAiBar(false) },
                     onSubmit = {
-                        // AI 제출시도 standardizeMarkdown 사용
                         val md = standardizeMarkdown(rtState.toMarkdown())
                         viewModel.updateSummary(md)
                         viewModel.requestAiEdit()
@@ -468,12 +545,14 @@ fun EditCardScreen(
                 )
             }
 
+            // Floating AI button
             AnimatedVisibility(
                 visible = !showAiBar,
                 modifier = Modifier
-                    .align(Alignment.BottomEnd) // 오른쪽 아래 고정
+                    .align(Alignment.BottomEnd)
                     .imePadding()
-                    .zIndex(30f) // 토스트보다 낮게
+                    .navigationBarsPadding()
+                    .zIndex(30f)
                     .padding(
                         end = 20.dp,
                         bottom = if (editorFocused && keyboardVisible && !showAiBar)

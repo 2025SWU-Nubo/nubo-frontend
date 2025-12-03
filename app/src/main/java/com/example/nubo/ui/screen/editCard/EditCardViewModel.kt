@@ -10,6 +10,7 @@ import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.data.repository.CardRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -18,22 +19,21 @@ import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import retrofit2.await
 
-
-/** 편집 ui 상태 **/
+/** UI state for edit screen **/
 sealed interface EditCardUiState {
     data object Loading : EditCardUiState
     data class Ready(
         val summary: String,
         val highlights: List<HighlightDto>
     ) : EditCardUiState
+
     data class Error(val message: String) : EditCardUiState
     data object Saving : EditCardUiState
-    data object Saved : EditCardUiState
+    data object Saved : EditCardUiState // kept for completeness, not strictly required
 }
 
 sealed interface EditCardUiEvent {
     data class ApplyAiEdit(val markdown: String) : EditCardUiEvent
-
     data object HideKeyboard : EditCardUiEvent
 }
 
@@ -44,44 +44,45 @@ class EditCardViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    /* 라우트 인자로 전달된 cardId */
+    /* Route argument: cardId */
     private val cardId: Int = checkNotNull(savedStateHandle["cardId"])
 
-    /* 화면 전체 상태 */
+    /* Screen state */
     private val _uiState = MutableStateFlow<EditCardUiState>(EditCardUiState.Loading)
     val uiState = _uiState.asStateFlow()
 
-    /* Ai 프롬프트 바 표시 여부 */
+    /* AI prompt bar visibility */
     private val _showAiBar = MutableStateFlow(false)
     val showAiBar = _showAiBar.asStateFlow()
 
-    /* Ai 프롬프트 입력값 */
+    /* AI prompt text */
     private val _aiQuery = MutableStateFlow("")
     val aiQuery = _aiQuery.asStateFlow()
 
-    /* AI 호출 로딩 상태 */
+    /* AI loading flag */
     private val _aiLoading = MutableStateFlow(false)
     val aiLoading = _aiLoading.asStateFlow()
 
-    /* 토스트용 단발성 메시지  화면에서 수집 후 consume */
+    /* One-shot toast message */
     private val _toast = MutableStateFlow<String?>(null)
     val toast = _toast.asStateFlow()
 
-    /* 되돌리기용 백업 텍스트  AI 적용 전의 summary 보관 */
+    /* Backup text for AI undo feature */
     private var prevSummaryBackup: String? = null
 
-    /* 되돌리기 칩 활성화 여부 */
+    /* AI undo availability */
     private val _canUndoAiEdit = MutableStateFlow(false)
     val canUndoAiEdit: StateFlow<Boolean> = _canUndoAiEdit
 
-    // In ViewModel class
-    private val _uiEvent = kotlinx.coroutines.flow.MutableSharedFlow<EditCardUiEvent>()
+    /* UI events (one-shot) */
+    private val _uiEvent = MutableSharedFlow<EditCardUiEvent>()
     val uiEvent = _uiEvent.asSharedFlow()
 
+    init {
+        bootstrap()
+    }
 
-    init { bootstrap() }
-
-    /* 초기 데이터 로드  카드 상세에서 요약과 하이라이트 미리 채움 */
+    /** Load initial data from server **/
     private fun bootstrap() = viewModelScope.launch {
         val token = authRepository.getAccessToken()
         if (token.isNullOrEmpty()) {
@@ -89,17 +90,19 @@ class EditCardViewModel @Inject constructor(
             return@launch
         }
         runCatching {
-            // Reuse existing detail API to pre-fill editing fields
             val detail = cardRepository.getCardDetail(token, cardId).await()
             EditCardUiState.Ready(
                 summary = detail.summary.orEmpty(),
-                highlights = detail.highlights?: emptyList() // <- 서버가 제공한다면
+                highlights = detail.highlights ?: emptyList()
             )
-        }.onSuccess { _uiState.value = it }
-            .onFailure { _uiState.value = EditCardUiState.Error(it.humanMessage()) }
+        }.onSuccess { ready ->
+            _uiState.value = ready
+        }.onFailure {
+            _uiState.value = EditCardUiState.Error(it.humanMessage())
+        }
     }
 
-    /* 요약 텍스트 로컬 반영  타이핑이나 툴바 적용 시 호출 */
+    /** Update summary locally (typing, toolbar, AI apply, etc.) **/
     fun updateSummary(newText: String) {
         val s = _uiState.value
         if (s is EditCardUiState.Ready) {
@@ -107,18 +110,22 @@ class EditCardViewModel @Inject constructor(
         }
     }
 
-    /* 하이라이트 토글  같은 구간이 있으면 제거 없으면 추가 */
+    /** Toggle highlight range **/
     fun toggleHighlight(start: Int, end: Int) {
         val s = _uiState.value
         if (s is EditCardUiState.Ready) {
-            if (start == end) return // ignore empty selection
+            if (start == end) return
 
             val normalizedStart = minOf(start, end)
             val normalizedEnd = maxOf(start, end)
 
-            val existing = s.highlights.any { it.rangeStart == normalizedStart && it.rangeEnd == normalizedEnd }
+            val existing = s.highlights.any {
+                it.rangeStart == normalizedStart && it.rangeEnd == normalizedEnd
+            }
             val next = if (existing) {
-                s.highlights.filterNot { it.rangeStart == normalizedStart && it.rangeEnd == normalizedEnd }
+                s.highlights.filterNot {
+                    it.rangeStart == normalizedStart && it.rangeEnd == normalizedEnd
+                }
             } else {
                 s.highlights + HighlightDto(normalizedStart, normalizedEnd)
             }
@@ -126,7 +133,7 @@ class EditCardViewModel @Inject constructor(
         }
     }
 
-    /* 저장 요청  서버의 정규화된 응답으로 다시 Ready 설정 */
+    /** Save summary and highlights to server **/
     fun save(onSuccess: () -> Unit = {}) = viewModelScope.launch {
         val token = authRepository.getAccessToken()
         val s = _uiState.value
@@ -140,7 +147,7 @@ class EditCardViewModel @Inject constructor(
             )
             cardRepository.updateCardSummary(token, cardId, body).await()
         }.onSuccess { resp ->
-            // Server returns canonicalized summary/highlights; adopt them
+            // Adopt canonical response from server
             _uiState.value = EditCardUiState.Ready(
                 summary = resp.summary,
                 highlights = resp.highlights
@@ -148,77 +155,70 @@ class EditCardViewModel @Inject constructor(
             _uiState.value = EditCardUiState.Saved
             onSuccess()
             _toast.value = "저장되었습니다."
-
-        }.onFailure {
-            _uiState.value = EditCardUiState.Error(it.humanMessage())
-            _toast.value = it.humanMessage()
+        }.onFailure { e ->
+            _uiState.value = EditCardUiState.Error(e.humanMessage())
+            _toast.value = e.humanMessage()
         }
     }
 
-    /* AI 바 토글  null이면 반전 */
+    /** Toggle AI bar; if null, invert current value **/
     fun toggleAiBar(show: Boolean? = null) {
         _showAiBar.value = show ?: !_showAiBar.value
     }
 
-    /* AI 프롬프트 입력 변경 */
+    /** Update AI prompt text **/
     fun onAiQueryChange(text: String) {
         _aiQuery.value = text
     }
 
-    /* 토스트 소비  화면에서 스낵바로 노출 후 호출 */
+    /** Consume toast after UI shows it **/
     fun consumeToast() {
         _toast.value = null
     }
 
-    /* AI 적용 전 현재 요약 백업하고 되돌리기 활성화 */
+    /** Backup current summary before AI edit **/
     fun startAiEditBackup(currentSummary: String) {
         prevSummaryBackup = currentSummary
         _canUndoAiEdit.value = true
     }
 
-    /* 서버에서 받은 AI 편집 결과를 화면 상태에 반영 */
+    /** Apply AI-edited summary into state **/
     fun applyAiEditedSummary(newSummary: String) {
         updateSummary(newSummary)
-        /* 되돌리기는 유지  사용자가 원하면 즉시 복원 가능 */
+        // undo remains available until user explicitly clears or undoes
     }
 
-    /* AI 편집 되돌리기  백업이 있으면 복원하고 비활성화 */
+    /** Undo AI edit using backup summary **/
     fun undoAiEdit() {
         val backup = prevSummaryBackup ?: return
 
-        // 1) VM 상태도 이전 값으로 복원
         updateSummary(backup)
 
-        // 2) 에디터에 실제로 주입되도록 단발 이벤트 발행  ★ 중요
         viewModelScope.launch {
             _uiEvent.emit(EditCardUiEvent.ApplyAiEdit(backup))
         }
 
-        // 3) 되돌리기 상태 정리
         prevSummaryBackup = null
         _canUndoAiEdit.value = false
         _toast.value = "되돌리기 완료!"
     }
 
-    /* 사용자가 추가 수정한 경우 등  되돌리기 의미가 없어지면 호출 */
+    /** Clear undo state when not needed anymore **/
     fun clearUndoIfNotNeeded() {
         prevSummaryBackup = null
         _canUndoAiEdit.value = false
     }
 
-    /* AI 편집 요청
-       절차
-       1 현재 요약 백업 및 되돌리기 활성화
-       2 서버에 프롬프트와 함께 편집 요청
-       3 성공 시 응답 요약을 적용  프롬프트 초기화  성공 토스트
-       4 실패 시 되돌리기 상태는 그대로 두고 에러 토스트  사용자가 원하면 되돌리기 가능 */
+    /** Request AI edit for current summary **/
     fun requestAiEdit() = viewModelScope.launch {
         val token = authRepository.getAccessToken()
         val s = _uiState.value
         val prompt = _aiQuery.value.trim()
-        if (token.isNullOrEmpty() || s !is EditCardUiState.Ready || prompt.isEmpty() || _aiLoading.value) return@launch
+        if (token.isNullOrEmpty() || s !is EditCardUiState.Ready || prompt.isEmpty() || _aiLoading.value) {
+            return@launch
+        }
 
-        /* 현재 요약 백업 */
+        // Backup current summary for undo
         startAiEditBackup(s.summary)
 
         _aiLoading.value = true
@@ -226,7 +226,6 @@ class EditCardViewModel @Inject constructor(
             val body = EditSummaryAiRequest(prompt)
             cardRepository.updateSummaryWithAi(token, cardId, body).await()
         }.onSuccess { resp ->
-            /* 성공  응답 채택 후 프롬프트 초기화  UI 토스트 */
             applyAiEditedSummary(resp.summary)
             _aiQuery.value = ""
             _toast.value = "AI가 요약노트를 정리했어요!👍🏻"
@@ -234,13 +233,11 @@ class EditCardViewModel @Inject constructor(
             _uiEvent.emit(EditCardUiEvent.ApplyAiEdit(resp.summary))
             _uiEvent.emit(EditCardUiEvent.HideKeyboard)
 
-            // AI바 자동으로 닫기
             _showAiBar.value = false
         }.onFailure { e ->
-            /* 실패  되돌리기 가능 상태 유지  에러 토스트 */
-            val msg = if(e is HttpException && e.code() == 400){
+            val msg = if (e is HttpException && e.code() == 400) {
                 "요구 사항을 정확하게 입력해주세요."
-            }else{
+            } else {
                 e.humanMessage()
             }
             _toast.value = msg
@@ -249,11 +246,8 @@ class EditCardViewModel @Inject constructor(
     }
 }
 
-/* 사용자에게 읽기 쉬운 오류 메시지로 변환 */
+/** Convert Throwable to user-friendly message **/
 private fun Throwable.humanMessage(): String = when (this) {
     is HttpException -> "서버 오류(${code()})가 발생했습니다"
     else -> message ?: "알 수 없는 오류가 발생했습니다"
 }
-
-
-

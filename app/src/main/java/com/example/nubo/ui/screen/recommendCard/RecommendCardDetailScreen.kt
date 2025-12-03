@@ -428,8 +428,8 @@ private fun DetailBodyMarkdown(
                                 Brush.verticalGradient(
                                     listOf(
                                         Color.Transparent,
-                                        Color.White.copy(alpha = 0.4f),
-                                        Color.White.copy(alpha = 0.7f),
+                                        Color.White.copy(alpha = 0.3f),
+                                        Color.White.copy(alpha = 0.6f),
                                         Color.White.copy(alpha = 0.9f)
                                     )
                                 )
@@ -441,7 +441,7 @@ private fun DetailBodyMarkdown(
             if (hasMore) {
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    text = "저장하면 요약노트를 모두 볼 수 있어요.",
+                    text = "저장하면 요약노트를 모두 볼 수 있어요",
                     style = AppTextStyles.b2_semibold_16,
                     color = PurpleMain500,
                     modifier = Modifier.fillMaxWidth(),   // 중앙 정렬 위해 폭 채우기

@@ -742,7 +742,6 @@ fun MainScreen(
                                 navController.previousBackStackEntry
                                     ?.savedStateHandle
                                     ?.set("refresh_detail", true)
-                                navController.popBackStack()
                             }
                         )
                     }
