@@ -390,7 +390,7 @@ fun GraphicBackgroundView(
                         contentDescription = "꽃봉오리",
                         modifier = Modifier
                             .scale(scaleX = 0.8f* budScaleAnim.value,scaleY=0.8f)
-                            .offset(y = 145.dp)
+                            .offset(y = 120.dp)
                             .graphicsLayer {
                                 // 커질 때 줄기에서 자라나듯 하단 고정
                                 transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 1.0f)
@@ -508,7 +508,7 @@ fun GraphicBackgroundView(
                         modifier = Modifier
                             .scale(0.9f)
                             // Y 오프셋에 바운스 값 추가 (아래로 내려갔다 옴)
-                            .offset(x=(-1).dp,y = 140.dp)
+                            .offset(x=(-1).dp,y = 120.dp)
                             .graphicsLayer {
                                 transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 0.1f)
 
