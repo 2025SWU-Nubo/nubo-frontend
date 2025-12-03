@@ -442,7 +442,7 @@ private fun SpeechBubble(
 
             // 내용 (물방울 + n개)
             Row(
-                modifier = Modifier.padding(end = 6.dp, start = 3.dp),
+                modifier = Modifier.padding(end = 9.dp, start = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
@@ -451,7 +451,7 @@ private fun SpeechBubble(
                     painter = painterResource(id = R.drawable.learn_waterdrop_calender),
                     contentDescription = null, // decorative image
                     modifier = Modifier
-                        .size(24.dp) // icon size
+                        .size(20.dp) // icon size
                 )
                 Text(
                     text = "${count}개",
@@ -632,7 +632,7 @@ private fun BottomProgressCard(
                     // 베리 배지 클릭 시 콜백 호출
                     onClickBerryBadge()
                 }
-                .padding(horizontal = 12.dp, vertical = 4.dp),
+                .padding(start=14.dp,end = 16.dp, top = 4.dp,bottom=4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Image(
@@ -641,7 +641,6 @@ private fun BottomProgressCard(
                 modifier = Modifier
                     .size(28.dp)
             )
-            Spacer(Modifier.width(3.dp))
             Text(
                 text = "${topBadgeCount}개",
                 style = AppTextStyles.b2_medium_16,
@@ -762,10 +761,17 @@ fun AnimatedProgressBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(10.dp) // 원하는 높이
+            .height(10.dp) // desired height
             .clip(RoundedCornerShape(999.dp))
-            .background(GreyMain300) // 배경 (연한 회색/투명)
-    ) {
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFFBEBEBE), // top color
+                        Color(0xFFC8C8C8)  // bottom color
+                    )
+                )
+            )
+    ){
         Box(
             modifier = Modifier
                 .fillMaxHeight()
@@ -833,7 +839,7 @@ private fun StaticLevelStepBar(
     // 보라색 바 그라디언트 (좌 → 우)
     val barGradient = remember {
         Brush.horizontalGradient(
-            listOf(Color(0xFF7272FF), PurpleMain500)
+            listOf(Color(0xFF727EFF), PurpleMain500)
         )
     }
 
@@ -915,7 +921,7 @@ private fun StaticLevelStepBar(
                         PurpleMain500
                     } else {
                         val t = index.toFloat() / clampedStep.toFloat() // 0f ~ 1f
-                        val start = Color(0xFF7272FF)   // 새싹 단계용 밝은 보라
+                        val start = Color(0xFF727EFF)   // 새싹 단계용 밝은 보라
                         val end = PurpleMain500        // 마지막 단계 메인 퍼플
                         lerp(start, end, t)
                     }

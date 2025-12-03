@@ -72,7 +72,6 @@ import com.example.nubo.R
 import com.example.nubo.data.model.InvitationDto
 import com.example.nubo.data.model.MemberDto
 import com.example.nubo.domain.model.InviteUser
-import com.example.nubo.model.navigation.BottomNavItem.Companion.items
 import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.AppTextStyles.b1_bold_18

@@ -186,7 +186,7 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    /*// 안 읽은 알림 존재하는지 확인
+    // 안 읽은 알림 존재하는지 확인
     fun loadUnreadNotificationState() {
         viewModelScope.launch {
             runCatching {
@@ -201,5 +201,5 @@ class ProfileViewModel @Inject constructor(
                 // failure case: do nothing or log, keep previous state
             }
         }
-    }*/
+    }
 }

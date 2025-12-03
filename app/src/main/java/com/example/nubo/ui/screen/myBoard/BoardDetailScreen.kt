@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -42,6 +43,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -148,9 +150,6 @@ fun BoardDetailScreen(
     var dialogMode by remember { mutableStateOf<InputDialogMode?>(null) }
     // 섹션 및 카드 삭제 다이얼로그
     var showDeleteDialog by remember { mutableStateOf(false) }
-    // 보드 전체 삭제 다이얼로그
-    var showBoardDeleteDialog by remember { mutableStateOf(false) }
-
 
     // 진입 시 한 번 초기 로드
     LaunchedEffect(boardId) {
@@ -307,6 +306,9 @@ fun BoardDetailScreen(
     // board source 가 "AI" 인지 확인
     val isAiBoard = ui.board?.source == "AI"
 
+    // 페이징 리스트 상태
+    val listState = rememberLazyListState()
+
     Box(modifier = Modifier.fillMaxSize()) {
 
         Scaffold(
@@ -341,6 +343,7 @@ fun BoardDetailScreen(
             }
         ) { paddingValues ->
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
@@ -693,6 +696,18 @@ fun BoardDetailScreen(
             null -> Unit
             // Rename 등 나머지 케이스를 처리하기 위한 else 분기
             else -> { /* Do nothing for other cases */
+            }
+        }
+        LaunchedEffect(listState, ui.isLast, ui.isLoading) {
+            snapshotFlow {
+                val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                val total = listState.layoutInfo.totalItemsCount
+                Triple(lastVisible, total, ui.isLast)
+            }.collect { (lastVisible, total, isLast) ->
+                val reachedBottom = total > 0 && lastVisible >= total - 2 // 끝에서 2개 남았을 때
+                if (reachedBottom && !ui.isLoading && !isLast) {
+                    viewModel.loadNextPage()
+                }
             }
         }
     }

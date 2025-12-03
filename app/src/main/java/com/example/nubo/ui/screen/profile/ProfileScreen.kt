@@ -64,10 +64,10 @@ fun ProfileRoute(
     // 서버에서 가져온 프로필 UI 상태 구독
     val state by viewModel.uiState.collectAsState()
 
-    /*// 화면 최초 진입 시 unread 알림 여부 조회
+    // 화면 최초 진입 시 unread 알림 여부 조회
     LaunchedEffect(Unit) {
         viewModel.loadUnreadNotificationState()
-    }*/
+    }
 
     // 전역 토스트 호스트
     val toastHostState = LocalAppToastHostState.current
@@ -253,7 +253,7 @@ fun ProfileScreen(
                     text = "설정",
                     style = AppTextStyles.b2_regular_16,
                     color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 15.dp)
+                    modifier = Modifier.padding(start = 32.dp, top = 8.dp, bottom = 15.dp)
                 )
 
                 SettingsItem(title = "내 정보", onClick = onMyInfo)

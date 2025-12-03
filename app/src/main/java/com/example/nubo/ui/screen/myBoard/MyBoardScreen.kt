@@ -1,12 +1,5 @@
 package com.example.nubo.ui.screen.myBoard
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -29,7 +22,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.LaunchedEffect
@@ -48,8 +40,8 @@ import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.model.myBoard.MyCardItem
 import com.example.nubo.ui.component.MyCardContent
 import com.example.nubo.ui.component.cardHeightForIndex
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.rememberCoroutineScope
@@ -59,24 +51,21 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.runtime.snapshotFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.text.AnnotatedString
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.AppToastType
 import com.example.components.toast.LocalAppToastHostState
 import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
+import com.example.nubo.ui.theme.AppTextStyles.label_SemiBold_12
 import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.ui.theme.PurpleMain500
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 
 @Composable
@@ -189,7 +178,7 @@ fun MyBoardScreen(
         }
     }
 
-    // 아이콘 리소스를 변수로 정의합니다.
+    // 아이콘 리소스를 변수로 정의
     val noResultsIcon = R.drawable.error_face
 
     // 검색 기능 변수들
@@ -206,12 +195,6 @@ fun MyBoardScreen(
     val focusRequester = remember { FocusRequester() }          // 포커스 요청자
     val focusManager = LocalFocusManager.current                // 포커스 매니저
     val keyboard = LocalSoftwareKeyboardController.current      // 키보드 컨트롤러
-
-    // 현재 탭의 검색 진행 여부 파악
-    val isSearchingCard by cardViewModel.isSearching
-    val isSearchingBoard by boardViewModel.isSearching
-    val currentIsSearching = if (selectedTab == 0) isSearchingCard else isSearchingBoard
-
 
     // 검색 모드 닫는 로직
     val closeSearchMode = {
@@ -310,21 +293,6 @@ fun MyBoardScreen(
         }
     }
 
-    // 스크롤 상태 감지
-    val listState = rememberLazyListState()
-    // header(show/hide) 상태 (검색과 필터 영역)
-    var showHeader by remember { mutableStateOf(true) }
-
-    // 스크롤 방향 감지
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemScrollOffset }
-            .pairWithPrevious()
-            .collect { (prev, curr) ->
-                val scrollingUp = curr < prev // 위로 스크롤 하면 true
-                showHeader = scrollingUp
-            }
-    }
-
     // 필터 + 검색 헤더에서 사용
     val onRequestFilter: (String) -> Unit = { filter ->
         if (selectedTab == 1) boardViewModel.setFilter(filter)
@@ -336,6 +304,18 @@ fun MyBoardScreen(
         else cardViewModel.setSort(sortKey)
     }
 
+    // 리스트 스크롤 상태
+    val listState = rememberLazyListState()
+
+    // 카드 페이징 상태 (무한 스크롤 조건 체크용)
+    val cardIsLoading by cardViewModel.isLoading
+    val cardIsLastPage by cardViewModel.isLast
+
+    data class BoardScrollState(
+        val canScroll: Boolean,
+        val count: Int,
+        val isLast: Boolean
+    )
 
     Column(
         modifier = Modifier
@@ -358,18 +338,20 @@ fun MyBoardScreen(
 
         // 2) 전체 스크롤은 LazyColumn 하나로 담당
         LazyColumn(
+            state = listState, // 스크롤 상태 연결
             modifier = Modifier.fillMaxSize(),
-            state = listState,
-            contentPadding = PaddingValues(bottom = 60.dp) // 바텀네비 고려
+            contentPadding = PaddingValues(bottom = 140.dp) // 바텀네비 고려
         ) {
-            // 상단 타이틀 + 검색 + 필터
-            item {
-                TitleBar(
-                    selectedTab = selectedTab,
-                )
+            // 상단 타이틀 - 검색 모드일 때 숨김
+            if (!isSearchMode) {
+                item {
+                    TitleBar(
+                        selectedTab = selectedTab,
+                    )
+                }
             }
 
-           // 2) Sticky Header — 필터 + 검색 / 검색창
+            //  Sticky Header — 필터 + 검색 / 검색창
             stickyHeader {
                 FilterSearchStickyHeader(
                     isSearchMode = isSearchMode,
@@ -384,7 +366,6 @@ fun MyBoardScreen(
                     focusRequester = focusRequester
                 )
             }
-
 
             // 3) 콘텐츠 영역
             item {
@@ -467,8 +448,7 @@ fun MyBoardScreen(
                                                 )
                                             },
                                             isSelectionMode = isBoardSelectionMode, // 선택모드 상태 전달
-                                            selectedBoardIds = selectedBoardIds, // 선택된 ID 전달
-                                            listState = listState
+                                            selectedBoardIds = selectedBoardIds // 선택된 ID 전달
                                         )
                                     }
                                 }
@@ -486,17 +466,76 @@ fun MyBoardScreen(
                                     )
                                 },
                                 isSelectionMode = isBoardSelectionMode,
-                                selectedBoardIds = selectedBoardIds,
-                                listState = listState    // ← 추가!
+                                selectedBoardIds = selectedBoardIds
                             )
                         }
                     }
                 }
             }
         }
+        // 카드 탭에서만 동작하는 수동 페이징 로직
+        LaunchedEffect(listState, selectedTab, isSearchMode) {
+
+            // 카드 탭이 아니거나 검색 모드일 때는 작동시키지 않음
+            if (selectedTab != 0 || isSearchMode) return@LaunchedEffect
+
+            snapshotFlow {
+                // canScrollForward: 아래로 더 스크롤할 수 있는지 여부
+                val canScroll = listState.canScrollForward
+
+                // 현재 로드된 카드 개수
+                val cardCount = cardViewModel.cards.value.size
+
+                // 마지막 페이지인지 여부
+                Triple(canScroll, cardCount, cardIsLastPage)
+            }.collect { (canScroll, cardCount, isLastPage) ->
+
+                // 다음 조건이 모두 충족될 때 loadMore()를 호출함
+                //
+                // 1) 화면을 아래로 더 스크롤할 수 없음
+                //    → 카드가 화면에 다 들어왔거나, 화면 끝까지 도달한 상태
+                //
+                // 2) 현재 로딩 중이 아님
+                //
+                // 3) 아직 마지막 페이지가 아님
+                //
+                // 4) 카드가 최소 1개 이상 로드되어 있는 상황
+                if (!canScroll &&
+                    !cardIsLoading &&
+                    !isLastPage &&
+                    cardCount > 0
+                ) {
+                    // 다음 페이지 불러오기
+                    cardViewModel.loadMore()
+                }
+            }
+        }
+        // 보드 탭에서만 동작하는 수동 페이징 로직
+        LaunchedEffect(listState, selectedTab, isSearchMode) {
+
+            // 보드 탭이 아닌 경우 또는 검색 모드일 때는 페이징 동작시키지 않음
+            if (selectedTab != 1 || isSearchMode) return@LaunchedEffect
+
+            snapshotFlow {
+                BoardScrollState(
+                    canScroll = listState.canScrollForward,
+                    count = boardViewModel.boards.value.size,
+                    isLast = boardViewModel.isLast.value
+                )
+            }.collect { state ->
+
+                if (!state.canScroll &&
+                    !boardViewModel.isLoading.value &&
+                    !state.isLast &&
+                    state.count > 0
+                ) {
+                    boardViewModel.loadMore()
+                }
+            }
+
+        }
     }
 }
-
 
 // 상단 (카드 / 보드) 탭바
 @Composable
@@ -568,7 +607,7 @@ fun TitleBar(
         style = AppTextStyles.title_semibold_24,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top=20.dp,start = 18.dp, end = 18.dp, bottom = 8.dp)
+            .padding(top = 20.dp, start = 18.dp, end = 18.dp, bottom = 8.dp)
     )
 }
 
@@ -610,26 +649,26 @@ fun FilterSearchStickyHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween // 양끝 정렬
             ) {
-                    // 필터 버튼들 (왼쪽 정렬)
-                    FilterButtons(
-                        selectedTab = selectedTab,
-                        onRequestFilter = onRequestFilter,
-                        onRequestSort = onRequestSort,
-                        enabled = enabled
-                    )
+                // 필터 버튼들 (왼쪽 정렬)
+                FilterButtons(
+                    selectedTab = selectedTab,
+                    onRequestFilter = onRequestFilter,
+                    onRequestSort = onRequestSort,
+                    enabled = enabled
+                )
 
-                    Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.weight(1f))
 
-                    // 검색 아이콘 (오른쪽 끝)
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_board_search),
-                        contentDescription = "검색",
-                        modifier = Modifier
-                            .size(24.dp)
-                            .noRippleClickable { if (enabled) onSearchOpen() }
-                    )
-                }
+                // 검색 아이콘 (오른쪽 끝)
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_board_search),
+                    contentDescription = "검색",
+                    modifier = Modifier
+                        .size(24.dp)
+                        .noRippleClickable { if (enabled) onSearchOpen() }
+                )
             }
+        }
         // ─────────────────────────────
         // ② 검색 모드일 때: 검색창 한 줄
         // ─────────────────────────────
@@ -715,7 +754,6 @@ fun FilterSearchStickyHeader(
     }
 }
 
-
 // 정렬, 필터 버튼
 @Composable
 fun FilterButtons(
@@ -793,7 +831,6 @@ fun FilterButtons(
         }
     }
 }
-
 
 // 나의 카드 탭 : 카드 콘텐츠 스크롤 영역
 @Composable
@@ -936,21 +973,19 @@ fun SortFilterButton(
                 )
         ) {
             sortOptions.keys.forEach { optionText ->
+                val isSelected = currentSortText == optionText
                 DropdownMenuItem(
-                    text = { Text(optionText, style = AppTextStyles.label_medium_12) },
+                    text = {
+                        Text(
+                            text = optionText,
+                            style = if (isSelected) label_SemiBold_12 else AppTextStyles.label_medium_12,
+                            color = if (isSelected) PurpleMain500 else MaterialTheme.colorScheme.onSurface
+                        )
+                    },
                     onClick = {
                         currentSortText = optionText
                         isPopupExpanded = false
                         onSortSelected(sortOptions[optionText]!!)
-                    },
-                    //  현재 선택된 메뉴에 체크 아이콘 추가
-                    trailingIcon = {
-                        if (currentSortText == optionText) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_board_check_small), // 체크 아이콘 리소스
-                                contentDescription = "Selected"
-                            )
-                        }
                     }
                 )
             }
@@ -978,15 +1013,5 @@ private fun SearchingIndicator(
             color = Grey1000,
             textAlign = TextAlign.Center
         )
-    }
-}
-
-// 스크롤 방향 감지 확장 함수
-fun <T> Flow<T>.pairWithPrevious(): Flow<Pair<T, T>> = flow {
-    var previous: T? = null
-    collect { value ->
-        val prev = previous
-        if (prev != null) emit(prev to value)
-        previous = value
     }
 }
