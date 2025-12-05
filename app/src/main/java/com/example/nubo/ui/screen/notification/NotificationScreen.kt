@@ -185,11 +185,15 @@ fun NotificationScreen(
                 }
 
                 // ===== 최근 알림 리스트 (채널별) =====
-                recentGroups.forEach { (type, itemsOfType) ->
+                val recentEntries = recentGroups.entries.toList()
+
+                recentEntries.forEachIndexed { groupIndex, (type, itemsOfType) ->
                     item(key = "recent-${type.name}") {
 
                         val expanded = expandedRecentTypes.contains(type)
                         val previewPerChannel = 1
+
+                        // 펼치기 전에는 1개만, 펼치면 전체
                         val visibleItems =
                             if (expanded || itemsOfType.size <= previewPerChannel)
                                 itemsOfType
@@ -199,55 +203,50 @@ fun NotificationScreen(
                         val hasMore = !expanded && itemsOfType.size >= 3
                         val remainCount = (itemsOfType.size - previewPerChannel).coerceAtLeast(0)
 
-                        // 이 Column 전체 높이에 애니메이션 적용
                         Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .animateContentSize(
-                                    animationSpec = tween(
-                                        durationMillis = 500,
-                                        easing = FastOutSlowInEasing
-                                    )
-                                )
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            // 실제 알림 카드들
                             visibleItems.forEachIndexed { index, item ->
                                 val loading = item.notificationId in state.actionLoadingIds
-                                val isLastVisible = index == visibleItems.lastIndex
-                                val compactBottom = hasMore && isLastVisible
+
+                                // “알림” 섹션에서 완전 첫 번째 카드인지 여부
+                                val isFirstNotification = (groupIndex == 0 && index == 0)
+
+                                // 첫 카드면 top 24 / bottom 12, 나머지는 top 12 / bottom 12
+                                val topPadding = if (isFirstNotification) 16.dp else 12.dp
+                                val bottomPadding = 12.dp
+
+                                // 이 카드에 붙을 "더보기" 개수 (접힌 상태에서 마지막 visible 카드에만)
+                                val showMoreForThisCard =
+                                    if (hasMore && !expanded && index == visibleItems.lastIndex && remainCount > 0) {
+                                        remainCount
+                                    } else {
+                                        null
+                                    }
 
                                 NotiCard(
                                     item = item,
-                                    tinted = true,
+                                    tinted = true,                 // 최근 알림은 틴트 대상
                                     loading = loading,
                                     onClick = { onClickItem(item) },
                                     onAcceptInvite = { onAcceptInvite(item) },
                                     onRejectInvite = { onRejectInvite(item) },
-                                    compactBottomSpacing = compactBottom
+                                    topPadding = topPadding,
+                                    bottomPadding = bottomPadding,
+                                    showMoreCount = showMoreForThisCard,
+                                    // ▶ 이 카드의 더보기 클릭 시: 타입 확장 + 콜백 호출
+                                    onClickShowMore = if (showMoreForThisCard != null) {
+                                        {
+                                            expandedRecentTypes = expandedRecentTypes + type
+                                            onShowMore(NotiSection.Recent)
+                                        }
+                                    } else null
                                 )
-                            }
-
-                            // 채널별 더보기 버튼
-                            if (hasMore && remainCount > 0) {
-                                TextButton(
-                                    onClick = {
-                                        expandedRecentTypes = expandedRecentTypes + type
-                                        onShowMore(NotiSection.Recent)
-                                    },
-                                    modifier = Modifier
-                                        .padding(start = 16.dp, top = 0.dp, bottom = 0.dp),
-                                    contentPadding = PaddingValues(0.dp)
-                                ) {
-                                    Text(
-                                        text = "${remainCount}건 더보기",
-                                        style = AppTextStyles.b2_semibold_16,
-                                        color = PurpleMain500
-                                    )
-                                }
                             }
                         }
                     }
                 }
+
 
 
                 // ===== 지난 알림 섹션 =====
@@ -257,13 +256,15 @@ fun NotificationScreen(
                     item { SectionSub("지난 알림") }
                 }
 
-                // ===== 지난 알림 리스트 =====
                 // ===== 지난 알림 리스트 (채널별) =====
-                pastGroups.forEach { (type, itemsOfType) ->
+                val pastEntries = pastGroups.entries.toList()
+
+                pastEntries.forEachIndexed { groupIndex, (type, itemsOfType) ->
                     item(key = "past-${type.name}") {
 
-                        val previewPerChannel = 1
                         val expanded = expandedPastTypes.contains(type)
+                        val previewPerChannel = 1
+
                         val visibleItems =
                             if (expanded || itemsOfType.size <= previewPerChannel)
                                 itemsOfType
@@ -285,40 +286,40 @@ fun NotificationScreen(
                         ) {
                             visibleItems.forEachIndexed { index, item ->
                                 val loading = item.notificationId in state.actionLoadingIds
-                                val isLastVisible = index == visibleItems.lastIndex
-                                val compactBottom = hasMore && isLastVisible
+
+                                val isFirstNotification = (groupIndex == 0 && index == 0)
+                                val topPadding = if (isFirstNotification) 24.dp else 12.dp
+                                val bottomPadding = 12.dp
+
+                                val showMoreForThisCard =
+                                    if (hasMore && !expanded && index == visibleItems.lastIndex && remainCount > 0) {
+                                        remainCount
+                                    } else {
+                                        null
+                                    }
 
                                 NotiCard(
                                     item = item,
-                                    tinted = false,
+                                    tinted = false,               // 지난 알림은 틴트 없음
                                     loading = loading,
                                     onClick = { onClickItem(item) },
                                     onAcceptInvite = { onAcceptInvite(item) },
                                     onRejectInvite = { onRejectInvite(item) },
-                                    compactBottomSpacing = compactBottom
+                                    topPadding = topPadding,
+                                    bottomPadding = bottomPadding,
+                                    showMoreCount = showMoreForThisCard,
+                                    onClickShowMore = if (showMoreForThisCard != null) {
+                                        {
+                                            expandedPastTypes = expandedPastTypes + type
+                                            onShowMore(NotiSection.Past)
+                                        }
+                                    } else null
                                 )
-                            }
-
-                            if (hasMore && remainCount > 0) {
-                                TextButton(
-                                    onClick = {
-                                        expandedPastTypes = expandedPastTypes + type
-                                        onShowMore(NotiSection.Past)
-                                    },
-                                    modifier = Modifier
-                                        .padding(start = 16.dp, top = 0.dp, bottom = 0.dp),
-                                    contentPadding = PaddingValues(0.dp)
-                                ) {
-                                    Text(
-                                        text = "${remainCount}건 더보기",
-                                        style = AppTextStyles.b2_semibold_16,
-                                        color = PurpleMain500
-                                    )
-                                }
                             }
                         }
                     }
                 }
+
 
                 // ===== 로딩 인디케이터 =====
                 item {
@@ -406,7 +407,7 @@ private fun SectionHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
@@ -436,59 +437,83 @@ private fun SectionSub(title: String) {
     Text(
         text = title,
         style = AppTextStyles.b1_semibold_18,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
     )
 }
 
 @Composable
 private fun NotiCard(
     item: NotificationItem,
-    tinted: Boolean,
+    tinted: Boolean,              // 최근 알림이면 true, 지난 알림이면 false
     loading: Boolean,
     onClick: () -> Unit,
     onAcceptInvite: () -> Unit,
     onRejectInvite: () -> Unit,
-    compactBottomSpacing: Boolean = false,
+    // 카드 별로 상단/하단 패딩을 외부에서 제어하기 위한 파라미터
+    topPadding: Dp,
+    bottomPadding: Dp,
+    // 이 카드에 연결된 "n건 더보기" 개수 (없으면 null)
+    showMoreCount: Int? = null,
+    // "더보기" 클릭 시 호출될 콜백 (null이면 버튼을 그려도 아무 일 하지 않음)
+    onClickShowMore: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    val targetBg = if (item.unread && tinted) Purple50 else Color.Transparent
-    val container by animateColorAsState(targetValue = targetBg, label = "notiBg")
+    // 이 알림이 안 읽은 상태이고 tint 대상이면 보라색, 아니면 흰색 배경
+    val targetBg = if (tinted && item.unread) Purple50 else Color.White
+    val container by animateColorAsState(
+        targetValue = targetBg,
+        label = "notiBg"
+    )
 
     Column(
         modifier = modifier
             .fillMaxWidth()
+            // 카드 전체 배경
             .background(container)
+            // 알림 자체 패딩: 좌우 32, 상단/하단은 파라미터로 조절
             .padding(
-                start = 0.dp,
-                end = 0.dp,
-                top = 8.dp,
-                bottom = if (compactBottomSpacing) 0.dp else 8.dp
+                start = 24.dp,
+                end = 24.dp,
+                top = topPadding,
+                bottom = bottomPadding
             )
     ) {
+        // ─ 상단 서브타이틀 + 시간 ─
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
         ) {
             val subtitle = when (item.type) {
                 NotiType.UnviewedReminder -> "미시청 카드 리마인드"
                 NotiType.NewCard -> "추가하기"
                 NotiType.Invite -> "공유하기"
-                NotiType.System -> "기타"
+                NotiType.System -> "공유하기"
             }
-
-            Text(subtitle, style = AppTextStyles.b2_regular_16, modifier = Modifier.weight(1f), color = GreyMain300)
-            Text(item.timeLabel, style = AppTextStyles.b2_regular_16, color = GreyMain300)
+            Text(
+                text = subtitle,
+                style = AppTextStyles.b2_regular_16,
+                modifier = Modifier.weight(1f),
+                color = GreyMain300
+            )
+            Text(
+                text = item.timeLabel,
+                style = AppTextStyles.b2_regular_16,
+                color = GreyMain300
+            )
         }
+
+        // 텍스트 간 간격 8
+        Spacer(Modifier.height(8.dp))
+
+        // ─ 본문 메시지 ─
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { onClick() }
-                .padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
             Text(
-                item.message,
+                text = item.message,
                 style = AppTextStyles.b1_medium_18,
                 color = Color.Black,
                 maxLines = 4,
@@ -496,10 +521,13 @@ private fun NotiCard(
             )
         }
 
-        when(val action = item.action){
+        // ─ 액션 버튼 (초대 수락/거절 등) ─
+        when (val action = item.action) {
             is NotiAction.Invite -> {
+                Spacer(Modifier.height(8.dp))
+
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     NuboPrimaryButton(
@@ -518,10 +546,26 @@ private fun NotiCard(
                     )
                 }
             }
-            is NotiAction.ShowMore, null -> {}
+            is NotiAction.ShowMore, null -> { /* 아무것도 안 그림 */ }
+        }
+
+        // ─ "n건 더보기" 텍스트 (있을 때만, 카드 배경 안에서) ─
+        if (showMoreCount != null && showMoreCount > 0) {
+
+            TextButton(
+                onClick = { onClickShowMore?.invoke() }, // ▶ 여기서 확장 로직 호출
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Text(
+                    text = "${showMoreCount}건 더보기",
+                    style = AppTextStyles.b2_semibold_16,
+                    color = PurpleMain500
+                )
+            }
         }
     }
 }
+
 
 @Composable
 private fun NotificationFooter(
@@ -541,7 +585,7 @@ private fun NotificationFooter(
             label = label,
             lineColor = lineColor,
             labelColor = labelColor,
-            modifier = Modifier.padding(horizontal = 0.dp, vertical = 12.dp)
+            modifier = Modifier
         )
         // 하단 Spacer 제거 (고정/붙박이 느낌을 없애기 위함)
     }
@@ -588,7 +632,7 @@ fun CenterLabelDivider(
     textStyle: TextStyle = AppTextStyles.label_semibold_14
 ) {
     Row(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -632,15 +676,31 @@ private fun NotificationFeedInteractive() {
                     NotificationItem(
                         notificationId = "r1",
                         title = "아직 열어보지 않은 카드가 있어요",
-                        message = "잊기 전에 확인해보세요",
+                        message = "아직 열어보지 않은 카드가 있어요\n잊기 전에 확인해보세요",
                         timeLabel = "지금",
                         type = NotiType.UnviewedReminder,
                         unread = true,
                     ),
                     NotificationItem(
                         notificationId = "r2",
+                        title = "아직 열어보지 않은 카드가 있어요",
+                        message = "오늘 저장한 카드 중 아직 안 본 카드가 있어요",
+                        timeLabel = "1시간 전",
+                        type = NotiType.UnviewedReminder,
+                        unread = true,
+                    ),
+                    NotificationItem(
+                        notificationId = "r3",
+                        title = "아직 열어보지 않은 카드가 있어요",
+                        message = "하루 전에 저장한 카드도 한 번 더 확인해보세요",
+                        timeLabel = "하루 전",
+                        type = NotiType.UnviewedReminder,
+                        unread = false,
+                    ),
+                    NotificationItem(
+                        notificationId = "r2",
                         title = "새로운 카드가 생성 완료되었어요",
-                        message = "",
+                        message = "새로운 카드가 생성 완료되었어요",
                         timeLabel = "1시간 전",
                         type = NotiType.NewCard,
                         unread = true,
@@ -651,7 +711,7 @@ private fun NotificationFeedInteractive() {
                     NotificationItem(
                         notificationId = "p1",
                         title = "박동훈 님이 공유 보드 초대를 수락했습니다",
-                        message = "이제 함께 보드를 관리할 수 있습니다",
+                        message = "박동훈 님이 공유 보드 초대를 수락했습니다\n이제 함께 보드를 관리할 수 있습니다",
                         timeLabel = "9월 9일",
                         type = NotiType.Invite,
                         unread = false

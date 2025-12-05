@@ -324,14 +324,14 @@ fun AppToastHost(
             enter =
                 fadeIn(
                     animationSpec = tween(
-                        durationMillis = 420,
+                        durationMillis = 320,
                         easing = LinearOutSlowInEasing
                     )
                 ) +
                     scaleIn(
                         initialScale = 0.9f,
                         animationSpec = tween(
-                            durationMillis = 420,
+                            durationMillis = 320,
                             easing = LinearOutSlowInEasing
                         )
                     ) +
@@ -339,7 +339,7 @@ fun AppToastHost(
                         // 토스트 높이의 1/4 정도 아래에서 살짝 올라오게
                         initialOffsetY = { fullHeight -> fullHeight },
                         animationSpec = tween(
-                            durationMillis = 420,
+                            durationMillis = 320,
                             easing = LinearOutSlowInEasing
                         )
                     ),
@@ -643,6 +643,19 @@ fun ToastDemoScreen(
     Scaffold { inner ->
         Box(Modifier.fillMaxSize().padding(inner)) {
             Column(Modifier.padding(20.dp)) {
+                Button(onClick = {
+                    scope.launch {
+                        host.show(
+                            title = buildHighlightedTitle(
+                                "토스트의 제목이 여기에 작성됩니다",
+                                "제목"
+                            ),
+                            layout = AppToastLayout.TitleOnly,
+                            type = AppToastType.POSITIVE
+                        )
+                    }
+                }) { Text("POSITIVE") }
+                Spacer(Modifier.height(8.dp))
                 Button(onClick = {
                     scope.launch {
                         host.show(

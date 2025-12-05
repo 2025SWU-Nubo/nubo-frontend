@@ -247,7 +247,7 @@ fun CustomTopBar(
             //  누보 로고
             IconButton(
                 onClick = { onLogoClick?.invoke() },
-                modifier = Modifier.size(80.dp).padding(start = 16.dp)
+                modifier = Modifier.size(96.dp).padding(start = 16.dp)
             ) {
                 Icon(
                     painter = painterResource(R.drawable.nubo_logo),
