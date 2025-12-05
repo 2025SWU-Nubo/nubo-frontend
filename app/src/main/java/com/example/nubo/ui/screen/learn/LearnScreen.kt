@@ -13,15 +13,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.SpanStyle
@@ -38,7 +34,6 @@ import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.PurpleMain500
 import java.time.LocalDate
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -194,7 +189,6 @@ fun LearnScreen(
                         getBubbleCount = { idx -> bubbleCounts.getOrNull(idx) ?: 0 },
                         circleSize = 36.dp
                     )
-
                     Spacer(Modifier.weight(1f))
 
                     // 하단 성장률 카드 + 누베리 개수 원형 카드
@@ -208,12 +202,6 @@ fun LearnScreen(
                         showLevelUp = showLevelUp,
                         currentStep = dashboardData.stage, // 현재 stage 전달
                         nextStageRemaining = nextStageRemaining, // 남은 카드 개수 전달
-                        // 레벨업 후 텍스트를 동적으로 생성하여 전달
-                        levelUpText = levelUpStage?.let { newStage ->
-                            // getStageName이 1단계부터 이름을 반환한다고 가정
-                            "레벨${newStage}. ${getStageName(newStage)}으로 성장했어요."
-                        } ?: "", // null일 경우 빈 문자열 (보일 일 없음)
-
                         // 애니메이션이 끝나면 ViewModel에 알려줄 콜백 전달
                         onLevelUpAnimationDone = {
                             viewModel.onLevelUpAnimationFinished()
@@ -441,10 +429,9 @@ private fun SpeechBubble(
                     )
                     .background(Color.White)
             )
-
             // 내용 (물방울 + n개)
             Row(
-                modifier = Modifier.padding(end = 9.dp, start = 6.dp),
+                modifier = Modifier.padding(end = 11.dp, start = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
@@ -477,7 +464,6 @@ private fun BottomProgressCard(
     currentStep: Int,
     nextStageRemaining: Int,
     cardMinHeight: Dp = 50.dp,
-    levelUpText: String,
     onLevelUpAnimationDone: () -> Unit,
     onClickBerryBadge: () -> Unit
 ) {
@@ -519,8 +505,7 @@ private fun BottomProgressCard(
             // 이벤트가 소비되었음을 ViewModel에 알림
             onLevelUpAnimationDone()
 
-        }
-        else if (state != "normal") {
+        } else if (state != "normal") {
             // showLevelUp이 false가 되면(이벤트가 소비되면)
             // state를 다시 "normal"로 리셋
             state = "normal"
@@ -532,59 +517,48 @@ private fun BottomProgressCard(
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
     ) {
-        // 그림자 박스는 카드 자체만 감싼다 (배지는 별도)
-        CustomShadowBox(
-            // 카드와 그림자가 함께 회전하도록 상위 레이어에 회전 적용
-            modifier = Modifier.graphicsLayer {
-                rotationY = rotationYAnim
-                cameraDistance = 12 * density
-            },
-            cornerRadius = 11.dp,
-            shadowColor = Color.Black,
-            shadowAlpha = 0.0f,
-            shadowBlurRadius = 8.dp,
-            offsetX = 6.dp,
-            offsetY = 6.dp
+        // 카드 본체에 회전/클릭 추가
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = cardMinHeight)
+                .graphicsLayer {
+                    // 플립카드 모션 적용
+                    rotationY = rotationYAnim
+                    cameraDistance = 12 * density
+                }
+                .noRippleClickable {
+                    // 레벨업이 아닐떄만 뒤집기 허용
+                    if (state == "normal" || state == "next") {
+                        isFlipped = !isFlipped
+                    }
+                },
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color.White.copy(alpha = 0.80f)
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            // 카드 본체에 회전/클릭 추가
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = cardMinHeight)          // 기존 cardMinHeight 대신 animatedHeight 사용
-                    .graphicsLayer {
-                        // 카드에 적용할 실제 회전 값
-                        rotationY = rotationYAnim
-                        cameraDistance = 12 * density
-                    }
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(Color.White.copy(alpha = 0.80f))
-                    .noRippleClickable {
-                        // 레벨업/베리 화면이 아닐 때만 카드 뒤집기 허용
-                        if (state == "normal" || state == "next") {
-                            isFlipped = !isFlipped
-                        }
-                    }
-            ) {
-                // 앞면/뒷면 선택 기준
-                val showFront = rotationYAnim <= 90f
+            // 앞면/뒷면 선택 기준
+            val showFront = rotationYAnim <= 90f
 
-                if (showFront) {
-                    // 기존 AnimatedContent 는 그대로 유지
-                    AnimatedContent(
-                        targetState = state,
-                        transitionSpec = {
-                            (
-                                (slideInVertically(animationSpec = tween(ENTER_MS)) { it } + fadeIn()) togetherWith
-                                    (slideOutVertically(animationSpec = tween(EXIT_MS)) { -it } + fadeOut())
-                                ).using(
-                                    SizeTransform(clip = false) { _, _ -> tween(0) } // 사이즈 애니메이션 제거
-                                )
-                        },
-                        label = "BottomProgressContentAnim",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 28.dp, vertical = 16.dp)
-                    ) { current ->
+            if (showFront) {
+                // 기존 AnimatedContent 는 그대로 유지
+                AnimatedContent(
+                    targetState = state,
+                    transitionSpec = {
+                        (
+                            (slideInVertically(animationSpec = tween(ENTER_MS)) { it } + fadeIn()) togetherWith
+                                (slideOutVertically(animationSpec = tween(EXIT_MS)) { -it } + fadeOut())
+                            ).using(
+                                SizeTransform(clip = false) { _, _ -> tween(0) } // 사이즈 애니메이션 제거
+                            )
+                    },
+                    label = "BottomProgressContentAnim",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 28.dp, vertical = 16.dp)
+                ) { current ->
                     when (current) {
                         "levelup" -> {
                             // 레벨업 화면
@@ -592,13 +566,13 @@ private fun BottomProgressCard(
                                 totalSteps = 5,
                                 prevStep = currentStep,   // 레벨업 직전 단계
                                 nextStep = nextStep,      // 레벨업 후 단계
-                                levelUpText = levelUpText,
                                 onStepAnimDone = {
                                     // 바 이동 및 체크 애니메이션이 끝났을 때 추가 동작이 있으면 여기에
                                     // (상위 LaunchedEffect에서 LEVEL_HOLD_MS 후 state = "next"로 넘어감)
                                 }
                             )
                         }
+
                         "next" -> {
                             // 다음 성장률 UI
                             GrowthFrontContent(
@@ -607,6 +581,7 @@ private fun BottomProgressCard(
                                 progress = progress
                             )
                         }
+
                         else -> {
                             // 기본 화면
                             GrowthFrontContent(
@@ -616,21 +591,20 @@ private fun BottomProgressCard(
                             )
                         }
                     }
-                    }
-                } else {
-                    // 뒤집힌 면 UI
-                    Column(
-                        modifier = Modifier
-                           /* .graphicsLayer { rotationY = 180f } // 텍스트 반전 방지*/
-                            .padding(horizontal = 28.dp, vertical = 16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        BackNextLevelSection(
-                            currentStage = currentStep, // 현재 단계 전달
-                            remainingCards = nextStageRemaining
-                        )
-                    }
+                }
+            } else {
+                // 뒤집힌 면 UI
+                Column(
+                    modifier = Modifier
+                        .graphicsLayer { rotationY = 180f } // 텍스트 반전 방지
+                        .padding(horizontal = 28.dp, vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    BackNextLevelSection(
+                        currentStage = currentStep, // 현재 단계 전달
+                        remainingCards = nextStageRemaining
+                    )
                 }
             }
         }
@@ -648,7 +622,7 @@ private fun BottomProgressCard(
                     // 베리 배지 클릭 시 콜백 호출
                     onClickBerryBadge()
                 }
-                .padding(start=14.dp,end = 16.dp, top = 4.dp,bottom=4.dp),
+                .padding(start = 14.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Image(
@@ -663,52 +637,6 @@ private fun BottomProgressCard(
                 color = Grey1000
             )
         }
-    }
-}
-
-//하단 성장률 표시 카드 그림자
-@Composable
-fun CustomShadowBox(
-    modifier: Modifier = Modifier,
-    cornerRadius: Dp = 18.dp,
-    shadowColor: Color = Color.Black, // 그림자 색
-    shadowAlpha: Float = 0.2f,        // 그림자 투명도
-    shadowBlurRadius: Dp = 6.dp,     // 그림자 번짐 정도
-    offsetX: Dp = 6.dp,               // 오른쪽 오프셋
-    offsetY: Dp = 6.dp,               // 아래 오프셋
-    content: @Composable BoxScope.() -> Unit
-) {
-    Box(
-        modifier = modifier
-            // 그림자가 박스 밖으로 나가도록 레이어 분리(클리핑 방지)
-            .graphicsLayer { /* no-op, 레이어 강제 생성 */ }
-            .drawBehind {
-                // Android 네이티브 캔버스/페인트 사용
-                drawIntoCanvas { canvas ->
-                    val paint = android.graphics.Paint().apply {
-                        isAntiAlias = true
-                        color = android.graphics.Color.TRANSPARENT
-                        setShadowLayer(
-                            shadowBlurRadius.toPx(),         // 번짐
-                            offsetX.toPx(),                  // X 오프셋(오른쪽)
-                            offsetY.toPx(),                  // Y 오프셋(아래)
-                            shadowColor.copy(alpha = shadowAlpha).toArgb()
-                        )
-                    }
-                    val rect = android.graphics.RectF(
-                        0f, 0f, size.width, size.height
-                    )
-                    // 네이티브 캔버스로 라운드 사각형 "그림자"만 그림
-                    canvas.nativeCanvas.drawRoundRect(
-                        rect,
-                        cornerRadius.toPx(),
-                        cornerRadius.toPx(),
-                        paint
-                    )
-                }
-            }
-    ) {
-        content()
     }
 }
 
@@ -787,7 +715,7 @@ fun AnimatedProgressBar(
                     )
                 )
             )
-    ){
+    ) {
         Box(
             modifier = Modifier
                 .fillMaxHeight()
@@ -811,13 +739,18 @@ private fun BackNextLevelSection(
     currentStage: Int,
     remainingCards: Int
 ) {
-    // 가운데 숫자만 보라색으로 스타일 적용
-    val text = buildAnnotatedString {
-        append("다음 레벨까지 ")
-        withStyle(SpanStyle(color = PurpleMain500)) {
-            append(remainingCards.toString())
+    val text = if (currentStage == 5) {
+        // 열매 레벨일 때
+        AnnotatedString("이제 곧 누베리를 수확할 수 있어요!")
+    } else {
+        // 그외 다른 레벨들
+        buildAnnotatedString {
+            append("다음 레벨까지 ")
+            withStyle(SpanStyle(color = PurpleMain500)) {
+                append(remainingCards.toString())
+            }
+            append("장의 카드가 남았어요.")
         }
-        append("장의 카드가 남았어요.")
     }
 
     Column {
@@ -928,7 +861,6 @@ private fun StaticLevelStepBar(
                 // 활성 동그라미 색 계산
                 //   - 0번 인덱스: 가장 밝은 보라 (#7272FF)
                 //   - 마지막 활성 인덱스: 메인 퍼플(PurpleMain500)
-                //   - 그 사이 인덱스: 위 두 색 사이에서 선형 보간
                 val activeCircleColor: Color = if (!isActive) {
                     Color.Unspecified // 사용 안 함
                 } else {
@@ -1006,17 +938,5 @@ private fun StaticLevelStepBar(
                 }
             }
         }
-    }
-}
-
-// 스테이지 번호에 맞는 이름 반환 함수
-private fun getStageName(stage: Int): String {
-    return when (stage) {
-        1 -> "작은 새싹"
-        2 -> "묘목"
-        3 -> "꽃봉오리"
-        4 -> "꽃"
-        5 -> "열매"
-        else -> ""
     }
 }

@@ -289,7 +289,7 @@ fun GraphicBackgroundView(
                         contentDescription = "묘목 왼쪽 잎",
                         modifier = Modifier
                             .scale(2.3f)
-                            .offset(x = (-10).dp, y = 27.dp)
+                            .offset(x = (-10).dp, y = 30.dp)
                             .graphicsLayer {
                                 // 오른쪽 끝 하단 고정
                                 transformOrigin = TransformOrigin(pivotFractionX = 1.0f, pivotFractionY = 0.9f)
@@ -308,7 +308,7 @@ fun GraphicBackgroundView(
                         contentDescription = "묘목 오른쪽 잎",
                         modifier = Modifier
                             .scale(2.3f)
-                            .offset(y = 25.dp, x = 4.dp)
+                            .offset(y = 29.dp, x = 5.dp)
                             .graphicsLayer {
                                 // 왼쪽 끝 하단 고정
                                 transformOrigin = TransformOrigin(pivotFractionX = 0.0f, pivotFractionY = 0.9f)
@@ -326,7 +326,7 @@ fun GraphicBackgroundView(
                         contentDescription = "묘목 3번째 잎",
                         modifier = Modifier
                             .scale(2.3f)
-                            .offset(y = 70.dp, x = 8.dp)
+                            .offset(y = 70.dp, x = 9.dp)
                             .graphicsLayer {
                                 transformOrigin = TransformOrigin(pivotFractionX = 0.0f, pivotFractionY = 0.4f)
 

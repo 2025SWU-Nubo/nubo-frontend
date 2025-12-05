@@ -173,7 +173,7 @@ fun LearnScreenBerry(
             item {
                 SectionTitle(
                     title = "구름의 감정",
-                    topPadding = 0.dp,
+                    topPadding = 4.dp,
                     bottomPadding = 24.dp
                 )
             }
