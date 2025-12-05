@@ -59,6 +59,7 @@ import androidx.compose.foundation.lazy.items
 import com.example.nubo.ui.theme.Grey200
 import androidx.compose.material3.Button
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.nubo.domain.model.InviteUser
@@ -84,10 +85,16 @@ fun InviteSheet (
 
     val hasSelection = selected.isNotEmpty()
 
+    // 최대 시트 높이를 화면 높이의 75퍼로 제한
+    val configuration = LocalConfiguration.current
+    val maxSheetHeight = (configuration.screenHeightDp * 0.8f).dp   // 0.7f ~ 0.8f 사이에서 취향대로 조절
+
+
     Column(
         modifier = Modifier
             .background(color = Color.White)
             .fillMaxWidth()
+            .heightIn(max = maxSheetHeight)
             // 조건부 상단 패딩 적용
             .then(if (useTopPadding) Modifier.statusBarsPadding() else Modifier)
             .navigationBarsPadding()
@@ -125,7 +132,7 @@ fun InviteSheet (
             )
         }
 
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(20.dp))
 
         //참여자 검색
         Column(
@@ -160,7 +167,7 @@ fun InviteSheet (
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(0.5f)    // 원하는 고정 높이
+                .heightIn(min = 180.dp, max = 360.dp)    // 원하는 고정 높이
         ) {
             when(val s = uiState){
                 InviteUiState.Idle -> {

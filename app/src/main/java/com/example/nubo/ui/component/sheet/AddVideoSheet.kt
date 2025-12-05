@@ -10,7 +10,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -27,6 +26,10 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.keyframes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.delete
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -38,8 +41,6 @@ import com.example.nubo.ui.theme.Grey20
 import com.example.nubo.ui.theme.PinkError
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
@@ -51,78 +52,48 @@ import com.example.components.toast.AppToastType
 import com.example.nubo.ui.screen.cardupload.CardUploadViewModel
 import com.example.nubo.ui.theme.AppTextStyles.b2_bold_16
 import com.example.nubo.ui.theme.GreyMain100
-import androidx.compose.ui.platform.LocalContext
 import com.example.nubo.data.service.CardUploadService
-
-
 
 @Composable
 fun AddVideoSheet(
     onClose: () -> Unit,
-    viewModel: AddVideoViewModel = hiltViewModel(), // ilt로 VideoService 주입된 VM 획득
-    cardUploadViewModel: CardUploadViewModel = hiltViewModel(), // 업로드 재사용 (이미 존재) :contentReference[oaicite:5]{index=5}
+    viewModel: AddVideoViewModel = hiltViewModel(),          // ViewModel with video validation
+    cardUploadViewModel: CardUploadViewModel = hiltViewModel(), // Existing upload ViewModel
     showToast: (String, AppToastType, Int) -> Unit = { _, _, _ -> }
 ) {
-
-
-    // 페이지/입력/선택 상태 (네 코드 그대로)
+    // Page state
     var page by remember { mutableStateOf(SheetPage.SAVE_VIDEO) }
-    var input by rememberSaveable { mutableStateOf("") }
-    var checkedIds by rememberSaveable { mutableStateOf(setOf<String>()) }
 
+    // Text input state using TextFieldState (for custom contentPadding)
+    val textState = remember { TextFieldState() }
+
+    // Selected board/section IDs
+    var checkedIds by rememberSaveable { mutableStateOf(setOf<String>()) }
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var showError by rememberSaveable { mutableStateOf(false) }   // 에러 강조 여부
-    val shake = remember { Animatable(0f) }                       // 좌우 흔들기
+    var showError by rememberSaveable { mutableStateOf(false) }   // Error highlight flag
+    val shake = remember { Animatable(0f) }                       // Shake animation
 
-    // 영상 링크용 토스트
-    var toastVisible by rememberSaveable { mutableStateOf(false) } // 링크 무효할 때 토스트
-    var networkErrorToastVisible by rememberSaveable { mutableStateOf(false) } // 네트워크 에러 토스트
+    // Toast visibility flags
+    var toastVisible by rememberSaveable { mutableStateOf(false) }          // Invalid link toast
+    var networkErrorToastVisible by rememberSaveable { mutableStateOf(false) } // Network error toast
 
-    // 보드용 토스트
+    // Board toast (AI auto classification guide)
     var boardToastVisible by rememberSaveable { mutableStateOf(false) }
-    // 한 번만 자동 노출되게 플래그
-    var boardToastShown by rememberSaveable { mutableStateOf(false) }
+    var boardToastShown by rememberSaveable { mutableStateOf(false) }       // Show only once
 
-//    LaunchedEffect(Unit) {
-//        cardUploadViewModel.uploadEvents.collect { ev ->
-//            when (ev) {
-//                is CardUploadViewModel.UploadEvent.Created -> {
-//                    showToast("카드 생성 중이에요", AppToastType.NORMAL, 1500)
-//                }
-//                is CardUploadViewModel.UploadEvent.AlreadyExists -> {
-//                    showToast("이미 생성된 카드예요", AppToastType.NEGATIVE, 2000)
-//                }
-//                is CardUploadViewModel.UploadEvent.Failed -> {
-//                    showToast(ev.message, AppToastType.NEGATIVE, 2200)
-//                }
-//            }
-//        }
-//    }
+    // Validation state
+    val validateState by viewModel.state.collectAsStateWithLifecycle(
+        AddVideoViewModel.ValidateState.Idle
+    )
+    // Boards tree state
+    val boardsState by viewModel.boards.collectAsStateWithLifecycle(
+        AddVideoViewModel.BoardsState.Idle
+    )
 
-
-    // 보드 페이지 진입 시, 무조건 보드 트리 로드 호출
-    LaunchedEffect(page) {
-        if (page == SheetPage.PICK_BOARD && !boardToastShown) {
-            boardToastVisible = true
-            boardToastShown = true
-            viewModel.loadBoards()           // ← 토큰 없이 호출 (VM 내부에서 처리)
-        }
-    }
-
-    // 보드 토스트 위치 맞추는 시트 위치
-    val density = LocalDensity.current
-    var sheetHeightPx by remember { mutableStateOf(0) }   // 현재 시트 높이(px)
-
-
-    // 뷰모델의 검증 상태를 Compose에서 구독
-    val validateState by viewModel.state.collectAsStateWithLifecycle(AddVideoViewModel.ValidateState.Idle)
-    // 보드 트리 상태 구독
-    val boardsState by viewModel.boards.collectAsStateWithLifecycle(AddVideoViewModel.BoardsState.Idle)
-
-    // 에러 시 흔들기 트리거
+    // Shake on error
     LaunchedEffect(showError) {
         if (showError) {
             shake.snapTo(0f)
@@ -141,32 +112,41 @@ fun AddVideoSheet(
             )
         }
     }
-    // 서버 응답에 따라 화면/모션 분기
+
+    // Trigger boards loading when entering PICK_BOARD page
+    LaunchedEffect(page) {
+        if (page == SheetPage.PICK_BOARD && !boardToastShown) {
+            boardToastVisible = true
+            boardToastShown = true
+            viewModel.loadBoards()
+        }
+    }
+
+    // React to validation state changes
     LaunchedEffect(validateState) {
         when (validateState) {
             is AddVideoViewModel.ValidateState.Success -> {
-                // 유효 → 보드 선택 화면으로 이동
+                // Valid URL → go to board picker
                 page = SheetPage.PICK_BOARD
                 showError = false
                 toastVisible = false
             }
 
             AddVideoViewModel.ValidateState.Invalid -> {
-                // 무효 → 흔들기 + 토스트
+                // Invalid URL → shake + invalid link toast
                 showError = true
                 toastVisible = true
-                // 3초 후 입력/에러 초기화 (기존 UX 유지)
                 scope.launch {
                     delay(3000)
                     showError = false
-                    input = ""
+                    clearText(textState)
                 }
             }
 
             is AddVideoViewModel.ValidateState.Error -> {
-                // 네트워크/서버 에러 → 동일 모션과 네트워크 에러용 토스트
+                // Network/server error → shake + network error toast
                 showError = true
-                networkErrorToastVisible = true // 네트워크 에러 토스트
+                networkErrorToastVisible = true
             }
 
             AddVideoViewModel.ValidateState.Loading,
@@ -179,43 +159,37 @@ fun AddVideoSheet(
             .fillMaxWidth()
             .navigationBarsPadding()
             .imePadding()
-            .padding(start = 8.dp, end = 8.dp, top = 0.dp, bottom = 0.dp)
-            .onGloballyPositioned { sheetHeightPx = it.size.height },  // 시트 높이 측정
+            .padding(start = 8.dp, end = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // ===== 공통 헤더 =====
+        // Header
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 0.dp, vertical = 0.dp)
         ) {
-            //닫기 버튼
             IconButton(
                 onClick = {
-                    // 시트 상태 초기화
+                    // Reset all sheet state
                     page = SheetPage.SAVE_VIDEO
-                    input = ""
                     checkedIds = emptySet()
                     boardToastShown = false
                     boardToastVisible = false
                     toastVisible = false
                     networkErrorToastVisible = false
-
-                    // ViewModel 상태도 초기화
+                    clearText(textState)
                     viewModel.resetForNewSession()
-
-                    // 시트 닫기
                     onClose()
-                }, modifier = Modifier.align(Alignment.CenterStart)
-            )
-            {
+                },
+                modifier = Modifier.align(Alignment.CenterEnd)
+            ) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_close),
                     contentDescription = "닫기",
                     tint = Grey500
                 )
             }
-            // 타이틀 텍스트
+
             Text(
                 text = when (page) {
                     SheetPage.SAVE_VIDEO -> "영상 추가하기"
@@ -226,15 +200,16 @@ fun AddVideoSheet(
             )
         }
 
-        // ===== 페이지별 본문 =====
+        // Content
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 0.dp, vertical = 20.dp)
+                .padding(vertical = 20.dp)
         ) {
             when (page) {
                 SheetPage.SAVE_VIDEO -> {
-                    // 입력창 + 버튼 한 줄, 좌우 16 / 사이 8
+                    val currentText = textState.text.toString()
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -242,46 +217,53 @@ fun AddVideoSheet(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // 캡슐형 아웃라인 텍스트필드
+                        // URL input field
                         OutlinedTextField(
-                            value = input,
-                            onValueChange = {
-                                input = it
-                                if (showError) showError = false // 수정 시작하면 에러 강조 해제
-                            },
-                            singleLine = true,
+                            state = textState,
+                            lineLimits = TextFieldLineLimits.SingleLine,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(49.dp)
-                                .offset(x = shake.value.dp),          // 부르르 흔들기 적용
+                                .height(42.dp)
+                                .offset(x = shake.value.dp),
                             shape = RoundedCornerShape(28.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                // 에러면 보더 제거 + 배경을 PinkError 로
-                                focusedBorderColor = if (showError) Grey50 else Grey50,
-                                unfocusedBorderColor = if (showError) Grey50 else Grey50,
-                                focusedContainerColor = if (showError) PinkError else Color.White,
-                                unfocusedContainerColor = if (showError) PinkError else Grey10,
-                            ),
+                            textStyle = AppTextStyles.b3_medium_14,
                             placeholder = {
                                 Text(
-                                    "링크를 입력하세요",
+                                    text = "링크를 입력하세요",
                                     style = AppTextStyles.b3_medium_14,
                                     color = Grey200
                                 )
                             },
-                            textStyle = AppTextStyles.b3_medium_14,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = if (showError) Grey50 else Grey50,
+                                unfocusedBorderColor = if (showError) Grey50 else Grey50,
+                                focusedContainerColor = if (showError) PinkError else Color.White,
+                                unfocusedContainerColor = if (showError) PinkError else Grey10
+                            ),
+                            // Custom inner paddings
+                            contentPadding = PaddingValues(
+                                start = 16.dp,
+                                top = 10.dp,
+                                end = 16.dp,
+                                bottom = 10.dp
+                            )
                         )
 
-                        // 캡슐형 버튼 (56dp, 외곽선 + 연한 배경)
+                        // Reset error highlight when user edits text
+                        LaunchedEffect(textState.text) {
+                            if (showError) showError = false
+                        }
+
+                        // "추가" button
                         Button(
                             onClick = {
-                                // 서버에 검증 요청 (링크는 앞뒤 공백 제거)
-                                viewModel.validate(input.trim())
+                                viewModel.validate(currentText.trim())
                             },
-                            enabled = input.isNotBlank() && validateState !is AddVideoViewModel.ValidateState.Loading,
-                            modifier = Modifier.height(49.dp),
+                            enabled = currentText.isNotBlank() &&
+                                validateState !is AddVideoViewModel.ValidateState.Loading,
+                            modifier = Modifier.height(42.dp),
                             shape = RoundedCornerShape(28.dp),
-                            border = if (input.isNotBlank()) null else BorderStroke(1.dp, Grey50),
+                            border = if (currentText.isNotBlank()) null else BorderStroke(1.dp, Grey50),
                             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = PurpleMain500,
@@ -290,7 +272,6 @@ fun AddVideoSheet(
                                 disabledContentColor = Grey1000
                             )
                         ) {
-                            // 로딩 중이면 인디케이터, 아니면 텍스트
                             if (validateState is AddVideoViewModel.ValidateState.Loading) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(18.dp),
@@ -307,19 +288,17 @@ fun AddVideoSheet(
                 }
 
                 SheetPage.PICK_BOARD -> {
-                    // 바텀시트 고정 높이 (원하는 값으로 조정)
                     val fixedHeight = 340.dp
 
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(fixedHeight)   // ← 시트 고정 높이
+                            .height(fixedHeight)
                     ) {
-                        // 서버에서 내려온 보드+섹션 상태로 바인딩
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(1f) // 시트 안에서 남은 영역 채우기
+                                .weight(1f)
                         ) {
                             when (boardsState) {
                                 AddVideoViewModel.BoardsState.Idle,
@@ -343,7 +322,8 @@ fun AddVideoSheet(
                                 }
 
                                 is AddVideoViewModel.BoardsState.Loaded -> {
-                                    val tree = (boardsState as AddVideoViewModel.BoardsState.Loaded).boards
+                                    val tree =
+                                        (boardsState as AddVideoViewModel.BoardsState.Loaded).boards
 
                                     if (tree.isEmpty()) {
                                         EmptyBoardsState(
@@ -373,46 +353,41 @@ fun AddVideoSheet(
 
                         Spacer(Modifier.height(12.dp))
 
-                        //추가하기 버튼
                         Button(
                             onClick = {
-                                // 1) URL 결정
-                                val urlToUpload = viewModel.rememberedUrl ?: input.trim()
+                                val urlToUpload =
+                                    viewModel.rememberedUrl ?: textState.text.toString().trim()
 
-                                // 2) 선택된 보드/섹션 ID 리스트
                                 val selectedIds: List<Long> = checkedIds
                                     .mapNotNull { it.toLongOrNull() }
                                     .distinct()
 
-                                // 3) 토큰
                                 val rawToken = viewModel.getAccessTokenOrNull()
                                 if (rawToken.isNullOrEmpty()) {
                                     showToast("로그인이 필요해요", AppToastType.NEGATIVE, 2000)
                                     return@Button
                                 }
 
-                                // 포그라운드 서비스 시작 → "카드 생성 중" 알림 표시
                                 CardUploadService.startService(
                                     context = context,
                                     accessToken = rawToken,
                                     videoUrl = urlToUpload,
-                                    boardId = selectedIds.firstOrNull()   // 서버가 단일 보드만 받는다면
+                                    boardId = selectedIds.firstOrNull()
                                 )
 
-                                // UI 상태 초기화 + 시트 닫기
                                 page = SheetPage.SAVE_VIDEO
-                                input = ""
                                 checkedIds = emptySet()
                                 boardToastShown = false
                                 boardToastVisible = false
                                 toastVisible = false
                                 networkErrorToastVisible = false
+                                clearText(textState)
                                 viewModel.resetForNewSession()
                                 onClose()
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(50.dp)
+                                .height(42.dp)
                                 .padding(horizontal = 16.dp),
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
@@ -427,7 +402,8 @@ fun AddVideoSheet(
             }
         }
     }
-// 영상 링크용 영상 무효 토스트
+
+    // Invalid link toast
     if (toastVisible) {
         val annotatedTitle = buildAnnotatedString {
             append("잘못된 링크!")
@@ -437,12 +413,12 @@ fun AddVideoSheet(
             message = "유효하지 않은 링크입니다.\n영상 URL 확인 후 다시 입력해주세요.",
             visible = toastVisible,
             onDismiss = { toastVisible = false },
-            durationMillis = 3000L, // 3초
+            durationMillis = 3000L,
             bottomOffset = 220.dp
         )
     }
 
-// 영상 링크용 네트워크 에러 토스트
+    // Network error toast
     if (networkErrorToastVisible) {
         val annotatedTitle = buildAnnotatedString { append("네트워크 오류") }
         SheetTopToast(
@@ -454,15 +430,15 @@ fun AddVideoSheet(
             bottomOffset = 220.dp
         )
     }
-// 보드 선택용 토스트
+
+    // Board guide toast
     if (boardToastVisible) {
-        // 시트 고정 높이 + 100dp만큼 위에 토스트
         val fixedHeight = 340.dp
         val offsetFromBottom = fixedHeight + 150.dp
 
         val annotatedTitle = buildAnnotatedString {
             append("선택하지 않아도 ")
-            withStyle(SpanStyle(color = PurpleMain500)) { // 강조 색상
+            withStyle(SpanStyle(color = PurpleMain500)) {
                 append("AI가 자동 분류")
             }
             append("해줘요.")
@@ -474,21 +450,30 @@ fun AddVideoSheet(
             visible = boardToastVisible,
             onDismiss = { boardToastVisible = false },
             durationMillis = 180_000L,
-            bottomOffset = offsetFromBottom          // 시트 상대 위치에 맞춰 토스트 위치
+            bottomOffset = offsetFromBottom
         )
     }
-// 시트 내리면 다시 처음 화면으로
+
+    // Reset when sheet is disposed
     DisposableEffect(Unit) {
         onDispose {
             viewModel.resetForNewSession()
         }
     }
+}
 
+// Helper to clear TextFieldState text
+private fun clearText(state: TextFieldState) {
+    state.edit {
+        if (length > 0) {
+            delete(0, length)
+        }
+    }
 }
 
 private enum class SheetPage { SAVE_VIDEO, PICK_BOARD }
 
-// ------------------------- 보드 선택용 컴포넌트들 -------------------------
+// ------------------------- Board selection components -------------------------
 
 private data class BoardNode(
     val id: String,
@@ -497,11 +482,9 @@ private data class BoardNode(
     val selectable: Boolean = true
 )
 
-// 서버 UI모델(UiBoardNode) -> 화면용 BoardNode 변환
-// 최상위 UiBoardNode를 받도록 수정
 private fun UiBoardNode.toUi(): BoardNode {
     return BoardNode(
-        id = id.toString(),        // Long -> String
+        id = id.toString(),
         title = title,
         children = children.map { it.toUi() }
     )
@@ -515,8 +498,6 @@ private fun BoardNodeItem(
     onCheckedChange: (String, Boolean) -> Unit
 ) {
     var expanded by remember { mutableStateOf(true) }
-
-    // 섹션(자식) 존재 여부
     val hasChildren = node.children.isNotEmpty()
 
     Column(
@@ -524,41 +505,36 @@ private fun BoardNodeItem(
             .fillMaxWidth()
             .animateContentSize()
     ) {
-        // 부모 카테고리
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 화살표 영역: 자식이 있으면 보이고 클릭 가능, 없으면 투명으로 공간만 유지
             val arrowSize = Modifier.size(24.dp)
 
             if (hasChildren) {
-                // 자식이 있는 경우: 아이콘 보임 + 클릭 토글 + 회전
                 Icon(
                     painter = painterResource(id = R.drawable.ic_arrow_down),
                     contentDescription = if (expanded) "접기" else "펼치기",
                     modifier = arrowSize
-                        .clickable { expanded = !expanded } // 자식 있을 때만 클릭 동작
+                        .clickable { expanded = !expanded }
                         .graphicsLayer { rotationZ = if (expanded) 0f else 180f },
                     tint = Color.Unspecified
                 )
             } else {
-                // 자식이 없는 경우: 아이콘은 투명 처리하여 공간만 차지 (접근성에서는 제외)
                 Icon(
                     painter = painterResource(id = R.drawable.ic_arrow_down),
-                    contentDescription = null,                // 접근성에 노출하지 않음
+                    contentDescription = null,
                     modifier = arrowSize
-                        .alpha(0f)                           // 아이콘을 보이지 않게
-                        .clearAndSetSemantics { },           // 접근성 포커스에서 제거
+                        .alpha(0f)
+                        .clearAndSetSemantics { },
                     tint = Color.Unspecified
                 )
             }
 
-            Spacer(Modifier.width(8.dp)) // 아이콘-텍스트 간격 유지
+            Spacer(Modifier.width(8.dp))
 
-            // 아이콘-텍스트 사이 8dp
             Text(
                 text = node.title,
                 style = AppTextStyles.b3_medium_14,
@@ -566,10 +542,10 @@ private fun BoardNodeItem(
                 modifier = Modifier.weight(1f)
             )
 
-            // 부모 보드 체크박스 추가
             val checkedParent = isChecked(node.id)
-            val parentIconRes = if (checkedParent) R.drawable.ic_add_fill_checkbox
-            else R.drawable.ic_add_blank_check_box
+            val parentIconRes =
+                if (checkedParent) R.drawable.ic_add_fill_checkbox
+                else R.drawable.ic_add_blank_check_box
 
             Icon(
                 painter = painterResource(id = parentIconRes),
@@ -583,7 +559,6 @@ private fun BoardNodeItem(
             Spacer(Modifier.width(32.dp))
         }
 
-        // 섹션이 있고, 펼쳐진 경우에만 섹션 리스트 표시
         if (hasChildren && expanded) {
             Column(
                 modifier = Modifier
@@ -605,7 +580,12 @@ private fun BoardNodeItem(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 32.dp, end = 16.dp, top = 14.dp, bottom = 14.dp),
+                            .padding(
+                                start = 32.dp,
+                                end = 16.dp,
+                                top = 14.dp,
+                                bottom = 14.dp
+                            ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
@@ -615,10 +595,10 @@ private fun BoardNodeItem(
                             modifier = Modifier.weight(1f)
                         )
 
-                        // 체크박스 아이콘 토글 (기본: ic_add_blank_check_box, 선택: ic_fill_checkbox)
                         val checkedChild = isChecked(child.id)
-                        val iconRes = if (checkedChild) R.drawable.ic_add_fill_checkbox
-                        else R.drawable.ic_add_blank_check_box
+                        val iconRes =
+                            if (checkedChild) R.drawable.ic_add_fill_checkbox
+                            else R.drawable.ic_add_blank_check_box
 
                         Icon(
                             painter = painterResource(id = iconRes),
@@ -635,41 +615,34 @@ private fun BoardNodeItem(
     }
 }
 
-// 빈 보드화면 안내문구
 @Composable
 fun EmptyBoardsState(
-    // 전체 레이아웃에 적용할 모디파이어
     modifier: Modifier = Modifier,
-    // 제목/보조문구 텍스트
     title: String = "보드가 아직 없어요",
     subtitle: String = "먼저 보드를 만들거나\nAI 자동 분류를 사용해보세요!"
 ) {
-    // 상단 이모지 (벡터 아이콘이 있으면 Image로 교체 가능)
     val iconRes = R.drawable.error_face
-    // 가운데 정렬된 심플한 빈 상태 UI
+
     Column(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp, vertical = 40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp) // 요소 간 간격
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // 이모지 영역 (아이콘으로 바꾸려면 Icon/Image 사용)
         Icon(
             painter = painterResource(id = iconRes),
             contentDescription = "이모지",
             tint = Color.Unspecified
         )
 
-        // 제목
         Text(
             text = title,
-            style = b2_bold_16,   // 앱 타이포에 맞춰 굵게
+            style = b2_bold_16,
             color = Grey1000,
             textAlign = TextAlign.Center
         )
 
-        // 보조 문구
         Text(
             text = subtitle,
             style = AppTextStyles.b3_regular_14,

@@ -174,7 +174,7 @@ fun CreateBoardSheet(
             }
         }
 
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(20.dp))
 
         //보드 이름
         Column(
