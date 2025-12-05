@@ -27,6 +27,7 @@ import com.example.nubo.R
 import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey1000
+import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.PurpleMain500
 
@@ -53,43 +54,45 @@ fun NuberryGet(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.4f))
+            .background(Color.Black.copy(alpha = 0.5f))
             .noRippleClickable { /* 배경 클릭 막기 */ },
         contentAlignment = Alignment.Center
     ) {
         // 팝업 카드
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.8f)
+                .align(Alignment.TopCenter)
+                .offset(y = 130.dp)
+                .fillMaxWidth(0.82f)
                 .wrapContentHeight()
                 .clip(RoundedCornerShape(14.dp))
                 .background(Purple100)
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .padding(horizontal = 24.dp, vertical = 20.dp),
             contentAlignment = Alignment.Center
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // 닫기 버튼 (좌측 상단)
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+
+                // 닫기 버튼 (우측 상단)
                 Box(
                     modifier = Modifier
-                        .align(Alignment.Start)
+                        .align(Alignment.End)
                         .noRippleClickable { onDismiss() }
                 ) {
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_close), // 닫기 아이콘
+                        painter = painterResource(id = R.drawable.ic_close),
                         contentDescription = "닫기",
                         tint = Grey1000,
                         modifier = Modifier.size(24.dp)
                     )
                 }
 
-                Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.height(16.dp))
 
-                // 중앙 원 + 베리 이미지
+                // 이미지
                 Box(
                     modifier = Modifier
-                        .size(180.dp)
+                        .size(200.dp)
                         .graphicsLayer {
                             scaleX = scaleAnim.value
                             scaleY = scaleAnim.value
@@ -98,40 +101,49 @@ fun NuberryGet(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(160.dp)
-                            .shadow(8.dp, CircleShape)
+                            .size(180.dp)
+                            .shadow(10.dp, CircleShape)
                             .background(Color.White, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
                             painter = painterResource(id = R.drawable.learn_nuberry_get),
                             contentDescription = null,
-                            modifier = Modifier.size(120.dp)
+                            modifier = Modifier.size(150.dp)
                         )
                     }
                 }
 
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(24.dp))
 
-                // 텍스트 영역
+                // 타이틀
                 Text(
-                    text = "Nuberry Get!",
-                    style = AppTextStyles.learn_percentage_30.copy(
+                    text = "Congratulations!",
+                    style = AppTextStyles.title_semibold_24.copy(
                         brush = Brush.linearGradient(listOf(Color(0xFF8380FF), PurpleMain500))
                     ),
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(16.dp))
 
+                // 서브텍스트
                 Text(
-                    text = "멋진 수확이에요.\n다음 성장도 함께 가요.",
+                    text = "베리를 수확했어요.",
                     style = AppTextStyles.b2_medium_16,
-                    color = Grey1000,
-                    textAlign = TextAlign.Center
+                    color = Grey500,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(5.dp))
+                // 서브텍스트
+                Text(
+                    text = "다음 성장의 새싹도 함께 키워요.",
+                    style = AppTextStyles.b2_medium_16,
+                    color = Grey500,
+                    textAlign = TextAlign.Center,
                 )
 
-                Spacer(Modifier.height(36.dp))
+                Spacer(Modifier.height(56.dp))
 
                 // 버튼
                 Box(
@@ -144,12 +156,13 @@ fun NuberryGet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "모은 베리 확인하러 가기",
+                        text = "모은 베리 확인하기",
                         style = AppTextStyles.label_semibold_14,
                         color = Color.White
                     )
                 }
-                Spacer(Modifier.height(8.dp))
+
+                Spacer(Modifier.height(24.dp))
             }
         }
     }

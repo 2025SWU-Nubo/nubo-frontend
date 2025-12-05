@@ -60,9 +60,12 @@ import com.example.components.toast.AppToastType
 import com.example.components.toast.LocalAppToastHostState
 import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
+import com.example.nubo.ui.theme.AppTextStyles.b2_medium_16
 import com.example.nubo.ui.theme.AppTextStyles.label_SemiBold_12
 import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey50
+import com.example.nubo.ui.theme.Grey500
+import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.ui.theme.PurpleMain500
 import kotlinx.coroutines.delay
@@ -454,7 +457,47 @@ fun MyBoardScreen(
                                 }
                             }
                         } else {
-                            // 기존 필터 로직을 제거하고, 서버에서 받은 모든 보드를 보여줌.
+                            // --- 기본 목록 (검색모드 아님) ---
+                            val boards = boardViewModel.boards.value
+                            val filter = boardViewModel.currentFilter // ALL / FAVORITE / SHARED
+
+                            // 1) 즐겨찾기 필터 활성화 + 목록 없음
+                            if (filter == "FAVORITE" && boards.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(top = 190.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "아직 즐겨찾기한 보드가 없어요.",
+                                        style = b2_medium_16,
+                                        color = GreyMain300,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 24.dp)
+                                    )
+                                }
+                            }
+                            // 2) 공유보드 필터 활성화 + 목록 없음
+                            else if (filter == "SHARED" && boards.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(top = 190.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "아직 생성된 공유보드가 없어요.",
+                                        style = b2_medium_16,
+                                        color = GreyMain300,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 24.dp)
+                                    )
+                                }
+                            }
+                            // 3)기본목록 출력
                             BoardContent(
                                 boards = boardViewModel.boards.value, // <-- 필터 제거
                                 onBoardClick = onBoardClick, // Route가 정의한 클릭 동작을 전달
@@ -883,7 +926,7 @@ fun EmptyStateUI(modifier: Modifier = Modifier, iconRes: Int, message: String) {
     Column(
         modifier = modifier
             .fillMaxSize() // 화면 전체를 차지하도록 변경
-            .padding(horizontal = 24.dp, vertical = 60.dp),
+            .padding(horizontal = 24.dp, vertical = 100.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center // 세로 방향에서도 중앙 정렬
     ) {

@@ -397,13 +397,20 @@ fun BoardDetailScreen(
 
                         // 보드에 섹션/카드가 아무것도 없을 때 빈 상태 UI 표시
                         if (boardItems.isEmpty() && cardItems.isEmpty()) {
+
+                            val emptyMessage = if (ui.favoriteOnly) {
+                                "즐겨찾기한 항목이 없어요."
+                            } else {
+                                "이 보드에는 아직 저장된 카드가 없어요!"
+                            }
+
                             Box(
                                 modifier = Modifier
-                                    .padding(top = 170.dp),
-                                contentAlignment = Alignment.Center // 가운데 정렬
+                                    .padding(top = 190.dp),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "이 보드에는 아직 저장된 카드가 없어요!",
+                                    text = emptyMessage,
                                     style = b2_medium_16,
                                     color = GreyMain300,
                                     textAlign = TextAlign.Center,
@@ -412,7 +419,7 @@ fun BoardDetailScreen(
                                         .padding(horizontal = 24.dp)
                                 )
                             }
-                        } else {
+                    } else {
                             BoardDetailContent(
                                 boardItems = boardItems,
                                 cardItems = cardItems,

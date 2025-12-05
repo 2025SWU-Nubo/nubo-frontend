@@ -77,7 +77,6 @@ class CardDetailViewModel @Inject constructor(
             }.onSuccess { ui ->
                 _uiState.value = CardDetailUiState.Success(ui)
 
-                val estt = true
                 // 레벨업 또는 열매 획득 시 토스트 메시지 생성
                 if (ui.stageUp) {
                     val title = buildHighlightedTitle(

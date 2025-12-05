@@ -61,7 +61,6 @@ fun LevelUpSection(
     totalSteps: Int,
     prevStep: Int,
     nextStep: Int,
-    levelUpText: String,
     onStepAnimDone: () -> Unit,
 ) {
     // 1) 시작/목표 퍼센트 (목표는 체크 지점으로 스냅)
@@ -117,6 +116,13 @@ fun LevelUpSection(
         onStepAnimDone()
     }
 
+    // 레벨 이름 매핑
+    val stageNames = listOf("새싹", "묘목", "꽃봉오리", "꽃", "열매")
+
+    // nextStep 기준으로 현재 레벨 텍스트 자동 생성
+    val currentStageIndex = (nextStep - 1).coerceIn(0, stageNames.lastIndex)
+    val currentStageName = stageNames[currentStageIndex]
+
     // ---- UI ----
     Column {
         Text(
@@ -127,7 +133,7 @@ fun LevelUpSection(
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = levelUpText,
+            text = "레벨$nextStep. $currentStageName 으로 성장했어요.",
             style = AppTextStyles.b2_semibold_16,
             color = Grey1000
         )
