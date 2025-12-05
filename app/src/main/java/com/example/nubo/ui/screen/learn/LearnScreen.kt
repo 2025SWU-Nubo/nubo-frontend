@@ -37,8 +37,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -468,32 +468,20 @@ private fun BottomProgressCard(
     onClickBerryBadge: () -> Unit
 ) {
 
-    // 현재 단계 값을 받아서 다음 단계로
+    // current state of level animation (normal / levelup / next)
     var state by rememberSaveable { mutableStateOf("normal") }
     val nextStep = (currentStep).coerceAtMost(5)
 
-    // 카드 앞/뒤 상태와 높이/회전 애니메이션
-    var isFlipped by rememberSaveable { mutableStateOf(false) }
+    // front / back content toggle
+    var showBack by rememberSaveable { mutableStateOf(false) }
 
-    // 회전 값 애니메이션
-    val rotationYAnim by animateFloatAsState(
-        targetValue = if (isFlipped) 180f else 0f,
-        animationSpec = tween(durationMillis = 1400),
-        label = "cardFlip"
-    )
+    // base badge offset
+    val baseBadgeOffsetY = (-45).dp
 
-    val peak = 90f
-    val start = 25f
-    val angle = rotationYAnim
-
-    // 중심(90도)에서 멀어진 정도
-    val dist = (peak - kotlin.math.abs(angle - peak)).coerceAtLeast(0f)
-
-    // 0~1 정규화 (25도 이하에서는 0)
-    val moveProgress = ((dist - start) / (peak - start)).coerceIn(0f, 1f)
-
-    // 최종 배지 offset
-    val badgeOffsetY = (-45).dp + (moveProgress * 3.dp)
+    // simple fixed offset
+    val badgeOffsetY by remember {
+        mutableStateOf(baseBadgeOffsetY)
+    }
 
     // 애니메이션 전환 (기존 UI → levelup → next)
     LaunchedEffect(showLevelUp) {
@@ -522,15 +510,10 @@ private fun BottomProgressCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = cardMinHeight)
-                .graphicsLayer {
-                    // 플립카드 모션 적용
-                    rotationY = rotationYAnim
-                    cameraDistance = 12 * density
-                }
                 .noRippleClickable {
-                    // 레벨업이 아닐떄만 뒤집기 허용
+                    // allow toggle only when not in levelup animation
                     if (state == "normal" || state == "next") {
-                        isFlipped = !isFlipped
+                        showBack = !showBack
                     }
                 },
             shape = RoundedCornerShape(18.dp),
@@ -539,75 +522,76 @@ private fun BottomProgressCard(
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            // 앞면/뒷면 선택 기준
-            val showFront = rotationYAnim <= 90f
-
-            if (showFront) {
-                // 기존 AnimatedContent 는 그대로 유지
-                AnimatedContent(
-                    targetState = state,
-                    transitionSpec = {
+            AnimatedContent(
+                targetState = if (showBack) "back" else state,
+                transitionSpec = {
+                    (
+                        slideInHorizontally(
+                            animationSpec = tween(ENTER_MS)
+                        ) { width -> width } + fadeIn()
+                        ) togetherWith
                         (
-                            (slideInVertically(animationSpec = tween(ENTER_MS)) { it } + fadeIn()) togetherWith
-                                (slideOutVertically(animationSpec = tween(EXIT_MS)) { -it } + fadeOut())
-                            ).using(
-                                SizeTransform(clip = false) { _, _ -> tween(0) } // 사이즈 애니메이션 제거
+                            slideOutHorizontally(
+                                animationSpec = tween(EXIT_MS)
+                            ) { width -> -width } + fadeOut()
                             )
-                    },
-                    label = "BottomProgressContentAnim",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 28.dp, vertical = 16.dp)
-                ) { current ->
-                    when (current) {
-                        "levelup" -> {
-                            // 레벨업 화면
-                            LevelUpSection(
-                                totalSteps = 5,
-                                prevStep = currentStep,   // 레벨업 직전 단계
-                                nextStep = nextStep,      // 레벨업 후 단계
-                                onStepAnimDone = {
-                                    // 바 이동 및 체크 애니메이션이 끝났을 때 추가 동작이 있으면 여기에
-                                    // (상위 LaunchedEffect에서 LEVEL_HOLD_MS 후 state = "next"로 넘어감)
-                                }
-                            )
-                        }
+                },
+                label = "BottomProgressContentAnim",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 28.dp, vertical = 16.dp)
+            ) { current ->
 
-                        "next" -> {
-                            // 다음 성장률 UI
-                            GrowthFrontContent(
-                                title = title,
-                                percent = percent,
-                                progress = progress
-                            )
-                        }
+                when (current) {
 
-                        else -> {
-                            // 기본 화면
-                            GrowthFrontContent(
-                                title = title,
-                                percent = percent,
-                                progress = progress
-                            )
-                        }
+                    // ------------------- leveup 화면 -------------------
+                    "levelup" -> {
+                        LevelUpSection(
+                            totalSteps = 5,
+                            prevStep = currentStep,
+                            nextStep = nextStep,
+                            onStepAnimDone = { /* 필요 시 처리 */ }
+                        )
                     }
-                }
-            } else {
-                // 뒤집힌 면 UI
-                Column(
-                    modifier = Modifier
-                        .graphicsLayer { rotationY = 180f } // 텍스트 반전 방지
-                        .padding(horizontal = 28.dp, vertical = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    BackNextLevelSection(
-                        currentStage = currentStep, // 현재 단계 전달
-                        remainingCards = nextStageRemaining
-                    )
+
+                    // ------------------- 다음 단계 안내 화면 -------------------
+                    "next" -> {
+                        GrowthFrontContent(
+                            title = title,
+                            percent = percent,
+                            progress = progress
+                        )
+                    }
+
+                    // ------------------- 기본 front 화면 -------------------
+                    "normal" -> {
+                        GrowthFrontContent(
+                            title = title,
+                            percent = percent,
+                            progress = progress
+                        )
+                    }
+
+                    // ------------------- 뒷면(back) 화면 -------------------
+                    "back" -> {
+                        BackNextLevelSection(
+                            currentStage = currentStep,
+                            remainingCards = nextStageRemaining
+                        )
+                    }
+
+                    // fallback
+                    else -> {
+                        GrowthFrontContent(
+                            title = title,
+                            percent = percent,
+                            progress = progress
+                        )
+                    }
                 }
             }
         }
+
         // 누베리 개수 원형 카드
         // 배지는 카드 콘텐츠와 독립적으로 Box(부모) 기준에 고정
 
@@ -637,6 +621,7 @@ private fun BottomProgressCard(
                 color = Grey1000
             )
         }
+
     }
 }
 
