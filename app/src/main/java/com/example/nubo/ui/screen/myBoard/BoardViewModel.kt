@@ -56,6 +56,10 @@ class BoardViewModel @Inject constructor(
     private val _isSearching = mutableStateOf(false)
     val isSearching: State<Boolean> = _isSearching
 
+    // 필터 값 받아오기
+    val currentFilter: String
+        get() = filter
+
     // --- 토스트 메시지 상태 변수 ---
     private val _toastMessage = MutableStateFlow<String?>(null)
     val toastMessage: StateFlow<String?> = _toastMessage
