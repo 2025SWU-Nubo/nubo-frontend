@@ -209,7 +209,7 @@ fun SectionDetailScreen(
 
                         navController.popBackStack()
                     },// 메뉴 버튼 클릭 시 보드 설정 바텀 시트 표시
-                    onMenuClick = { bottomSheetType = BottomSheetType.SECTION_SETTINGS },
+                    onMenuClick = { bottomSheetType = BottomSheetType.SECTION_RENAME },
                     isSelectionMode = isSelectionMode
                 )
             }
@@ -393,10 +393,10 @@ fun SectionDetailScreen(
                     )
                 }
 
-                BottomSheetType.SECTION_SETTINGS -> {
+                BottomSheetType.SECTION_RENAME -> {
                     ui.board?.let { currentBoard ->
                         // 새로 추가된 섹션 설정 바텀 시트
-                        SectionSettingsContent(
+                        SectionRename(
                             modifier = Modifier.imePadding(),
                             currentName = currentBoard.name,
                             isCurrentlyShared = currentBoard.shared,

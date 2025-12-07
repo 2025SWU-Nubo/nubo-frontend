@@ -704,7 +704,7 @@ fun FilterSearchStickyHeader(
 
                 // 검색 아이콘 (오른쪽 끝)
                 Icon(
-                    painter = painterResource(id = R.drawable.ic_board_search),
+                    painter = painterResource(id = R.drawable.ic_search),
                     contentDescription = "검색",
                     modifier = Modifier
                         .size(24.dp)

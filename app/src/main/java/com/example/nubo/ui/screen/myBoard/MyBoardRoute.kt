@@ -3,16 +3,9 @@ package com.example.nubo.ui.screen.myBoard
 import android.os.Parcelable
 import android.util.Log
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -28,13 +21,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Observer
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.parcelize.Parcelize
 import com.example.nubo.utils.refreshTicks
-
 
 /**
  * MyBoardScreen과 관련된 모든 상태와 로직을 관리하는 컨테이너 컴포저블.
@@ -193,7 +184,7 @@ fun MyBoardRoute(
         bottomBar = {
             // --- 카드 선택 모드 바텀바 ---
             if (isCardSelectionMode) {
-                BoardSettingsContent(
+                BoardSelectionContent(
                     onDeleteClick = {
                         scope.launch {
                             boardViewModel.deleteCardsFromGlobal(selectedCardIds)
@@ -207,8 +198,8 @@ fun MyBoardRoute(
             // --- 보드 선택 모드 바텀바 ---
             if (isBoardSelectionMode) {
                 when (boardBottomSheetType) {
-                    BottomSheetType.BOARD_SETTINGS -> {
-                        BoardSettingsContent(
+                    BottomSheetType.BOARD_SELECTION -> {
+                        BoardSelectionContent(
                             onDeleteClick = {
                                 // 현재 ID 목록을 새 변수에 캡처
                                 boardIdsToDelete = selectedBoardIds
@@ -222,28 +213,6 @@ fun MyBoardRoute(
                             selectedCardCount = selectedCardIds.size
                         )
                     }
-                    /*BottomSheetType.BOARD_EDIT -> {
-                        boardForEditing?.let { board ->
-                            BoardEditSheet(
-                                modifier = Modifier.imePadding(),
-                                source = board.source,
-                                currentName = board.title,
-                                isCurrentlyShared = false, // MyBoard에서는 공유 여부 알 수 없으므로 false로 고정
-                                onDismiss = {
-                                    boardBottomSheetType = BottomSheetType.NONE
-                                },
-                                onInviteClick = { *//* TODO *//* },
-                                onConfirm = { newName, isShared ->
-                                    if (newName != board.title) {
-                                        boardViewModel.renameBoard(board.serverBoardId, newName)
-                                        boardViewModel.applyRename(board.serverBoardId, newName) // UI 즉시 반영
-                                    }
-                                    resetBoardSelectionState()
-                                }
-                            )
-                        }
-                    }*/
-
                     else -> {}
                 }
             }
@@ -314,7 +283,7 @@ fun MyBoardRoute(
                     isBoardSelectionMode = true
                     selectedBoardIds = setOf(board.serverBoardId)
                     boardForEditing = board
-                    boardBottomSheetType = BottomSheetType.BOARD_SETTINGS
+                    boardBottomSheetType = BottomSheetType.BOARD_SELECTION
                     onSelectionModeChange(true)
                 }
                 Log.d("MyBoardRouteDebug", "onBoardLongClick triggered: Board ID = ${board.serverBoardId}, Title = ${board.title}")
