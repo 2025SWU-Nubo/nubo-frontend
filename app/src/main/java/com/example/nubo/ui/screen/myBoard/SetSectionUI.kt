@@ -17,8 +17,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 // --- 프로젝트 리소스 / 테마 ---
 import com.example.nubo.R
+import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.*
-import com.example.nubo.ui.theme.AppTextStyles.b1_bold_18
 import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
 import com.example.nubo.ui.theme.AppTextStyles.b2_semibold_16
 import com.example.nubo.ui.theme.AppTextStyles.b3_regular_14
@@ -34,6 +34,7 @@ fun SectionRename(
     currentName: String,
     isCurrentlyShared: Boolean,
     onDismiss: () -> Unit,
+    onBack: () -> Unit,
     onConfirm: (String, Boolean) -> Unit
 ) {
     var name by rememberSaveable { mutableStateOf(currentName) }
@@ -45,8 +46,7 @@ fun SectionRename(
     val showError = isNameTouched && !isNameValid
 
     Surface(
-        modifier = Modifier
-            .imePadding()
+        modifier = modifier
             .fillMaxWidth(),
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         shadowElevation = 8.dp,
@@ -57,7 +57,7 @@ fun SectionRename(
                 .background(color = Color.White)
                 .height(300.dp)
                 .navigationBarsPadding()
-                .padding(start = 18.dp, end = 18.dp, top = 13.dp),
+                .padding(start = 18.dp, end = 18.dp, top = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
@@ -66,19 +66,25 @@ fun SectionRename(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                IconButton(
-                    onClick = onDismiss,
+                // 왼쪽 뒤로가기 버튼
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_arrow_back), // ← 뒤로가기 아이콘
+                    contentDescription = "뒤로가기",
                     modifier = Modifier
                         .align(Alignment.CenterStart)
-                        .offset(x = (-18).dp)
-                        .size(48.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_close),
-                        contentDescription = "닫기"
-                    )
-                }
+                        .size(22.dp)
+                        .noRippleClickable { onBack() }
+                )
                 Text(text = "섹션 이름 변경", style = b1_semibold_18)
+              /*  // 오른쪽 닫기 버튼
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_close),
+                    contentDescription = "닫기",
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .size(24.dp)
+                        .noRippleClickable { onDismiss() }
+                )*/
             }
 
             Spacer(Modifier.height(28.dp))
@@ -127,15 +133,13 @@ fun SectionRename(
                         )
                     }
                 }
-
-                Spacer(Modifier.height(22.dp))
                 Spacer(modifier = Modifier.weight(1f))
 
                 // --- 변경하기 버튼 ---
                 Button(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp),
+                        .height(46.dp),
                     onClick = {
                         isNameTouched = true
                         if (isNameValid) onConfirm(trimmedName, isShared)
@@ -149,7 +153,7 @@ fun SectionRename(
                         disabledContentColor = Color.White
                     )
                 ) {
-                    Text(text = "변경하기", style = b1_bold_18)
+                    Text(text = "변경하기", style = b1_semibold_18)
                 }
 
                 Spacer(Modifier.height(25.dp))
@@ -162,7 +166,8 @@ fun SectionRename(
 @Composable
 fun AddSection(
     onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
+    onConfirm: (String) -> Unit,
+    onBack: () -> Unit
 ) {
     var name by rememberSaveable { mutableStateOf("") }
     var isNameTouched by rememberSaveable { mutableStateOf(false) }
@@ -186,7 +191,7 @@ fun AddSection(
                 .background(color = Color.White)
                 .height(300.dp)
                 .navigationBarsPadding()
-                .padding(start = 18.dp, end = 18.dp, top = 13.dp),
+                .padding(start = 18.dp, end = 18.dp, top = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
@@ -195,19 +200,25 @@ fun AddSection(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                IconButton(
-                    onClick = onDismiss,
+                // 왼쪽 뒤로가기 버튼
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_arrow_back),
+                    contentDescription = "뒤로가기",
                     modifier = Modifier
                         .align(Alignment.CenterStart)
-                        .offset(x = (-18).dp)
-                        .size(48.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_close),
-                        contentDescription = "닫기"
-                    )
-                }
-                Text(text = "새 섹션 추가", style = b1_semibold_18)
+                        .size(22.dp)
+                        .noRippleClickable { onBack() }
+                )
+                Text(text = "섹션 추가", style = b1_semibold_18)
+               /* // 오른쪽 닫기 버튼
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_close),
+                    contentDescription = "닫기",
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .size(24.dp)
+                        .noRippleClickable { onDismiss() }
+                )*/
             }
 
             Spacer(Modifier.height(28.dp))
@@ -257,14 +268,13 @@ fun AddSection(
                     }
                 }
 
-                Spacer(Modifier.height(22.dp))
                 Spacer(modifier = Modifier.weight(1f))
 
                 // --- 생성 버튼 ---
                 Button(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp),
+                        .height(46.dp),
                     onClick = {
                         isNameTouched = true
                         if (confirmEnabled) onConfirm(trimmedName)
@@ -278,7 +288,7 @@ fun AddSection(
                         disabledContentColor = Color.White
                     )
                 ) {
-                    Text(text = "추가하기", style = b1_bold_18)
+                    Text(text = "추가하기", style = b1_semibold_18)
                 }
 
                 Spacer(Modifier.height(25.dp))

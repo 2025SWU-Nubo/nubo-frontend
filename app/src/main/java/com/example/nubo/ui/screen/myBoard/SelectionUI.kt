@@ -70,7 +70,7 @@ import com.example.nubo.ui.theme.PurpleMain500
 import com.example.nubo.ui.theme.RedError
 
 /** 섹션 및 카드 항목 선택과 관련하여 수행되는 기능들에 대한 ui 파일
-* 섹션 및 카드 항목 선택 - 삭제, 복제, 이동 */
+ * 섹션 및 카드 항목 선택 - 삭제, 복제, 이동 */
 
 // 선택 모드 바텀바 슬롯
 @Composable
@@ -113,7 +113,9 @@ fun ActionsContent(
     onDeleteClick: () -> Unit,
     onCopyClick: () -> Unit,
     onMoveClick: () -> Unit,
-    onCancelClick: () -> Unit
+    onCancelClick: () -> Unit,
+    onBack: () -> Unit,
+    showBackButton: Boolean
 ) {
     Column(
         modifier = Modifier
@@ -129,30 +131,50 @@ fun ActionsContent(
             else -> "항목 선택"
         }
         Row(
-            modifier = Modifier
-                .fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            // 닫기(X) 아이콘 버튼
-            IconButton(
-                onClick = onCancelClick,
-                modifier = Modifier.size(48.dp) // 충분한 터치 영역 확보
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_close), // ic_close.xml 아이콘 사용
-                    contentDescription = "선택 취소"
-                )
+            // --- 조건부 뒤로가기 버튼 ---
+            if (showBackButton) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_arrow_back),
+                        contentDescription = "뒤로가기"
+                    )
+                }
+            } else {
+                // 뒤로가기 버튼이 없을 때는 균형 맞추기 위해 동일한 크기의 Spacer
+                Spacer(modifier = Modifier.width(48.dp))
             }
 
+            // 타이틀 (정중앙)
             Text(
                 text = title,
                 style = b1_semibold_18,
-                modifier = Modifier.weight(1f), // 남은 공간을 모두 차지
+                modifier = Modifier.weight(1f),
                 textAlign = TextAlign.Center
             )
-            // Spacer를 왼쪽에 두어 제목을 중앙으로
-            Spacer(modifier = Modifier.width(48.dp))
+
+            // --- 조건부 뒤로가기 버튼 ---
+            if (!showBackButton) {
+                // 닫기(X) 아이콘 버튼 — 오른쪽으로 이동
+                IconButton(
+                    onClick = onCancelClick,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_close),
+                        contentDescription = "닫기"
+                    )
+                }
+            }else {
+                // 뒤로가기 버튼이 없을 때는 균형 맞추기 위해 동일한 크기의 Spacer
+                Spacer(modifier = Modifier.width(48.dp))
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))

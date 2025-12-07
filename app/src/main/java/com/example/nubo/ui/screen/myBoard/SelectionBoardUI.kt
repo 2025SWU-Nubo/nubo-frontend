@@ -262,6 +262,7 @@ fun BoardRename(
     currentName: String,
     isCurrentlyShared: Boolean,
     onDismiss: () -> Unit,
+    onBack: () -> Unit,
     onConfirm: (String, Boolean) -> Unit
 ) {
     // --- 입력값 및 유효성 검사 상태 ---
@@ -286,7 +287,7 @@ fun BoardRename(
                 .background(Color.White)
                 .height(300.dp)
                 .navigationBarsPadding()
-                .padding(start = 18.dp, end = 18.dp, top = 13.dp),
+                .padding(start = 18.dp, end = 18.dp, top = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // --- 헤더: 닫기 + 타이틀 ---
@@ -294,19 +295,25 @@ fun BoardRename(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                IconButton(
-                    onClick = onDismiss,
+                // 왼쪽 뒤로가기 버튼
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_arrow_back),
+                    contentDescription = "뒤로가기",
                     modifier = Modifier
                         .align(Alignment.CenterStart)
-                        .offset(x = (-18).dp)
-                        .size(48.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_close),
-                        contentDescription = "닫기"
-                    )
-                }
+                        .size(22.dp)
+                        .noRippleClickable { onBack() }
+                )
                 Text(text = "보드 이름 변경", style = b1_semibold_18)
+                /*// 오른쪽 닫기 버튼
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_close),
+                    contentDescription = "닫기",
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .size(24.dp)
+                        .noRippleClickable { onDismiss() }
+                )*/
             }
 
             Spacer(Modifier.height(28.dp))
@@ -358,15 +365,13 @@ fun BoardRename(
                         )
                     }
                 }
-
-                Spacer(Modifier.height(22.dp))
                 Spacer(modifier = Modifier.weight(1f))
 
                 // --- 변경하기 버튼 ---
                 Button(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp),
+                        .height(46.dp),
                     onClick = {
                         isNameTouched = true
                         if (isNameValid) {
@@ -382,7 +387,7 @@ fun BoardRename(
                         disabledContentColor = Color.White
                     )
                 ) {
-                    Text(text = "변경하기", style = b1_bold_18)
+                    Text(text = "변경하기", style = b1_semibold_18)
                 }
 
                 Spacer(Modifier.height(25.dp))
