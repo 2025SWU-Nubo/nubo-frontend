@@ -1,5 +1,6 @@
 package com.example.nubo.ui.screen.recommendCard
 
+import android.R.attr.fontWeight
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateContentSize
@@ -63,13 +64,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
@@ -86,6 +92,7 @@ import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.NuboAppTheme
+import com.example.nubo.ui.theme.Purple700
 import com.example.nubo.ui.theme.PurpleMain500
 import com.example.nubo.utils.standardizeMarkdown
 import com.mohamedrejeb.richeditor.model.rememberRichTextState
@@ -96,26 +103,21 @@ import kotlin.math.max
 fun RecommendCardDetailScreen(
     item: RecommendCardDetailItem,
     onBack: () -> Unit,
-    onSaveClick: () -> Unit,
-    onInfoClick: (() -> Unit)? = null,
-    cardVm: CardDetailViewModel = hiltViewModel()
+    onSaveClick: () -> Unit
 ) {
     // 뒤로가기 처리
     BackHandler { onBack() }
 
-    val infoState by cardVm.infoState.collectAsState()
+    var showInfoBubble by remember { mutableStateOf(false) }
 
     // 실제 UI는 Content 쪽에서만 처리
     RecommendCardDetailContent(
         item = item,
         onBack = onBack,
         onSaveClick = onSaveClick,
-        showInfoBubble = infoState is InfoUiState.Visible,
-        onInfoClick = {
-            cardVm.showInfoBubble()
-            onInfoClick?.invoke()
-        },
-        onDismissInfo = { cardVm.hideInfoBubble() }
+        showInfoBubble = showInfoBubble,
+        onInfoClick = { showInfoBubble = true },
+        onDismissInfo = { showInfoBubble = false }
     )
 }
 
@@ -165,39 +167,37 @@ private fun RecommendCardDetailContent(
             }
         }
     ) { inner ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(inner)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(scrollState),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Spacer(Modifier.height(6.dp))
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(inner)
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(scrollState),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Spacer(Modifier.height(6.dp))
 
-            ImageWithButton(
-                item = item,
-                onInfoClick = onInfoClick,
-                onPlayClick = {
-                    item.videoUrl.takeIf { it.isNotBlank() }?.let { url ->
-                        context.startActivity(
-                            Intent(
-                                Intent.ACTION_VIEW,
-                                url.toUri()
-                            )
-                        )
-                    }
-                },
-                showInfoBubble = showInfoBubble,
-                onDismissInfo = onDismissInfo
-            )
+                ImageWithButton(
+                    item = item,
+                    onInfoClick = onInfoClick,
+                    onPlayClick = {
+                        item.videoUrl.takeIf { it.isNotBlank() }?.let { url ->
+                            context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
+                        }
+                    },
+                    showInfoBubble = showInfoBubble,
+                    onDismissInfo = onDismissInfo
+                )
 
-            DetailBodyMarkdown(description = item.summary)
-            CardKeyword(item.tags)
 
-            // Extra space so last content is not glued to bottom bar
-            Spacer(Modifier.height(24.dp))
+                DetailBodyMarkdown(description = item.summary)
+                CardKeyword(item.tags)
+
+                Spacer(Modifier.height(24.dp))
+            }
         }
+
     }
 }
 
@@ -267,6 +267,7 @@ private fun ImageWithButton(
             .fillMaxWidth()
             .height(200.dp)
     ) {
+        // 썸네일 이미지
         Image(
             painter = rememberAsyncImagePainter(item.videoThumbnailUrl),
             contentDescription = null,
@@ -296,8 +297,10 @@ private fun ImageWithButton(
             )
         }
 
+        // InfoBubble (CardDetail과 동일한 위치)
         if (showInfoBubble) {
-            // 바깥 영역 터치 시 닫기
+
+            // 뒤 배경 클릭 → 닫힘
             Box(
                 Modifier
                     .matchParentSize()
@@ -311,6 +314,7 @@ private fun ImageWithButton(
                 Modifier
                     .align(Alignment.TopEnd)
                     .padding(top = 6.dp, end = 48.dp)
+                    .zIndex(10f)
             ) {
                 InfoBubble(
                     title = "#${item.aiCategoryName}",
@@ -331,7 +335,7 @@ private fun ImageWithButton(
             }
         }
 
-        // 플레이 버튼
+        // 재생 버튼
         IconButton(
             onClick = onPlayClick,
             modifier = Modifier.align(Alignment.Center)
@@ -343,8 +347,54 @@ private fun ImageWithButton(
                 modifier = Modifier.size(60.dp)
             )
         }
+
+        // ⭐ 관심사 일치도 배지 (너가 만든 기존 코드 그대로 통합)
+        val match = item.matchPercent
+        val annotated = buildAnnotatedString {
+            append("${item.username}님의 관심사와 ")
+            withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = PurpleMain500)) {
+                append("$match%")
+            }
+            append(" 일치해요")
+        }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 12.dp, bottom = 8.dp)
+                .clip(RoundedCornerShape(8.dp))
+        ) {
+            Image(
+                painter = painterResource(R.drawable.interestrate_bg),
+                contentDescription = null,
+                modifier = Modifier.matchParentSize(),
+                contentScale = ContentScale.Crop
+            )
+
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.sparkle),
+                    contentDescription = null,
+                    tint = Color.Unspecified,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = annotated,
+                    style = AppTextStyles.b3_regular_14,
+                    color = Purple700,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
     }
 }
+
+
 
 /**
  * 요약 노트 마크다운 영역
@@ -423,14 +473,15 @@ private fun DetailBodyMarkdown(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .height(50.dp)
+                            .height(70.dp)
                             .background(
                                 Brush.verticalGradient(
                                     listOf(
                                         Color.Transparent,
-                                        Color.White.copy(alpha = 0.3f),
-                                        Color.White.copy(alpha = 0.6f),
-                                        Color.White.copy(alpha = 0.9f)
+                                        Color.White.copy(alpha = 0.05f),
+                                        Color.White.copy(alpha = 0.25f),
+                                        Color.White.copy(alpha = 0.55f),
+                                        Color.White.copy(alpha = 0.9f),
                                     )
                                 )
                             )
@@ -439,7 +490,7 @@ private fun DetailBodyMarkdown(
             }
 
             if (hasMore) {
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(14.dp))
                 Text(
                     text = "저장하면 요약노트를 모두 볼 수 있어요",
                     style = AppTextStyles.b2_semibold_16,
@@ -541,6 +592,8 @@ private fun PreviewRecommendCardDetailScreen() {
         aiCategoryName = "개발 · 프로덕트",
         createdAt = "2025.11.27",
         updatedAt = "2025.11.27",
+        username = "누보",
+        matchPercent = 83
     )
 
     NuboAppTheme {

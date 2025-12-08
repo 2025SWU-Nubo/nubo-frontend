@@ -81,7 +81,7 @@ fun AiPromptBar(
         listOf(
             PresetAction("더 간결하게", R.drawable.arrows_inside),
             PresetAction("더 자세하게", R.drawable.arrows_outward),
-//            PresetAction("핵심만 하이라이트", R.drawable.format_ink_highlighter)
+            PresetAction("한 문단으로", R.drawable.format_ink_highlighter)
         )
     }
 
@@ -194,7 +194,7 @@ fun AiPromptBar(
                                 return@TextField
                             }
                             tfv = newValue
-                            onValueChange(newValue.text)
+                            onValueChange("${newValue.text}+ 정리해줘.")
                             selectedPreset = null
                         },
                         modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),

@@ -826,7 +826,7 @@ fun MainScreen(
                             RecommendCardDetailScreen(
                                 item = s.item,
                                 onBack = { navController.popBackStack() },
-                                onSaveClick = { vm.saveToMyCards() }
+                                onSaveClick = { vm.saveToMyCards() },
                             )
                         }
                     }

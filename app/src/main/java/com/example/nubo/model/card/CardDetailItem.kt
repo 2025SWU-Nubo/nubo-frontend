@@ -32,6 +32,8 @@ data class  RecommendCardDetailItem(
     val aiCategoryName: String,
     val createdAt: String,
     val updatedAt: String,
+    val username: String,
+    val matchPercent : Int
 )
 
 

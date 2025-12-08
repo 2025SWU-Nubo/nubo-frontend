@@ -23,6 +23,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.Grey200
+import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.Grey700
 import com.example.nubo.ui.theme.GreyMain300
 
@@ -132,10 +133,10 @@ fun InfoBubble(
         // 전체 내부 콘텐츠
         Row(
             modifier = Modifier
-                .padding(horizontal = 8.dp, vertical = 10.dp)
+                .padding(horizontal = 6.dp, vertical = 6.dp)
                 .height(IntrinsicSize.Min), // 구분선 높이 자동 조정
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp) // 균등 간격
+            horizontalArrangement = Arrangement.spacedBy(4.dp) // 균등 간격
         ) {
             // ── AI 카테고리 컨테이너 ──
             InfoSection(
@@ -159,7 +160,7 @@ fun InfoBubble(
             Column(
                 modifier = Modifier
                     .weight(0.8f)
-                    .padding(start = 4.dp, end = 8.dp),
+                    .padding(start = 4.dp, end = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -173,7 +174,7 @@ fun InfoBubble(
                 Text(
                     text = subtitleRight,
                     style = AppTextStyles.caption_regular_9,
-                    color = Grey700,
+                    color = Grey500,
                     textAlign = TextAlign.Center, // 중앙 정렬
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -207,7 +208,7 @@ private fun InfoSection(
         Text(
             text = subText,
             style = AppTextStyles.caption_regular_9,
-            color = Grey700,
+            color = Grey500,
             textAlign = TextAlign.Center, // 텍스트 중앙 정렬
             modifier = Modifier.fillMaxWidth()
         )
@@ -223,7 +224,7 @@ private fun VerticalDivider() {
         Modifier
             .fillMaxHeight() // Row의 높이에 맞춤
             .width(1.dp)
-            .padding(vertical = 4.dp)
+            .padding(vertical = 10.dp)
             .background(Grey200)
     )
 }

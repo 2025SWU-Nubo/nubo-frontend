@@ -118,7 +118,9 @@ class RecommendCardDetailViewModel @Inject constructor(
             videoPlatform = videoPlatform,
             aiCategoryName = aiCategoryName,
             createdAt = formatIsoDateToDisplayLegacy(createdAt),
-            updatedAt = formatIsoDateToDisplayLegacy(updatedAt)
+            updatedAt = formatIsoDateToDisplayLegacy(updatedAt),
+            username = username,
+            matchPercent = matchPercent
         )
     }
 }
