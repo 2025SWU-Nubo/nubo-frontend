@@ -62,7 +62,7 @@ fun TutorialScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
 
-        // 1) ⭐ 항상 배경을 먼저 그리기
+        // 1)  항상 배경을 먼저 그리기
         bgResId?.let { resId ->
             Image(
                 painter = painterResource(id = resId),

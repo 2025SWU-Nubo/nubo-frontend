@@ -1,18 +1,21 @@
 // com/example/nubo/di/NetworkModule.kt
 package com.example.nubo.di
 
+import android.content.Context
 import com.example.nubo.data.network.AuthService
 import com.example.nubo.data.network.BoardService
 import com.example.nubo.data.network.CardService
 import com.example.nubo.data.network.LearnService
 import com.example.nubo.data.network.NotificationService
 import com.example.nubo.data.network.ProfileService
+import com.example.nubo.data.network.TokenAuthenticator
 import com.example.nubo.data.network.TokenInterceptor
 import com.example.nubo.data.network.UserService
 import com.example.nubo.data.network.VideoService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -36,11 +39,13 @@ object NetworkModule {
     @Singleton
     fun provideOkHttpClient(
         httpLogging: HttpLoggingInterceptor,
-        tokenInterceptor: TokenInterceptor
+        tokenInterceptor: TokenInterceptor,
+        tokenAuthenticator: TokenAuthenticator
     ): OkHttpClient {
         return OkHttpClient.Builder()
             //  토큰/우회 헤더 → 로깅
             .addInterceptor(tokenInterceptor)
+            .authenticator(tokenAuthenticator)
             .addInterceptor(httpLogging)
             .connectTimeout(10, TimeUnit.SECONDS)   // TCP connect
             .writeTimeout(120, TimeUnit.SECONDS)    // request body
@@ -93,4 +98,11 @@ object NetworkModule {
     @Provides @Singleton
     fun provideLearnService(retrofit: Retrofit): LearnService =
         retrofit.create(LearnService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideTokenAuthenticator(
+        @ApplicationContext context: Context,
+    ): TokenAuthenticator = TokenAuthenticator(context)
+
 }

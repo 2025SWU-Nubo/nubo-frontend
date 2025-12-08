@@ -143,7 +143,7 @@ data class AppToastData(
     @DrawableRes val iconRes: Int? = null,
     val iconTint: Color? = null,
     val durationMillis: Int = 2000,
-    val preDelayMillis: Int = 400,
+    val preDelayMillis: Int = 180,
     val actionLabel: String? = null,
     val onAction: (() -> Unit)? = null,
 )
@@ -256,7 +256,7 @@ class AppToastHostState {
         @DrawableRes iconRes: Int? = null,
         iconTint: Color? = null,
         durationMillis: Int = 2000,
-        preDelayMillis: Int = 400,
+        preDelayMillis: Int = 180,
         actionLabel: String? = null,
         onAction: (() -> Unit)? = null,
     ) = show(
@@ -324,37 +324,35 @@ fun AppToastHost(
             enter =
                 fadeIn(
                     animationSpec = tween(
-                        durationMillis = 320,
+                        durationMillis = 180,
                         easing = LinearOutSlowInEasing
                     )
                 ) +
                     scaleIn(
-                        initialScale = 0.9f,
+                        initialScale = 0.97f,
                         animationSpec = tween(
-                            durationMillis = 320,
+                            durationMillis = 180,
                             easing = LinearOutSlowInEasing
                         )
                     ) +
                     slideInVertically(
-                        // 토스트 높이의 1/4 정도 아래에서 살짝 올라오게
-                        initialOffsetY = { fullHeight -> fullHeight },
+                        initialOffsetY = { 20 }, // 화면 전체 기준 X, 40px 아래에서 시작
                         animationSpec = tween(
-                            durationMillis = 320,
+                            durationMillis = 200,
                             easing = LinearOutSlowInEasing
                         )
                     ),
             exit =
                 fadeOut(
                     animationSpec = tween(
-                        durationMillis = 200,
+                        durationMillis = 140,
                         easing = FastOutLinearInEasing
                     )
                 ) +
                     slideOutVertically(
-                        // 살짝 아래로 내려가면서 사라지게
-                        targetOffsetY = { fullHeight -> fullHeight / 9 },
+                        targetOffsetY = { 30 }, // 살짝 아래로 떨어지며 종료
                         animationSpec = tween(
-                            durationMillis = 220,
+                            durationMillis = 160,
                             easing = FastOutLinearInEasing
                         )
                     )
@@ -741,19 +739,7 @@ fun AppToastOverlay(
         .asPaddingValues()
         .calculateBottomPadding()
 
-    var showOverlay by remember { mutableStateOf(false) }
-
-    LaunchedEffect(hostState.current) {
-        if (hostState.current != null) {
-            showOverlay = true
-        } else {
-            delay(200)
-            showOverlay = false
-        }
-    }
-
-    if (!showOverlay) return
-
+    // Popup은 항상 켜둔다 (showOverlay 제거)
     Popup(
         alignment = Alignment.BottomCenter,
         properties = PopupProperties(
@@ -778,6 +764,7 @@ fun AppToastOverlay(
         }
     }
 }
+
 
 // ──────────────────────────────────────────────────────────────
 // 프리뷰

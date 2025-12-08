@@ -39,13 +39,9 @@ import com.example.components.toast.LocalAppToastHostState
 import com.example.components.toast.rememberAppToastHostState
 import com.example.nubo.MainActivity
 import com.example.nubo.R
-import com.example.nubo.data.repository.AuthRepository
 import com.example.nubo.ui.component.dialog.NotificationPermissionDialog
-import com.example.nubo.ui.screen.notification.NotificationViewModel
-import com.example.nubo.ui.screen.profile.AuthViewModel
 import com.example.nubo.ui.theme.AppTextStyles
 import com.example.nubo.ui.theme.PurpleMain500
-import com.example.nubo.utils.buildAppNotificationSettingsIntent
 import com.example.nubo.utils.cacheToStore
 import com.example.nubo.utils.rememberNotificationSettingsLauncher
 import com.google.android.gms.auth.api.signin.GoogleSignIn

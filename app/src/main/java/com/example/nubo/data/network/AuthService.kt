@@ -2,6 +2,8 @@ package com.example.nubo.data.network
 
 import com.example.nubo.data.model.LoginRequest
 import com.example.nubo.data.model.LoginResponse
+import com.example.nubo.data.model.RefreshTokenRequest
+import com.example.nubo.data.model.RefreshTokenResponse
 import com.example.nubo.data.model.TokenCheckRequest
 import com.example.nubo.data.model.TokenValidationResponse
 import retrofit2.Call
@@ -18,4 +20,8 @@ interface AuthService {
     @Headers("Content-Type: application/json")
     @POST("/api/auth/check-token")
     fun checkToken(@Body request: TokenCheckRequest): Call<TokenValidationResponse>
+
+    @Headers("Content-Type: application/json")
+    @POST("/api/auth/refresh")
+    fun refreshToken(@Body request: RefreshTokenRequest): Call<RefreshTokenResponse>
 }

@@ -122,9 +122,10 @@ class NotificationViewModel @Inject constructor(
                     invitationId = item.invitationId
                 )
 
+//                새로 고침
+                refresh()
+
                 setActionLoading(item.notificationId, false)
-                // 성공 시 목록에서 해당 초대 알림 제거 또는 상태 갱신
-//                applyInviteResultLocally(notificationId = item.notificationId, accepted = true)
             }.onFailure { e ->
                 Log.e("NOTI", "accept onFailure: ${e.javaClass.simpleName}: ${e.message}", e)
                     setActionLoading(item.notificationId, false)
@@ -154,6 +155,11 @@ class NotificationViewModel @Inject constructor(
                     accepted = false,
                     invitationId = item.invitationId
                 )
+
+
+                // 서버 최신 목록 다시 조회
+                refresh()
+
                 setActionLoading(item.notificationId, false)
             }.onFailure {
                     setActionLoading(item.notificationId, false)
