@@ -13,19 +13,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-// UI 이벤트
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import androidx.compose.runtime.remember
-// 프로젝트 리소스 / theme
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.draw.shadow
+import kotlinx.coroutines.launch
 import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
 import com.example.nubo.ui.theme.AppTextStyles.b2_medium_16
-
-// 커스텀 확장 함수 (너희 프로젝트 공용 noRippleClickable)
 import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.Grey10
-import com.example.nubo.ui.theme.Grey30
 import com.example.nubo.ui.theme.Grey700
+import com.example.nubo.ui.theme.GreyMain300
 
 
 /** 보드 상세, 섹션 상세 공통 메뉴 및 enum 파일 */
@@ -51,6 +60,103 @@ enum class BoardAction {
     MOVE
 }
 
+
+// 모든 보드 내부 바텀시트에서 공통으로 사용하는 컨테이너
+// ---------------------------------------------
+// 기능:
+// - 뒤 배경 Dim 처리
+// - 배경 터치 시 닫기
+// - 위 핸들(Handle) 표시
+// - 아래로 드래그해서 닫기
+// - 상단 라운드 코너 처리
+// - 콘텐츠는 ColumnScope로 받아서 시트 내부에 배치
+// ---------------------------------------------
+@Composable
+fun BottomSheetContainer(
+    visible: Boolean,            // 시트가 열려 있는지 여부
+    onDismiss: () -> Unit,       // 시트 닫기 콜백
+    content: @Composable ColumnScope.() -> Unit // 시트 내부 UI
+) {
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = slideInVertically(
+            initialOffsetY = { fullHeight -> fullHeight }
+        ),
+        exit = slideOutVertically(
+            targetOffsetY = { fullHeight -> fullHeight }
+        )
+    ) {
+        // 드래그 이동값 (y축 오프셋)
+        val offsetY = remember { Animatable(0f) }
+
+        val scope = rememberCoroutineScope()
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            // 실제 바텀시트 영역
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    // 드래그한 만큼 아래로 이동
+                    .offset { IntOffset(0, offsetY.value.roundToInt()) }
+                    // 바텀시트 그림자 적용
+                    .shadow(
+                        elevation = 22.dp,
+                        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                        clip = false
+                    )
+                    // 드래그 처리
+                    .draggable(
+                        orientation = Orientation.Vertical,
+                        state = rememberDraggableState { delta ->
+                            // snapTo는 suspend 함수 → launch 안에서 호출해야 함
+                            scope.launch {
+                                offsetY.snapTo(offsetY.value + delta)
+                            }
+                        },
+                        onDragStopped = {
+                            scope.launch {
+                                if (offsetY.value > 200f) {
+                                    onDismiss()
+                                } else {
+                                    offsetY.animateTo(0f, tween(200))
+                                }
+                            }
+                        }
+                    )
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                    .background(Color.White)
+            ) {
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                ) {
+
+                    // 상단 핸들(Handle)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp, bottom = 2.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(width = 50.dp, height = 3.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(GreyMain300)
+                        )
+                    }
+                    // 실제 콘텐츠
+                    content()
+                }
+            }
+        }
+    }
+}
+
 // 공통 메뉴 콘텐츠
 @Composable
 fun MenuContent(
@@ -61,6 +167,7 @@ fun MenuContent(
     source: String?,           // "AI" / "USER" / null
     isShared: Boolean,         // 공유 보드인지
     isOwner: Boolean,          // 내가 owner인지
+    isMine :Boolean,           // 내가 생성자인지
 
     // 콜백들
     onRenameClick: () -> Unit,
@@ -73,12 +180,20 @@ fun MenuContent(
     // -----------------------
     // 1) 조건 기반 메뉴 생성
     // -----------------------
-    val menuList = remember(isSectionScreen, source, isShared, isOwner) {
+    val menuList = remember(isSectionScreen, source, isShared, isOwner,isMine) {
+
+        // 0. 공유보드 + 섹션 내부 + owner=false + mine=false → 카드 선택만 표시
+        if (isSectionScreen && isShared && !isOwner && !isMine) {
+            return@remember listOf(
+                MenuRow("카드 선택", R.drawable.ic_board_selectfile, onSelectCardClick)
+            )
+        }
+
         when {
             // 1. 섹션 상세 화면
             isSectionScreen -> listOf(
                 MenuRow("이름 변경", R.drawable.ic_board_rename, onRenameClick),
-                MenuRow("항목 선택", R.drawable.ic_board_selectfile, onSelectCardClick)
+                MenuRow("카드 선택", R.drawable.ic_board_selectfile, onSelectCardClick)
             )
 
             // 2. 보드 source = AI
@@ -123,8 +238,6 @@ fun MenuContent(
         modifier = Modifier
             .fillMaxWidth()
             .imePadding(),
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        shadowElevation = 8.dp,
         color = Color.White
     ) {
         Column(
@@ -145,14 +258,6 @@ fun MenuContent(
                     text = title,
                     style = b1_semibold_18,
                     color = Color(0xFF1A1A1A)
-                )
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_close),
-                    contentDescription = "닫기",
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .size(24.dp)
-                        .noRippleClickable { onDismiss() }
                 )
             }
 

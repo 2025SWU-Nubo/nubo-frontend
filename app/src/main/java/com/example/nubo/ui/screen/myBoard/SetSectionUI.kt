@@ -48,8 +48,6 @@ fun SectionRename(
     Surface(
         modifier = modifier
             .fillMaxWidth(),
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        shadowElevation = 8.dp,
         color = Color.White
     ) {
         Column(
@@ -182,8 +180,6 @@ fun AddSection(
         modifier = Modifier
             .imePadding()
             .fillMaxWidth(),
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        shadowElevation = 8.dp,
         color = Color.White
     ) {
         Column(

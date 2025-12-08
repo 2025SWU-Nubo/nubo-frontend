@@ -332,13 +332,40 @@ fun SectionDetailScreen(
                 }
             }
         }
+        // 바텀바 뒤에 dim 표시
+        val shouldShowDim =
+            when (bottomSheetType) {
+                BottomSheetType.NONE -> false
 
+                BottomSheetType.SELECTION ->
+                    showBoardSelector   // 선택 모드에서는 boardSelector가 열릴 때만 dim 표시
+
+                else -> true           // 나머지 시트는 dim 표시
+            }
+        if (shouldShowDim) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.35f))
+                    .clickable {
+                        if (bottomSheetType == BottomSheetType.SELECTION && showBoardSelector) {
+                            showBoardSelector = false
+                        } else {
+                            bottomSheetType = BottomSheetType.NONE
+                        }
+                    }
+            )
+        }
         // 바텀 시트 로직을 bottomSheetType에 따라 분기하여 표시
-        AnimatedVisibility(
+        BottomSheetContainer(
             visible = bottomSheetType != BottomSheetType.NONE,
-            enter = slideInVertically(initialOffsetY = { it }),
-            exit = slideOutVertically(targetOffsetY = { it }),
-            modifier = Modifier.align(Alignment.BottomCenter)
+            onDismiss = {
+                if (bottomSheetType == BottomSheetType.SELECTION) {
+                    resetSelectionState()
+                }
+                showBoardSelector = false
+                bottomSheetType = BottomSheetType.NONE
+            }
         ) {
             when (bottomSheetType) {
                 BottomSheetType.SELECTION -> {
@@ -431,6 +458,7 @@ fun SectionDetailScreen(
                         source = null,
                         isShared = false,
                         isOwner = ui.board?.owner ?: false,
+                        isMine = ui.board?.mine ?:false,
                         onRenameClick = {
                             bottomSheetType = BottomSheetType.SECTION_RENAME
                         },

@@ -6,7 +6,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,17 +16,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -58,29 +52,25 @@ import com.example.nubo.model.myBoard.BoardItem
 import com.example.nubo.ui.component.BoardDetailContent
 import com.example.nubo.ui.component.cardHeightForIndex
 import com.example.nubo.ui.component.sheet.InviteSheet
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import com.example.nubo.ui.screen.add.SheetTopToast
 import com.example.nubo.ui.theme.AppTextStyles.headline_regular_26
 import com.example.nubo.ui.theme.AppTextStyles.subtitle_medium_16
 import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.GreyMain300
-import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.PurpleMain500
 import com.example.nubo.model.card.CardItem
-import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
-import com.example.nubo.ui.theme.AppTextStyles.b3_medium_14
 import com.example.nubo.utils.postRefreshTick
 import getDisplayDate
 import java.net.URLDecoder
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.components.toast.AppToastLayout
-import com.example.nubo.ui.theme.AppTextStyles.b3_regular_14
-import com.example.nubo.ui.theme.Grey1000
-import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.utils.REFRESH_TICK_KEY
 import kotlinx.coroutines.launch
@@ -158,6 +148,16 @@ fun BoardDetailScreen(
     // 진입 시 한 번 초기 로드
     LaunchedEffect(boardId) {
         viewModel.init(boardId)
+    }
+
+    // 바텀바 상단 토스트
+    var showShareWarning by remember { mutableStateOf(false) }
+    var sheetHeight by remember { mutableStateOf(0) }   // 바텀시트 실제 높이(px)
+
+    LaunchedEffect(bottomSheetType) {
+        if (bottomSheetType != BottomSheetType.BOARD_MEMBERS) {
+            showShareWarning = false
+        }
     }
 
     // 토스트 상태 및 코루틴 스코프 선언
@@ -298,10 +298,6 @@ fun BoardDetailScreen(
     // 공유 보드 초대 ViewModel 상태 구독
     val currentBoardMembers by viewModel.currentBoardMembers.collectAsState()
     val inviteResetSignal by viewModel.inviteResetSignal.collectAsState()
-
-    // 보드 설정 화면의 임시 상태 저장용 변수
-    var tempEditName by remember { mutableStateOf<String?>(null) }
-    var tempEditShared by remember { mutableStateOf<Boolean?>(null) }
 
     // 공유 보드 멤버 상태 구독
     val activeMembers by viewModel.activeMembers.collectAsState()
@@ -494,14 +490,49 @@ fun BoardDetailScreen(
                 }
             }
         }
+        // 바텀바 뒤에 dim 표시
+        val shouldShowDim =
+            when (bottomSheetType) {
+                BottomSheetType.NONE -> false
+
+                BottomSheetType.SELECTION ->
+                    showBoardSelector   // 선택 모드에서는 boardSelector가 열릴 때만 dim 표시
+
+                else -> true           // 나머지 시트는 dim 표시
+            }
+        if (shouldShowDim) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.35f))
+                    .clickable {
+                        // dim 클릭 시 닫기
+                        if (bottomSheetType == BottomSheetType.SELECTION && showBoardSelector) {
+                            // board selector만 닫기
+                            showBoardSelector = false
+                        } else {
+                            bottomSheetType = BottomSheetType.NONE
+                        }
+                    }
+            )
+        }
         // 바텀 시트 로직을 bottomSheetType에 따라 분기하여 표시
-        AnimatedVisibility(
+        BottomSheetContainer(
             visible = bottomSheetType != BottomSheetType.NONE,
-            enter = slideInVertically(initialOffsetY = { it }),
-            exit = slideOutVertically(targetOffsetY = { it }),
-            modifier = Modifier.align(Alignment.BottomCenter)
+            onDismiss = {
+                if (bottomSheetType == BottomSheetType.SELECTION) {
+                    // 선택 모드 종료
+                    resetSelectionState()
+                    isSelectionMode = false
+                }
+                bottomSheetType = BottomSheetType.NONE
+                showBoardSelector = false
+            }
         ) {
             when (bottomSheetType) {
+                BottomSheetType.NONE -> { /* empty */
+                }
+
                 BottomSheetType.SELECTION -> {
                     // 기존 선택 모드 바텀 시트
                     SelectionBottomBar(
@@ -523,7 +554,11 @@ fun BoardDetailScreen(
                                     viewModel.loadBoards()
                                 },
                                 onCancelClick = { resetSelectionState() },
-                                onBack = { bottomSheetType = BottomSheetType.MENU },
+                                onBack = {
+                                    bottomSheetType = BottomSheetType.MENU
+                                    resetSelectionState()
+                                    isSelectionMode = false
+                                },
                                 // 메뉴에서 들어왔을 때만 뒤로가기 버튼 표시
                                 showBackButton = selectionFromMenu
                             )
@@ -576,12 +611,13 @@ fun BoardDetailScreen(
                             // 1) 초대 대상 임시 저장
                             viewModel.updateBoardMembers(emails, users)
 
-                            // 2) 공유 여부를 현재 보드 기준으로 판단
-                            val draftShared = ui.board?.shared ?: false
+                            // 2) 공유보드 전환이 필요한지 계산
+                            //    → 현재 보드가 개인보드(shared == false)라면 공유 전환해야 함
+                            val needShare = ui.board?.shared == false
 
                             // 3) 공유 전환 + 초대 API 통합 처리
                             viewModel.inviteAndShareIfNeeded(
-                                draftIsShared = draftShared,
+                                draftIsShared = needShare,
                                 onFinished = {
                                     bottomSheetType = BottomSheetType.BOARD_MEMBERS
                                 }
@@ -595,16 +631,30 @@ fun BoardDetailScreen(
                 }
                 // 참여자 목록 화면 연결
                 BottomSheetType.BOARD_MEMBERS -> {
-                    BoardMembersSheet(
-                        activeMembers = activeMembers,
-                        pendingMembers = pendingMembers,
-                        onBack = { bottomSheetType = BottomSheetType.MENU },
-                        onCancelInvite = { invitationId ->
-                            viewModel.cancelInvitation(invitationId)
-                        },
-                        isOwner = ui.board?.owner ?: false,
-                        onInviteClick = { bottomSheetType = BottomSheetType.INVITE }
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onGloballyPositioned { layoutCoordinates ->
+                                sheetHeight = layoutCoordinates.size.height
+                            }
+                    ) {
+                        BoardMembersSheet(
+                            activeMembers = activeMembers,
+                            pendingMembers = pendingMembers,
+                            onBack = { bottomSheetType = BottomSheetType.MENU },
+                            onCancelInvite = { invitationId ->
+                                viewModel.cancelInvitation(invitationId)
+                            },
+                            isOwner = ui.board?.owner ?: false,
+                            onInviteClick = { bottomSheetType = BottomSheetType.INVITE }
+                        )
+                        // 개인보드일 때만 바텀바 상단 토스트 표시
+                        if (ui.board?.shared == false) {
+                            LaunchedEffect(Unit) {
+                                showShareWarning = true      // 토스트 보여주기
+                            }
+                        }
+                    }
                 }
                 // 메뉴 버튼 클릭 시 메뉴 바텀바
                 BottomSheetType.MENU -> {
@@ -614,6 +664,7 @@ fun BoardDetailScreen(
                             source = source,
                             isShared = currentBoard.shared,
                             isOwner = currentBoard.owner,
+                            isMine = ui.board?.mine ?: false,
                             onRenameClick = {
                                 bottomSheetType = BottomSheetType.BOARD_RENAME
                             },
@@ -667,7 +718,11 @@ fun BoardDetailScreen(
                     }
                 }
 
-                else -> {}
+                BottomSheetType.BOARD_SELECTION -> { // 전체 보드 탭 화면에서만 사용
+                }
+
+                BottomSheetType.SECTION_RENAME -> { // 섹션 내부에서 사용
+                }
             }
         }
         LaunchedEffect(listState, ui.isLast, ui.isLoading) {
@@ -696,6 +751,24 @@ fun BoardDetailScreen(
                     showDeleteDialog = false
                 }
             }
+        )
+    }
+    val density = LocalDensity.current
+    val toastOffsetDp = with(density) { sheetHeight.toDp() + 16.dp }   // ③ 바텀시트 위로 띄우기
+
+    if (showShareWarning) {
+        SheetTopToast(
+            title = buildAnnotatedString {
+                append("공유 보드로 바꾸면 ")
+                withStyle(SpanStyle(color = PurpleMain500)) {
+                    append("개인 보드로 되돌릴 수 없어요.")
+                }
+            },
+            message = "참여자를 초대하면 나중에 개인 보드로 바꿀 수 없어요.",
+            visible = showShareWarning,
+            onDismiss = { showShareWarning = false },
+            durationMillis = 100000L,          // 토스트 지속 시간
+            bottomOffset = toastOffsetDp       // 바텀시트 실제 높이 기반 offset
         )
     }
 }

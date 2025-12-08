@@ -159,7 +159,9 @@ fun ActionsContent(
                 textAlign = TextAlign.Center
             )
 
-            // --- 조건부 뒤로가기 버튼 ---
+            Spacer(modifier = Modifier.width(48.dp))
+
+            /*// --- 조건부 닫기 버튼 ---
             if (!showBackButton) {
                 // 닫기(X) 아이콘 버튼 — 오른쪽으로 이동
                 IconButton(
@@ -172,9 +174,9 @@ fun ActionsContent(
                     )
                 }
             }else {
-                // 뒤로가기 버튼이 없을 때는 균형 맞추기 위해 동일한 크기의 Spacer
+                // 닫기 버튼이 없을 때는 균형 맞추기 위해 동일한 크기의 Spacer
                 Spacer(modifier = Modifier.width(48.dp))
-            }
+            }*/
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -279,7 +281,7 @@ fun DeleteConfirmationDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.5f))
+                .background(Color.Black.copy(alpha = 0.35f))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,

@@ -44,8 +44,6 @@ fun BoardMembersSheet(
         modifier = Modifier
             .imePadding()
             .fillMaxWidth(),
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        shadowElevation = 8.dp, // 입체 효과
         color = Color.White
     ) {
         Column(
