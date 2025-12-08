@@ -167,21 +167,35 @@ fun MyMasonryCard(
         }
 
         // --- 선택 모드 오버레이 ---
-        if (isSelectionMode && isSelected) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(Color.White.copy(alpha = 0.5f))
-            )
-            Icon(
-                painter = painterResource(id = R.drawable.ic_board_selected), // 체크 아이콘
-                contentDescription = "선택됨",
-                tint = Color.Unspecified,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp)
-                    .size(24.dp)
-            )
+        if (isSelectionMode) {
+
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(Color.White.copy(alpha = 0.5f))
+                )
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_board_selected),
+                    contentDescription = "선택됨",
+                    tint = Color.Unspecified,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp)
+                        .size(24.dp)
+                )
+
+            } else {
+                Icon(
+                    painter = painterResource(id = R.drawable.board_unselect),
+                    contentDescription = "선택되지 않음",
+                    tint = Color.Unspecified,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp)
+                        .size(24.dp)
+                )
+            }
         }
     }
 }

@@ -180,44 +180,7 @@ fun MyBoardRoute(
     // MyBoardRoute
     // BottomBar 충돌 문제 해결
     // --- Scaffold에는 modifier를 적용하지 않고, SnackbarHost에만 적용 ---
-    Scaffold(
-        bottomBar = {
-            // --- 카드 선택 모드 바텀바 ---
-            if (isCardSelectionMode) {
-                BoardSelectionContent(
-                    onDeleteClick = {
-                        scope.launch {
-                            boardViewModel.deleteCardsFromGlobal(selectedCardIds)
-                        }
-                    },
-                    onDismiss = { resetCardSelectionState() },
-                    selectedBoardCount = selectedBoardIds.size,
-                    selectedCardCount = selectedCardIds.size
-                )
-            }
-            // --- 보드 선택 모드 바텀바 ---
-            if (isBoardSelectionMode) {
-                when (boardBottomSheetType) {
-                    BottomSheetType.BOARD_SELECTION -> {
-                        BoardSelectionContent(
-                            onDeleteClick = {
-                                // 현재 ID 목록을 새 변수에 캡처
-                                boardIdsToDelete = selectedBoardIds
-
-                                showBoardDeleteDialog = true
-                                // 바텀시트를 닫도록 명시 (이래야 onDismiss가 호출됨)
-                                boardBottomSheetType = BottomSheetType.NONE
-                            },
-                            onDismiss = { resetBoardSelectionState() },
-                            selectedBoardCount = selectedBoardIds.size,
-                            selectedCardCount = selectedCardIds.size
-                        )
-                    }
-                    else -> {}
-                }
-            }
-        }
-    ) { innerPadding ->
+    Scaffold() { innerPadding ->
         MyBoardScreen(
             // --- MyBoardScreen에는 내부 Scaffold의 innerPadding만 전달 ---
             modifier = Modifier.padding(innerPadding),
@@ -338,6 +301,36 @@ fun MyBoardRoute(
                 showBoardDeleteDialog = false
                 resetBoardSelectionState() // 삭제 후 선택모드 해제
             }
+        )
+    }
+    // 선택 모드 바텀바 컨테이너
+    BottomSheetContainer(
+        visible = isCardSelectionMode,
+        onDismiss = { resetCardSelectionState() }
+    ) {
+        BoardSelectionContent(
+            onDeleteClick = {
+                scope.launch { boardViewModel.deleteCardsFromGlobal(selectedCardIds) }
+            },
+            onDismiss = { resetCardSelectionState() },
+            selectedBoardCount = 0,
+            selectedCardCount = selectedCardIds.size
+        )
+    }
+
+    BottomSheetContainer(
+        visible = isBoardSelectionMode && boardBottomSheetType == BottomSheetType.BOARD_SELECTION,
+        onDismiss = { resetBoardSelectionState() }
+    ) {
+        BoardSelectionContent(
+            onDeleteClick = {
+                boardIdsToDelete = selectedBoardIds
+                showBoardDeleteDialog = true
+                boardBottomSheetType = BottomSheetType.NONE
+            },
+            onDismiss = { resetBoardSelectionState() },
+            selectedBoardCount = selectedBoardIds.size,
+            selectedCardCount = 0
         )
     }
 }

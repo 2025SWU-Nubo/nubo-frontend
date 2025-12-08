@@ -75,8 +75,6 @@ fun BoardSelectionContent(
     Surface(
         modifier = Modifier
             .fillMaxWidth(),
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        shadowElevation = 8.dp, // 입체 효과
         color = Color.White
     ) {
         val title = when {
@@ -89,8 +87,9 @@ fun BoardSelectionContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
+                .padding(top=24.dp)
         ) {
-            IconButton(
+          /*  IconButton(
                 onClick = onDismiss,
                 modifier = Modifier.padding(start = 4.dp, top = 10.dp)
             ) {
@@ -98,8 +97,7 @@ fun BoardSelectionContent(
                     painter = painterResource(id = R.drawable.ic_close),
                     contentDescription = "닫기"
                 )
-            }
-            Spacer(modifier = Modifier.height(10.dp))
+            }*/
             val isEnabled = selectedBoardCount > 0 || selectedCardCount > 0
             Row(
                 modifier = Modifier
