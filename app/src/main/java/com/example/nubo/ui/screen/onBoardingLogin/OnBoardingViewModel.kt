@@ -136,6 +136,33 @@ class OnBoardingViewModel @Inject constructor(
         }
     }
 
+    private fun tryRefreshTokenAndRetry() {
+        viewModelScope.launch {
+            val refresh = authRepository.getRefreshToken()
+
+            if (refresh.isNullOrBlank()) {
+                handleTokenExpired()
+                return@launch
+            }
+
+            runCatching {
+                authRepository.refreshAccessToken(refresh)
+            }.onSuccess { newToken ->
+                Log.d("Auth", "Refresh success → retry navigate")
+                registerPushAfterLogin()
+
+                navigateToMainWithOnboarding(
+                    needsTutorial = !newToken.tutorialCompleted,
+                    needsInterest = !newToken.interestSetupCompleted
+                )
+            }.onFailure {
+                Log.e("Auth", "Refresh failed → logout")
+                handleTokenExpired()
+            }
+        }
+    }
+
+
     /** 서버 AccessToken 유효성 검사 → 통과 시 푸시 토큰 업서트, 실패 시 로그아웃 처리 */
     private fun validateTokenWithServer() {
         viewModelScope.launch {
@@ -168,11 +195,11 @@ class OnBoardingViewModel @Inject constructor(
                         }
 
                         val result = response.body()
-                        // if token is not valid or explicitly expired -> treat as expired
                         if (result?.valid != true || result.expired) {
-                            handleTokenExpired()
+                            tryRefreshTokenAndRetry()
                             return
                         }
+
 
 
                         // 2) 서버 플래그를 로컬에 싱크

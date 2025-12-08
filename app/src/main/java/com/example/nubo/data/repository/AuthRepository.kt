@@ -6,6 +6,8 @@ import android.content.SharedPreferences
 import android.util.Log
 import com.example.nubo.data.model.LoginRequest
 import com.example.nubo.data.model.LoginResponse
+import com.example.nubo.data.model.RefreshTokenRequest
+import com.example.nubo.data.model.RefreshTokenResponse
 import com.example.nubo.data.model.TokenCheckRequest
 import com.example.nubo.data.model.TokenValidationResponse
 import com.example.nubo.data.model.UserInfo
@@ -30,6 +32,8 @@ class AuthRepository @Inject constructor(
         private const val TAG = "AuthRepository"
 
         private const val KEY_ACCESS_TOKEN = "access_token"
+        private const val KEY_REFRESH_TOKEN = "refresh_token"
+
         private const val KEY_USER_ID = "user_id"
         private const val KEY_USER_INFO = "user_info"
 
@@ -70,6 +74,33 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    suspend fun refreshAccessToken(refreshToken: String): RefreshTokenResponse {
+        Log.d(TAG, "refreshAccessToken() call start")
+
+        val request = RefreshTokenRequest(refreshToken)
+        val response = authService.refreshToken(request).execute()
+
+        if (!response.isSuccessful) {
+            Log.e(TAG, "refresh failed: code=${response.code()}")
+            throw Exception("Refresh failed")
+        }
+
+        val body = response.body() ?: throw Exception("Empty refresh body")
+
+        // 서버가 새 토큰 내려줌 → 저장
+        saveAccessToken(body.accessToken)
+        saveRefreshToken(body.refreshToken)
+        saveUserInfo(body.user)
+
+        saveOnboardingFlags(
+            interestCompleted = body.interestSetupCompleted,
+            tutorialCompleted = body.tutorialCompleted
+        )
+
+        Log.d(TAG, "refresh success → new access token saved")
+        return body
+    }
+
     // --- Token & user info persistence ---
     fun saveAccessToken(token: String) {
         Log.d(TAG, "saveAccessToken() length=${token.length} preview=${token.take(10)}...")
@@ -91,6 +122,14 @@ class AuthRepository @Inject constructor(
         return sharedPreferences.getString(KEY_ACCESS_TOKEN, null)
     }
 
+    fun saveRefreshToken(token: String) {
+        sharedPreferences.edit().putString(KEY_REFRESH_TOKEN, token).apply()
+    }
+
+    fun getRefreshToken(): String? =
+        sharedPreferences.getString(KEY_REFRESH_TOKEN, null)
+
+
     fun getUserId(): Int? {
         val v = sharedPreferences.getInt(KEY_USER_ID, Int.MIN_VALUE)
         return if (v == Int.MIN_VALUE) null else v
@@ -103,6 +142,7 @@ class AuthRepository @Inject constructor(
     fun logout() {
         sharedPreferences.edit().apply {
             remove(KEY_ACCESS_TOKEN)
+            remove(KEY_REFRESH_TOKEN)
             remove(KEY_USER_ID)
             apply()
         }
@@ -113,6 +153,7 @@ class AuthRepository @Inject constructor(
         Log.d(TAG, "clearAuthData() remove all auth related prefs")
         sharedPreferences.edit().apply {
             remove(KEY_ACCESS_TOKEN)
+            remove(KEY_REFRESH_TOKEN)
             remove(KEY_USER_ID)
             remove(KEY_USER_INFO)
             remove(KEY_INTEREST_COMPLETED)
