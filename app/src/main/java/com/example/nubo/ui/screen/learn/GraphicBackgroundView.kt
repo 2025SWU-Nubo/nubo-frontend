@@ -587,31 +587,34 @@ fun GraphicBackgroundView(
                     // 3. 베리2 (왼쪽 아래) -> 노란색(Yellow)으로 변신
                     BerryItem(
                         resId = R.drawable.learn_barry_2,
-                        offsetX = (-33).dp,
-                        offsetY = 102.dp,
+                        offsetX = (-30).dp,
+                        offsetY = 118.dp,
                         scale = 0.82f,
                         swayRotation = leafWaveRotation,
                         swayOrigin = TransformOrigin(1.0f, 0.2f), // ← 오른쪽 pivot
-                        onClick = { onBerryClick() }
+                        onClick = { onBerryClick() },
+                        baseRotation = 53f
                     )
 
                     // 4. 베리3 (오른쪽 아래) -> 주황색(Orange)으로 변신
                     BerryItem(
-                        resId = R.drawable.learn_berry_3,
-                        offsetX = 23.dp,
-                        offsetY = 107.dp,
+                        resId = R.drawable.learn_barry_2,
+                        offsetX = (-25).dp,
+                        offsetY = 129.dp,
                         scale = 0.82f,
                         swayRotation = -leafWaveRotation,
-                        swayOrigin = TransformOrigin(0.0f, 0.2f), // ← 왼쪽 pivot
-                        onClick = { onBerryClick() }
+                        swayOrigin = TransformOrigin(1.0f, 0.4f), // ← 왼쪽 pivot
+                        onClick = { onBerryClick() },
+                        baseRotation = -50f,
+                        flipHorizontally = true
                     )
 
                     // 2. 베리1 (중앙) -> 빨간색(Red)으로 변신
                     BerryItem(
                         resId = R.drawable.learn_berry_1,
-                        offsetX = (-40).dp,
-                        offsetY = 90.dp,
-                        scale = 0.82f,
+                        offsetX = (-3).dp,
+                        offsetY = 40.dp,
+                        scale = 0.85f,
                         swayRotation = leafWaveRotation,
                         swayOrigin = TransformOrigin(0.5f, 1.3f),
                         onClick = { /* optional: 상위 로직 */ }
@@ -737,25 +740,27 @@ fun BerryItem(
     scale: Float,
     swayRotation: Float,            // 기존 바람 애니메이션 값
     swayOrigin: TransformOrigin,    // 베리가 달린 위치 (pivot)
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    baseRotation: Float = 0f,     // ← 기본 회전값 추가
+    flipHorizontally: Boolean = false
 ) {
     val scope = rememberCoroutineScope()
 
-    // 🔥 클릭 시 좌우로 흔들리는 스윙 애니메이션 값
+    // 클릭 시 좌우로 흔들리는 스윙 애니메이션 값
     val swingAnim = remember { Animatable(0f) }
 
-    // 🔥 클릭하면 좌우로 약하게 스윙
+    // 클릭하면 좌우로 약하게 스윙
     val onSwing = {
         scope.launch {
             swingAnim.snapTo(0f)
 
             repeat(2) {
                 swingAnim.animateTo(
-                    targetValue = 8f,   // 오른쪽 약하게
+                    targetValue = 4f,   // 오른쪽 약하게
                     animationSpec = tween(180, easing = EaseInOutSine)
                 )
                 swingAnim.animateTo(
-                    targetValue = -8f,  // 왼쪽 약하게
+                    targetValue = -4f,  // 왼쪽 약하게
                     animationSpec = tween(180, easing = EaseInOutSine)
                 )
             }
@@ -778,8 +783,11 @@ fun BerryItem(
                 // ★ 줄기와 연결된 위치를 pivot으로 고정
                 transformOrigin = swayOrigin
 
-                // ★ 기존 바람 흔들림 + 클릭 스윙을 합산
-                rotationZ = swayRotation + swingAnim.value
+                // 기본 회전값 + 바람 애니 + 스윙 애니 합산
+                rotationZ = baseRotation + swayRotation + swingAnim.value
+
+                // 이미지 좌우 반전 옵션
+                if (flipHorizontally) scaleX = -1f
             }
             .noRippleClickable {
                 onSwing()     // 스윙 애니메이션 실행
