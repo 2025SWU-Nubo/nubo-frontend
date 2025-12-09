@@ -305,6 +305,15 @@ fun SectionDetailScreen(
                                 onCardLongClick = { cardId ->
                                     // 롱클릭 시 선택 모드로 진입하고, 현재 카드 선택
                                     if (!isSelectionMode) {
+                                        // 공유 보드 + 내가 mine == false면 선택 모드 진입 금지
+                                        // -----------------------------
+                                        val isShared = ui.board?.shared == true
+                                        val isMine = ui.board?.mine == true
+
+                                        if (isShared && !isMine) {
+                                            // 롱클릭 무시 (남의 카드 선택 불가)
+                                            return@MyCardContent
+                                        }
                                         selectionFromMenu = false
                                         isSelectionMode = true
                                         bottomSheetType = BottomSheetType.SELECTION

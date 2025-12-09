@@ -462,6 +462,14 @@ fun BoardDetailScreen(
                                 onSectionLongClick = { section ->
                                     if (!isSelectionMode) {
                                         selectionFromMenu = false
+
+                                        // 공유 보드에서 mine == false면 선택 모드 진입 금지
+                                        val isSharedBoard = boardState?.shared == true
+                                        val isMineBoard = boardState?.mine == true
+                                        if (isSharedBoard && !isMineBoard) {
+                                            // 선택 모드 진입 자체를 막음 (섹션 롱클릭 무시)
+                                            return@BoardDetailContent
+                                        }
                                         isSelectionMode = true
                                         bottomSheetType = BottomSheetType.SELECTION
                                         selectedSections = setOf(section.id) // 롱클릭한 섹션을 첫 선택 항목으로 지정
