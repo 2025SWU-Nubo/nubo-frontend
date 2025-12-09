@@ -13,7 +13,9 @@ data class SectionDto(
     val shared: Boolean,
     val favorite: Boolean,
     @SerializedName(value = "videoThumbnailUrl", alternate = ["thumbnailUrl"])
-    val thumbnailUrl: String?
+    val thumbnailUrl: String?,
+    val owner: Boolean,
+    val mine: Boolean
 )
 
 // 카드 아이템 (상세의 cards.content 요소)

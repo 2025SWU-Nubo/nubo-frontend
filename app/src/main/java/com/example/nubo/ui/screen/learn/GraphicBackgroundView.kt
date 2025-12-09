@@ -166,13 +166,13 @@ fun GraphicBackgroundView(
                             repeat(2) {
                                 // 한쪽으로 휙
                                 sproutShakeAnim.animateTo(
-                                    targetValue = 30f,
-                                    animationSpec = tween(durationMillis = 150, easing = EaseInOutSine)
+                                    targetValue = 8f,
+                                    animationSpec = tween(durationMillis = 350, easing = EaseInOutSine)
                                 )
                                 // 반대쪽으로 휙
                                 sproutShakeAnim.animateTo(
-                                    targetValue = -10f,
-                                    animationSpec = tween(durationMillis = 150, easing = EaseInOutSine)
+                                    targetValue = -6f,
+                                    animationSpec = tween(durationMillis = 350, easing = EaseInOutSine)
                                 )
                             }
                             // 제자리로 복귀 (탄성 효과)
@@ -526,14 +526,14 @@ fun GraphicBackgroundView(
 
                                     // 좌우로 크게 3번 왕복 (총 4번 이동)
                                     repeat(2) {
-                                        // 왼쪽으로 휙 (-25도)
+                                        // 왼쪽으로 휙 (-8도)
                                         flowerShakeAnim.animateTo(
-                                            targetValue = -15f,
+                                            targetValue = -6f,
                                             animationSpec = tween(durationMillis = 200, easing = EaseInOutSine)
                                         )
-                                        // 오른쪽으로 휙 (25도)
+                                        // 오른쪽으로 휙 (8도)
                                         flowerShakeAnim.animateTo(
-                                            targetValue = 15f,
+                                            targetValue = 6f,
                                             animationSpec = tween(durationMillis = 200, easing = EaseInOutSine)
                                         )
                                     }
@@ -586,44 +586,38 @@ fun GraphicBackgroundView(
 
                     // 3. 베리2 (왼쪽 아래) -> 노란색(Yellow)으로 변신
                     BerryItem(
-                        resId = R.drawable.learn_4_berry2,
-                        clickedResId = R.drawable.learn_4_berry_orange, // 업로드해주신 파일명
-                        offsetX = (-33).dp,
-                        offsetY = 102.dp,
+                        resId = R.drawable.learn_barry_2,
+                        offsetX = (-30).dp,
+                        offsetY = 118.dp,
                         scale = 0.82f,
-                        clickedScale = 0.82f,
                         swayRotation = leafWaveRotation,
-                        swayOrigin = TransformOrigin(0.5f, 1.3f),
-                        isActive = areBerriesActive,
-                        onClick = { onBerryClick() }
+                        swayOrigin = TransformOrigin(1.0f, 0.2f), // ← 오른쪽 pivot
+                        onClick = { onBerryClick() },
+                        baseRotation = 53f
                     )
 
                     // 4. 베리3 (오른쪽 아래) -> 주황색(Orange)으로 변신
                     BerryItem(
-                        resId = R.drawable.learn_4_berry3,
-                        clickedResId = R.drawable.learn_4_berry_yellow, // 업로드해주신 파일명
-                        offsetX = 23.dp,
-                        offsetY = 107.dp,
+                        resId = R.drawable.learn_barry_2,
+                        offsetX = (-25).dp,
+                        offsetY = 129.dp,
                         scale = 0.82f,
-                        clickedScale = 0.82f,
                         swayRotation = -leafWaveRotation,
-                        swayOrigin = TransformOrigin(0.5f, 1.3f),
-                        isActive = areBerriesActive,
-                        onClick = { onBerryClick() }
+                        swayOrigin = TransformOrigin(1.0f, 0.4f), // ← 왼쪽 pivot
+                        onClick = { onBerryClick() },
+                        baseRotation = -50f,
+                        flipHorizontally = true
                     )
 
                     // 2. 베리1 (중앙) -> 빨간색(Red)으로 변신
                     BerryItem(
-                        resId = R.drawable.learn_4_berry,
-                        clickedResId = R.drawable.learn_4_berry_red, // 업로드해주신 파일명
-                        offsetX = (-2).dp,
-                        offsetY = 90.dp,
-                        scale = 0.82f,
-                        clickedScale = 0.82f, // 클릭 시 커지는 크기
+                        resId = R.drawable.learn_berry_1,
+                        offsetX = (-3).dp,
+                        offsetY = 40.dp,
+                        scale = 0.85f,
                         swayRotation = leafWaveRotation,
-                        swayOrigin = TransformOrigin(0.6f, 1.3f),
-                        isActive = areBerriesActive, // 공유 상태 전달
-                        onClick = { onBerryClick() } // 공유 클릭 함수 전달
+                        swayOrigin = TransformOrigin(0.5f, 1.3f),
+                        onClick = { /* optional: 상위 로직 */ }
                     )
                 }
 
@@ -741,42 +735,71 @@ fun RaindropItem(
 @Composable
 fun BerryItem(
     resId: Int,          // 기본 이미지
-    clickedResId: Int,   // 클릭 시 보여줄 이미지
     offsetX: Dp,
     offsetY: Dp,
-    scale: Float,        // 기본 크기
-    clickedScale: Float, // 클릭 시 커질 크기
-    swayRotation: Float, // 흔들림 각도
-    swayOrigin: TransformOrigin, // 매달린 위치
-    isActive: Boolean,   // ★ 부모가 내려주는 활성 상태 (true면 변신)
-    onClick: () -> Unit  // ★ 클릭 이벤트 리스너
+    scale: Float,
+    swayRotation: Float,            // 기존 바람 애니메이션 값
+    swayOrigin: TransformOrigin,    // 베리가 달린 위치 (pivot)
+    onClick: () -> Unit,
+    baseRotation: Float = 0f,     // ← 기본 회전값 추가
+    flipHorizontally: Boolean = false
 ) {
-    // isActive 상태에 따라 크기 애니메이션
-    val currentScale by animateFloatAsState(
-        targetValue = if (isActive) clickedScale else scale,
-        animationSpec = tween(durationMillis = 500, easing = EaseInOutSine),
-        label = "berryScale"
-    )
+    val scope = rememberCoroutineScope()
 
-    // 1. 바깥 Box: 줄기에 매달려 살랑거리는 역할
+    // 클릭 시 좌우로 흔들리는 스윙 애니메이션 값
+    val swingAnim = remember { Animatable(0f) }
+
+    // 클릭하면 좌우로 약하게 스윙
+    val onSwing = {
+        scope.launch {
+            swingAnim.snapTo(0f)
+
+            repeat(2) {
+                swingAnim.animateTo(
+                    targetValue = 4f,   // 오른쪽 약하게
+                    animationSpec = tween(180, easing = EaseInOutSine)
+                )
+                swingAnim.animateTo(
+                    targetValue = -4f,  // 왼쪽 약하게
+                    animationSpec = tween(180, easing = EaseInOutSine)
+                )
+            }
+
+            swingAnim.animateTo(
+                targetValue = 0f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            )
+        }
+    }
+
+    // 1. 바깥 박스: 줄기 고정 + 바람 흔들림 + 클릭 스윙 모두 합산
     Box(
         modifier = Modifier
-            .scale(1f) // 박스 스케일은 고정
             .offset(x = offsetX, y = offsetY)
             .graphicsLayer {
+                // ★ 줄기와 연결된 위치를 pivot으로 고정
                 transformOrigin = swayOrigin
-                rotationY = swayRotation
+
+                // 기본 회전값 + 바람 애니 + 스윙 애니 합산
+                rotationZ = baseRotation + swayRotation + swingAnim.value
+
+                // 이미지 좌우 반전 옵션
+                if (flipHorizontally) scaleX = -1f
+            }
+            .noRippleClickable {
+                onSwing()     // 스윙 애니메이션 실행
+                onClick()     // 필요하면 상위 클릭 로직 호출
             }
     ) {
-        // 2. 안쪽 Image: 클릭 시 이미지 교체 + 크기 변경
+        // 베리 이미지
         Image(
-            // 활성 상태면 클릭 이미지, 아니면 기본 이미지 표시
-            painter = painterResource(id = if (isActive) clickedResId else resId),
-            contentDescription = "베리",
+            painter = painterResource(id = resId),
+            contentDescription = "berry",
             modifier = Modifier
-                .align(Alignment.Center)
-                .scale(currentScale) // 애니메이션된 크기 적용
-                .noRippleClickable { onClick() } // 클릭 시 부모에게 알림
+                .scale(scale)
         )
     }
 }

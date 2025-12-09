@@ -296,8 +296,18 @@ fun SectionDetailScreen(
                                 cardHeights = cardHeights,
                                 onCardClick = { cardId ->
                                     if (isSelectionMode) {
+
+                                        val isShared = ui.board?.shared == true
+                                        val isMine = ui.board?.mine == true
+
+                                        if (isShared && !isMine) {
+                                            return@MyCardContent     // 남의 카드 선택 무시
+                                        }
+
                                         selectedCards =
-                                            if (selectedCards.contains(cardId)) selectedCards - cardId else selectedCards + cardId
+                                            if (selectedCards.contains(cardId)) selectedCards - cardId
+                                            else selectedCards + cardId
+
                                     } else {
                                         navController.navigate("card_detail/$cardId")
                                     }
@@ -305,6 +315,15 @@ fun SectionDetailScreen(
                                 onCardLongClick = { cardId ->
                                     // 롱클릭 시 선택 모드로 진입하고, 현재 카드 선택
                                     if (!isSelectionMode) {
+                                        // 공유 보드 + 내가 mine == false면 선택 모드 진입 금지
+                                        // -----------------------------
+                                        val isShared = ui.board?.shared == true
+                                        val isMine = ui.board?.mine == true
+
+                                        if (isShared && !isMine) {
+                                            // 롱클릭 무시 (남의 카드 선택 불가)
+                                            return@MyCardContent
+                                        }
                                         selectionFromMenu = false
                                         isSelectionMode = true
                                         bottomSheetType = BottomSheetType.SELECTION
@@ -389,7 +408,12 @@ fun SectionDetailScreen(
                                     viewModel.loadBoards()
                                 },
                                 onCancelClick = { resetSelectionState() },
-                                onBack = { bottomSheetType = BottomSheetType.MENU },
+                                onBack = {  // 선택모드 해제
+                                    isSelectionMode = false
+                                    selectedCards = emptySet()
+
+                                    // 메뉴 바텀바로 이동
+                                    bottomSheetType = BottomSheetType.MENU },
                                 // 메뉴에서 들어왔을 때만 뒤로가기 버튼 표시
                                 showBackButton = selectionFromMenu
                             )

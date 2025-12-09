@@ -92,8 +92,6 @@ fun SelectionBottomBar(
                 .fillMaxWidth()
                 .imePadding()
                 .animateContentSize(), // 내용물 크기 변경 시 애니메이션
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-            shadowElevation = 8.dp,
             color = Color.White
         ) {
             if (showBoardSelector) {
