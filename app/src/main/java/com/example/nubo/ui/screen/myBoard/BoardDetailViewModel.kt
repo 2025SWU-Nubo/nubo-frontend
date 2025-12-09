@@ -71,10 +71,6 @@ class BoardDetailViewModel @Inject constructor(
     private var bootstrapped = false
     private val pageSize = 20
 
-    // 섹션 생성 시 이동할 섹션 id
-    private val _lastCreatedSectionId = MutableStateFlow<Int?>(null)
-    val lastCreatedSectionId: StateFlow<Int?> = _lastCreatedSectionId
-
     // --- 삭제 성공 시 '삭제된 개수(Int)'를 UI에 보내기 위한 SharedFlow ---
     private val _deleteCompleteEvent = MutableSharedFlow<Int>()
     val deleteCompleteEvent = _deleteCompleteEvent.asSharedFlow()
@@ -155,13 +151,6 @@ class BoardDetailViewModel @Inject constructor(
     // InviteSheet 재진입 시 검색어 초기화 등을 위한 시그널
     private val _inviteResetSignal = MutableStateFlow(0)
     val inviteResetSignal: StateFlow<Int> = _inviteResetSignal
-
-    // 초대 화면 진입 전 준비
-    fun prepareInvite() {
-        _inviteResetSignal.value += 1
-        // 만약 `_ui.value.board`에 이미 멤버 정보가 있다면
-        // 여기서 _currentBoardMembers에 초기값을 넣어줄 수 있습니다.
-    }
 
     // 멤버 리스트 업데이트 (InviteSheet 완료 시 호출)
     fun updateBoardMembers(
@@ -809,6 +798,33 @@ class BoardDetailViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 // TODO: error toast
+            }
+        }
+    }
+
+    fun inviteAndShareIfNeeded(draftIsShared: Boolean, onFinished: () -> Unit = {}) {
+        val board = _ui.value.board ?: return
+        val isAlreadyShared = board.shared
+
+        viewModelScope.launch {
+            try {
+                // 1) 공유 보드가 아닌데 이번 초대에서 공유 옵션을 켰으면 공유 전환 API 먼저
+                if (!isAlreadyShared && draftIsShared) {
+                    convertToSharedIfNeeded(true)
+                }
+
+                // 2) 초대 대상이 있다면 초대 API 실행
+                sendInvitationsIfNeeded()
+
+                // 3) 완료 후 UI 갱신
+                loadBoardMembers()
+
+                _toastMessage.value = "초대가 완료되었어요."
+
+                onFinished()
+
+            } catch (e: Exception) {
+                _toastMessage.value = "초대에 실패했어요."
             }
         }
     }

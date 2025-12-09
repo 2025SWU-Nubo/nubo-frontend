@@ -44,7 +44,6 @@ import com.example.nubo.ui.theme.PurpleMain500
 import formatIsoDateToDisplayLegacy
 
 
-
 @Composable
 fun MyCardContent(
     cards: List<MyCardItem>,
@@ -100,7 +99,7 @@ fun MyCardContent(
     }
 }
 
-    @OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MyMasonryCard(
     height: Dp,
@@ -151,32 +150,52 @@ fun MyMasonryCard(
 
         //---- 즐겨찾기 추가 ---
         if (isFavorite) {
-            Icon(
-                painter = painterResource(id = R.drawable.card_favorite_new),
-                contentDescription = "즐겨찾기",
-                tint = Color.Unspecified, // 아이콘 원본 색상 사용
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 10.dp, end = 10.dp)
-            )
-        }
-
-        // --- 선택 모드 오버레이 ---
-        if (isSelectionMode && isSelected) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .background(Color.White.copy(alpha = 0.5f))
-            )
-            Icon(
-                painter = painterResource(id = R.drawable.ic_board_selected), // 체크 아이콘
-                contentDescription = "선택됨",
-                tint = Color.Unspecified,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp)
-                    .size(24.dp)
-            )
+                    .padding(top = 8.dp, end = 8.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_card_favorite),
+                    contentDescription = "즐겨찾기",
+                    tint = Color.Unspecified, // 아이콘 원본 색상 사용
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(bottom = 1.dp)
+                )
+            }
+        }
+
+        // --- 선택 모드 오버레이 ---
+        if (isSelectionMode) {
+
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(Color.White.copy(alpha = 0.5f))
+                )
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_board_selected),
+                    contentDescription = "선택됨",
+                    tint = Color.Unspecified,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp)
+                        .size(24.dp)
+                )
+
+            } else {
+                Icon(
+                    painter = painterResource(id = R.drawable.board_unselect),
+                    contentDescription = "선택되지 않음",
+                    tint = Color.Unspecified,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp)
+                        .size(24.dp)
+                )
+            }
         }
     }
 }
@@ -218,6 +237,7 @@ fun <T> buildMasonryBlocks(
             // One small card on the left
             left += items[index] to smallHeight
         }
+
         2 -> {
             // One small card on each column
             left += items[index] to smallHeight

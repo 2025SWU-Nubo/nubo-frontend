@@ -256,22 +256,38 @@ fun BoardCardWithText(
                 }
             }
         }
-        // --- 선택 모드 오버레이 ---
-        if (isSelectionMode && isSelected) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize() // 부모(기존 아이템)와 크기를 맞춤
-                    .background(Color.White.copy(alpha = 0.5f))
-                    .clip(RoundedCornerShape(12.dp))
-            )
-            Icon(
-                painter = painterResource(id = R.drawable.ic_board_selected), // 체크 아이콘
-                contentDescription = "선택됨",
-                tint = Color.Unspecified,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(bottom = 10.dp, end = 8.dp) // 패딩값 조정
-            )
+        // --- 선택 모드 오버레이 전체 처리 ---
+        if (isSelectionMode) {
+
+            if (isSelected) {
+                // 선택된 상태 → 기존 체크 UI
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(Color.White.copy(alpha = 0.5f))
+                        .clip(RoundedCornerShape(12.dp))
+                )
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_board_selected),
+                    contentDescription = "선택됨",
+                    tint = Color.Unspecified,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(bottom=47.dp,end=4.dp)
+                )
+
+            } else {
+                // 선택 모드 + 선택 안 된 상태 → board_unselect 표시
+                Icon(
+                    painter = painterResource(id = R.drawable.board_unselect),
+                    contentDescription = "선택되지 않음",
+                    tint = Color.Unspecified,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(bottom=47.dp,end=4.dp)
+                        .size(22.dp)
+                )
+            }
         }
     }
 }
