@@ -57,5 +57,6 @@ data class BoardResponse(
     val updatedAt: String? = null,
     @SerializedName("videoThumbnailUrl")
     val videoThumbnailUrl: String? = null,
-    val owner: Boolean = false
+    val owner: Boolean = false,
+    val mine: Boolean = false
 )

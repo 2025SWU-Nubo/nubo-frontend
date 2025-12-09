@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.example.nubo.R
 import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles
+import com.example.nubo.ui.theme.Grey0
 import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.Purple100
@@ -66,8 +67,8 @@ fun NuberryGet(
                 .fillMaxWidth(0.82f)
                 .wrapContentHeight()
                 .clip(RoundedCornerShape(14.dp))
-                .background(Purple100)
-                .padding(horizontal = 24.dp, vertical = 20.dp),
+                .background(Grey0)
+                .padding(horizontal = 20.dp, vertical = 16.dp),
             contentAlignment = Alignment.Center
         ) {
 
@@ -92,7 +93,7 @@ fun NuberryGet(
                 // 이미지
                 Box(
                     modifier = Modifier
-                        .size(200.dp)
+                        .size(230.dp)
                         .graphicsLayer {
                             scaleX = scaleAnim.value
                             scaleY = scaleAnim.value
@@ -101,15 +102,20 @@ fun NuberryGet(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(180.dp)
+                            .size(200.dp)
                             .shadow(10.dp, CircleShape)
                             .background(Color.White, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.learn_nuberry_get),
+                            painter = painterResource(id = R.drawable.learn_berry_popup_bg),
                             contentDescription = null,
-                            modifier = Modifier.size(150.dp)
+                            modifier = Modifier.matchParentSize()
+                        )
+                        Image(
+                            painter = painterResource(id = R.drawable.learn_berry_popup_br),
+                            contentDescription = null,
+                            modifier = Modifier.size(170.dp)
                         )
                     }
                 }
@@ -130,20 +136,20 @@ fun NuberryGet(
                 // 서브텍스트
                 Text(
                     text = "베리를 수확했어요.",
-                    style = AppTextStyles.b2_medium_16,
+                    style = AppTextStyles.b2_regular_16,
                     color = Grey500,
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(5.dp))
                 // 서브텍스트
                 Text(
-                    text = "다음 성장의 새싹도 함께 키워요.",
-                    style = AppTextStyles.b2_medium_16,
+                    text = "이제 다음 성장의 새싹을 함께 키워봐요.",
+                    style = AppTextStyles.b2_regular_16,
                     color = Grey500,
                     textAlign = TextAlign.Center,
                 )
 
-                Spacer(Modifier.height(56.dp))
+                Spacer(Modifier.height(53.dp))
 
                 // 버튼
                 Box(
@@ -156,13 +162,13 @@ fun NuberryGet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "모은 베리 확인하기",
+                        text = "모은 베리 보러가기",
                         style = AppTextStyles.label_semibold_14,
                         color = Color.White
                     )
                 }
 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(8.dp))
             }
         }
     }

@@ -6,7 +6,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,17 +16,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -58,29 +52,25 @@ import com.example.nubo.model.myBoard.BoardItem
 import com.example.nubo.ui.component.BoardDetailContent
 import com.example.nubo.ui.component.cardHeightForIndex
 import com.example.nubo.ui.component.sheet.InviteSheet
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import com.example.nubo.ui.screen.add.SheetTopToast
 import com.example.nubo.ui.theme.AppTextStyles.headline_regular_26
 import com.example.nubo.ui.theme.AppTextStyles.subtitle_medium_16
 import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.GreyMain300
-import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.PurpleMain500
 import com.example.nubo.model.card.CardItem
-import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
-import com.example.nubo.ui.theme.AppTextStyles.b3_medium_14
 import com.example.nubo.utils.postRefreshTick
 import getDisplayDate
 import java.net.URLDecoder
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.components.toast.AppToastLayout
-import com.example.nubo.ui.theme.AppTextStyles.b3_regular_14
-import com.example.nubo.ui.theme.Grey1000
-import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.utils.REFRESH_TICK_KEY
 import kotlinx.coroutines.launch
@@ -130,6 +120,9 @@ fun BoardDetailScreen(
     var currentAction by remember { mutableStateOf<BoardAction?>(null) }
     val boardsState by viewModel.boards.collectAsState()
 
+    // 선택 모드 진입 방법
+    var selectionFromMenu by remember { mutableStateOf(false) }
+
     val resetSelectionState = {
         isSelectionMode = false
         showBoardSelector = false
@@ -138,6 +131,7 @@ fun BoardDetailScreen(
         selectedCards = emptySet()
         //바텀 시트 상태도 초기화
         bottomSheetType = BottomSheetType.NONE
+        selectionFromMenu = false
     }
     // -----------------------------------------
 
@@ -154,6 +148,16 @@ fun BoardDetailScreen(
     // 진입 시 한 번 초기 로드
     LaunchedEffect(boardId) {
         viewModel.init(boardId)
+    }
+
+    // 바텀바 상단 토스트
+    var showShareWarning by remember { mutableStateOf(false) }
+    var sheetHeight by remember { mutableStateOf(0) }   // 바텀시트 실제 높이(px)
+
+    LaunchedEffect(bottomSheetType) {
+        if (bottomSheetType != BottomSheetType.BOARD_MEMBERS) {
+            showShareWarning = false
+        }
     }
 
     // 토스트 상태 및 코루틴 스코프 선언
@@ -295,16 +299,9 @@ fun BoardDetailScreen(
     val currentBoardMembers by viewModel.currentBoardMembers.collectAsState()
     val inviteResetSignal by viewModel.inviteResetSignal.collectAsState()
 
-    // 보드 설정 화면의 임시 상태 저장용 변수
-    var tempEditName by remember { mutableStateOf<String?>(null) }
-    var tempEditShared by remember { mutableStateOf<Boolean?>(null) }
-
     // 공유 보드 멤버 상태 구독
     val activeMembers by viewModel.activeMembers.collectAsState()
     val pendingMembers by viewModel.pendingMembers.collectAsState()
-
-    // board source 가 "AI" 인지 확인
-    val isAiBoard = ui.board?.source == "AI"
 
     // 페이징 리스트 상태
     val listState = rememberLazyListState()
@@ -325,20 +322,11 @@ fun BoardDetailScreen(
 
                         navController.popBackStack()
 
-                    }, // 메뉴 버튼 클릭 시 보드 설정 바텀 시트 표시
+                    }, // 메뉴 버튼 클릭 시 메뉴 바텀바
                     onMenuClick = {
-                        // owner 값에 따라 바텀 시트 유형 결정
-                        val isOwner = ui.board?.owner ?: false
-                        bottomSheetType = if (isOwner) {
-                            BottomSheetType.BOARD_EDIT // 1. owner=true: 설정/편집 화면 표시
-                        } else {
-                            // 2. owner=false: 멤버 목록 화면으로 바로 이동
-                            viewModel.loadBoardMembers() // 멤버 목록 데이터 로드
-                            BottomSheetType.BOARD_MEMBERS
-                        }
+                        bottomSheetType = BottomSheetType.MENU
                     },
                     isSelectionMode = isSelectionMode,
-                    showSettingButton = !isAiBoard
                 )
             }
         ) { paddingValues ->
@@ -362,7 +350,6 @@ fun BoardDetailScreen(
                         BoardFilterButton(
                             favoriteSelected = ui.favoriteOnly,
                             onToggleFavorite = { enabled -> viewModel.setFavoriteFilter(enabled) },
-                            onAddClick = { dialogMode = InputDialogMode.CreateSection },
                             onRequestSort = { sortKey -> viewModel.setSort(sortKey) },
                             isSelectionMode = isSelectionMode, // 선택 상태 변수 전달
                         )
@@ -419,7 +406,7 @@ fun BoardDetailScreen(
                                         .padding(horizontal = 24.dp)
                                 )
                             }
-                    } else {
+                        } else {
                             BoardDetailContent(
                                 boardItems = boardItems,
                                 cardItems = cardItems,
@@ -461,6 +448,7 @@ fun BoardDetailScreen(
                                 },
                                 onCardLongClick = { cardId ->
                                     if (!isSelectionMode) {
+                                        selectionFromMenu = false
                                         // 공유 보드에서 mine == false 카드면 선택 모드 진입 자체를 막음
                                         if (isSharedBoard && !selectableCardIds.contains(cardId)) {
                                             // 아무 동작도 하지 않음 (롱클릭 무시)
@@ -473,6 +461,7 @@ fun BoardDetailScreen(
                                 },
                                 onSectionLongClick = { section ->
                                     if (!isSelectionMode) {
+                                        selectionFromMenu = false
                                         isSelectionMode = true
                                         bottomSheetType = BottomSheetType.SELECTION
                                         selectedSections = setOf(section.id) // 롱클릭한 섹션을 첫 선택 항목으로 지정
@@ -501,14 +490,49 @@ fun BoardDetailScreen(
                 }
             }
         }
+        // 바텀바 뒤에 dim 표시
+        val shouldShowDim =
+            when (bottomSheetType) {
+                BottomSheetType.NONE -> false
+
+                BottomSheetType.SELECTION ->
+                    showBoardSelector   // 선택 모드에서는 boardSelector가 열릴 때만 dim 표시
+
+                else -> true           // 나머지 시트는 dim 표시
+            }
+        if (shouldShowDim) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.35f))
+                    .clickable {
+                        // dim 클릭 시 닫기
+                        if (bottomSheetType == BottomSheetType.SELECTION && showBoardSelector) {
+                            // board selector만 닫기
+                            showBoardSelector = false
+                        } else {
+                            bottomSheetType = BottomSheetType.NONE
+                        }
+                    }
+            )
+        }
         // 바텀 시트 로직을 bottomSheetType에 따라 분기하여 표시
-        AnimatedVisibility(
+        BottomSheetContainer(
             visible = bottomSheetType != BottomSheetType.NONE,
-            enter = slideInVertically(initialOffsetY = { it }),
-            exit = slideOutVertically(targetOffsetY = { it }),
-            modifier = Modifier.align(Alignment.BottomCenter)
+            onDismiss = {
+                if (bottomSheetType == BottomSheetType.SELECTION) {
+                    // 선택 모드 종료
+                    resetSelectionState()
+                    isSelectionMode = false
+                }
+                bottomSheetType = BottomSheetType.NONE
+                showBoardSelector = false
+            }
         ) {
             when (bottomSheetType) {
+                BottomSheetType.NONE -> { /* empty */
+                }
+
                 BottomSheetType.SELECTION -> {
                     // 기존 선택 모드 바텀 시트
                     SelectionBottomBar(
@@ -529,7 +553,14 @@ fun BoardDetailScreen(
                                     showBoardSelector = true
                                     viewModel.loadBoards()
                                 },
-                                onCancelClick = { resetSelectionState() }
+                                onCancelClick = { resetSelectionState() },
+                                onBack = {
+                                    bottomSheetType = BottomSheetType.MENU
+                                    resetSelectionState()
+                                    isSelectionMode = false
+                                },
+                                // 메뉴에서 들어왔을 때만 뒤로가기 버튼 표시
+                                showBackButton = selectionFromMenu
                             )
                         },
                         boardSelectorContent = {
@@ -567,74 +598,6 @@ fun BoardDetailScreen(
                         }
                     )
                 }
-                // BOARD_EDIT 상태일 때 BoardEditSheet를 보여주는 case
-                BottomSheetType.BOARD_EDIT -> {
-                    // 현재 보드 정보가 있을 때만 설정 화면을 보여줌
-                    ui.board?.let { currentBoard ->
-                        // 임시 저장된 값이 있으면 그 값을, 없으면 원래 보드 정보를 사용
-                        val initialName = tempEditName ?: currentBoard.name
-                        // 서버 상태 (버튼 활성화/비활성화 기준)
-                        val isServerShared = currentBoard.shared
-                        // 사용자가 "선택한" 상태 (초대 화면 갔다 왔을 때 복구용)
-                        val isDraftShared = tempEditShared ?: currentBoard.shared
-                        BoardEditSheet(
-                            modifier = Modifier.imePadding(),
-                            source = source,
-                            currentName = initialName,      // 수정된 초기값 적용
-                            isCurrentlyShared = isServerShared, // 서버 상태 (버튼 잠금 여부 판단용)
-                            draftIsShared = isDraftShared,      // UI 표시 상태 (버튼 선택 여부용)
-                            onDismiss = {
-                                // 닫을 때 임시 값 초기화
-                                tempEditName = null
-                                tempEditShared = null
-                                bottomSheetType = BottomSheetType.NONE
-                            },
-                            onMembersClick = {
-                                viewModel.loadBoardMembers() // 1. 데이터 로드
-                                bottomSheetType = BottomSheetType.BOARD_MEMBERS // 2. 화면 전환
-                            },
-                            onInviteClick = { editingName, editingShared ->
-                                // 다른 화면으로 가기 전에 현재 상태 저장
-                                tempEditName = editingName
-                                tempEditShared = editingShared // 사용자가 선택한 상태(isSharing) 저장
-
-                                viewModel.prepareInvite()
-                                bottomSheetType = BottomSheetType.INVITE
-                            },
-                            // ViewModel에서 관리하는 현재 멤버 리스트 전달
-                            currentMembers = currentBoardMembers,
-                            onConfirm = { newName, isShared ->
-                                // 저장 시 임시 값 초기화
-                                tempEditName = null
-                                tempEditShared = null
-
-                                // 1) 이름이 변경되었을 때만 API 호출
-                                if (newName != currentBoard.name) {
-                                    viewModel.renameCurrentBoard(newName)
-                                }
-
-                                // 2) 공유 보드 전환이 필요하면 호출
-                                //    (BoardEditSheet에서 넘어온 isShared 값을 그대로 사용)
-                                viewModel.convertToSharedIfNeeded(draftIsShared = isShared)
-
-                                // 3) 초대 예정 멤버가 있다면 초대 API 호출
-                                viewModel.sendInvitationsIfNeeded()
-
-                                // 4) 시트 닫기
-                                bottomSheetType = BottomSheetType.NONE
-
-                                // 5) 전역 토스트 띄우기
-                                scope.launch {
-                                    toastHost.show(
-                                        title = buildAnnotatedString { append("보드 설정이 완료되었어요.") },
-                                        layout = AppToastLayout.TitleOnly,
-                                        type = AppToastType.POSITIVE
-                                    )
-                                }
-                            }
-                        )
-                    }
-                }
                 // INVITE 상태일 때 공유 보드 초대 화면
                 BottomSheetType.INVITE -> {
                     InviteSheet(
@@ -642,15 +605,23 @@ fun BoardDetailScreen(
                             // 아예 닫기 (또는 BOARD_EDIT로 갈지 결정)
                             bottomSheetType = BottomSheetType.NONE
                         },
-                        onBack = {
-                            // 뒤로가기: 다시 보드 설정 화면(BOARD_EDIT)으로 복귀
-                            bottomSheetType = BottomSheetType.BOARD_EDIT
-                        },
+                        onBack = { bottomSheetType = BottomSheetType.BOARD_MEMBERS },
                         onInvite = { /* 필요시 단일 초대 로직 */ },
                         onComplete = { emails, users ->
-                            // 선택 완료 시 ViewModel에 저장 후 보드 설정 화면으로 복귀
+                            // 1) 초대 대상 임시 저장
                             viewModel.updateBoardMembers(emails, users)
-                            bottomSheetType = BottomSheetType.BOARD_EDIT
+
+                            // 2) 공유보드 전환이 필요한지 계산
+                            //    → 현재 보드가 개인보드(shared == false)라면 공유 전환해야 함
+                            val needShare = ui.board?.shared == false
+
+                            // 3) 공유 전환 + 초대 API 통합 처리
+                            viewModel.inviteAndShareIfNeeded(
+                                draftIsShared = needShare,
+                                onFinished = {
+                                    bottomSheetType = BottomSheetType.BOARD_MEMBERS
+                                }
+                            )
                         },
                         resetSignal = inviteResetSignal,
                         // 이미 선택된 이메일들을 넘겨줌 (체크 상태 유지)
@@ -660,49 +631,98 @@ fun BoardDetailScreen(
                 }
                 // 참여자 목록 화면 연결
                 BottomSheetType.BOARD_MEMBERS -> {
-                    BoardMembersSheet(
-                        activeMembers = activeMembers,
-                        pendingMembers = pendingMembers,
-                        onBack = {
-                            // 뒤로가기 시 다시 보드 설정(BOARD_EDIT) 화면으로 복귀
-                            // **owner=false 일 때, 뒤로가기는 NONE으로 닫아야 함.
-                            // owner=true 일 때만 BOARD_EDIT으로 복귀**
-                            val isOwner = ui.board?.owner ?: false
-                            bottomSheetType = if (isOwner) BottomSheetType.BOARD_EDIT else BottomSheetType.NONE
-                        },
-                        onCancelInvite = { invitationId ->
-                            viewModel.cancelInvitation(invitationId)
-                        },
-                        isOwner = ui.board?.owner ?: false,
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onGloballyPositioned { layoutCoordinates ->
+                                sheetHeight = layoutCoordinates.size.height
+                            }
+                    ) {
+                        BoardMembersSheet(
+                            activeMembers = activeMembers,
+                            pendingMembers = pendingMembers,
+                            onBack = { bottomSheetType = BottomSheetType.MENU },
+                            onCancelInvite = { invitationId ->
+                                viewModel.cancelInvitation(invitationId)
+                            },
+                            isOwner = ui.board?.owner ?: false,
+                            onInviteClick = { bottomSheetType = BottomSheetType.INVITE }
+                        )
+                        // 개인보드일 때만 바텀바 상단 토스트 표시
+                        if (ui.board?.shared == false) {
+                            LaunchedEffect(Unit) {
+                                showShareWarning = true      // 토스트 보여주기
+                            }
+                        }
+                    }
+                }
+                // 메뉴 버튼 클릭 시 메뉴 바텀바
+                BottomSheetType.MENU -> {
+                    ui.board?.let { currentBoard ->
+                        MenuContent(
+                            isSectionScreen = false,
+                            source = source,
+                            isShared = currentBoard.shared,
+                            isOwner = currentBoard.owner,
+                            isMine = ui.board?.mine ?: false,
+                            onRenameClick = {
+                                bottomSheetType = BottomSheetType.BOARD_RENAME
+                            },
+                            onMembersClick = {
+                                viewModel.loadBoardMembers()
+                                bottomSheetType = BottomSheetType.BOARD_MEMBERS
+                            },
+                            onAddSectionClick = {
+                                bottomSheetType = BottomSheetType.SECTION_ADD
+                            },
+                            onSelectCardClick = {
+                                isSelectionMode = true
+                                bottomSheetType = BottomSheetType.SELECTION
+                                selectionFromMenu = true
+                            },
+                            onSelectSectionClick = {
+                                isSelectionMode = true
+                                bottomSheetType = BottomSheetType.SELECTION
+                                selectionFromMenu = true
+                            },
+                            onDismiss = { bottomSheetType = BottomSheetType.NONE }
+                        )
+                    }
+                }
+                // 섹션 추가 바텀바
+                BottomSheetType.SECTION_ADD -> {
+                    AddSection(
+                        onBack = { bottomSheetType = BottomSheetType.MENU },
+                        onDismiss = { bottomSheetType = BottomSheetType.NONE },
+                        onConfirm = { newName ->
+                            viewModel.createSection(newName)
+                            bottomSheetType = BottomSheetType.NONE
+                        }
                     )
                 }
-
-                else -> {}
-            }
-        }
-        // ==== 섹션 추가 다이얼로그 ====
-        when (val m = dialogMode) {
-            InputDialogMode.CreateSection -> NuboInputDialog(
-                visible = true,
-                title = "섹션 추가하기",
-                confirmText = "생성",
-                placeholder = "섹션 이름",
-                onConfirm = { name -> viewModel.createSection(name) },
-                onDismiss = { dialogMode = null },
-                // 섹션 생성 시에도 유효성 검사 메시지 추가
-                validationContent = {
-                    Text(
-                        text = "섹션 이름을 2자 이상 입력해주세요.",
-                        style = b3_regular_14,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(top = 10.dp, start = 16.dp)
-                    )
+                // 보드 이름 변경 바텀바
+                BottomSheetType.BOARD_RENAME -> {
+                    ui.board?.let { currentBoard ->
+                        BoardRename(
+                            currentName = currentBoard.name,
+                            isCurrentlyShared = currentBoard.shared,
+                            onBack = { bottomSheetType = BottomSheetType.MENU },  // 메뉴로 돌아가기
+                            onDismiss = { bottomSheetType = BottomSheetType.NONE }, // 시트 닫기
+                            onConfirm = { newName, isShared ->
+                                if (newName != currentBoard.name) {
+                                    viewModel.renameCurrentBoard(newName) // 실제 보드 이름 변경 API
+                                }
+                                bottomSheetType = BottomSheetType.NONE
+                            }
+                        )
+                    }
                 }
-            )
 
-            null -> Unit
-            // Rename 등 나머지 케이스를 처리하기 위한 else 분기
-            else -> { /* Do nothing for other cases */
+                BottomSheetType.BOARD_SELECTION -> { // 전체 보드 탭 화면에서만 사용
+                }
+
+                BottomSheetType.SECTION_RENAME -> { // 섹션 내부에서 사용
+                }
             }
         }
         LaunchedEffect(listState, ui.isLast, ui.isLoading) {
@@ -733,6 +753,24 @@ fun BoardDetailScreen(
             }
         )
     }
+    val density = LocalDensity.current
+    val toastOffsetDp = with(density) { sheetHeight.toDp() + 16.dp }   // ③ 바텀시트 위로 띄우기
+
+    if (showShareWarning) {
+        SheetTopToast(
+            title = buildAnnotatedString {
+                append("공유 보드로 바꾸면 ")
+                withStyle(SpanStyle(color = PurpleMain500)) {
+                    append("개인 보드로 되돌릴 수 없어요.")
+                }
+            },
+            message = "참여자를 초대하면 나중에 개인 보드로 바꿀 수 없어요.",
+            visible = showShareWarning,
+            onDismiss = { showShareWarning = false },
+            durationMillis = 100000L,          // 토스트 지속 시간
+            bottomOffset = toastOffsetDp       // 바텀시트 실제 높이 기반 offset
+        )
+    }
 }
 
 // 탑바
@@ -740,8 +778,7 @@ fun BoardDetailScreen(
 fun DetailTopBar(
     onBack: () -> Unit,
     onMenuClick: () -> Unit,
-    isSelectionMode: Boolean,
-    showSettingButton: Boolean,
+    isSelectionMode: Boolean
 ) {
     val titleText = "나의 보드"
 
@@ -769,17 +806,15 @@ fun DetailTopBar(
         // 중간을 채우는 빈 공간
         Spacer(modifier = Modifier.weight(1f))
 
-        // 오른쪽 (설정 버튼)
-        if (showSettingButton) {     // ← 조건 추가
-            Icon(
-                painter = painterResource(id = R.drawable.ic_board_setting),
-                contentDescription = "보드 설정",
-                tint = GreyMain300,
-                modifier = Modifier
-                    .size(20.dp)
-                    .noRippleClickable(enabled = !isSelectionMode) { onMenuClick() }
-            )
-        }
+        // 오른쪽 (메뉴 버튼)
+        Icon(
+            painter = painterResource(id = R.drawable.ic_board_menu),
+            contentDescription = "보드 메뉴",
+            tint = GreyMain300,
+            modifier = Modifier
+                .noRippleClickable(enabled = !isSelectionMode) { onMenuClick() }
+        )
+
     }
 }
 
@@ -812,7 +847,6 @@ fun BoardTitleBar(title: String) {
 fun BoardFilterButton(
     favoriteSelected: Boolean,
     onToggleFavorite: (Boolean) -> Unit,
-    onAddClick: () -> Unit,
     onRequestSort: (String) -> Unit,
     isSelectionMode: Boolean
 ) {
@@ -823,7 +857,7 @@ fun BoardFilterButton(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, bottom = 18.dp, top=15.dp),
+            .padding(start = 16.dp, end = 16.dp, bottom = 18.dp, top = 15.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -862,28 +896,6 @@ fun BoardFilterButton(
                 }
             }
         }
-        // 섹션 추가 버튼
-        Button(
-            onClick = onAddClick,
-            enabled = !isSelectionMode,
-            shape = RoundedCornerShape(5.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Purple100.copy(alpha = 0.3f),
-                contentColor = PurpleMain500,
-                // 비활성화 상태에서도 활성화 색상과 동일하게 유지
-                disabledContainerColor = Purple100.copy(alpha = 0.3f),
-                disabledContentColor = PurpleMain500
-            ),
-            border = BorderStroke(0.5.dp, PurpleMain500),
-            contentPadding = PaddingValues(horizontal = 10.dp),
-            modifier = Modifier.height(32.dp)
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_filter_add),
-                contentDescription = "섹션 추가",
-                tint = PurpleMain500
-            )
-        }
     }
 }
 
@@ -912,137 +924,4 @@ fun CardItemDto.toCardItem(): CardItem {
         imageUrl = this.imageUrl ?: "",
         isFavorite = this.favorite ?: false
     )
-}
-
-// 섹션 추가 다이얼로그
-@Composable
-fun NuboInputDialog(
-    // 다이얼로그 표시 여부
-    visible: Boolean,
-    // 상단 가운데 타이틀
-    title: String,
-    // 우측 텍스트 버튼 라벨
-    confirmText: String,
-    // 입력창 플레이스홀더
-    placeholder: String,
-    // 최초 값 (이름 변경 시 기존 이름)
-    initialValue: String = "",
-    // 확인 클릭 시 콜백 (서버 연동은 추후 이곳에서)
-    onConfirm: (String) -> Unit,
-    // X 또는 백드롭 클릭 시 닫기
-    onDismiss: () -> Unit,
-    // 유효성 검사 실패 시 보여줄 Composable
-    validationContent: @Composable (() -> Unit)? = null
-) {
-    if (!visible) return
-
-    // Compose Dialog는 배경을 자동으로 어둡게 처리함
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        // 카드 형태의 컨테이너
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color.White),
-            horizontalAlignment = Alignment.Start
-        ) {
-            // 내부 상태 보관
-            var text by remember { mutableStateOf(initialValue) }
-
-            // '생성'과 '이름 변경'의 활성화 조건을 분리
-            val confirmEnabled = if (initialValue.isBlank()) {
-                // 생성 모드: 2글자 이상이면 활성화
-                text.trim().length >= 2
-            } else {
-                // 이름 변경 모드: 2글자 이상이면서, 이전 이름과 다를 때 활성화
-                text.trim().length >= 2 && text.trim() != initialValue
-            }
-            // 헤더 영역: X 버튼 + 타이틀 + 우측 확인 텍스트 버튼
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 24.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_close), // X 아이콘 필요
-                    contentDescription = "닫기",
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clickable { onDismiss() } // 왼쪽 X 클릭 시 닫기
-                )
-                // 가운데 타이틀
-                Text(
-                    text = title,
-                    style = b1_semibold_18,
-                    color = Color(0xFF1A1A1A),
-                    modifier = Modifier
-                        .weight(1f),
-                    textAlign = TextAlign.Center
-                )
-                // 우측 텍스트 버튼
-                Text(
-                    text = confirmText,
-                    style = b1_semibold_18,
-                    color = if (confirmEnabled) PurpleMain500 else Grey500,
-                    modifier = Modifier
-                        .clickable(enabled = confirmEnabled) {
-                            onConfirm(text.trim())
-                            onDismiss()
-                        }
-                        .padding(end = 4.dp)
-                )
-            }
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)   // 컨테이너와의 가로 여백
-            ) {
-                BasicTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    singleLine = true,
-                    textStyle = b3_medium_14.copy(color = Grey1000),
-                    cursorBrush = SolidColor(PurpleMain500),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(
-                        onDone = {
-                            if (confirmEnabled) {
-                                onConfirm(text.trim())
-                                onDismiss()
-                            }
-                        }
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp)
-                        .background(Color(0xFFF3F3F3), RoundedCornerShape(40.dp))
-                        .border(1.dp, Color(0xFFBCBCBC), RoundedCornerShape(40.dp))
-                        .padding(horizontal = 16.dp),             // 입력 내부 좌우 여백
-                    decorationBox = { inner ->
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            if (text.isBlank()) {
-                                Text(
-                                    text = placeholder,
-                                    style = b3_medium_14,
-                                    color = Color(0xFFBDBDBD)
-                                )
-                            }
-                            inner()
-                        }
-                    }
-                )
-                // 유효성 검사 메시지
-                Box(modifier = Modifier.height(24.dp)) {
-                    if (text.isNotBlank() && text.trim().length < 2) {
-                        validationContent?.invoke()
-                    }
-                }
-            }
-            Spacer(Modifier.height(20.dp)) // 하단 여백 약간 조정
-        }
-    }
 }

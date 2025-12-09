@@ -88,12 +88,16 @@ fun SectionDetailScreen(
     var currentAction by remember { mutableStateOf<BoardAction?>(null) }
     val boardsState by viewModel.boards.collectAsState()
 
+    // 선택 모드 진입 방법
+    var selectionFromMenu by remember { mutableStateOf(false) }
+
     val resetSelectionState = {
         isSelectionMode = false
         showBoardSelector = false
         currentAction = null
         selectedCards = emptySet()
         bottomSheetType = BottomSheetType.NONE
+        selectionFromMenu = false
     }
     // -----------------------------------------\
 
@@ -208,8 +212,8 @@ fun SectionDetailScreen(
                             ?.set(REFRESH_TICK_KEY, System.currentTimeMillis())
 
                         navController.popBackStack()
-                    },// 메뉴 버튼 클릭 시 보드 설정 바텀 시트 표시
-                    onMenuClick = { bottomSheetType = BottomSheetType.SECTION_SETTINGS },
+                    },// 메뉴 버튼 클릭 시 메뉴 바텀 시트 표시
+                    onMenuClick = { bottomSheetType = BottomSheetType.MENU },
                     isSelectionMode = isSelectionMode
                 )
             }
@@ -301,6 +305,7 @@ fun SectionDetailScreen(
                                 onCardLongClick = { cardId ->
                                     // 롱클릭 시 선택 모드로 진입하고, 현재 카드 선택
                                     if (!isSelectionMode) {
+                                        selectionFromMenu = false
                                         isSelectionMode = true
                                         bottomSheetType = BottomSheetType.SELECTION
                                         selectedCards = setOf(cardId) // 새 Set으로 첫 항목 선택
@@ -327,13 +332,40 @@ fun SectionDetailScreen(
                 }
             }
         }
+        // 바텀바 뒤에 dim 표시
+        val shouldShowDim =
+            when (bottomSheetType) {
+                BottomSheetType.NONE -> false
 
+                BottomSheetType.SELECTION ->
+                    showBoardSelector   // 선택 모드에서는 boardSelector가 열릴 때만 dim 표시
+
+                else -> true           // 나머지 시트는 dim 표시
+            }
+        if (shouldShowDim) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.35f))
+                    .clickable {
+                        if (bottomSheetType == BottomSheetType.SELECTION && showBoardSelector) {
+                            showBoardSelector = false
+                        } else {
+                            bottomSheetType = BottomSheetType.NONE
+                        }
+                    }
+            )
+        }
         // 바텀 시트 로직을 bottomSheetType에 따라 분기하여 표시
-        AnimatedVisibility(
+        BottomSheetContainer(
             visible = bottomSheetType != BottomSheetType.NONE,
-            enter = slideInVertically(initialOffsetY = { it }),
-            exit = slideOutVertically(targetOffsetY = { it }),
-            modifier = Modifier.align(Alignment.BottomCenter)
+            onDismiss = {
+                if (bottomSheetType == BottomSheetType.SELECTION) {
+                    resetSelectionState()
+                }
+                showBoardSelector = false
+                bottomSheetType = BottomSheetType.NONE
+            }
         ) {
             when (bottomSheetType) {
                 BottomSheetType.SELECTION -> {
@@ -356,7 +388,10 @@ fun SectionDetailScreen(
                                     showBoardSelector = true
                                     viewModel.loadBoards()
                                 },
-                                onCancelClick = { resetSelectionState() }
+                                onCancelClick = { resetSelectionState() },
+                                onBack = { bottomSheetType = BottomSheetType.MENU },
+                                // 메뉴에서 들어왔을 때만 뒤로가기 버튼 표시
+                                showBackButton = selectionFromMenu
                             )
                         },
                         boardSelectorContent = {
@@ -392,11 +427,10 @@ fun SectionDetailScreen(
                         }
                     )
                 }
-
-                BottomSheetType.SECTION_SETTINGS -> {
+                BottomSheetType.SECTION_RENAME -> {
                     ui.board?.let { currentBoard ->
                         // 새로 추가된 섹션 설정 바텀 시트
-                        SectionSettingsContent(
+                        SectionRename(
                             modifier = Modifier.imePadding(),
                             currentName = currentBoard.name,
                             isCurrentlyShared = currentBoard.shared,
@@ -404,6 +438,7 @@ fun SectionDetailScreen(
                                 // 바텀시트 닫기
                                 bottomSheetType = BottomSheetType.NONE
                             },
+                            onBack = { bottomSheetType = BottomSheetType.MENU },
                             onConfirm = { newName, isShared ->
                                 // 이름이 변경되었을 때만 API 호출
                                 if (newName != currentBoard.name) {
@@ -416,7 +451,28 @@ fun SectionDetailScreen(
                         )
                     }
                 }
-
+                //메뉴 버튼 클릭 시 메뉴 바텀바 표시
+                BottomSheetType.MENU -> {
+                    MenuContent(
+                        isSectionScreen = true,
+                        source = null,
+                        isShared = false,
+                        isOwner = ui.board?.owner ?: false,
+                        isMine = ui.board?.mine ?:false,
+                        onRenameClick = {
+                            bottomSheetType = BottomSheetType.SECTION_RENAME
+                        },
+                        onMembersClick = { /* 섹션에는 참여자 없음 → 비활성 처리 */ },
+                        onAddSectionClick = { /* 섹션에서 섹션 추가는 없음 → 무효 */ },
+                        onSelectCardClick = {
+                            isSelectionMode = true
+                            bottomSheetType = BottomSheetType.SELECTION
+                            selectionFromMenu = true
+                        },
+                        onSelectSectionClick = { /* 섹션 상세에서 섹션 선택 없음 */ },
+                        onDismiss = { bottomSheetType = BottomSheetType.NONE }
+                    )
+                }
                 else -> {}
             }
         }
@@ -486,12 +542,11 @@ fun SectionDetailTopBar(
 
         // 오른쪽 (설정 버튼)
         Icon(
-            painter = painterResource(id = R.drawable.ic_board_setting),
-            contentDescription = "보드 설정",
+            painter = painterResource(id = R.drawable.ic_board_menu),
+            contentDescription = "보드 메뉴",
             tint = GreyMain300,
             // 선택 모드일 때 비활성화하고, 투명도를 조절합니다.
             modifier = Modifier
-                .size(20.dp)
                 .noRippleClickable(enabled = !isSelectionMode) { onMenuClick() }
         )
     }
@@ -513,7 +568,7 @@ fun SectionFilterButton(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top=15.dp, bottom = 18.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 15.dp, bottom = 18.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
