@@ -160,7 +160,7 @@ fun InfoBubble(
             Column(
                 modifier = Modifier
                     .weight(0.8f)
-                    .padding(start = 4.dp, end = 6.dp),
+                    .padding(end = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {

@@ -92,6 +92,7 @@ import com.example.nubo.ui.theme.Grey50
 import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.NuboAppTheme
+import com.example.nubo.ui.theme.Purple100
 import com.example.nubo.ui.theme.Purple700
 import com.example.nubo.ui.theme.PurpleMain500
 import com.example.nubo.utils.standardizeMarkdown
@@ -363,14 +364,9 @@ private fun ImageWithButton(
                 .align(Alignment.BottomStart)
                 .padding(start = 12.dp, bottom = 8.dp)
                 .clip(RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(8.dp))
+                .background(Purple100)
         ) {
-            Image(
-                painter = painterResource(R.drawable.interestrate_bg),
-                contentDescription = null,
-                modifier = Modifier.matchParentSize(),
-                contentScale = ContentScale.Crop
-            )
-
             Row(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically

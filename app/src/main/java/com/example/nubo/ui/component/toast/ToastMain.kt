@@ -15,6 +15,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,6 +55,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.semantics
@@ -213,6 +215,75 @@ private val DEFAULT_ALARM_DENY_ICON_RES = R.drawable.alarm_off
 //  - current 에 현재 표시 중인 토스트를 보관
 //  - Mutex 로 순차 표시를 보장
 // ──────────────────────────────────────────────────────────────
+//@Stable
+//class AppToastHostState {
+//
+//    private val mutex = Mutex()
+//
+//    var current by mutableStateOf<AppToastData?>(null)
+//        private set
+//
+//    // AppToastData 를 그대로 넘기는 버전
+//    suspend fun show(data: AppToastData) {
+//        mutex.withLock {
+//            // 표시 지연
+//            if (data.preDelayMillis > 0) {
+//                delay(data.preDelayMillis.toLong())
+//            }
+//
+//            // 토스트 진입
+//            current = data
+//            try {
+//                // 최소 800ms 이상 유지
+//                delay(data.durationMillis.coerceAtLeast(800).toLong())
+//            } finally {
+//                // 자신일 때만 null 로 만들어 퇴장 시작
+//                if (current?.id == data.id) {
+//                    current = null
+//                }
+//            }
+//
+//            // 퇴장 애니메이션 버퍼
+//            delay(460)
+//        }
+//    }
+//
+//    // 편의용 오버로드  title 만 필수 인자
+//    suspend fun show(
+//        title: AnnotatedString,
+//        layout: AppToastLayout = AppToastLayout.TitleOnly,
+//        type: AppToastType = AppToastType.NORMAL,
+//        summary: String? = null,
+//        body: String? = null,
+//        @DrawableRes iconRes: Int? = null,
+//        iconTint: Color? = null,
+//        durationMillis: Int = 2000,
+//        preDelayMillis: Int = 180,
+//        actionLabel: String? = null,
+//        onAction: (() -> Unit)? = null,
+//    ) = show(
+//        AppToastData(
+//            id = System.currentTimeMillis(),
+//            type = type,
+//            layout = layout,
+//            title = title,
+//            summary = summary,
+//            body = body,
+//            iconRes = iconRes,
+//            iconTint = iconTint,
+//            durationMillis = durationMillis,
+//            preDelayMillis = preDelayMillis,
+//            actionLabel = actionLabel,
+//            onAction = onAction
+//        )
+//    )
+//
+//    // 즉시 닫기
+//    fun dismiss() {
+//        current = null
+//    }
+//}
+
 @Stable
 class AppToastHostState {
 
@@ -221,15 +292,24 @@ class AppToastHostState {
     var current by mutableStateOf<AppToastData?>(null)
         private set
 
+    // Overlay가 컴포지션에 붙어 있어야 하는지 여부
+    //  - true: Popup를 띄워둠 (preDelay + enter + visible + exit 동안)
+    //  - false: Popup 자체를 제거 → 터치 완전 자유
+    var overlayVisible by mutableStateOf(false)
+        private set
+
     // AppToastData 를 그대로 넘기는 버전
     suspend fun show(data: AppToastData) {
         mutex.withLock {
-            // 표시 지연
+            // 1) 먼저 오버레이를 붙여둔다 (이 시점에는 current == null -> AnimatedVisibility는 false)
+            overlayVisible = true
+
+            // 2) preDelay 동안은 빈 상태로 기다림 (여기서 Popup는 이미 attach되어 있음)
             if (data.preDelayMillis > 0) {
                 delay(data.preDelayMillis.toLong())
             }
 
-            // 토스트 진입
+            // 3) 이제 토스트 진입 → AnimatedVisibility: false -> true (enter 애니메이션 재생)
             current = data
             try {
                 // 최소 800ms 이상 유지
@@ -241,8 +321,11 @@ class AppToastHostState {
                 }
             }
 
-            // 퇴장 애니메이션 버퍼
+            // 4) 퇴장 애니메이션 시간만큼 더 기다렸다가
             delay(460)
+
+            // 5) overlayVisible=false 로 만들어 Popup 자체를 제거
+            overlayVisible = false
         }
     }
 
@@ -281,6 +364,7 @@ class AppToastHostState {
         current = null
     }
 }
+
 
 // remember 용 헬퍼
 @Composable
@@ -735,35 +819,42 @@ fun AppToastOverlay(
     hostState: AppToastHostState,
     extraBottomOffset: Dp = 12.dp,
 ) {
+    if (!hostState.overlayVisible) return
+
     val bottomInset = WindowInsets.navigationBars
         .asPaddingValues()
         .calculateBottomPadding()
 
-    // Popup은 항상 켜둔다 (showOverlay 제거)
     Popup(
         alignment = Alignment.BottomCenter,
         properties = PopupProperties(
             focusable = false,
             dismissOnBackPress = false,
             dismissOnClickOutside = false,
-            excludeFromSystemGesture = true,
+            excludeFromSystemGesture = false,   // ← 이것도 터치 막힘 방지
             usePlatformDefaultWidth = false
         )
     ) {
-        Column(
-            modifier = Modifier
-                .padding(bottom = bottomInset + extraBottomOffset)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
+        // **터치를 소비하지 않는 Box**
+        Box(
+            modifier = Modifier.fillMaxWidth()
         ) {
-            AppToastHost(
-                hostState = hostState,
-                matchParentSize = false,
-                contentAlignment = Alignment.BottomCenter
-            )
+            Column(
+                modifier = Modifier
+                    .padding(bottom = bottomInset + extraBottomOffset)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                AppToastHost(
+                    hostState = hostState,
+                    matchParentSize = false,
+                    contentAlignment = Alignment.BottomCenter
+                )
+            }
         }
     }
 }
+
 
 
 // ──────────────────────────────────────────────────────────────

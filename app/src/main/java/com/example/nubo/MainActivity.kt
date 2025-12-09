@@ -25,6 +25,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -156,10 +157,11 @@ class MainActivity : AppCompatActivity() {
                     // 3  MainScreen 위에 전역 토스트 오버레이를 항상 깔아둠
                     Box(Modifier.fillMaxSize()) {
                         MainScreen(deepLinkEvents = deepLinkEvents)
-                        AppToastOverlay(
-                            hostState = toastHost,
-                            extraBottomOffset = 0.dp
-                        )
+                        key(toastHost.overlayVisible) {
+                            if (toastHost.overlayVisible) {
+                                AppToastOverlay(toastHost)
+                            }
+                        }
                     }
                 }
             }
