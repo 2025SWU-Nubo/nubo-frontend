@@ -11,6 +11,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.nubo.ui.theme.AppTextStyles
+import com.example.nubo.ui.theme.Grey20
+import com.example.nubo.ui.theme.GreyMain300
+import com.example.nubo.ui.theme.Purple300
 import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.ui.theme.PurpleMain500
 
@@ -18,8 +21,8 @@ import com.example.nubo.ui.theme.PurpleMain500
 fun KeywordChip(
     text: String,
     modifier: Modifier = Modifier,
-    textColor: Color = PurpleMain500,
-    backgroundColor: Color = Purple50,
+    textColor: Color = GreyMain300,
+    backgroundColor: Color = Grey20,
 ){
     Box(
         modifier = modifier
@@ -29,7 +32,7 @@ fun KeywordChip(
     ){
         Text(
             text = text,
-            style = AppTextStyles.b3_medium_14,
+            style = AppTextStyles.b3_regular_14,
             color = textColor
         )
     }
