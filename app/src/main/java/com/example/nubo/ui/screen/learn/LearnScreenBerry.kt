@@ -33,6 +33,7 @@ import com.example.nubo.ui.theme.AppTextStyles.title_semibold_24
 import com.example.nubo.ui.theme.GreyMain300
 import com.example.nubo.ui.theme.Grey500
 import com.example.nubo.ui.theme.Grey1000
+import com.example.nubo.ui.theme.Grey20
 import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.GreyMain100
 import com.example.nubo.ui.theme.Purple200
@@ -148,7 +149,7 @@ fun LearnScreenBerry(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(1.dp),
-                        color = Color(0xFFD0D0D0) // 예시 hex 컬러
+                        color = Grey20 // 예시 hex 컬러
                     )
                 }
             }

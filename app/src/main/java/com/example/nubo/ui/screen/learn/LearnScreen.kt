@@ -156,7 +156,7 @@ fun LearnScreen(
                 GraphicBackgroundView(
                     modifier = Modifier.fillMaxSize(),
                     todayVideoCount = todayCount, // 오늘 카운트 값 2D 그래픽 파일에 전달
-                    level = currentStage
+                    level = 5
                 )
 
                 Column(

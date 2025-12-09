@@ -84,6 +84,9 @@ sealed class InputDialogMode {
     data object CreateSection : InputDialogMode()
 }
 
+// 선택 모드 enum
+enum class SelectionModeType { CARD, SECTION }
+
 @Composable
 fun BoardDetailScreen(
     boardId: Int,
@@ -111,6 +114,9 @@ fun BoardDetailScreen(
     // 3. 선택된 카드들의 ID를 저장하는 Set
     var selectedCards by remember { mutableStateOf(emptySet<Int>()) }
     // -----------------------------------------
+
+    // 선택 모드 타입 구분 추가
+    var selectionModeType by remember { mutableStateOf<SelectionModeType?>(null) }
 
     // --- 바텀 시트 상태 관리 ---
     var bottomSheetType by remember { mutableStateOf(BottomSheetType.NONE) }
@@ -414,27 +420,42 @@ fun BoardDetailScreen(
                                 onCardClick = { cardId ->
                                     // 카드 클릭 시 선택/해제 로직 추가
                                     if (isSelectionMode) {
-                                        // 공유 보드 + mine == false 카드면 선택 불가
-                                        if (isSharedBoard && !selectableCardIds.contains(cardId)) {
-                                            // 선택 모드에서 남의 카드는 그냥 무시
-                                            return@BoardDetailContent
+
+                                        if (selectionModeType == SelectionModeType.CARD) {
+
+                                            if (isSharedBoard && !selectableCardIds.contains(cardId)) {
+                                                return@BoardDetailContent
+                                            }
+
+                                            selectedCards =
+                                                if (selectedCards.contains(cardId)) selectedCards - cardId
+                                                else selectedCards + cardId
                                         }
-                                        selectedCards = if (selectedCards.contains(cardId)) {
-                                            selectedCards - cardId
-                                        } else {
-                                            selectedCards + cardId
-                                        }
+
                                     } else {
                                         navController.navigate("card_detail/$cardId")
                                     }
                                 },
                                 onSectionClick = { section ->
                                     if (isSelectionMode) {
-                                        selectedSections = if (selectedSections.contains(section.id)) {
-                                            selectedSections - section.id
-                                        } else {
-                                            selectedSections + section.id
+
+                                        if (selectionModeType == SelectionModeType.SECTION) {
+
+                                            // 섹션의 mine 값 가져오기
+                                            val sectionMine =
+                                                boardState.sections?.firstOrNull { it.id.toInt() == section.id }?.mine == true
+
+                                            // 공유보드 + 남의 섹션이면 선택 불가
+                                            if (boardState.shared && !sectionMine) {
+                                                return@BoardDetailContent
+                                            }
+
+                                            // 정상 선택 / 해제
+                                            selectedSections =
+                                                if (selectedSections.contains(section.id)) selectedSections - section.id
+                                                else selectedSections + section.id
                                         }
+
                                     } else {
                                         val encodedTitle = java.net.URLEncoder.encode(section.title, "utf-8")
 
@@ -454,6 +475,8 @@ fun BoardDetailScreen(
                                             // 아무 동작도 하지 않음 (롱클릭 무시)
                                             return@BoardDetailContent
                                         }
+                                        selectionModeType = SelectionModeType.CARD
+
                                         isSelectionMode = true
                                         bottomSheetType = BottomSheetType.SELECTION
                                         selectedCards = setOf(cardId) // 롱클릭한 카드를 첫 선택 항목으로 지정
@@ -461,15 +484,8 @@ fun BoardDetailScreen(
                                 },
                                 onSectionLongClick = { section ->
                                     if (!isSelectionMode) {
+                                        selectionModeType = SelectionModeType.SECTION
                                         selectionFromMenu = false
-
-                                        // 공유 보드에서 mine == false면 선택 모드 진입 금지
-                                        val isSharedBoard = boardState?.shared == true
-                                        val isMineBoard = boardState?.mine == true
-                                        if (isSharedBoard && !isMineBoard) {
-                                            // 선택 모드 진입 자체를 막음 (섹션 롱클릭 무시)
-                                            return@BoardDetailContent
-                                        }
                                         isSelectionMode = true
                                         bottomSheetType = BottomSheetType.SELECTION
                                         selectedSections = setOf(section.id) // 롱클릭한 섹션을 첫 선택 항목으로 지정
@@ -563,9 +579,13 @@ fun BoardDetailScreen(
                                 },
                                 onCancelClick = { resetSelectionState() },
                                 onBack = {
-                                    bottomSheetType = BottomSheetType.MENU
-                                    resetSelectionState()
+                                    // 선택모드 해제
                                     isSelectionMode = false
+                                    selectedCards = emptySet()
+                                    selectedSections = emptySet()
+
+                                    // 메뉴 바텀바로 이동
+                                    bottomSheetType = BottomSheetType.MENU
                                 },
                                 // 메뉴에서 들어왔을 때만 뒤로가기 버튼 표시
                                 showBackButton = selectionFromMenu
@@ -684,11 +704,13 @@ fun BoardDetailScreen(
                                 bottomSheetType = BottomSheetType.SECTION_ADD
                             },
                             onSelectCardClick = {
+                                selectionModeType = SelectionModeType.CARD
                                 isSelectionMode = true
                                 bottomSheetType = BottomSheetType.SELECTION
                                 selectionFromMenu = true
                             },
                             onSelectSectionClick = {
+                                selectionModeType = SelectionModeType.SECTION
                                 isSelectionMode = true
                                 bottomSheetType = BottomSheetType.SELECTION
                                 selectionFromMenu = true
