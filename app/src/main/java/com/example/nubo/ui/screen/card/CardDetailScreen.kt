@@ -183,7 +183,19 @@ fun CardDetailScreen(
                             durationMillis = 1800
                         )
                     }
+                },
+                mine = item.mine,
+                onEditNotAllowed = {
+                    scope.launch {
+                        toastHost.show(
+                            title = AnnotatedString("다른 공유자가 추가한 카드라 수정할 수 없어요"),
+                            type = AppToastType.NEGATIVE,
+                            layout = AppToastLayout.TitleOnly,
+                            durationMillis = 2000
+                        )
+                    }
                 }
+
             )
         }
     ) { inner ->
@@ -250,7 +262,9 @@ private fun CustomTopBar(
     onBack: () -> Unit,
     onEdit: (() -> Unit)?= null,
     isFavorite: Boolean,
-    onToggleFavorite: () -> Unit
+    onToggleFavorite: () -> Unit,
+    mine: Boolean,
+    onEditNotAllowed:()-> Unit
 ){
     CenterAlignedTopAppBar(
         windowInsets = WindowInsets.statusBars,
@@ -280,10 +294,15 @@ private fun CustomTopBar(
                     contentDescription = if (isFavorite) "즐겨찾기 해제" else "즐겨찾기 설정"
                 )
             }
-            IconButton(onClick = { onEdit?.invoke() }) {
+            IconButton(
+                onClick = {
+                    if (mine) onEdit?.invoke()
+                    else onEditNotAllowed()  //토스트 띄움
+                }) {
                 Icon(
                     painter = painterResource(R.drawable.edit),
-                    contentDescription = "수정하기"
+                    contentDescription = "수정하기",
+                    tint = if (mine) Color.Unspecified else GreyMain300
                 )
             }
         },

@@ -18,7 +18,8 @@ data class CardDetailItem(
     // 레벨업 및 열매 관련 정보
     val stage: Int,
     val stageUp: Boolean,
-    val berryGained: Boolean
+    val berryGained: Boolean,
+    val mine: Boolean
 )
 
 data class  RecommendCardDetailItem(

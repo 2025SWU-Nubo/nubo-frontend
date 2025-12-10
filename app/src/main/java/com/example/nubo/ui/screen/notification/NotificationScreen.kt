@@ -191,7 +191,9 @@ fun NotificationScreen(
                     item(key = "recent-${type.name}") {
 
                         val expanded = expandedRecentTypes.contains(type)
-                        val previewPerChannel = 1
+                        // 3개 이상일 때만 접고, 그 외엔 모두 보여주기
+                        val previewPerChannel =
+                            if (itemsOfType.size >= 3) 1 else itemsOfType.size
 
                         // 펼치기 전에는 1개만, 펼치면 전체
                         val visibleItems =
