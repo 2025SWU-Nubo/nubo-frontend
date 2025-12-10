@@ -93,7 +93,6 @@ class CardUploadActivity : AppCompatActivity() {
 
         CardUploadService.startService(
             context = this,
-            accessToken = token,
             videoUrl = url
         )
 

@@ -370,7 +370,7 @@ class OnBoardingViewModel @Inject constructor(
             runCatching { FirebaseMessaging.getInstance().deleteToken() }
         }
 
-        toast("로그인이 만료되었습니다. 다시 로그인해주세요.", type = AppToastType.NEGATIVE)
+        toast("로그인이 만료되었습니다.\n다시 로그인해주세요.", type = AppToastType.NEGATIVE)
         showLoginButton()
     }
 

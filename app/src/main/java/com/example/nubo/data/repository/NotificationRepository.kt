@@ -148,12 +148,12 @@ class NotificationRepository @Inject constructor(
     }
 
     suspend fun acceptInvitation(token: String, invitationId: Int) {
-        val res = api.acceptInvitation("Bearer $token", invitationId)
+        val res = api.acceptInvitation( invitationId)
         if (!res.isSuccessful) throw retrofit2.HttpException(res)
     }
 
     suspend fun rejectInvitation(token: String,invitationId: Int) {
-        val res = api.rejectInvitation("Bearer $token", invitationId)
+        val res = api.rejectInvitation(invitationId)
         if (!res.isSuccessful) throw retrofit2.HttpException(res)
     }
 
@@ -205,8 +205,7 @@ class NotificationRepository @Inject constructor(
 
     suspend fun hasUnreadNotification(token:String): Boolean{
         return try {
-            val token = "Bearer $token"
-            val response = api.unreadNotifications(token)
+            val response = api.unreadNotifications()
 
             if (response.isSuccessful) {
                 response.body()?.exists ?: false

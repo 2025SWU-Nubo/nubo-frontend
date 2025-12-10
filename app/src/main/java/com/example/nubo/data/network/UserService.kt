@@ -19,8 +19,6 @@ interface UserService {
     // 관심사 설정: POST /api/interests
     @POST("/api/interest")
     suspend fun submitInterests(
-        @Header("Authorization") auth: String,
-        @Header("Accept") accept: String = "application/json",
         @Body body: InterestSubmitRequest
     ): InterestSubmitResponse
 

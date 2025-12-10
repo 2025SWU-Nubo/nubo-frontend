@@ -15,7 +15,7 @@ class LearnRepositoryImpl @Inject constructor(
 ) : LearnRepository {
     override suspend fun getDashboardStats(token: String): Result<DashboardResponse> {
         return try {
-            val response = learnService.getDashboardStats("Bearer $token")
+            val response = learnService.getDashboardStats()
             Result.success(response)
         } catch (e: Exception) {
             Result.failure(e)

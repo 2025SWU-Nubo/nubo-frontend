@@ -166,7 +166,7 @@ class BoardViewModel @Inject constructor(
                 Log.e("BoardViewModel", "Error fetching boards", e)
 
                 // 보드 목록 불러오기 실패 시 토스트 메시지 설정
-                _toastMessage.value = "정보를 불러오지 못했어요"
+//                _toastMessage.value = "정보를 불러오지 못했어요"
             } finally {
                 _isLoading.value = false
             }

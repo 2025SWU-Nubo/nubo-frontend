@@ -13,13 +13,11 @@ interface VideoService {
     @GET("/api/video/validate-link")
     suspend fun validateLink(
         @Query("url") url: String,
-        @Header("Authorization") authorization: String
     ): Response<ValidateLinkResponse>
 
     // 보드+섹션 트리 조회
     @GET("api/board/with-sections")
     suspend fun getBoardsWithSections(
-        @Header("Authorization") authorization: String,           // "Bearer {token}"
         @Header("Accept") accept: String = "application/json"
     ): Response<List<BoardWithSectionsResponse>>
 }
