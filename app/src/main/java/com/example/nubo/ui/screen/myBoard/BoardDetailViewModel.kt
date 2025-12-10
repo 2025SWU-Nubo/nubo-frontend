@@ -203,7 +203,6 @@ class BoardDetailViewModel @Inject constructor(
         viewModelScope.launch {
             val token = authRepository.getAccessToken().orEmpty()
             boardRepository.getBoardDetail(
-                token = token,
                 boardId = currentBoardId,
                 favoriteOnly = _ui.value.favoriteOnly,
                 sort = _ui.value.sort,
@@ -259,7 +258,6 @@ class BoardDetailViewModel @Inject constructor(
             try {
                 val token = authRepository.getAccessToken().orEmpty()
                 boardService.setFavorite(
-                    authHeader = "Bearer $token",
                     boardId = sectionId.toLong(),          // section id
                     body = FavoriteRequest(favorite = newFav)
                 )
@@ -292,7 +290,6 @@ class BoardDetailViewModel @Inject constructor(
                 )
                 boardService.upsertBoard(
                     body = req,
-                    authHeader = token
                 )
                 // 성공 후 토스트
                 loadPage(reset = true)
@@ -327,7 +324,6 @@ class BoardDetailViewModel @Inject constructor(
                 val token = "Bearer ${authRepository.getAccessToken()}"
                 // 여기서는 반환값을 쓰지 않음 (예외 없으면 성공으로 간주)
                 boardService.renameBoardOrSection(
-                    authHeader = token,
                     boardId = sectionId.toLong(),
                     body = BoardRenameRequest(name = newName)
                 )
@@ -358,7 +354,6 @@ class BoardDetailViewModel @Inject constructor(
             try {
                 val token = "Bearer ${authRepository.getAccessToken()}"
                 boardService.renameBoardOrSection(
-                    authHeader = token,
                     boardId = boardId.toLong(),
                     body = BoardRenameRequest(name = newName)
                 )
@@ -440,7 +435,6 @@ class BoardDetailViewModel @Inject constructor(
                 )
 
                 val response = boardService.bulkCopy(
-                    authHeader = token,
                     sourceBoardId = sourceBoardId,
                     body = request
                 )
@@ -490,7 +484,6 @@ class BoardDetailViewModel @Inject constructor(
 
                 Log.d("MoveAPI", "Request Body 생성: $request")
                 val response = boardService.bulkMove(
-                    authHeader = token,
                     sourceBoardId = sourceBoardId,
                     body = request
                 )
@@ -564,7 +557,7 @@ class BoardDetailViewModel @Inject constructor(
                             boardIds = selectedSectionIds.map { it.toLong() },
                             deleteLinkedCards = boardDeleteOption
                         )
-                        val response = boardService.deleteBoards(token, request)
+                        val response = boardService.deleteBoards( request)
                         if (response.isSuccessful && response.body() != null) {
                             response.body()!!.forEach {
                                 finalDeletedSectionIds.add(it.boardId)
@@ -583,7 +576,7 @@ class BoardDetailViewModel @Inject constructor(
                             cardIds = selectedCardIds.map { it.toLong() },
                             deleteMode = cardDeleteOption
                         )
-                        val response = cardService.deleteCards(token, request)
+                        val response = cardService.deleteCards( request)
                         if (response.isSuccessful && response.body() != null) {
                             response.body()!!.results.forEach {
                                 // '카드만 삭제' ID를 별도 변수에 저장
@@ -657,7 +650,7 @@ class BoardDetailViewModel @Inject constructor(
             )
 
             // 통합된 복구 API 호출
-            val response = boardService.restoreBoards(token, request)
+            val response = boardService.restoreBoards( request)
 
             if (response.isSuccessful && response.body() != null) {
                 val restoredSize = response.body()!!.restoredBoardIds.size + response.body()!!.restoredCardIds.size
@@ -692,7 +685,7 @@ class BoardDetailViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val token = "Bearer ${authRepository.getAccessToken()}"
-                val response = boardService.getBoardMembers(token, currentBoardId.toLong())
+                val response = boardService.getBoardMembers( currentBoardId.toLong())
 
                 if (response.isSuccessful && response.body() != null) {
                     val data = response.body()!!
@@ -713,7 +706,6 @@ class BoardDetailViewModel @Inject constructor(
 
                 // boardId 파라미터 추가 전달
                 val response = boardService.cancelInvitation(
-                    authHeader = token,
                     boardId = currentBoardId.toLong(), // 현재 보드 ID 전달
                     invitationId = invitationId
                 )
@@ -746,7 +738,6 @@ class BoardDetailViewModel @Inject constructor(
                 val token = authRepository.getAccessToken() ?: return@launch
 
                 val response = boardService.updateBoardShare(
-                    authHeader = "Bearer $token",
                     boardId = boardId,
                     body = ShareBoardRequest(shared = true)
                 )
@@ -781,7 +772,6 @@ class BoardDetailViewModel @Inject constructor(
                 val token = authRepository.getAccessToken() ?: return@launch
 
                 val response = boardService.inviteMembers(
-                    authHeader = "Bearer $token",
                     boardId = boardId.toLong(),
                     body = InviteMembersRequest(emails = emails)
                 )

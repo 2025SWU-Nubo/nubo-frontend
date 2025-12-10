@@ -90,7 +90,7 @@ class EditCardViewModel @Inject constructor(
             return@launch
         }
         runCatching {
-            val detail = cardRepository.getCardDetail(token, cardId).await()
+            val detail = cardRepository.getCardDetail( cardId).await()
             EditCardUiState.Ready(
                 summary = detail.summary.orEmpty(),
                 highlights = detail.highlights ?: emptyList()
@@ -145,7 +145,7 @@ class EditCardViewModel @Inject constructor(
                 summary = s.summary,
                 highlights = s.highlights
             )
-            cardRepository.updateCardSummary(token, cardId, body).await()
+            cardRepository.updateCardSummary( cardId, body).await()
         }.onSuccess { resp ->
             // Adopt canonical response from server
             _uiState.value = EditCardUiState.Ready(
@@ -224,7 +224,7 @@ class EditCardViewModel @Inject constructor(
         _aiLoading.value = true
         runCatching {
             val body = EditSummaryAiRequest(prompt)
-            cardRepository.updateSummaryWithAi(token, cardId, body).await()
+            cardRepository.updateSummaryWithAi( cardId, body).await()
         }.onSuccess { resp ->
             applyAiEditedSummary(resp.summary)
             _aiQuery.value = ""

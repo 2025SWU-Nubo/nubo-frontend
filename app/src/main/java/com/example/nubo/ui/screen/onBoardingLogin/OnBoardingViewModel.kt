@@ -293,6 +293,8 @@ class OnBoardingViewModel @Inject constructor(
                     val newUser = loginRes.user
                     pendingAccessToken = loginRes.accessToken
 
+                    authRepository.saveRefreshToken(loginRes.refreshToken)
+
                     // 마지막 온보딩 플래그 기억해두기
                     lastInterestSetupCompleted = loginRes.interestSetupCompleted
                     lastTutorialCompleted = loginRes.tutorialCompleted

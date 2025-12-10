@@ -134,7 +134,7 @@ class CardUploadService: Service() {
     private fun uploadCard(accessToken: String, videoUrl: String, boardId: Long?) {
         val request = CardUploadRequest(videoUrl)
 
-        cardRepository.uploadCard(accessToken, request)
+        cardRepository.uploadCard( request)
             .enqueue(object : Callback<CardUploadResponse> {
                 override fun onResponse(
                     call: Call<CardUploadResponse?>,

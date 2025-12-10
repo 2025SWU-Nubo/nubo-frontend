@@ -167,7 +167,6 @@ class MyCardViewModel @Inject constructor(
 
                 // Repository uses suspend + Result<PagedResponse<CardResponse>>
                 val pageRes = cardRepository.getCards(
-                    token = token,
                     sort = sort,          // ← enum 그대로 넘김
                     filter = filter,
                     page = targetPage,
@@ -202,7 +201,7 @@ class MyCardViewModel @Inject constructor(
         _isDetailLoading.value = true
 
         authRepository.getAccessToken()?.let { token ->
-            cardRepository.getCardDetail(token, cardId)
+            cardRepository.getCardDetail( cardId)
                 .enqueue(object : Callback<CardDetailResponse> {
                     override fun onResponse(
                         call: Call<CardDetailResponse>,
@@ -246,7 +245,6 @@ class MyCardViewModel @Inject constructor(
                     return@launch
                 }
                 val res: List<CardSearchItemResponse> = boardService.searchCards(
-                    authHeader = "Bearer $token",
                     keyword = query,
                     sort = sort.name // enum 값을 String으로 변환 (LATEST, OLDEST 등)
                 )

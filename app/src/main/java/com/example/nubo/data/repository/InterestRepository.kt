@@ -16,7 +16,7 @@ class InterestRepository @Inject constructor(
 ) {
     /** 기본 보드 목록 조회 */
     suspend fun loadDefaultBoards(accessToken: String) =
-        boardApi.getDefaultBoards(auth = "Bearer $accessToken")
+        boardApi.getDefaultBoards(accessToken)
 
     /** 관심사 설정: 보드 선택 제출 */
     suspend fun submitSelectedBoards(accessToken: String, ids: List<Long>) =

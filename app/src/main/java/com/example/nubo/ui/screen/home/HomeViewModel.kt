@@ -84,7 +84,7 @@ class HomeViewModel @Inject constructor(
 
         val token = authRepository.getAccessToken() ?: return
         viewModelScope.launch {
-            cardRepository.getRecommendCards(token)
+            cardRepository.getRecommendCards()
                 .onSuccess { response ->
                     _recommendGroups.value = response.groups
                 }
@@ -129,7 +129,7 @@ class HomeViewModel @Inject constructor(
             cardPageSize = 20
             cardIsLast = true
 
-            cardRepository.getUnviewedAllCards(token, limit = 20)
+            cardRepository.getUnviewedAllCards( limit = 20)
                 .enqueue(object : Callback<List<CardResponse>> {
                     override fun onResponse(
                         call: Call<List<CardResponse>>,
@@ -158,7 +158,7 @@ class HomeViewModel @Inject constructor(
             _isLoading.value = true
 
             // 미시청 카드 조회
-            cardRepository.getUnviewedCardsByBoard(token,boardId = boardId, limit = 10)
+            cardRepository.getUnviewedCardsByBoard(boardId = boardId, limit = 10)
                 .enqueue(object : Callback<List<CardResponse>> {
                     override fun onResponse(call: Call<List<CardResponse>?>, response: Response<List<CardResponse>?>) {
                         _isLoading.value = false
@@ -203,7 +203,6 @@ class HomeViewModel @Inject constructor(
             try {
                 val targetPage = if (reset) 0 else cardPage + 1
                 val result = cardRepository.getCards(
-                    token = token,
                     sort = CardSort.LATEST,
                     filter = CardFilter.ALL,
                     page = targetPage,
@@ -239,7 +238,7 @@ class HomeViewModel @Inject constructor(
                 Log.d("HomeViewModel", "❌ Token is null, cannot load boards")
                 return@launch
             }
-            boardRepository.getRecentBoards(token)
+            boardRepository.getRecentBoards()
                 .onSuccess { list ->
                     _recentBoards.value = list
                     Log.d("HomeViewModel", "✅ Recent Boards loaded: size=${list.size}, data=$list")
@@ -256,7 +255,7 @@ class HomeViewModel @Inject constructor(
                 Log.d("HomeViewModel", "❌ Token is null, cannot load boards")
                 return@launch}
 
-            boardRepository.getHomeBoards(token, sort = "LATEST")
+            boardRepository.getHomeBoards( sort = "LATEST")
                 .onSuccess { list ->
                     // 홈 보드 응답을 칩으로 변환
                     val built = buildList {
@@ -305,7 +304,7 @@ class HomeViewModel @Inject constructor(
         _isDetailLoading.value = true
 
         authRepository.getAccessToken()?.let { token ->
-            cardRepository.getCardDetail(token, cardId)
+            cardRepository.getCardDetail( cardId)
                 .enqueue(object : Callback<CardDetailResponse> {
                     override fun onResponse(
                         call: Call<CardDetailResponse>,

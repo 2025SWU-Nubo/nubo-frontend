@@ -60,7 +60,7 @@ class RecommendCardDetailViewModel @Inject constructor(
             }
 
             // Repository already returns Result<RecommendCardDetailResponse>
-            cardRepository.getRecommendCardDetail(token, recommendationCardId)
+            cardRepository.getRecommendCardDetail( recommendationCardId)
                 .onSuccess { res ->
                     // map to UI model
                     _uiState.value = RecommendDetailUiState.Success(res.toUi())
@@ -84,7 +84,6 @@ class RecommendCardDetailViewModel @Inject constructor(
 
             // Use repository Result API
             cardRepository.saveRecommendationCard(
-                token = token,
                 recommendationCardId = recommendationCardId,
                 boardIds = boardIds
             ).onSuccess { res ->
