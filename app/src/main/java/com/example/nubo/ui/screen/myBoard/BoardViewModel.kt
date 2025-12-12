@@ -152,7 +152,11 @@ class BoardViewModel @Inject constructor(
                         createdAt = getDisplayDate(dto.updatedAt),
                         source = dto.source,
                         imageUrl = dto.videoThumbnailUrl, // renamed field
-                        isBookmarked = dto.favorite // 즐겨찾기 여부 매핑
+                        isBookmarked = dto.favorite, // 즐겨찾기 여부 매핑
+                        // 권한 필드 매핑
+                        shared = dto.shared,
+                        owner = dto.owner,
+                        mine = dto.mine
                     )
                 }
                 _boards.value = if (reset) mapped else _boards.value + mapped
@@ -272,7 +276,9 @@ class BoardViewModel @Inject constructor(
                         createdAt = getDisplayDate(dto.updatedAt),
                         source = dto.source,
                         imageUrl = dto.videoThumbnailUrl,
-                        isBookmarked = dto.favorite
+                        isBookmarked = dto.favorite,
+                        // 권한 필드 매핑
+                        shared = dto.shared
                     )
                 }
             } catch (e: Exception) {

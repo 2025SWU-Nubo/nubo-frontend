@@ -1,9 +1,6 @@
 package com.example.nubo.ui.screen.myBoard
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -44,6 +41,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -62,6 +62,7 @@ import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.Purple50
 import com.example.nubo.ui.theme.PurpleMain500
 import com.example.nubo.ui.theme.GreyMain300
+import com.example.nubo.ui.screen.add.SheetTopToast
 import com.example.nubo.utils.REFRESH_TICK_KEY
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -99,6 +100,16 @@ fun SectionDetailScreen(
         bottomSheetType = BottomSheetType.NONE
         selectionFromMenu = false
     }
+    // 카드 선택 안내 토스트 변수
+    var showSelectWarning by remember { mutableStateOf(false) }
+    var selectWarningType by remember { mutableStateOf(SelectWarningType.CARD) }
+
+    val triggerSelectWarning: (SelectWarningType) -> Unit = { type ->
+        selectWarningType = type
+        showSelectWarning = true
+    }
+    val toastOffsetDp = 204.dp
+
     // -----------------------------------------\
 
     // 뒤로가기 버튼으로 선택 모드를 종료할 수 있도록 핸들러 추가
@@ -258,7 +269,22 @@ fun SectionDetailScreen(
                             CircularProgressIndicator() // 3. 로딩 인디케이터
                         }
                     } else if (detailState != null) {
-                        val cardItems = detailState.cards.content.map { it.toMyCardItem() }
+                        val cardDtos = detailState.cards.content
+                        val cardItems = cardDtos.map { it.toMyCardItem() }
+
+                        val isShared = ui.board?.shared == true
+
+                        // 카드별 mine 기반으로 선택 가능 ID 계산
+                        val selectableCardIds: Set<Int>? =
+                            if (isShared) {
+                                cardDtos
+                                    .filter { it.mine == true } // 서버에서 내려주는 카드 mine
+                                    .map { it.id }
+                                    .toSet()
+                            } else {
+                                null // 개인 보드면 모두 선택 가능
+                            }
+
                         val cardHeights by remember(sectionId, cardItems.size) {
                             mutableStateOf(
                                 cardItems.mapIndexed { index, _ ->
@@ -296,42 +322,35 @@ fun SectionDetailScreen(
                                 cardHeights = cardHeights,
                                 onCardClick = { cardId ->
                                     if (isSelectionMode) {
-
-                                        val isShared = ui.board?.shared == true
-                                        val isMine = ui.board?.mine == true
-
-                                        if (isShared && !isMine) {
-                                            return@MyCardContent     // 남의 카드 선택 무시
+                                        if (isShared && selectableCardIds?.contains(cardId) == false) {
+                                            triggerSelectWarning(SelectWarningType.CARD)
+                                            return@MyCardContent         // 선택 토글 금지
                                         }
 
                                         selectedCards =
                                             if (selectedCards.contains(cardId)) selectedCards - cardId
                                             else selectedCards + cardId
-
                                     } else {
                                         navController.navigate("card_detail/$cardId")
                                     }
                                 },
                                 onCardLongClick = { cardId ->
-                                    // 롱클릭 시 선택 모드로 진입하고, 현재 카드 선택
                                     if (!isSelectionMode) {
-                                        // 공유 보드 + 내가 mine == false면 선택 모드 진입 금지
-                                        // -----------------------------
-                                        val isShared = ui.board?.shared == true
-                                        val isMine = ui.board?.mine == true
-
-                                        if (isShared && !isMine) {
-                                            // 롱클릭 무시 (남의 카드 선택 불가)
+                                        // 공유 보드에서 mine=false 카드면 선택 모드 진입 자체를 막고 토스트
+                                        if (isShared && selectableCardIds?.contains(cardId) == false) {
+                                            triggerSelectWarning(SelectWarningType.CARD)
                                             return@MyCardContent
                                         }
+
                                         selectionFromMenu = false
                                         isSelectionMode = true
                                         bottomSheetType = BottomSheetType.SELECTION
-                                        selectedCards = setOf(cardId) // 새 Set으로 첫 항목 선택
+                                        selectedCards = setOf(cardId)
                                     }
                                 },
                                 isSelectionMode = isSelectionMode,
-                                selectedCardIds = selectedCards
+                                selectedCardIds = selectedCards,
+                                selectableCardIds = selectableCardIds
                             )
                         }
                     }
@@ -516,6 +535,27 @@ fun SectionDetailScreen(
                 }
             }
         )
+    }
+    if (showSelectWarning) {
+        when (selectWarningType) {
+            SelectWarningType.CARD -> {
+                SheetTopToast(
+                    title = buildAnnotatedString {
+                        append("카드 삭제ㆍ복제ㆍ이동은 ")
+                        withStyle(SpanStyle(color = PurpleMain500)) { append("생성자만 ") }
+                        append("가능해요.")
+                    },
+                    message = "다른 참여자가 생성한 카드는 선택할 수 없어요.",
+                    visible = showSelectWarning,
+                    onDismiss = { showSelectWarning = false },
+                    durationMillis = 3500L,
+                    bottomOffset = toastOffsetDp
+                )
+            }
+            SelectWarningType.SECTION -> {}
+            SelectWarningType.SECTIONCARD -> {}
+            SelectWarningType.CARDSECTION -> {}
+        }
     }
 }
 

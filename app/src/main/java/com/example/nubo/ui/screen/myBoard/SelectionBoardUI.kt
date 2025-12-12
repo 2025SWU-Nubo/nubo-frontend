@@ -23,9 +23,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.OutlinedTextField as OutlinedTextField1
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -61,16 +62,18 @@ import com.example.nubo.ui.theme.RedError
 
 
 /** 보드 선택 시 수행되는 기능들에 대한 파일
-* 보드 삭제, 보드 이름 변경 등*/
+ * 보드 삭제, 보드 이름 변경 등*/
 
 // 보드 선택 바텀바 - 삭제 기능
 // 나의 카드 전체 탭에서 함께 사용
 @Composable
 fun BoardSelectionContent(
     onDeleteClick: () -> Unit,
-    onDismiss: () -> Unit,
     selectedCardCount: Int,
-    selectedBoardCount: Int
+    selectedBoardCount: Int,
+    selectedSectionCount: Int,
+    showBackButton: Boolean,
+    onBack: () -> Unit
 ) {
     Surface(
         modifier = Modifier
@@ -80,6 +83,7 @@ fun BoardSelectionContent(
         val title = when {
             selectedBoardCount > 0 -> "${selectedBoardCount}개의 보드 선택됨"
             selectedCardCount > 0 -> "${selectedCardCount}개의 카드 선택됨"
+            selectedSectionCount > 0 -> "${selectedSectionCount}개의 섹션 선택됨"
             else -> "항목 선택"
         }
 
@@ -87,22 +91,31 @@ fun BoardSelectionContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(top=24.dp)
         ) {
-          /*  IconButton(
-                onClick = onDismiss,
-                modifier = Modifier.padding(start = 4.dp, top = 10.dp)
-            ) {
+            val isEnabled =
+                selectedBoardCount > 0 || selectedSectionCount > 0 || selectedCardCount > 0
+
+            // 뒤로가기 버튼이 있을 때만, 타이틀(Row)보다 16.dp 위에 배치
+            if (showBackButton) {
                 Icon(
-                    painter = painterResource(id = R.drawable.ic_close),
-                    contentDescription = "닫기"
+                    painter = painterResource(id = R.drawable.ic_arrow_back),
+                    contentDescription = "뒤로가기",
+                    tint = MaterialTheme.colorScheme.onSurface, // 안 보이는 문제 방지용
+                    modifier = Modifier
+                        .padding(top=8.dp,start = 20.dp) // 좌측 정렬 유지
+                        .size(22.dp)
+                        .noRippleClickable { onBack() }
                 )
-            }*/
-            val isEnabled = selectedBoardCount > 0 || selectedCardCount > 0
+                Spacer(modifier = Modifier.height(16.dp)) // 아이콘이 텍스트보다 16dp 위
+            }
+
+            // showBackButton=true면 이미 위에서 공간을 만들었으니 Row top padding 제거
+            val rowTopPadding = if (showBackButton) 0.dp else 14.dp
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 40.dp, start = 20.dp, end = 20.dp),
+                    .padding(top = rowTopPadding, bottom = 40.dp, start = 20.dp, end = 20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -116,10 +129,12 @@ fun BoardSelectionContent(
                     onClick = onDeleteClick,
                     enabled = isEnabled
                 )
+
             }
         }
     }
 }
+
 
 // 보드 바텀바 버튼
 @Composable
@@ -270,6 +285,9 @@ fun BoardRename(
     val isNameValid = trimmedName.length >= 2
     val showError = isNameTouched && !isNameValid
 
+    // 키보드 컨트롤러 가져오기
+    val keyboardController = LocalSoftwareKeyboardController.current
+
     Surface(
         modifier = Modifier
             .imePadding()
@@ -281,7 +299,7 @@ fun BoardRename(
                 .background(Color.White)
                 .height(300.dp)
                 .navigationBarsPadding()
-                .padding(start = 18.dp, end = 18.dp, top = 24.dp),
+                .padding(top = 14.dp, start = 18.dp, end = 18.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // --- 헤더: 닫기 + 타이틀 ---
@@ -299,22 +317,17 @@ fun BoardRename(
                         .noRippleClickable { onBack() }
                 )
                 Text(text = "보드 이름 변경", style = b1_semibold_18)
-                /*// 오른쪽 닫기 버튼
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_close),
-                    contentDescription = "닫기",
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .size(24.dp)
-                        .noRippleClickable { onDismiss() }
-                )*/
             }
 
             Spacer(Modifier.height(28.dp))
 
             // --- 보드 이름 입력 영역 ---
             Column(horizontalAlignment = Alignment.Start) {
-                Text("보드 이름", style = b2_semibold_16)
+                Text(
+                    text = "보드 이름",
+                    style = b2_semibold_16,
+                    modifier = Modifier.padding(start = 6.dp)
+                )
                 Spacer(Modifier.height(8.dp))
 
                 OutlinedTextField1(
@@ -343,8 +356,9 @@ fun BoardRename(
                         Text("보드 이름", style = b3_regular_14, color = Grey200)
                     },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    // 완료 버튼 시 키보드만 내림
                     keyboardActions = KeyboardActions(onDone = {
-                        if (isNameValid) onConfirm(trimmedName, isShared)
+                        keyboardController?.hide()
                     })
                 )
 
@@ -370,6 +384,7 @@ fun BoardRename(
                         isNameTouched = true
                         if (isNameValid) {
                             onConfirm(trimmedName, isShared)
+                            keyboardController?.hide() // 버튼 누를 때 키보드 닫기
                         }
                     },
                     shape = RoundedCornerShape(8.dp),

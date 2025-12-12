@@ -27,6 +27,7 @@ import kotlin.math.roundToInt
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.launch
 import com.example.nubo.R
 import com.example.nubo.ui.theme.AppTextStyles.b1_semibold_18
@@ -150,7 +151,13 @@ fun BottomSheetContainer(
                         )
                     }
                     // 실제 콘텐츠
-                    content()
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 10.dp)
+                    ) {
+                        content()
+                    }
                 }
             }
         }
@@ -185,46 +192,46 @@ fun MenuContent(
         // 0. 공유보드 + 섹션 내부 + owner=false + mine=false → 카드 선택만 표시
         if (isSectionScreen && isShared && !isOwner && !isMine) {
             return@remember listOf(
-                MenuRow("카드 선택", R.drawable.ic_board_selectfile, onSelectCardClick)
+                MenuRow("카드 선택", R.drawable.ic_board_menu_card, onSelectCardClick)
             )
         }
 
         when {
             // 1. 섹션 상세 화면
             isSectionScreen -> listOf(
-                MenuRow("이름 변경", R.drawable.ic_board_rename, onRenameClick),
-                MenuRow("카드 선택", R.drawable.ic_board_selectfile, onSelectCardClick)
+                MenuRow("이름 변경", R.drawable.ic_board_menu_rename, onRenameClick),
+                MenuRow("카드 선택", R.drawable.ic_board_menu_card, onSelectCardClick)
             )
 
             // 2. 보드 source = AI
             source == "AI" -> listOf(
-                MenuRow("섹션 추가", R.drawable.ic_board_addsection, onAddSectionClick),
-                MenuRow("항목 선택", R.drawable.ic_board_selectfile, onSelectCardClick)
+                MenuRow("섹션 추가", R.drawable.ic_board_menu_add, onAddSectionClick),
+                MenuRow("항목 선택", R.drawable.ic_board_menu_card, onSelectCardClick)
             )
 
             // 3. USER 보드 (단독 생성 보드)
             source == "USER" && !isShared -> listOf(
-                MenuRow("이름 변경", R.drawable.ic_board_rename, onRenameClick),
-                MenuRow("참여자 목록", R.drawable.ic_board_memerset, onMembersClick),
-                MenuRow("섹션 추가", R.drawable.ic_board_addsection, onAddSectionClick),
-                MenuRow("항목 선택", R.drawable.ic_board_selectfile, onSelectCardClick)
+                MenuRow("이름 변경", R.drawable.ic_board_menu_rename, onRenameClick),
+                MenuRow("참여자 목록", R.drawable.ic_board_menu_user, onMembersClick),
+                MenuRow("섹션 추가", R.drawable.ic_board_menu_add, onAddSectionClick),
+                MenuRow("항목 선택", R.drawable.ic_board_menu_card, onSelectCardClick)
             )
 
             // 4. 공유보드 + owner
             isShared && isOwner -> listOf(
-                MenuRow("이름 변경", R.drawable.ic_board_rename, onRenameClick),
-                MenuRow("참여자 목록", R.drawable.ic_board_memerset, onMembersClick),
-                MenuRow("섹션 추가", R.drawable.ic_board_addsection, onAddSectionClick),
-                MenuRow("섹션 선택", R.drawable.ic_board_foldercheck_light, onSelectSectionClick),
-                MenuRow("카드 선택", R.drawable.ic_board_selectfile, onSelectCardClick)
+                MenuRow("이름 변경", R.drawable.ic_board_menu_rename, onRenameClick),
+                MenuRow("참여자 목록", R.drawable.ic_board_menu_user, onMembersClick),
+                MenuRow("섹션 추가", R.drawable.ic_board_menu_add, onAddSectionClick),
+                MenuRow("섹션 선택", R.drawable.ic_board_menu_section, onSelectSectionClick),
+                MenuRow("카드 선택", R.drawable.ic_board_menu_card, onSelectCardClick)
             )
 
             // 5. 공유보드 + owner 아님
             isShared && !isOwner -> listOf(
-                MenuRow("참여자 목록", R.drawable.ic_board_memerset, onMembersClick),
-                MenuRow("섹션 추가", R.drawable.ic_board_addsection, onAddSectionClick),
-                MenuRow("섹션 선택", R.drawable.ic_board_foldercheck_light, onSelectSectionClick),
-                MenuRow("카드 선택", R.drawable.ic_board_selectfile, onSelectCardClick)
+                MenuRow("참여자 목록", R.drawable.ic_board_menu_user, onMembersClick),
+                MenuRow("섹션 추가", R.drawable.ic_board_menu_add, onAddSectionClick),
+                MenuRow("섹션 선택", R.drawable.ic_board_menu_section, onSelectSectionClick),
+                MenuRow("카드 선택", R.drawable.ic_board_menu_card, onSelectCardClick)
             )
 
             else -> emptyList()
@@ -244,7 +251,7 @@ fun MenuContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(top = 24.dp, bottom = 32.dp)
+                .padding(bottom = 32.dp,top = 14.dp)
         ) {
 
             // --- 헤더 ---
@@ -309,10 +316,10 @@ private fun MenuRowItem(
                 painter = painterResource(id = icon),
                 contentDescription = null,
                 tint = Color.Unspecified,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(24.dp)
             )
 
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(10.dp))
 
             Text(
                 text = text,

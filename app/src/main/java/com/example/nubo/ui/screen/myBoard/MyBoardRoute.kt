@@ -21,11 +21,20 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Observer
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.example.nubo.ui.screen.add.SheetTopToast
+import com.example.nubo.ui.theme.PurpleMain500
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.parcelize.Parcelize
 import com.example.nubo.utils.refreshTicks
+import androidx.compose.foundation.layout.Box
 
 /**
  * MyBoardScreen과 관련된 모든 상태와 로직을 관리하는 컨테이너 컴포저블.
@@ -43,7 +52,7 @@ fun MyBoardRoute(
     // selectedTab 상태를 MyBoardRoute에서 관리
     var selectedTab by rememberSaveable { mutableStateOf(1) } // 1 = 보드 탭
 
-    var cardtab : Boolean = false
+    var cardtab: Boolean = false
 
     val boardDetailViewModel: BoardDetailViewModel = hiltViewModel()
     val cardViewModel: MyCardViewModel = hiltViewModel() // MyBoardScreen에 필요
@@ -67,6 +76,13 @@ fun MyBoardRoute(
     var showBoardSelector by remember { mutableStateOf(false) }
     var currentAction by remember { mutableStateOf<BoardAction?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+
+    // 보드 선택 안내 토스트 상태
+    var showBoardSelectWarning by remember { mutableStateOf(false) }
+
+    //안내 토스트 관련 변수
+    var boardSheetHeightPx by remember { mutableStateOf(0) }
+    val density = LocalDensity.current
 
     // --- 보드 삭제 다이얼로그 상태 ---
     var showBoardDeleteDialog by remember { mutableStateOf(false) }
@@ -152,7 +168,6 @@ fun MyBoardRoute(
         }
     }
 
-
     // --- 보드 상세 화면용 삭제 이벤트 수신 ---
     LaunchedEffect(boardDetailViewModel, cardViewModel) {
         boardDetailViewModel.deleteCompleteEvent.collect { count ->
@@ -197,7 +212,9 @@ fun MyBoardRoute(
                         0 -> {// 카드 탭
                             // 필터/정렬 초기화 (MyCardViewModel에도 함수 추가 필요)
                             cardViewModel.resetFilterAndSort()
-                            cardViewModel.refresh()}
+                            cardViewModel.refresh()
+                        }
+
                         1 -> { // 보드 탭으로 이동
                             // 보드 탭의 필터/정렬 초기화
                             boardViewModel.resetFilterAndSort()
@@ -229,27 +246,42 @@ fun MyBoardRoute(
             isBoardSelectionMode = isBoardSelectionMode,
             selectedBoardIds = selectedBoardIds,
             onBoardClick = { board ->
+                val isShared = board.shared
+                val isOwner = board.owner
+
                 if (isBoardSelectionMode) {
-                    // 선택모드에서는 클릭으로 선택/해제
+                    // 공유 보드는 소유자만 선택 가능
+                    if (isShared && !isOwner) {
+                        showBoardSelectWarning = true
+                        return@MyBoardScreen
+                    }
+
                     val id = board.serverBoardId
                     selectedBoardIds =
                         if (selectedBoardIds.contains(id)) selectedBoardIds - id else selectedBoardIds + id
                 } else {
-                    // 일반 모드에서 상세 화면으로 이동 시, source를 쿼리 파라미터로 전달
                     val encodedTitle = java.net.URLEncoder.encode(board.title, "utf-8")
                     val route = "board_detail/${board.serverBoardId}/$encodedTitle?source=${board.source}"
                     navController.navigate(route)
                 }
             },
             onBoardLongClick = { board ->
+                val isShared = board.shared
+                val isOwner = board.owner
+
                 if (!isBoardSelectionMode) {
+                    // 공유 보드는 소유자만 선택 모드 진입 가능
+                    if (isShared && !isOwner) {
+                        showBoardSelectWarning = true
+                        return@MyBoardScreen
+                    }
+
                     isBoardSelectionMode = true
                     selectedBoardIds = setOf(board.serverBoardId)
                     boardForEditing = board
                     boardBottomSheetType = BottomSheetType.BOARD_SELECTION
                     onSelectionModeChange(true)
                 }
-                Log.d("MyBoardRouteDebug", "onBoardLongClick triggered: Board ID = ${board.serverBoardId}, Title = ${board.title}")
             }
         )
     }
@@ -308,29 +340,55 @@ fun MyBoardRoute(
         visible = isCardSelectionMode,
         onDismiss = { resetCardSelectionState() }
     ) {
-        BoardSelectionContent(
-            onDeleteClick = {
-                scope.launch { boardViewModel.deleteCardsFromGlobal(selectedCardIds) }
-            },
-            onDismiss = { resetCardSelectionState() },
-            selectedBoardCount = 0,
-            selectedCardCount = selectedCardIds.size
-        )
+        Box(
+            modifier = Modifier.onGloballyPositioned { boardSheetHeightPx = it.size.height }
+        ) {
+            BoardSelectionContent(
+                onDeleteClick = {
+                    scope.launch { boardViewModel.deleteCardsFromGlobal(selectedCardIds) }
+                },
+                selectedBoardCount = 0,
+                selectedCardCount = selectedCardIds.size,
+                selectedSectionCount = 0,
+                showBackButton = false,
+                onBack = {/* 여기서는 뒤로가기 없음*/ }
+            )
+        }
     }
 
     BottomSheetContainer(
         visible = isBoardSelectionMode && boardBottomSheetType == BottomSheetType.BOARD_SELECTION,
         onDismiss = { resetBoardSelectionState() }
     ) {
-        BoardSelectionContent(
-            onDeleteClick = {
-                boardIdsToDelete = selectedBoardIds
-                showBoardDeleteDialog = true
-                boardBottomSheetType = BottomSheetType.NONE
+        Box(
+            modifier = Modifier.onGloballyPositioned { boardSheetHeightPx = it.size.height }
+        ) {
+            BoardSelectionContent(
+                onDeleteClick = {
+                    boardIdsToDelete = selectedBoardIds
+                    showBoardDeleteDialog = true
+                    boardBottomSheetType = BottomSheetType.NONE
+                },
+                selectedBoardCount = selectedBoardIds.size,
+                selectedCardCount = 0,
+                selectedSectionCount = 0,
+                showBackButton = false,
+                onBack = {/* 여기서는 뒤로가기 없음*/ }
+            )
+        }
+    }
+    if (showBoardSelectWarning) {
+        SheetTopToast(
+            title = buildAnnotatedString {
+                append("공유 보드 삭제는 ")
+                withStyle(SpanStyle(color = PurpleMain500)) { append("보드 소유자만 ") }
+                append("가능해요.")
             },
-            onDismiss = { resetBoardSelectionState() },
-            selectedBoardCount = selectedBoardIds.size,
-            selectedCardCount = 0
+            message = "일반 참여자는 삭제할 수 없어요.",
+            visible = showBoardSelectWarning,
+            onDismiss = { showBoardSelectWarning = false },
+            durationMillis = 3500L,
+            bottomOffset = 184.dp
         )
     }
 }

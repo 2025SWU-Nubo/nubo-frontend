@@ -9,7 +9,8 @@ data class BoardItemResponse(
     val boardType:String,
     val source: String,
     val shared: Boolean,
-    val favorite: Boolean
+    val favorite: Boolean,
+    val owner:Boolean
 )
 
 // 즐겨찾기 변경 요청 바디

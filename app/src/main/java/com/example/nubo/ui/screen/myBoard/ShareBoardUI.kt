@@ -23,6 +23,7 @@ import com.example.nubo.R
 // --- 모델 ---
 import com.example.nubo.data.model.InvitationDto
 import com.example.nubo.data.model.MemberDto
+import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles.b2_medium_16
 import com.example.nubo.ui.theme.AppTextStyles.b2_semibold_16
 
@@ -52,7 +53,7 @@ fun BoardMembersSheet(
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .imePadding()
-                .padding(start = 20.dp, end = 20.dp, top = 13.dp),
+                .padding(start = 20.dp, end = 20.dp,top = 14.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
@@ -61,19 +62,15 @@ fun BoardMembersSheet(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                IconButton(
-                    onClick = onBack,
+                // 왼쪽 뒤로가기 버튼
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_arrow_back),
+                    contentDescription = "뒤로가기",
                     modifier = Modifier
                         .align(Alignment.CenterStart)
-                        .offset(x = (-18).dp)
-                        .size(48.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_arrow_back),
-                        contentDescription = "뒤로가기",
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
+                        .size(22.dp)
+                        .noRippleClickable { onBack() }
+                )
 
                 Text(
                     text = "참여자 목록",
@@ -177,7 +174,7 @@ private fun AddMemberRow(
                 painter = painterResource(R.drawable.ic_board_user_add),
                 contentDescription = "참여자 추가",
                 tint = Grey700,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(24.dp)
             )
         }
 
@@ -194,8 +191,8 @@ private fun AddMemberRow(
         Icon(
             painter = painterResource(R.drawable.arrow_right),
             contentDescription = null,
-            tint = Grey500
-        )
+            tint = Grey500,
+            )
     }
 }
 

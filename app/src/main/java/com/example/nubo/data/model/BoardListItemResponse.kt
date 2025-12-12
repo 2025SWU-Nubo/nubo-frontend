@@ -9,5 +9,7 @@ data class BoardListItemResponse(
     val cardCount: Int,
     val videoThumbnailUrl: String?,
     val shared: Boolean,
-    val favorite: Boolean
+    val favorite: Boolean,
+    val owner: Boolean,
+    val mine: Boolean
 )

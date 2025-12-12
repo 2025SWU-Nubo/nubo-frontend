@@ -10,19 +10,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,16 +25,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.nubo.R
-import com.example.nubo.data.model.CardDetailResponse
-import com.example.nubo.model.card.CardDetailItem
 import com.example.nubo.model.myBoard.MyCardItem
-import com.example.nubo.ui.screen.myBoard.MyCardViewModel
+import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey50
-import com.example.nubo.ui.theme.PurpleMain500
-import formatIsoDateToDisplayLegacy
 
 
 @Composable
@@ -52,7 +40,8 @@ fun MyCardContent(
     onCardLongClick: (Int) -> Unit,
     // 선택 관련 파라미터
     isSelectionMode: Boolean,
-    selectedCardIds: Set<Int>
+    selectedCardIds: Set<Int>,
+    selectableCardIds: Set<Int>? = null
 ) {
     // 블록 패턴 카드
     val (leftItems, rightItems) = buildMasonryBlocks(cards)
@@ -68,6 +57,7 @@ fun MyCardContent(
         ) {
             leftItems.forEach { (item, height) ->
                 val isSelected = selectedCardIds.contains(item.id)
+                val isSelectable = selectableCardIds?.contains(item.id) ?: true
                 MyMasonryCard(
                     height = height,
                     imageUrl = item.imageUrl,
@@ -75,7 +65,8 @@ fun MyCardContent(
                     onLongClick = { onCardLongClick(item.id) },
                     isSelectionMode = isSelectionMode,
                     isSelected = isSelected,
-                    isFavorite = item.isFavorite
+                    isFavorite = item.isFavorite,
+                    isSelectable = isSelectable
                 )
             }
         }
@@ -85,6 +76,7 @@ fun MyCardContent(
         ) {
             rightItems.forEach { (item, height) ->
                 val isSelected = selectedCardIds.contains(item.id)
+                val isSelectable = selectableCardIds?.contains(item.id) ?: true
                 MyMasonryCard(
                     height = height,
                     imageUrl = item.imageUrl,
@@ -92,7 +84,8 @@ fun MyCardContent(
                     onLongClick = { onCardLongClick(item.id) },
                     isSelectionMode = isSelectionMode,
                     isSelected = isSelected,
-                    isFavorite = item.isFavorite
+                    isFavorite = item.isFavorite,
+                    isSelectable = isSelectable
                 )
             }
         }
@@ -109,7 +102,8 @@ fun MyMasonryCard(
     // 선택 관련 파라미터
     isSelectionMode: Boolean,
     isSelected: Boolean,
-    isFavorite: Boolean
+    isFavorite: Boolean,
+    isSelectable: Boolean = true
 ) {
     Box(
         modifier = Modifier
@@ -118,7 +112,7 @@ fun MyMasonryCard(
             .clip(RoundedCornerShape(6.dp)) // CardContent와 동일하게 6dp로 변경 (기존 8dp)
             .background(Grey50)
             .combinedClickable(
-                onClick = onClick,
+                onClick = { onClick() },
                 onLongClick = onLongClick
             ),
         contentAlignment = Alignment.Center
@@ -168,33 +162,48 @@ fun MyMasonryCard(
 
         // --- 선택 모드 오버레이 ---
         if (isSelectionMode) {
+            when {
+                // 선택 불가 (mine=false)
+                !isSelectable -> {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color.White.copy(alpha = 0.6f))
+                    )
+                }
 
-            if (isSelected) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .background(Color.White.copy(alpha = 0.5f))
-                )
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_board_selected),
-                    contentDescription = "선택됨",
-                    tint = Color.Unspecified,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(6.dp)
-                        .size(24.dp)
-                )
+                // 선택됨
+                isSelected -> {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Grey1000.copy(alpha = 0.4f))
+                    )
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_board_selected),
+                        contentDescription = "선택됨",
+                        tint = Color.Unspecified,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(6.dp)
+                            .size(24.dp)
+                    )
+                }
 
-            } else {
-                Icon(
-                    painter = painterResource(id = R.drawable.board_unselect),
-                    contentDescription = "선택되지 않음",
-                    tint = Color.Unspecified,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(6.dp)
-                        .size(24.dp)
-                )
+                // 선택되지 않음
+                else -> {
+                    Icon(
+                        painter = painterResource(id = R.drawable.board_unselect),
+                        contentDescription = "선택되지 않음",
+                        tint = Color.Unspecified,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(6.dp)
+                            .size(24.dp)
+                    )
+                }
             }
         }
     }

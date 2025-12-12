@@ -1,9 +1,6 @@
 package com.example.nubo.ui.screen.myBoard
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -87,6 +84,9 @@ sealed class InputDialogMode {
 // 선택 모드 enum
 enum class SelectionModeType { CARD, SECTION }
 
+// 공유보드 안내 토스트 enum
+enum class SelectWarningType { CARD, SECTION, CARDSECTION, SECTIONCARD }
+
 @Composable
 fun BoardDetailScreen(
     boardId: Int,
@@ -138,6 +138,8 @@ fun BoardDetailScreen(
         //바텀 시트 상태도 초기화
         bottomSheetType = BottomSheetType.NONE
         selectionFromMenu = false
+        //선택 모드 타입 초기화
+        selectionModeType = null
     }
     // -----------------------------------------
 
@@ -156,7 +158,7 @@ fun BoardDetailScreen(
         viewModel.init(boardId)
     }
 
-    // 바텀바 상단 토스트
+    // 개인 보드 -> 공유 보드 전환 바텀바 상단 토스트
     var showShareWarning by remember { mutableStateOf(false) }
     var sheetHeight by remember { mutableStateOf(0) }   // 바텀시트 실제 높이(px)
 
@@ -164,6 +166,15 @@ fun BoardDetailScreen(
         if (bottomSheetType != BottomSheetType.BOARD_MEMBERS) {
             showShareWarning = false
         }
+    }
+
+    // 공유 보드 선택 안내 바텀바 상단 토스트
+    var showSelectWarning by remember { mutableStateOf(false) }
+    var selectWarningType by remember { mutableStateOf(SelectWarningType.CARD) }
+
+    val triggerSelectWarning: (SelectWarningType) -> Unit = { type ->
+        selectWarningType = type
+        showSelectWarning = true
     }
 
     // 토스트 상태 및 코루틴 스코프 선언
@@ -376,17 +387,32 @@ fun BoardDetailScreen(
                         }
                         // 공유 보드 여부
                         val isSharedBoard = boardState.shared
+                        // 공유 보드 소유자 여부
+                        val isOwner = ui.board?.owner == true
 
-                        // 공유 보드인 경우에만 mine == true 인 카드들만 선택 가능하도록 ID 집합 구성
-                        val selectableCardIds: Set<Int> =
-                            if (isSharedBoard) {
-                                boardState.cards.content
-                                    .filter { it.mine == true } // mine 이 true 인 카드만
-                                    .map { it.id }              // id(Int) 리스트로 변환
-                                    .toSet()
+                        // Cards: 공유보드면 mine=true만, 개인보드면 전체
+                        val selectableCardIds: Set<Int> = if (isSharedBoard) {
+                            boardState.cards.content
+                                .filter { it.mine == true }
+                                .map { it.id }
+                                .toSet()
+                        } else {
+                            cardItems.map { it.id }.toSet()
+                        }
+
+                        // Sections: 공유보드면 (owner면 전체) 아니면 mine=true만, 개인보드면 전체
+                        val selectableSectionIds: Set<Int> = if (isSharedBoard) {
+                            if (isOwner) {
+                                boardItems.map { it.id }.toSet()
                             } else {
-                                emptySet()
+                                boardState.sections.orEmpty()
+                                    .filter { it.mine == true }
+                                    .map { it.id.toInt() }
+                                    .toSet()
                             }
+                        } else {
+                            boardItems.map { it.id }.toSet()
+                        }
 
                         // 보드에 섹션/카드가 아무것도 없을 때 빈 상태 UI 표시
                         if (boardItems.isEmpty() && cardItems.isEmpty()) {
@@ -421,40 +447,54 @@ fun BoardDetailScreen(
                                     // 카드 클릭 시 선택/해제 로직 추가
                                     if (isSelectionMode) {
 
-                                        if (selectionModeType == SelectionModeType.CARD) {
-
-                                            if (isSharedBoard && !selectableCardIds.contains(cardId)) {
+                                        // 공유보드 일 때는 섹션 선택과 모드 분리
+                                        if (isSharedBoard) {
+                                            if (selectionModeType != SelectionModeType.CARD)
+                                            {
+                                                triggerSelectWarning(SelectWarningType.SECTIONCARD)
                                                 return@BoardDetailContent
                                             }
-
-                                            selectedCards =
-                                                if (selectedCards.contains(cardId)) selectedCards - cardId
-                                                else selectedCards + cardId
+                                            if (!selectableCardIds.contains(cardId)) {
+                                                // 카드 선택 안내 토스트 띄우기
+                                                triggerSelectWarning(SelectWarningType.CARD)
+                                                return@BoardDetailContent
+                                            }
                                         }
+
+                                        selectedCards =
+                                            if (selectedCards.contains(cardId)) selectedCards - cardId
+                                            else selectedCards + cardId
 
                                     } else {
                                         navController.navigate("card_detail/$cardId")
                                     }
                                 },
                                 onSectionClick = { section ->
+                                    // 섹션 클릭 시 선택/해제 로직 추가
                                     if (isSelectionMode) {
 
-                                        if (selectionModeType == SelectionModeType.SECTION) {
+                                        // 공유보드 일 때는 카드 선택과 모드 분리
+                                        if (isSharedBoard) {
+                                            if (selectionModeType != SelectionModeType.SECTION) {
+                                                triggerSelectWarning(SelectWarningType.CARDSECTION)
+                                                return@BoardDetailContent}
 
-                                            // 섹션의 mine 값 가져오기
                                             val sectionMine =
                                                 boardState.sections?.firstOrNull { it.id.toInt() == section.id }?.mine == true
+                                            val boardOwner = ui.board?.owner == true
 
-                                            // 공유보드 + 남의 섹션이면 선택 불가
-                                            if (boardState.shared && !sectionMine) {
+                                            // 섹션 생성자 또는 보드 소유자만 선택 가능
+                                            val canSelectSection = sectionMine || boardOwner
+
+                                            if (!canSelectSection) {
+                                                triggerSelectWarning(SelectWarningType.SECTION)
                                                 return@BoardDetailContent
                                             }
-
-                                            // 정상 선택 / 해제
-                                            selectedSections =
-                                                if (selectedSections.contains(section.id)) selectedSections - section.id
-                                                else selectedSections + section.id
                                         }
+
+                                        selectedSections =
+                                            if (selectedSections.contains(section.id)) selectedSections - section.id
+                                            else selectedSections + section.id
 
                                     } else {
                                         val encodedTitle = java.net.URLEncoder.encode(section.title, "utf-8")
@@ -472,11 +512,12 @@ fun BoardDetailScreen(
                                         selectionFromMenu = false
                                         // 공유 보드에서 mine == false 카드면 선택 모드 진입 자체를 막음
                                         if (isSharedBoard && !selectableCardIds.contains(cardId)) {
-                                            // 아무 동작도 하지 않음 (롱클릭 무시)
+                                            // 카드 선택 안내 토스트 띄우기
+                                            triggerSelectWarning(SelectWarningType.CARD)
                                             return@BoardDetailContent
                                         }
-                                        selectionModeType = SelectionModeType.CARD
-
+                                        // 공유보드일 때만 섹션 선택과 모드 분리
+                                        selectionModeType = if (isSharedBoard) SelectionModeType.CARD else null
                                         isSelectionMode = true
                                         bottomSheetType = BottomSheetType.SELECTION
                                         selectedCards = setOf(cardId) // 롱클릭한 카드를 첫 선택 항목으로 지정
@@ -484,11 +525,35 @@ fun BoardDetailScreen(
                                 },
                                 onSectionLongClick = { section ->
                                     if (!isSelectionMode) {
-                                        selectionModeType = SelectionModeType.SECTION
                                         selectionFromMenu = false
+
+                                        if (isSharedBoard) {
+                                            val sectionMine =
+                                                boardState.sections
+                                                    ?.firstOrNull { it.id.toInt() == section.id }
+                                                    ?.mine == true
+
+                                            val boardOwner = ui.board?.owner == true
+
+                                            // 섹션 생성자 또는 보드 소유자만 선택 모드 진입 가능
+                                            val canSelectSection = sectionMine || boardOwner
+
+                                            if (!canSelectSection) {
+                                                triggerSelectWarning(SelectWarningType.SECTION)
+                                                return@BoardDetailContent
+                                            }
+                                        }
+                                        // 공유보드일 때만 카드 선택과 모드 분리
+                                        selectionModeType = if (isSharedBoard) SelectionModeType.SECTION else null
                                         isSelectionMode = true
-                                        bottomSheetType = BottomSheetType.SELECTION
-                                        selectedSections = setOf(section.id) // 롱클릭한 섹션을 첫 선택 항목으로 지정
+
+                                        // --- 공유보드 일 때 바텀바 -> 보드 바텀바  ---
+                                        bottomSheetType = if (isSharedBoard) {
+                                            BottomSheetType.BOARD_SELECTION    // 공유보드 → 보드 선택 시트
+                                        } else {
+                                            BottomSheetType.SELECTION          // 개인보드 → 기존 선택 시트
+                                        }
+                                        selectedSections = setOf(section.id)
                                     }
                                 },
                                 onFavoriteClick = { section: BoardItem ->
@@ -499,7 +564,9 @@ fun BoardDetailScreen(
                                 },
                                 isSelectionMode = isSelectionMode,
                                 selectedSections = selectedSections,
-                                selectedCards = selectedCards
+                                selectedCards = selectedCards,
+                                selectableSectionIds = selectableSectionIds,
+                                selectableCardIds = selectableCardIds
                             )
                         }
                     } else {
@@ -518,6 +585,8 @@ fun BoardDetailScreen(
         val shouldShowDim =
             when (bottomSheetType) {
                 BottomSheetType.NONE -> false
+
+                BottomSheetType.BOARD_SELECTION -> false
 
                 BottomSheetType.SELECTION ->
                     showBoardSelector   // 선택 모드에서는 boardSelector가 열릴 때만 dim 표시
@@ -544,87 +613,95 @@ fun BoardDetailScreen(
         BottomSheetContainer(
             visible = bottomSheetType != BottomSheetType.NONE,
             onDismiss = {
-                if (bottomSheetType == BottomSheetType.SELECTION) {
+                if (bottomSheetType == BottomSheetType.SELECTION || bottomSheetType == BottomSheetType.BOARD_SELECTION) {
                     // 선택 모드 종료
                     resetSelectionState()
                     isSelectionMode = false
                 }
                 bottomSheetType = BottomSheetType.NONE
                 showBoardSelector = false
-            }
+            },
         ) {
             when (bottomSheetType) {
                 BottomSheetType.NONE -> { /* empty */
                 }
 
                 BottomSheetType.SELECTION -> {
-                    // 기존 선택 모드 바텀 시트
-                    SelectionBottomBar(
-                        isVisible = true, // AnimatedVisibility가 제어하므로 항상 true
-                        showBoardSelector = showBoardSelector,
-                        actionsContent = {
-                            ActionsContent(
-                                selectedSectionCount = selectedSections.size,
-                                selectedCardCount = selectedCards.size,
-                                onDeleteClick = { showDeleteDialog = true },
-                                onCopyClick = {
-                                    currentAction = BoardAction.COPY
-                                    showBoardSelector = true
-                                    viewModel.loadBoards()
-                                },
-                                onMoveClick = {
-                                    currentAction = BoardAction.MOVE
-                                    showBoardSelector = true
-                                    viewModel.loadBoards()
-                                },
-                                onCancelClick = { resetSelectionState() },
-                                onBack = {
-                                    // 선택모드 해제
-                                    isSelectionMode = false
-                                    selectedCards = emptySet()
-                                    selectedSections = emptySet()
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onGloballyPositioned { layoutCoordinates ->
+                                sheetHeight = layoutCoordinates.size.height
+                            }
+                    ) {
+                        // 기존 선택 모드 바텀 시트
+                        SelectionBottomBar(
+                            isVisible = true, // AnimatedVisibility가 제어하므로 항상 true
+                            showBoardSelector = showBoardSelector,
+                            actionsContent = {
+                                ActionsContent(
+                                    selectedSectionCount = selectedSections.size,
+                                    selectedCardCount = selectedCards.size,
+                                    onDeleteClick = { showDeleteDialog = true },
+                                    onCopyClick = {
+                                        currentAction = BoardAction.COPY
+                                        showBoardSelector = true
+                                        viewModel.loadBoards()
+                                    },
+                                    onMoveClick = {
+                                        currentAction = BoardAction.MOVE
+                                        showBoardSelector = true
+                                        viewModel.loadBoards()
+                                    },
+                                    onCancelClick = { resetSelectionState() },
+                                    onBack = {
+                                        // 선택모드 해제
+                                        isSelectionMode = false
+                                        selectedCards = emptySet()
+                                        selectedSections = emptySet()
 
-                                    // 메뉴 바텀바로 이동
-                                    bottomSheetType = BottomSheetType.MENU
-                                },
-                                // 메뉴에서 들어왔을 때만 뒤로가기 버튼 표시
-                                showBackButton = selectionFromMenu
-                            )
-                        },
-                        boardSelectorContent = {
-                            BoardSelectionSheetContent(
-                                action = currentAction ?: BoardAction.COPY,
-                                boardsState = boardsState,
-                                onBack = { showBoardSelector = false },
-                                onConfirm = { selectedId -> //selectedTargetIds -> selectedId (타입: String?)
-                                    // selectedId가 null이 아닐 때만 로직 실행
-                                    selectedId?.let { targetId ->
-                                        when (currentAction) {
-                                            BoardAction.COPY -> {
-                                                viewModel.copySelectedItems(
-                                                    targetBoardId = targetId.toLong(),
-                                                    selectedSectionIds = selectedSections,
-                                                    selectedCardIds = selectedCards
-                                                )
+                                        // 메뉴 바텀바로 이동
+                                        bottomSheetType = BottomSheetType.MENU
+                                    },
+                                    // 메뉴에서 들어왔을 때만 뒤로가기 버튼 표시
+                                    showBackButton = selectionFromMenu
+                                )
+                            },
+                            boardSelectorContent = {
+                                BoardSelectionSheetContent(
+                                    action = currentAction ?: BoardAction.COPY,
+                                    boardsState = boardsState,
+                                    onBack = { showBoardSelector = false },
+                                    onConfirm = { selectedId -> //selectedTargetIds -> selectedId (타입: String?)
+                                        // selectedId가 null이 아닐 때만 로직 실행
+                                        selectedId?.let { targetId ->
+                                            when (currentAction) {
+                                                BoardAction.COPY -> {
+                                                    viewModel.copySelectedItems(
+                                                        targetBoardId = targetId.toLong(),
+                                                        selectedSectionIds = selectedSections,
+                                                        selectedCardIds = selectedCards
+                                                    )
+                                                }
+
+                                                BoardAction.MOVE -> {
+                                                    viewModel.moveSelectedItems(
+                                                        targetBoardId = targetId.toLong(),
+                                                        selectedSectionIds = selectedSections,
+                                                        selectedCardIds = selectedCards
+                                                    )
+                                                }
+
+                                                null -> {}
                                             }
-
-                                            BoardAction.MOVE -> {
-                                                viewModel.moveSelectedItems(
-                                                    targetBoardId = targetId.toLong(),
-                                                    selectedSectionIds = selectedSections,
-                                                    selectedCardIds = selectedCards
-                                                )
-                                            }
-
-                                            null -> {}
                                         }
+                                        // 작업 완료 후 선택 모드 초기화
+                                        resetSelectionState()
                                     }
-                                    // 작업 완료 후 선택 모드 초기화
-                                    resetSelectionState()
-                                }
-                            )
-                        }
-                    )
+                                )
+                            }
+                        )
+                    }
                 }
                 // INVITE 상태일 때 공유 보드 초대 화면
                 BottomSheetType.INVITE -> {
@@ -654,7 +731,7 @@ fun BoardDetailScreen(
                         resetSignal = inviteResetSignal,
                         // 이미 선택된 이메일들을 넘겨줌 (체크 상태 유지)
                         initialSelected = currentBoardMembers.map { it.email },
-                        useTopPadding = true
+                        useTopPadding = false
                     )
                 }
                 // 참여자 목록 화면 연결
@@ -704,15 +781,15 @@ fun BoardDetailScreen(
                                 bottomSheetType = BottomSheetType.SECTION_ADD
                             },
                             onSelectCardClick = {
-                                selectionModeType = SelectionModeType.CARD
+                                selectionModeType = if (currentBoard.shared) SelectionModeType.CARD else null
                                 isSelectionMode = true
                                 bottomSheetType = BottomSheetType.SELECTION
                                 selectionFromMenu = true
                             },
                             onSelectSectionClick = {
-                                selectionModeType = SelectionModeType.SECTION
+                                selectionModeType = if (currentBoard.shared) SelectionModeType.SECTION else null
                                 isSelectionMode = true
-                                bottomSheetType = BottomSheetType.SELECTION
+                                bottomSheetType = BottomSheetType.BOARD_SELECTION
                                 selectionFromMenu = true
                             },
                             onDismiss = { bottomSheetType = BottomSheetType.NONE }
@@ -748,9 +825,33 @@ fun BoardDetailScreen(
                     }
                 }
 
-                BottomSheetType.BOARD_SELECTION -> { // 전체 보드 탭 화면에서만 사용
-                }
+                BottomSheetType.BOARD_SELECTION -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onGloballyPositioned { layoutCoordinates ->
+                                sheetHeight = layoutCoordinates.size.height
+                            }
+                    ) {
+                        BoardSelectionContent(
+                            onDeleteClick = { showDeleteDialog = true },
+                            selectedCardCount = selectedCards.size,
+                            selectedBoardCount = 0,
+                            selectedSectionCount = selectedSections.size,
+                            // 메뉴에서 들어왔을 때만 뒤로가기 버튼 표시
+                            showBackButton = selectionFromMenu,
+                            onBack = {
+                                // 선택모드 해제
+                                isSelectionMode = false
+                                selectedCards = emptySet()
+                                selectedSections = emptySet()
 
+                                // 메뉴 바텀바로 이동
+                                bottomSheetType = BottomSheetType.MENU
+                            }
+                        )
+                    }
+                }
                 BottomSheetType.SECTION_RENAME -> { // 섹션 내부에서 사용
                 }
             }
@@ -784,22 +885,85 @@ fun BoardDetailScreen(
         )
     }
     val density = LocalDensity.current
-    val toastOffsetDp = with(density) { sheetHeight.toDp() + 16.dp }   // ③ 바텀시트 위로 띄우기
+    val toastOffsetDp = with(density) { sheetHeight.toDp() + 88.dp }   // 바텀시트 위로 띄우기
 
     if (showShareWarning) {
         SheetTopToast(
             title = buildAnnotatedString {
-                append("공유 보드로 바꾸면 ")
+                append("참여자를 초대하면 ")
                 withStyle(SpanStyle(color = PurpleMain500)) {
-                    append("개인 보드로 되돌릴 수 없어요.")
+                    append("공유보드로 변경돼요.")
                 }
             },
-            message = "참여자를 초대하면 나중에 개인 보드로 바꿀 수 없어요.",
+            message = "공유 보드로 바꾸면 개인 보드로 되돌릴 수 없어요.",
             visible = showShareWarning,
             onDismiss = { showShareWarning = false },
-            durationMillis = 100000L,          // 토스트 지속 시간
+            durationMillis = 200000L,          // 토스트 지속 시간
             bottomOffset = toastOffsetDp       // 바텀시트 실제 높이 기반 offset
         )
+    }
+    if (showSelectWarning) {
+        when (selectWarningType) {
+            SelectWarningType.CARD -> {
+                SheetTopToast(
+                    title = buildAnnotatedString {
+                        append("카드 삭제ㆍ복제ㆍ이동은 ")
+                        withStyle(SpanStyle(color = PurpleMain500)) { append("생성자만 ") }
+                        append("가능해요.")
+                    },
+                    message = "다른 참여자가 생성한 카드는 선택할 수 없어요.",
+                    visible = showSelectWarning,
+                    onDismiss = { showSelectWarning = false },
+                    durationMillis = 3500L,
+                    bottomOffset = toastOffsetDp
+                )
+            }
+
+            SelectWarningType.SECTION -> {
+                SheetTopToast(
+                    title = buildAnnotatedString {
+                        append("섹션 삭제는 ")
+                        withStyle(SpanStyle(color = PurpleMain500)) { append("생성자 또는 보드 소유자만 ") }
+                        append("가능해요.")
+                    },
+                    message = "다른 참여자가 생성한 섹션은 선택할 수 없어요.",
+                    visible = showSelectWarning,
+                    onDismiss = { showSelectWarning = false },
+                    durationMillis = 3500L,
+                    bottomOffset = toastOffsetDp
+                )
+            }
+
+            SelectWarningType.SECTIONCARD -> {
+                SheetTopToast(
+                    title = buildAnnotatedString {
+                        append("지금은")
+                        withStyle(SpanStyle(color = PurpleMain500)) { append("섹션만 선택 ") }
+                        append("가능해요.")
+                    },
+                    message = "카드는 카드 선택 메뉴를 사용해주세요.",
+                    visible = showSelectWarning,
+                    onDismiss = { showSelectWarning = false },
+                    durationMillis = 3500L,
+                    bottomOffset = toastOffsetDp
+                )
+            }
+
+            SelectWarningType.CARDSECTION -> {
+                SheetTopToast(
+                    title = buildAnnotatedString {
+                        append("지금은")
+                        withStyle(SpanStyle(color = PurpleMain500)) { append("카드만 선택 ") }
+                        append("가능해요.")
+                    },
+                    message = "섹션은 섹션 선택 메뉴를 사용해주세요.",
+                    visible = showSelectWarning,
+                    onDismiss = { showSelectWarning = false },
+                    durationMillis = 3500L,
+                    bottomOffset = toastOffsetDp
+                )
+            }
+        }
     }
 }
 

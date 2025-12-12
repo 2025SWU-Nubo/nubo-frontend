@@ -41,7 +41,9 @@ fun BoardDetailContent(
     // 선택 관련 상태 파라미터들
     isSelectionMode: Boolean,
     selectedSections: Set<Int>,
-    selectedCards: Set<Int>
+    selectedCards: Set<Int>,
+    selectableSectionIds: Set<Int> = emptySet(),
+    selectableCardIds: Set<Int> = emptySet(),
 ) {
     // 카드 Masonry 블록 패턴 생성
     val (leftItems, rightItems) = buildMasonryBlocks(cardItems)
@@ -50,9 +52,9 @@ fun BoardDetailContent(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // [1] 보드(섹션) 2열 그리드
+        // [1] 섹션 2열 그리드
         boardItems.chunked(2).forEach { rowItems ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -68,7 +70,8 @@ fun BoardDetailContent(
                         onFavoriteClick = onFavoriteClick,
                         isSelectionMode = isSelectionMode,
                         // id로 선택 여부 확인
-                        isSelected = selectedSections.contains(rowItems[0].id)
+                        isSelected = selectedSections.contains(rowItems[0].id),
+                        isSelectable = selectableSectionIds.contains(rowItems[0].id)
                     )
                 }
 
@@ -83,7 +86,8 @@ fun BoardDetailContent(
                             onFavoriteClick = onFavoriteClick,
                             isSelectionMode = isSelectionMode,
                             // id로 선택 여부 확인
-                            isSelected = selectedSections.contains(rowItems[1].id)
+                            isSelected = selectedSections.contains(rowItems[1].id),
+                            isSelectable = selectableSectionIds.contains(rowItems[1].id)
                         )
                     }
                 } else {
@@ -91,10 +95,9 @@ fun BoardDetailContent(
                     Spacer(modifier = Modifier.weight(1f))
                 }
             }
-            Spacer(modifier = Modifier.height(12.dp))
         }
     }
-
+    Spacer(modifier = Modifier.height(16.dp))
     // [2] 카드 Masonry
     Row(
         modifier = Modifier.fillMaxWidth()
@@ -113,7 +116,8 @@ fun BoardDetailContent(
                     onLongClick = { onCardLongClick(item.id) },
                     isSelectionMode = isSelectionMode,
                     isSelected = selectedCards.contains(item.id),
-                    isFavorite = item.isFavorite
+                    isFavorite = item.isFavorite,
+                    isSelectable = selectableCardIds.contains(item.id)
                 )
             }
         }
@@ -130,12 +134,13 @@ fun BoardDetailContent(
                     onLongClick = { onCardLongClick(item.id) },
                     isSelectionMode = isSelectionMode,
                     isSelected = selectedCards.contains(item.id),
-                    isFavorite = item.isFavorite
+                    isFavorite = item.isFavorite,
+                    isSelectable = selectableCardIds.contains(item.id)
                 )
             }
         }
     }
-    Spacer(modifier = Modifier.height(80.dp))
+    Spacer(modifier = Modifier.height(150.dp))
 }
 
 fun cardHeightForIndex(index: Int): Dp {
