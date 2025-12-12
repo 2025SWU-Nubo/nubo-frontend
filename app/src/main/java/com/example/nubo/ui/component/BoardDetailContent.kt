@@ -23,6 +23,7 @@ import com.example.nubo.data.model.CardDetailResponse
 import com.example.nubo.model.card.CardDetailItem
 import com.example.nubo.model.card.CardItem
 import com.example.nubo.model.myBoard.BoardItem
+import com.example.nubo.ui.screen.myBoard.SelectionModeType
 import formatIsoDateToDisplayLegacy
 import kotlin.random.Random
 
@@ -44,7 +45,18 @@ fun BoardDetailContent(
     selectedCards: Set<Int>,
     selectableSectionIds: Set<Int> = emptySet(),
     selectableCardIds: Set<Int> = emptySet(),
+
+    isSharedBoard: Boolean,
+    selectionModeType: SelectionModeType?
 ) {
+    // Sections should be disabled when shared-board + CARD selection mode
+    val forceDisableSections =
+        isSharedBoard && isSelectionMode && selectionModeType == SelectionModeType.CARD
+
+    //  should be disabled when shared-board + SECTION selection mode
+    val forceDisableCards =
+        isSharedBoard && isSelectionMode && selectionModeType == SelectionModeType.SECTION
+
     // 카드 Masonry 블록 패턴 생성
     val (leftItems, rightItems) = buildMasonryBlocks(cardItems)
 
@@ -60,6 +72,9 @@ fun BoardDetailContent(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                val section0Selectable =
+                    !forceDisableSections && selectableSectionIds.contains(rowItems[0].id)
+
                 // --- 첫 번째 아이템 ---
                 // Column에 weight(1f)를 주어 50% 공간 차지
                 Column(modifier = Modifier.weight(1f)) {
@@ -71,7 +86,7 @@ fun BoardDetailContent(
                         isSelectionMode = isSelectionMode,
                         // id로 선택 여부 확인
                         isSelected = selectedSections.contains(rowItems[0].id),
-                        isSelectable = selectableSectionIds.contains(rowItems[0].id)
+                        isSelectable = section0Selectable
                     )
                 }
 
@@ -79,6 +94,9 @@ fun BoardDetailContent(
                 if (rowItems.size > 1) {
                     // 두 번째 아이템이 있으면, 동일하게 weight(1f)로 50% 공간 차지
                     Column(modifier = Modifier.weight(1f)) {
+                        val section1Selectable =
+                            !forceDisableSections && selectableSectionIds.contains(rowItems[1].id)
+
                         BoardCardWithText(
                             board = rowItems[1], // 두 번째 아이템
                             onClick = { onSectionClick(rowItems[1]) },
@@ -87,7 +105,7 @@ fun BoardDetailContent(
                             isSelectionMode = isSelectionMode,
                             // id로 선택 여부 확인
                             isSelected = selectedSections.contains(rowItems[1].id),
-                            isSelectable = selectableSectionIds.contains(rowItems[1].id)
+                            isSelectable = section1Selectable
                         )
                     }
                 } else {
@@ -109,6 +127,7 @@ fun BoardDetailContent(
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             leftItems.forEach { (item, height) ->
+                val cardSelectable = !forceDisableCards && selectableCardIds.contains(item.id)
                 MyMasonryCard(
                     height = height,
                     imageUrl = item.imageUrl,
@@ -117,7 +136,7 @@ fun BoardDetailContent(
                     isSelectionMode = isSelectionMode,
                     isSelected = selectedCards.contains(item.id),
                     isFavorite = item.isFavorite,
-                    isSelectable = selectableCardIds.contains(item.id)
+                    isSelectable = cardSelectable
                 )
             }
         }
@@ -127,6 +146,7 @@ fun BoardDetailContent(
             verticalArrangement = Arrangement.spacedBy(4.dp) // 세로 4dp
         ) {
             rightItems.forEach { (item, height) ->
+                val cardSelectable = !forceDisableCards && selectableCardIds.contains(item.id)
                 MyMasonryCard(
                     height = height,
                     imageUrl = item.imageUrl,
@@ -135,7 +155,7 @@ fun BoardDetailContent(
                     isSelectionMode = isSelectionMode,
                     isSelected = selectedCards.contains(item.id),
                     isFavorite = item.isFavorite,
-                    isSelectable = selectableCardIds.contains(item.id)
+                    isSelectable = cardSelectable
                 )
             }
         }

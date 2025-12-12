@@ -566,7 +566,9 @@ fun BoardDetailScreen(
                                 selectedSections = selectedSections,
                                 selectedCards = selectedCards,
                                 selectableSectionIds = selectableSectionIds,
-                                selectableCardIds = selectableCardIds
+                                selectableCardIds = selectableCardIds,
+                                isSharedBoard = isSharedBoard,
+                                selectionModeType = selectionModeType
                             )
                         }
                     } else {
@@ -885,7 +887,7 @@ fun BoardDetailScreen(
         )
     }
     val density = LocalDensity.current
-    val toastOffsetDp = with(density) { sheetHeight.toDp() + 88.dp }   // 바텀시트 위로 띄우기
+    val toastOffsetDp = with(density) { sheetHeight.toDp() + 92.dp }   // 바텀시트 위로 띄우기
 
     if (showShareWarning) {
         SheetTopToast(
@@ -938,7 +940,7 @@ fun BoardDetailScreen(
                 SheetTopToast(
                     title = buildAnnotatedString {
                         append("지금은")
-                        withStyle(SpanStyle(color = PurpleMain500)) { append("섹션만 선택 ") }
+                        withStyle(SpanStyle(color = PurpleMain500)) { append(" 섹션만 선택 ") }
                         append("가능해요.")
                     },
                     message = "카드는 카드 선택 메뉴를 사용해주세요.",
@@ -953,7 +955,7 @@ fun BoardDetailScreen(
                 SheetTopToast(
                     title = buildAnnotatedString {
                         append("지금은")
-                        withStyle(SpanStyle(color = PurpleMain500)) { append("카드만 선택 ") }
+                        withStyle(SpanStyle(color = PurpleMain500)) { append(" 카드만 선택 ") }
                         append("가능해요.")
                     },
                     message = "섹션은 섹션 선택 메뉴를 사용해주세요.",

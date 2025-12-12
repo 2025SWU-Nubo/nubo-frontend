@@ -156,7 +156,7 @@ fun LearnScreen(
                 GraphicBackgroundView(
                     modifier = Modifier.fillMaxSize(),
                     todayVideoCount = todayCount, // 오늘 카운트 값 2D 그래픽 파일에 전달
-                    level = 5
+                    level = currentStage
                 )
 
                 Column(
@@ -535,54 +535,57 @@ private fun BottomProgressCard(
                 label = "BottomProgressContentAnim",
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 28.dp, vertical = 16.dp)
+                    .padding(horizontal = 17.dp, vertical = 16.dp)
             ) { current ->
+                Box(
+                    modifier = Modifier.padding(horizontal = 11.dp)
+                ) {
+                    when (current) {
 
-                when (current) {
+                        // ------------------- leveup 화면 -------------------
+                        "levelup" -> {
+                            LevelUpSection(
+                                totalSteps = 5,
+                                prevStep = currentStep,
+                                nextStep = nextStep,
+                                onStepAnimDone = { /* 필요 시 처리 */ }
+                            )
+                        }
 
-                    // ------------------- leveup 화면 -------------------
-                    "levelup" -> {
-                        LevelUpSection(
-                            totalSteps = 5,
-                            prevStep = currentStep,
-                            nextStep = nextStep,
-                            onStepAnimDone = { /* 필요 시 처리 */ }
-                        )
-                    }
+                        // ------------------- 다음 단계 안내 화면 -------------------
+                        "next" -> {
+                            GrowthFrontContent(
+                                title = title,
+                                percent = percent,
+                                progress = progress
+                            )
+                        }
 
-                    // ------------------- 다음 단계 안내 화면 -------------------
-                    "next" -> {
-                        GrowthFrontContent(
-                            title = title,
-                            percent = percent,
-                            progress = progress
-                        )
-                    }
+                        // ------------------- 기본 front 화면 -------------------
+                        "normal" -> {
+                            GrowthFrontContent(
+                                title = title,
+                                percent = percent,
+                                progress = progress
+                            )
+                        }
 
-                    // ------------------- 기본 front 화면 -------------------
-                    "normal" -> {
-                        GrowthFrontContent(
-                            title = title,
-                            percent = percent,
-                            progress = progress
-                        )
-                    }
+                        // ------------------- 뒷면(back) 화면 -------------------
+                        "back" -> {
+                            BackNextLevelSection(
+                                currentStage = currentStep,
+                                remainingCards = nextStageRemaining
+                            )
+                        }
 
-                    // ------------------- 뒷면(back) 화면 -------------------
-                    "back" -> {
-                        BackNextLevelSection(
-                            currentStage = currentStep,
-                            remainingCards = nextStageRemaining
-                        )
-                    }
-
-                    // fallback
-                    else -> {
-                        GrowthFrontContent(
-                            title = title,
-                            percent = percent,
-                            progress = progress
-                        )
+                        // fallback
+                        else -> {
+                            GrowthFrontContent(
+                                title = title,
+                                percent = percent,
+                                progress = progress
+                            )
+                        }
                     }
                 }
             }
@@ -721,8 +724,18 @@ private fun BackNextLevelSection(
     remainingCards: Int
 ) {
     val text = if (currentStage == 5) {
-        // 열매 레벨일 때
-        AnnotatedString("이제 곧 누베리를 수확할 수 있어요!")
+        if (remainingCards > 0) {
+            buildAnnotatedString {
+                append("누베리 수확까지 ") // '다음 레벨' 대신 '수확'으로 문구 변경
+                withStyle(SpanStyle(color = PurpleMain500)) {
+                    append(remainingCards.toString())
+                }
+                append("장의 카드가 남았어요.")
+            }
+        } else {
+            // 남은 카드가 0장일 때
+            AnnotatedString("이제 곧 누베리를 수확할 수 있어요!")
+        }
     } else {
         // 그외 다른 레벨들
         buildAnnotatedString {

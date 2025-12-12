@@ -336,7 +336,7 @@ private fun ActiveMemberRow(
             ) {
                 Text(
                     text = "OWNER",
-                    style = AppTextStyles.label_medium_12,
+                    style = AppTextStyles.en_regular_12,
                 )
             }
         }

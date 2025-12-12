@@ -41,7 +41,8 @@ fun MyCardContent(
     // 선택 관련 파라미터
     isSelectionMode: Boolean,
     selectedCardIds: Set<Int>,
-    selectableCardIds: Set<Int>? = null
+    selectableCardIds: Set<Int>? = null,
+    forceDisableAll: Boolean = false
 ) {
     // 블록 패턴 카드
     val (leftItems, rightItems) = buildMasonryBlocks(cards)
@@ -57,7 +58,10 @@ fun MyCardContent(
         ) {
             leftItems.forEach { (item, height) ->
                 val isSelected = selectedCardIds.contains(item.id)
-                val isSelectable = selectableCardIds?.contains(item.id) ?: true
+                // selectableCardIds가 null이면 true
+                val canSelectByPermission = selectableCardIds?.contains(item.id) ?: true
+                // 모드 분리 때문에 전체 강제 disable 가능
+                val isSelectable = canSelectByPermission && !forceDisableAll
                 MyMasonryCard(
                     height = height,
                     imageUrl = item.imageUrl,
@@ -76,7 +80,8 @@ fun MyCardContent(
         ) {
             rightItems.forEach { (item, height) ->
                 val isSelected = selectedCardIds.contains(item.id)
-                val isSelectable = selectableCardIds?.contains(item.id) ?: true
+                val canSelectByPermission = selectableCardIds?.contains(item.id) ?: true
+                val isSelectable = canSelectByPermission && !forceDisableAll
                 MyMasonryCard(
                     height = height,
                     imageUrl = item.imageUrl,

@@ -12,4 +12,8 @@ object AppFonts {
         Font(R.font.pretendard_semi_bold, FontWeight.SemiBold),
         Font(R.font.pretendard_bold, FontWeight.Bold),
     )
+    val poppins = FontFamily(
+        Font(R.font.poppins_semibold, FontWeight.SemiBold),
+        Font(R.font.poppins_regular, FontWeight.Medium)
+    )
 }

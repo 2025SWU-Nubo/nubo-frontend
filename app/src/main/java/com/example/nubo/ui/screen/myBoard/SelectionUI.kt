@@ -59,6 +59,7 @@ import com.example.nubo.ui.theme.AppTextStyles.b2_bold_16
 import com.example.nubo.ui.theme.AppTextStyles.b2_semibold_16
 import com.example.nubo.ui.theme.AppTextStyles.b3_medium_14
 import com.example.nubo.ui.theme.AppTextStyles.b3_regular_14
+import com.example.nubo.ui.theme.Grey10
 import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey20
 import com.example.nubo.ui.theme.Grey200
@@ -119,7 +120,7 @@ fun ActionsContent(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(bottom = 40.dp,top=14.dp),
+            .padding(bottom = 40.dp, top = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         val title = when {
@@ -129,7 +130,8 @@ fun ActionsContent(
             else -> "항목 선택"
         }
         Row(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
                 .padding(horizontal = 17.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
@@ -160,8 +162,9 @@ fun ActionsContent(
 
             Spacer(modifier = Modifier.width(22.dp))
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(16.dp)) // 타이틀과 선 사이 간격
+        Divider(modifier = Modifier.padding(horizontal = 40.dp),color = Grey20, thickness = 1.dp) // 구분선
+        Spacer(modifier = Modifier.height(20.dp)) // 선과 버튼 사이 간격
 
         Row(
             modifier = Modifier
@@ -243,6 +246,7 @@ private fun SelectionButton(
         }
     }
 }
+
 
 // 섹션 및 카드 삭제 시 확인 다이얼로그
 @Composable
@@ -375,7 +379,7 @@ fun BoardSelectionSheetContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 4.dp,top=14.dp,end = 4.dp),
+                .padding(start = 4.dp, top = 14.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
