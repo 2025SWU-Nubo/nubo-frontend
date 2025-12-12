@@ -168,28 +168,6 @@ fun AddVideoSheet(
                 .fillMaxWidth()
                 .padding(horizontal = 0.dp, vertical = 0.dp)
         ) {
-            IconButton(
-                onClick = {
-                    // Reset all sheet state
-                    page = SheetPage.SAVE_VIDEO
-                    checkedIds = emptySet()
-                    boardToastShown = false
-                    boardToastVisible = false
-                    toastVisible = false
-                    networkErrorToastVisible = false
-                    clearText(textState)
-                    viewModel.resetForNewSession()
-                    onClose()
-                },
-                modifier = Modifier.align(Alignment.CenterEnd)
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_close),
-                    contentDescription = "닫기",
-                    tint = Grey500
-                )
-            }
-
             Text(
                 text = when (page) {
                     SheetPage.SAVE_VIDEO -> "영상 추가하기"

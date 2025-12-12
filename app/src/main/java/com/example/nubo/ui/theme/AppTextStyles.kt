@@ -13,9 +13,17 @@ object AppTextStyles {
         fontWeight = weight
     )
 
+    private fun enStyle(size: TextUnit, weight: FontWeight) = TextStyle(
+        fontFamily = AppFonts.poppins,
+        fontSize = size,
+        fontWeight = weight
+    )
+    // English Font
+    val en_semibold_24 = enStyle(24.sp,FontWeight.SemiBold)
+    val en_regular_12 = enStyle(12.sp,FontWeight.Medium)
+
     //Learn Screen
     val learn_percentage_46 = style(46.sp, FontWeight.Bold)
-    val learn_percentage_30 = style(30.sp, FontWeight.Bold)
 
     // HeadLine
     val headline_regular_32 = style(32.sp, FontWeight.Normal)

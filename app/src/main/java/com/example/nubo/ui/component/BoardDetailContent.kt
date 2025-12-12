@@ -23,6 +23,7 @@ import com.example.nubo.data.model.CardDetailResponse
 import com.example.nubo.model.card.CardDetailItem
 import com.example.nubo.model.card.CardItem
 import com.example.nubo.model.myBoard.BoardItem
+import com.example.nubo.ui.screen.myBoard.SelectionModeType
 import formatIsoDateToDisplayLegacy
 import kotlin.random.Random
 
@@ -41,8 +42,21 @@ fun BoardDetailContent(
     // 선택 관련 상태 파라미터들
     isSelectionMode: Boolean,
     selectedSections: Set<Int>,
-    selectedCards: Set<Int>
+    selectedCards: Set<Int>,
+    selectableSectionIds: Set<Int> = emptySet(),
+    selectableCardIds: Set<Int> = emptySet(),
+
+    isSharedBoard: Boolean,
+    selectionModeType: SelectionModeType?
 ) {
+    // Sections should be disabled when shared-board + CARD selection mode
+    val forceDisableSections =
+        isSharedBoard && isSelectionMode && selectionModeType == SelectionModeType.CARD
+
+    //  should be disabled when shared-board + SECTION selection mode
+    val forceDisableCards =
+        isSharedBoard && isSelectionMode && selectionModeType == SelectionModeType.SECTION
+
     // 카드 Masonry 블록 패턴 생성
     val (leftItems, rightItems) = buildMasonryBlocks(cardItems)
 
@@ -50,14 +64,17 @@ fun BoardDetailContent(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // [1] 보드(섹션) 2열 그리드
+        // [1] 섹션 2열 그리드
         boardItems.chunked(2).forEach { rowItems ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                val section0Selectable =
+                    !forceDisableSections && selectableSectionIds.contains(rowItems[0].id)
+
                 // --- 첫 번째 아이템 ---
                 // Column에 weight(1f)를 주어 50% 공간 차지
                 Column(modifier = Modifier.weight(1f)) {
@@ -68,7 +85,8 @@ fun BoardDetailContent(
                         onFavoriteClick = onFavoriteClick,
                         isSelectionMode = isSelectionMode,
                         // id로 선택 여부 확인
-                        isSelected = selectedSections.contains(rowItems[0].id)
+                        isSelected = selectedSections.contains(rowItems[0].id),
+                        isSelectable = section0Selectable
                     )
                 }
 
@@ -76,6 +94,9 @@ fun BoardDetailContent(
                 if (rowItems.size > 1) {
                     // 두 번째 아이템이 있으면, 동일하게 weight(1f)로 50% 공간 차지
                     Column(modifier = Modifier.weight(1f)) {
+                        val section1Selectable =
+                            !forceDisableSections && selectableSectionIds.contains(rowItems[1].id)
+
                         BoardCardWithText(
                             board = rowItems[1], // 두 번째 아이템
                             onClick = { onSectionClick(rowItems[1]) },
@@ -83,7 +104,8 @@ fun BoardDetailContent(
                             onFavoriteClick = onFavoriteClick,
                             isSelectionMode = isSelectionMode,
                             // id로 선택 여부 확인
-                            isSelected = selectedSections.contains(rowItems[1].id)
+                            isSelected = selectedSections.contains(rowItems[1].id),
+                            isSelectable = section1Selectable
                         )
                     }
                 } else {
@@ -91,10 +113,9 @@ fun BoardDetailContent(
                     Spacer(modifier = Modifier.weight(1f))
                 }
             }
-            Spacer(modifier = Modifier.height(12.dp))
         }
     }
-
+    Spacer(modifier = Modifier.height(16.dp))
     // [2] 카드 Masonry
     Row(
         modifier = Modifier.fillMaxWidth()
@@ -106,6 +127,7 @@ fun BoardDetailContent(
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             leftItems.forEach { (item, height) ->
+                val cardSelectable = !forceDisableCards && selectableCardIds.contains(item.id)
                 MyMasonryCard(
                     height = height,
                     imageUrl = item.imageUrl,
@@ -113,7 +135,8 @@ fun BoardDetailContent(
                     onLongClick = { onCardLongClick(item.id) },
                     isSelectionMode = isSelectionMode,
                     isSelected = selectedCards.contains(item.id),
-                    isFavorite = item.isFavorite
+                    isFavorite = item.isFavorite,
+                    isSelectable = cardSelectable
                 )
             }
         }
@@ -123,6 +146,7 @@ fun BoardDetailContent(
             verticalArrangement = Arrangement.spacedBy(4.dp) // 세로 4dp
         ) {
             rightItems.forEach { (item, height) ->
+                val cardSelectable = !forceDisableCards && selectableCardIds.contains(item.id)
                 MyMasonryCard(
                     height = height,
                     imageUrl = item.imageUrl,
@@ -130,12 +154,13 @@ fun BoardDetailContent(
                     onLongClick = { onCardLongClick(item.id) },
                     isSelectionMode = isSelectionMode,
                     isSelected = selectedCards.contains(item.id),
-                    isFavorite = item.isFavorite
+                    isFavorite = item.isFavorite,
+                    isSelectable = cardSelectable
                 )
             }
         }
     }
-    Spacer(modifier = Modifier.height(80.dp))
+    Spacer(modifier = Modifier.height(150.dp))
 }
 
 fun cardHeightForIndex(index: Int): Dp {

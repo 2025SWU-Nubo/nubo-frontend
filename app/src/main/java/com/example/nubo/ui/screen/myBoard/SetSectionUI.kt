@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 // --- Keyboard 옵션 ---
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 // --- 프로젝트 리소스 / 테마 ---
 import com.example.nubo.R
 import com.example.nubo.ui.component.noRippleClickable
@@ -45,6 +46,9 @@ fun SectionRename(
     val isNameValid = trimmedName.length >= 2
     val showError = isNameTouched && !isNameValid
 
+    // 키보드 컨트롤러 가져오기
+    val keyboardController = LocalSoftwareKeyboardController.current
+
     Surface(
         modifier = modifier
             .fillMaxWidth(),
@@ -55,7 +59,7 @@ fun SectionRename(
                 .background(color = Color.White)
                 .height(300.dp)
                 .navigationBarsPadding()
-                .padding(start = 18.dp, end = 18.dp, top = 24.dp),
+                .padding(top = 14.dp,start = 18.dp, end = 18.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
@@ -89,7 +93,11 @@ fun SectionRename(
 
             // --- 이름 입력 ---
             Column(horizontalAlignment = Alignment.Start) {
-                Text("섹션 이름", style = b2_semibold_16)
+                Text(
+                    text = "섹션 이름",
+                    style = b2_semibold_16,
+                    modifier = Modifier.padding(start = 6.dp)
+                )
                 Spacer(Modifier.height(8.dp))
 
                 OutlinedTextField1(
@@ -115,8 +123,9 @@ fun SectionRename(
                         Text("섹션 이름", style = b3_regular_14, color = Grey200)
                     },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    // 완료 버튼 시 키보드만 내림
                     keyboardActions = KeyboardActions(onDone = {
-                        if (isNameValid) onConfirm(trimmedName, isShared)
+                        keyboardController?.hide()
                     })
                 )
 
@@ -176,6 +185,9 @@ fun AddSection(
     // 에러 표시 조건
     val showError = isNameTouched && name.isNotBlank() && trimmedName.length < 2
 
+    // 키보드 컨트롤러 가져오기
+    val keyboardController = LocalSoftwareKeyboardController.current
+
     Surface(
         modifier = Modifier
             .imePadding()
@@ -187,7 +199,7 @@ fun AddSection(
                 .background(color = Color.White)
                 .height(300.dp)
                 .navigationBarsPadding()
-                .padding(start = 18.dp, end = 18.dp, top = 24.dp),
+                .padding(top = 14.dp, start = 18.dp, end = 18.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
@@ -221,7 +233,11 @@ fun AddSection(
 
             // --- 이름 입력 ---
             Column(horizontalAlignment = Alignment.Start) {
-                Text("섹션 이름", style = b2_semibold_16)
+                Text(
+                    text = "섹션 이름",
+                    style = b2_semibold_16,
+                    modifier = Modifier.padding(start = 6.dp)
+                )
                 Spacer(Modifier.height(8.dp))
 
                 OutlinedTextField1(
@@ -247,8 +263,9 @@ fun AddSection(
                         Text("섹션 이름", style = b3_regular_14, color = Grey200)
                     },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    // 완료 버튼 시 키보드만 내림
                     keyboardActions = KeyboardActions(onDone = {
-                        if (confirmEnabled) onConfirm(trimmedName)
+                        keyboardController?.hide()
                     })
                 )
 
@@ -273,7 +290,10 @@ fun AddSection(
                         .height(46.dp),
                     onClick = {
                         isNameTouched = true
-                        if (confirmEnabled) onConfirm(trimmedName)
+                        if (confirmEnabled) {
+                            onConfirm(trimmedName)
+                            keyboardController?.hide() // 버튼 누를 때 키보드 닫기
+                        }
                     },
                     shape = RoundedCornerShape(8.dp),
                     enabled = confirmEnabled,

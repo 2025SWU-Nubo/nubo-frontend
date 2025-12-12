@@ -2,12 +2,10 @@ package com.example.nubo.ui.component
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,12 +15,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Image
 import androidx.compose.ui.Alignment
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -30,7 +23,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -41,12 +33,9 @@ import com.example.nubo.model.myBoard.BoardItem
 import com.example.nubo.ui.theme.AppTextStyles.b2_semibold_16
 import com.example.nubo.ui.theme.AppTextStyles.label_medium_12
 import com.example.nubo.ui.theme.DefaultText
-import com.example.nubo.ui.theme.Grey10
-import com.example.nubo.ui.theme.Grey20
+import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.Grey50
-import com.example.nubo.ui.theme.GreyMain300
-import com.example.nubo.ui.theme.Purple200
 import com.example.nubo.ui.theme.Purple300
 import com.example.nubo.ui.theme.Purple50
 import kotlin.collections.chunked
@@ -84,7 +73,8 @@ fun BoardContent(
                                 onFavoriteClick = onFavoriteClick,
                                 isSelectionMode = isSelectionMode,
                                 // ID 비교
-                                isSelected = selectedBoardIds.contains(rowItems[0].serverBoardId)
+                                isSelected = selectedBoardIds.contains(rowItems[0].serverBoardId),
+                                isSelectable = rowItems[0].mine == true
                             )
                             // AI 마크 아이콘을 밖에서 그림
                             if (rowItems[0].source == "AI") {
@@ -113,7 +103,8 @@ fun BoardContent(
                                     onFavoriteClick = onFavoriteClick,
                                     isSelectionMode = isSelectionMode,
                                     // ID 비교
-                                    isSelected = selectedBoardIds.contains(rowItems[1].serverBoardId)
+                                    isSelected = selectedBoardIds.contains(rowItems[1].serverBoardId),
+                                    isSelectable = rowItems[1].mine == true
                                 )
                                 // AI 마크 아이콘을 밖에서 그림
                                 if (rowItems[1].source == "AI") {
@@ -149,6 +140,7 @@ fun BoardCardWithText(
     // 보드 상세 화면 및 섹션 상세 화면 선택 관련 파라미터
     isSelectionMode: Boolean,
     isSelected: Boolean,
+    isSelectable: Boolean = true,
     onLongClick: () -> Unit // 길게 클릭
 ) {
     Box(
@@ -157,7 +149,7 @@ fun BoardCardWithText(
             .clip(RoundedCornerShape(6.dp))
             .background(Color.White)
             .combinedClickable( // 일반 클릭과 롱클릭을 함께 처리
-                onClick = onClick,
+                onClick = { onClick() },
                 onLongClick = onLongClick
             )
             .padding(top = 4.dp, bottom = 4.dp)
@@ -206,10 +198,8 @@ fun BoardCardWithText(
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
-
             // 텍스트 영역은 카드 바깥에 표시됨
-            Column(modifier = Modifier.padding(horizontal = 3.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 3.dp, vertical = 6.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -234,7 +224,7 @@ fun BoardCardWithText(
                         contentDescription = "즐겨찾기 아이콘",
                         modifier = Modifier
                             .size(16.dp)
-                            .clickable { onFavoriteClick(board) }, // 클릭 시 콜백 호출
+                            .noRippleClickable { onFavoriteClick(board) }, // 클릭 시 콜백 호출
                         tint = Color.Unspecified // 리소스 원본 색 유지
                     )
                 }
@@ -259,129 +249,45 @@ fun BoardCardWithText(
         // --- 선택 모드 오버레이 전체 처리 ---
         if (isSelectionMode) {
 
-            if (isSelected) {
-                // 선택된 상태 → 기존 체크 UI
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .background(Color.White.copy(alpha = 0.5f))
-                        .clip(RoundedCornerShape(12.dp))
-                )
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_board_selected),
-                    contentDescription = "선택됨",
-                    tint = Color.Unspecified,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(bottom=47.dp,end=4.dp)
-                )
-
-            } else {
-                // 선택 모드 + 선택 안 된 상태 → board_unselect 표시
-                Icon(
-                    painter = painterResource(id = R.drawable.board_unselect),
-                    contentDescription = "선택되지 않음",
-                    tint = Color.Unspecified,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(bottom=47.dp,end=4.dp)
-                        .size(22.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun FullBoardCard(
-    board: BoardItem,
-    onClick: () -> Unit,
-    onFavoriteClick: (BoardItem) -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .width(190.dp)
-            .shadow(1.5.dp, RoundedCornerShape(12.dp))
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.White)
-            .clickable { onClick() }
-            .padding(top = 4.dp, start = 4.dp, end = 4.dp, bottom = 11.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .width(182.dp)
-                .clickable { onClick() }
-        ) {
-            Box(
-                modifier = Modifier
-                    .width(182.dp)
-                    .height(130.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Grey50),
-            ) {
-                if (!board.imageUrl.isNullOrEmpty()) {
-                    // 썸네일이 있을 때
-                    AsyncImage(
-                        model = board.imageUrl,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop // 가운데부터 꽉 차게
-                    )
-                } else {
-                    // 기존 아이콘 표시
-                    Icon(
-                        imageVector = Icons.Default.Image,
-                        contentDescription = null,
-                        tint = GreyMain300,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // 텍스트 영역은 카드 바깥에 표시됨
-            Column(modifier = Modifier.padding(horizontal = 6.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = board.title,
-                        style = b2_semibold_16,
-                        color = DefaultText,
-                        maxLines = 1
-                    )
-                    // 즐겨찾기 아이콘 (빈별/채운별 리소스 교체)
-                    Icon(
-                        painter = painterResource(
-                            id = if (board.isBookmarked)
-                                R.drawable.ic_board_fillstar
-                            else
-                                R.drawable.ic_board_star
-                        ),
-                        contentDescription = "즐겨찾기 아이콘",
+            when {
+                // 선택 불가(mine=false)
+                !isSelectable -> {
+                    Box(
                         modifier = Modifier
-                            .size(16.dp)
-                            .clickable { onFavoriteClick(board) }, // 클릭 시 콜백 호출
-                        tint = Color.Unspecified // 리소스 원본 색 유지
+                            .matchParentSize()
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color.White.copy(alpha = 0.6f))
                     )
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
-                Row {
-                    Text(
-                        text = "${board.subtitle}",
-                        style = label_medium_12,
-                        color = DefaultText,
-                        maxLines = 1
+                // 선택됨
+                isSelected -> {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Grey1000.copy(alpha = 0.4f))
                     )
-                    Text(
-                        text = " • ${board.createdAt}",
-                        style = label_medium_12,
-                        color = Grey200,
-                        maxLines = 1
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_board_selected),
+                        contentDescription = "선택됨",
+                        tint = Color.Unspecified,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(bottom = 55.dp, end = 8.dp)
+                    )
+                }
+
+                // 선택되지 않음
+                else -> {
+                    Icon(
+                        painter = painterResource(id = R.drawable.board_unselect),
+                        contentDescription = "선택되지 않음",
+                        tint = Color.Unspecified,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(bottom = 55.dp, end = 8.dp)
+                            .size(22.dp)
                     )
                 }
             }

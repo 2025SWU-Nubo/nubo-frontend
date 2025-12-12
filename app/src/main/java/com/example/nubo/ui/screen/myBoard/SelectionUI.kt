@@ -59,6 +59,7 @@ import com.example.nubo.ui.theme.AppTextStyles.b2_bold_16
 import com.example.nubo.ui.theme.AppTextStyles.b2_semibold_16
 import com.example.nubo.ui.theme.AppTextStyles.b3_medium_14
 import com.example.nubo.ui.theme.AppTextStyles.b3_regular_14
+import com.example.nubo.ui.theme.Grey10
 import com.example.nubo.ui.theme.Grey1000
 import com.example.nubo.ui.theme.Grey20
 import com.example.nubo.ui.theme.Grey200
@@ -119,7 +120,7 @@ fun ActionsContent(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(top = 24.dp, bottom = 40.dp),
+            .padding(bottom = 40.dp, top = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         val title = when {
@@ -129,24 +130,26 @@ fun ActionsContent(
             else -> "항목 선택"
         }
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 17.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
             // --- 조건부 뒤로가기 버튼 ---
             if (showBackButton) {
-                IconButton(
-                    onClick = onBack,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_arrow_back),
-                        contentDescription = "뒤로가기"
-                    )
-                }
+                // 왼쪽 뒤로가기 버튼
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_arrow_back),
+                    contentDescription = "뒤로가기",
+                    modifier = Modifier
+                        .align(Alignment.CenterVertically)
+                        .size(22.dp)
+                        .noRippleClickable { onBack() }
+                )
             } else {
                 // 뒤로가기 버튼이 없을 때는 균형 맞추기 위해 동일한 크기의 Spacer
-                Spacer(modifier = Modifier.width(48.dp))
+                Spacer(modifier = Modifier.width(22.dp))
             }
 
             // 타이틀 (정중앙)
@@ -157,27 +160,11 @@ fun ActionsContent(
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.width(48.dp))
-
-            /*// --- 조건부 닫기 버튼 ---
-            if (!showBackButton) {
-                // 닫기(X) 아이콘 버튼 — 오른쪽으로 이동
-                IconButton(
-                    onClick = onCancelClick,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_close),
-                        contentDescription = "닫기"
-                    )
-                }
-            }else {
-                // 닫기 버튼이 없을 때는 균형 맞추기 위해 동일한 크기의 Spacer
-                Spacer(modifier = Modifier.width(48.dp))
-            }*/
+            Spacer(modifier = Modifier.width(22.dp))
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(16.dp)) // 타이틀과 선 사이 간격
+        Divider(modifier = Modifier.padding(horizontal = 40.dp),color = Grey20, thickness = 1.dp) // 구분선
+        Spacer(modifier = Modifier.height(20.dp)) // 선과 버튼 사이 간격
 
         Row(
             modifier = Modifier
@@ -211,7 +198,6 @@ fun ActionsContent(
 
     }
 }
-
 
 // 선택 모드 액션 버튼
 @Composable
@@ -260,6 +246,7 @@ private fun SelectionButton(
         }
     }
 }
+
 
 // 섹션 및 카드 삭제 시 확인 다이얼로그
 @Composable
@@ -386,16 +373,13 @@ fun BoardSelectionSheetContent(
 
     Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .navigationBarsPadding()
-            .imePadding(),
+            .fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 10.dp, horizontal = 4.dp),
+                .padding(start = 4.dp, top = 14.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {

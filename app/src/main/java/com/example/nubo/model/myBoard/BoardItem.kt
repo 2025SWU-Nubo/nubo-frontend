@@ -8,5 +8,8 @@ data class BoardItem(
     val createdAt: String,
     val isBookmarked: Boolean = false, //즐겨찾기 상태
     val imageUrl: String? = null,
-    val source: String = ""
+    val source: String = "",
+    val shared: Boolean = false,
+    val owner: Boolean = false,
+    val mine: Boolean = false
 )

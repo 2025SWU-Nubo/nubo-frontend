@@ -125,7 +125,7 @@ fun NuberryGet(
                 // 타이틀
                 Text(
                     text = "Congratulations!",
-                    style = AppTextStyles.title_semibold_24.copy(
+                    style = AppTextStyles.en_semibold_24.copy(
                         brush = Brush.linearGradient(listOf(Color(0xFF8380FF), PurpleMain500))
                     ),
                     textAlign = TextAlign.Center
