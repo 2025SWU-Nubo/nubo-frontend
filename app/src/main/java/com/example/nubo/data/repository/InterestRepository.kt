@@ -15,20 +15,18 @@ class InterestRepository @Inject constructor(
     private val boardApi: BoardService
 ) {
     /** 기본 보드 목록 조회 */
-    suspend fun loadDefaultBoards(accessToken: String) =
-        boardApi.getDefaultBoards(auth = "Bearer $accessToken")
+    suspend fun loadDefaultBoards() =
+        boardApi.getDefaultBoards()
 
     /** 관심사 설정: 보드 선택 제출 */
-    suspend fun submitSelectedBoards(accessToken: String, ids: List<Long>) =
+    suspend fun submitSelectedBoards( ids: List<Long>) =
         userApi.submitInterests(
-            auth = "Bearer $accessToken",
             body = InterestSubmitRequest(skip = false, selectedBoardIds = ids)
         )
 
     /** 관심사 설정: 건너뛰기 제출 */
-    suspend fun submitSkip(accessToken: String) =
+    suspend fun submitSkip() =
         userApi.submitInterests(
-            auth = "Bearer $accessToken",
             body = InterestSubmitRequest(skip = true, selectedBoardIds = null)
         )
 }

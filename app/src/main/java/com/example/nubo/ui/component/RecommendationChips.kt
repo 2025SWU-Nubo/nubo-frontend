@@ -101,6 +101,8 @@ private fun RecommendationChip(
     onClick:() -> Unit,
     modifier: Modifier = Modifier
 ){
+    val isAll = chip.id == "all"
+
     val backgroundColor = if(chip.isSelected){
         Purple50
     }else{

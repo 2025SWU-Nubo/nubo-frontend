@@ -81,14 +81,14 @@ fun ProfileRoute(
         state.error != null -> {
             // 에러가 발생했을 때 한 번만 토스트 출력
             // 화면 진입 시 커스텀 토스트 호출 (1회성)
-            LaunchedEffect(Unit) {
-                toastHostState.show(
-                    title = AnnotatedString("정보를 불러오지 못했어요"),
-                    summary = "네트워크 확인 후 다시 시도해주세요.", // 두 번째 줄은 summary로 처리
-                    type = AppToastType.NEGATIVE,         // 에러 아이콘 타입
-                    layout = AppToastLayout.TitleWithSummary // 제목 + 설명 레이아웃
-                )
-            }
+//            LaunchedEffect(Unit) {
+//                toastHostState.show(
+//                    title = AnnotatedString("정보를 불러오지 못했어요"),
+//                    summary = "네트워크 확인 후 다시 시도해주세요.", // 두 번째 줄은 summary로 처리
+//                    type = AppToastType.NEGATIVE,         // 에러 아이콘 타입
+//                    layout = AppToastLayout.TitleWithSummary // 제목 + 설명 레이아웃
+//                )
+//            }
 
             // 실패해도 기본값으로 UI는 계속 표시
             ProfileScreen(

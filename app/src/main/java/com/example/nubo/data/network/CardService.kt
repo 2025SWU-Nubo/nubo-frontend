@@ -18,6 +18,7 @@ import com.example.nubo.data.model.RecommendCardDetailResponse
 import com.example.nubo.data.model.RecommendCardResponse
 import com.example.nubo.data.model.SaveRecommendationCardRequest
 import com.example.nubo.data.model.SaveRecommendationCardResponse
+import com.example.nubo.data.model.UnviewedCardsByBoardsRequest
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.http.Body
@@ -33,50 +34,43 @@ import retrofit2.http.Query
 enum class CardSort { LATEST, OLDEST,ALPHABET }
 
 interface CardService {
+
     @GET("api/card")
     suspend fun getCards(
-        @Header("Authorization") authorization: String,
         @Header("Accept") accept: String = "application/json",
-        @Query("sort") sort: String? = null,    // LATEST | OLDEST | ALPHABET
-        @Query("filter") filter: String? = null,// ALL | FAVORITE | SHARED
+        @Query("sort") sort: String? = null,
+        @Query("filter") filter: String? = null,
         @Query("page") page: Int? = null,
         @Query("size") size: Int? = null
     ): PagedResponse<CardResponse>
 
-
     @POST("api/card")
     fun uploadCard(
-        @Header("Authorization") authorization: String,
         @Header("Accept") accept: String = "application/json",
         @Body request: CardUploadRequest
     ): Call<CardUploadResponse>
 
     @GET("api/card/{cardId}")
     fun getCardDetail(
-        @Header("Authorization") token: String,
         @Header("Accept") accept: String = "application/json",
         @Path("cardId") cardId: Int
     ): Call<CardDetailResponse>
 
     @Headers("Accept: application/json")
-    @GET("/api/home/boards/{boardId}/unviewed-cards")
-    fun getUnviewedCardsByBoard(
-        @Header("Authorization") token: String,
-        @Path("boardId") boardId: Long,
-        @Query("limit") limit: Int = 10
+    @GET("/api/home/boards/unviewed-cards")
+    fun getUnviewedCardsByBoards(
+        @Query("boardIds") boardIds: List<Long>,
+        @Query("limit") limit: Int? = null
     ): Call<List<CardResponse>>
 
     @GET("/api/home/boards/all/unviewed-cards")
     fun getUnviewedAllCards(
-        @Header("Authorization") authorization: String,
         @Header("Accept") accept: String = "application/json",
         @Query("limit") limit: Int = 20
     ): Call<List<CardResponse>>
 
-
     @PATCH("/api/card/{cardId}/summary")
     fun updateCardSummary(
-        @Header("Authorization") bearer: String,
         @Header("Accept") accept: String = "application/json",
         @Path("cardId") cardId: Int,
         @Body body: EditSummaryRequest
@@ -84,55 +78,42 @@ interface CardService {
 
     @PATCH("/api/card/{cardId}/summary/ai")
     fun updateCardSummaryWithAi(
-        @Header("Authorization") bearer: String,
         @Header("Accept") accept: String = "application/json",
         @Path("cardId") cardId: Int,
         @Body body: EditSummaryAiRequest
     ): Call<EditSummaryResponse>
 
-    // 즐겨 찾기 업데이트
     @PATCH("/api/card/{cardId}/favorite")
     fun updateCardFavorite(
-        @Header("Authorization") bearer: String,
         @Header("Accept") accept: String = "application/json",
         @Path("cardId") cardId: Int,
         @Body body: CardFavoriteRequest
     ): Call<CardFavoriteResponse>
 
-    // 카드 삭제/제거 API
     @HTTP(method = "DELETE", path = "/api/card", hasBody = true)
     suspend fun deleteCards(
-        @Header("Authorization") authHeader: String,
         @Body body: CardDeleteRequest
     ): Response<CardDeleteResponse>
 
-    // 카드 복구 API
     @PATCH("/api/card/restore")
     suspend fun restoreCards(
-        @Header("Authorization") authHeader: String,
         @Body body: CardRestoreRequest
     ): CardRestoreResponse
 
-    // 홈 : 추천 카드 조회
+    // 추천 카드
     @GET("/api/home/recommendation")
     suspend fun recommendCards(
-        @Header("Authorization") authorization: String,
-        @Header("Accept") accept: String = "application/json",
+        @Header("Accept") accept: String = "application/json"
     ): RecommendCardResponse
 
-
-    // 추천 카드 상세 조회
     @GET("/api/home/recommendation/{recommendationCardId}")
     suspend fun getRecommendationCardDetail(
-        @Header("Authorization") token: String,
         @Header("Accept") accept: String = "application/json",
         @Path("recommendationCardId") id: Int
     ): RecommendCardDetailResponse
 
-    // 추천 카드 저장
     @POST("/api/home/recommendation/save")
     suspend fun saveRecommendationCard(
-        @Header("Authorization") token: String,
         @Header("Accept") accept: String = "application/json",
         @Body body: SaveRecommendationCardRequest
     ): SaveRecommendationCardResponse

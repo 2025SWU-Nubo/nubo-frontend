@@ -348,7 +348,6 @@ fun AddVideoSheet(
 
                                 CardUploadService.startService(
                                     context = context,
-                                    accessToken = rawToken,
                                     videoUrl = urlToUpload,
                                     boardId = selectedIds.firstOrNull()
                                 )

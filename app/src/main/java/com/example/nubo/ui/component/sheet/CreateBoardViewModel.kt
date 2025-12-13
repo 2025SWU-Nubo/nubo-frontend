@@ -53,7 +53,7 @@ class CreateBoardViewModel @Inject constructor(
 
             // 보드 이름 중복 확인
             val available = boardRepository
-                .isBoardNameAvailable(token = token ,name = name)
+                .isBoardNameAvailable(name = name)
                 .getOrElse { false }
             if(!available){
                 _ui.update {
@@ -66,7 +66,6 @@ class CreateBoardViewModel @Inject constructor(
             // 보드 생성
             val emails = _ui.value.invitedEmails.takeIf { _ui.value.isShared && it.isNotEmpty() }
             val createResult = boardRepository.createBoard(
-                token = token,
                 name = name,
                 shared = _ui.value.isShared,
                 memberEmails = emails
@@ -98,7 +97,7 @@ class CreateBoardViewModel @Inject constructor(
             val token = "Bearer ${authRepository.getAccessToken()}"
 
             val available = boardRepository
-                .isBoardNameAvailable(token = token, name = name)
+                .isBoardNameAvailable( name = name)
                 .getOrElse { false }
             if (!available) {
                 _ui.update {
@@ -109,7 +108,6 @@ class CreateBoardViewModel @Inject constructor(
 
             val emails = _ui.value.invitedEmails.takeIf { _ui.value.isShared && it.isNotEmpty() }
             val createResult = boardRepository.createBoard(
-                token = token,
                 name = name,
                 shared = _ui.value.isShared,
                 memberEmails = emails

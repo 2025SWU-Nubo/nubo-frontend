@@ -22,7 +22,8 @@ fun CardDetailResponse.toUi(): CardDetailItem {
         isFavorite = isFavorite,
         stage = stage,
         berryGained = berryGained,
-        stageUp = stageUp
+        stageUp = stageUp,
+        mine = mine
     )
 }
 

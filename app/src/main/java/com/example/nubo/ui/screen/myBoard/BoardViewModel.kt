@@ -134,7 +134,6 @@ class BoardViewModel @Inject constructor(
 
                 // call API with paging/sort/filter
                 val res: PagedResponse<BoardListItemResponse> = boardService.getMyBoards(
-                    authHeader = "Bearer $token",
                     acceptHeader = "application/json",
                     sort = sort,
                     filter = filter,
@@ -171,7 +170,7 @@ class BoardViewModel @Inject constructor(
                 Log.e("BoardViewModel", "Error fetching boards", e)
 
                 // 보드 목록 불러오기 실패 시 토스트 메시지 설정
-                _toastMessage.value = "정보를 불러오지 못했어요"
+//                _toastMessage.value = "정보를 불러오지 못했어요"
             } finally {
                 _isLoading.value = false
             }
@@ -211,7 +210,6 @@ class BoardViewModel @Inject constructor(
                 val token = authRepository.getAccessToken().orEmpty()
                 // 2) 서버 PATCH 호출 (여기서만 Long으로 변환)
                 boardService.setFavorite(
-                    authHeader = "Bearer $token",
                     boardId = boardId.toLong(),
                     body = FavoriteRequest(favorite = newFav)
                 )
@@ -261,7 +259,6 @@ class BoardViewModel @Inject constructor(
 
                 // 검색 API 호출
                 val res: List<BoardSearchItemResponse> = boardService.searchBoards(
-                    authHeader = "Bearer $token",
                     keyword = query,
                     sort = sort // ViewModel의 현재 정렬 상태를 재활용
                 )
@@ -304,7 +301,7 @@ class BoardViewModel @Inject constructor(
                 deleteLinkedCards = "DELETE_ORPHANS"
             )
             // API 응답 타입이 List<BoardDeleteResponse>라고 가정합니다.
-            val response = boardService.deleteBoards(token, request)
+            val response = boardService.deleteBoards( request)
 
             return if (response.isSuccessful && response.body() != null) {
                 val deletedItems = response.body()!!
@@ -348,7 +345,7 @@ class BoardViewModel @Inject constructor(
                     cardRestores = lastDeletedCardRestoresForUndo
                 )
 
-                val response = boardService.restoreBoards(token, request)
+                val response = boardService.restoreBoards( request)
 
                 if (response.isSuccessful && response.body() != null) {
                     // API 응답 스펙에 'restoredBoardIds'가 있으므로 사용
@@ -380,7 +377,7 @@ class BoardViewModel @Inject constructor(
                     boardId = null,
                     deleteMode = lastCardDeleteMode
                 )
-                val response = cardService.restoreCards(token, request)
+                val response = cardService.restoreCards( request)
                 _toastMessage.value = "${response.restoredCount}개 카드 삭제가 취소되었어요."
                 refresh() // 카드 목록도 새로고침이 필요할 수 있으므로 refresh() 호출
             } catch (e: Exception) {
@@ -409,7 +406,7 @@ class BoardViewModel @Inject constructor(
             )
 
             // 카드 삭제 API 호출
-            val res = cardService.deleteCards(token, req)
+            val res = cardService.deleteCards( req)
 
             if (res.isSuccessful) {
                 // 마지막 삭제 카드 기억 (실행취소 대응)

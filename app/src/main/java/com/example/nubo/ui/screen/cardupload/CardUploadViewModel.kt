@@ -57,7 +57,7 @@ class CardUploadViewModel @Inject constructor(
 
         // Optional: immediate feedback
         _uploadEvents.tryEmit(UploadEvent.Started)
-        repository.uploadCard(token, req)  // returns Call<CardUploadResponse>
+        repository.uploadCard(req)  // returns Call<CardUploadResponse>
             .enqueue(object : retrofit2.Callback<CardUploadResponse> {
                 override fun onResponse(
                     call: retrofit2.Call<CardUploadResponse>,

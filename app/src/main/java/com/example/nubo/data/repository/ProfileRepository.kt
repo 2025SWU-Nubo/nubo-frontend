@@ -102,7 +102,7 @@ class ProfileRepository @Inject constructor(
         }
 
         // 2-1) 실제 탈퇴 API 호출 후 결과 변환(401/403 처리 포함)
-        val result = asResult(profileService.deleteMe(bearer))
+        val result = asResult(profileService.deleteMe())
 
         // 3) 성공이면 로컬 인증 데이터 정리
         if (result.isSuccess) {

@@ -191,7 +191,9 @@ fun NotificationScreen(
                     item(key = "recent-${type.name}") {
 
                         val expanded = expandedRecentTypes.contains(type)
-                        val previewPerChannel = 1
+                        // 3개 이상일 때만 접고, 그 외엔 모두 보여주기
+                        val previewPerChannel =
+                            if (itemsOfType.size >= 3) 1 else itemsOfType.size
 
                         // 펼치기 전에는 1개만, 펼치면 전체
                         val visibleItems =
@@ -226,7 +228,6 @@ fun NotificationScreen(
 
                                 NotiCard(
                                     item = item,
-                                    tinted = true,                 // 최근 알림은 틴트 대상
                                     loading = loading,
                                     onClick = { onClickItem(item) },
                                     onAcceptInvite = { onAcceptInvite(item) },
@@ -300,7 +301,6 @@ fun NotificationScreen(
 
                                 NotiCard(
                                     item = item,
-                                    tinted = false,               // 지난 알림은 틴트 없음
                                     loading = loading,
                                     onClick = { onClickItem(item) },
                                     onAcceptInvite = { onAcceptInvite(item) },
@@ -444,7 +444,6 @@ private fun SectionSub(title: String) {
 @Composable
 private fun NotiCard(
     item: NotificationItem,
-    tinted: Boolean,              // 최근 알림이면 true, 지난 알림이면 false
     loading: Boolean,
     onClick: () -> Unit,
     onAcceptInvite: () -> Unit,
@@ -459,7 +458,7 @@ private fun NotiCard(
     modifier: Modifier = Modifier,
 ) {
     // 이 알림이 안 읽은 상태이고 tint 대상이면 보라색, 아니면 흰색 배경
-    val targetBg = if (tinted && item.unread) Purple50 else Color.White
+    val targetBg = if (item.unread) Purple50 else Color.White
     val container by animateColorAsState(
         targetValue = targetBg,
         label = "notiBg"

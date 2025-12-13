@@ -72,7 +72,7 @@ class CardDetailViewModel @Inject constructor(
             }
             runCatching {
                 // ⚠️ Replace with your actual API call
-                val res: CardDetailResponse = repository.getCardDetail(token, cardId).await()
+                val res: CardDetailResponse = repository.getCardDetail( cardId).await()
                 res.toUi()
             }.onSuccess { ui ->
                 _uiState.value = CardDetailUiState.Success(ui)
@@ -132,7 +132,6 @@ class CardDetailViewModel @Inject constructor(
             runCatching {
                 // 즐겨찾기 업데이트
                 val res = repository.updateFavorite(
-                    token = token,
                     cardId = old.cardId,
                     body = CardFavoriteRequest(favorite = next)
                 ).await()

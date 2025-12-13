@@ -293,6 +293,8 @@ class OnBoardingViewModel @Inject constructor(
                     val newUser = loginRes.user
                     pendingAccessToken = loginRes.accessToken
 
+                    authRepository.saveRefreshToken(loginRes.refreshToken)
+
                     // 마지막 온보딩 플래그 기억해두기
                     lastInterestSetupCompleted = loginRes.interestSetupCompleted
                     lastTutorialCompleted = loginRes.tutorialCompleted
@@ -368,7 +370,7 @@ class OnBoardingViewModel @Inject constructor(
             runCatching { FirebaseMessaging.getInstance().deleteToken() }
         }
 
-        toast("로그인이 만료되었습니다. 다시 로그인해주세요.", type = AppToastType.NEGATIVE)
+        toast("로그인이 만료되었습니다.\n다시 로그인해주세요.", type = AppToastType.NEGATIVE)
         showLoginButton()
     }
 

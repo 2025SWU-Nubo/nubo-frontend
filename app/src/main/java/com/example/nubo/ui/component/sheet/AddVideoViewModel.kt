@@ -49,9 +49,8 @@ class AddVideoViewModel @Inject constructor(
             rememberedUrl = null
 
             try {
-                // 토큰 로직 추가
-                val token = "Bearer ${authRepository.getAccessToken()}" // 토큰 가져오기
-                val res = videoService.validateLink(url, token) // 토큰 전달
+                // Authorization header is injected by TokenInterceptor
+                val res = videoService.validateLink(url)
                 if (res.isSuccessful) {
                     val body = res.body()
                     if (body?.valid == true) {
@@ -68,7 +67,6 @@ class AddVideoViewModel @Inject constructor(
             }
         }
     }
-
 
     // --- 보드 트리 로딩 상태 ---
     sealed class BoardsState {
@@ -89,9 +87,8 @@ class AddVideoViewModel @Inject constructor(
         viewModelScope.launch {
             _boards.value = BoardsState.Loading
             try {
-                // 토큰 내부에서 확보
-                val token = "Bearer ${authRepository.getAccessToken()}"  // ← 토큰 가져오기
-                val res = videoService.getBoardsWithSections(token)
+                // Authorization header is injected by TokenInterceptor
+                val res = videoService.getBoardsWithSections()
 
                 if (res.isSuccessful) {
                     val body = res.body().orEmpty()
@@ -130,5 +127,3 @@ class AddVideoViewModel @Inject constructor(
         return authRepository.getAccessToken() // "Bearer " 유무는 저장된 형태 그대로 사용
     }
 }
-
-

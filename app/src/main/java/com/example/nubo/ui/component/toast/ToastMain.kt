@@ -540,7 +540,7 @@ fun AppToastHost(
                                     Text(
                                         text = t.title,
                                         color = toastStyle.titleColor,
-                                        style = AppTextStyles.b2_semibold_16,
+                                        style = AppTextStyles.b2_medium_16,
                                         maxLines = 2,
                                         overflow = TextOverflow.Ellipsis,
                                         textAlign = TextAlign.Start
@@ -550,7 +550,7 @@ fun AppToastHost(
                                         Text(
                                             text = t.summary.orEmpty(),
                                             color = toastStyle.textColor,
-                                            style = AppTextStyles.b3_regular_14,
+                                            style = AppTextStyles.label_medium_14,
                                             lineHeight = 20.sp,
                                             maxLines = 2,
                                             overflow = TextOverflow.Ellipsis,

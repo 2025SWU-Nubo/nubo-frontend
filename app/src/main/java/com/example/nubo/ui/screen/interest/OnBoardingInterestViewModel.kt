@@ -35,22 +35,63 @@ data class InterestUiState(
 class OnBoardingInterestViewModel @Inject constructor(
     private val repo: InterestRepository,
     private val authRepository: AuthRepository
-) : ViewModel(){
+) : ViewModel() {
+
     private val _state = MutableStateFlow(InterestUiState())
     val state: StateFlow<InterestUiState> = _state
 
     // 토큰을 외부에 노출: 화면에서 collect해서 사용
     val accessToken: StateFlow<String?> = authRepository.accessTokenFlow
 
+    // ----------------------------- //
+    // 공통: 사용자 에러 메시지 변환 함수
+    // ----------------------------- //
+    private fun mapErrorMessage(e: Throwable): String {
+        return when (e) {
+            is java.net.UnknownHostException ->
+                "인터넷 연결을 확인해주세요"
+
+            is java.net.SocketTimeoutException ->
+                "응답이 지연되고 있어요. 잠시 후 다시 시도해주세요"
+
+            is retrofit2.HttpException -> {
+                val code = e.code()
+                when (code) {
+                    400 -> "요청을 처리할 수 없어요"
+                    401, 403 -> "다시 로그인 후 시도해주세요"
+                    404 -> "요청한 정보를 찾을 수 없어요"
+                    500 -> "서버 오류가 발생했어요. 잠시 후 다시 시도해주세요"
+                    else -> "문제가 발생했어요. 다시 시도해주세요"
+                }
+            }
+
+            else -> "네트워크 오류가 발생했어요"
+        }
+    }
+
     /** 기본 보드 목록 조회 트리거 */
-    fun loadBoards(accessToken: String) {
+    fun loadBoards() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            runCatching { repo.loadDefaultBoards(accessToken) }
-                .onSuccess { list -> _state.update { it.copy(isLoading = false, boards = list) } }
-                .onFailure { e ->
+
+            runCatching {
+                repo.loadDefaultBoards()
+            }
+                .onSuccess { list ->
                     _state.update {
-                        it.copy(isLoading = false, error = e.message ?: "목록을 불러오지 못했어요")
+                        it.copy(
+                            isLoading = false,
+                            boards = list
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    val userMessage = mapErrorMessage(e)
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            error = userMessage
+                        )
                     }
                 }
         }
@@ -59,7 +100,9 @@ class OnBoardingInterestViewModel @Inject constructor(
     /** 칩 탭 시 선택/해제 토글 */
     fun toggle(boardId: Long) {
         _state.update { s ->
-            val next = if (boardId in s.selectedIds) s.selectedIds - boardId else s.selectedIds + boardId
+            val next =
+                if (boardId in s.selectedIds) s.selectedIds - boardId
+                else s.selectedIds + boardId
             s.copy(selectedIds = next)
         }
     }
@@ -79,27 +122,32 @@ class OnBoardingInterestViewModel @Inject constructor(
 
         viewModelScope.launch {
             _state.update { it.copy(submitInProgress = true) }
-            runCatching { repo.submitSelectedBoards(accessToken, ids) }
+
+            runCatching {
+                repo.submitSelectedBoards(ids)
+            }
                 .onSuccess { resp ->
                     _state.update { it.copy(submitInProgress = false) }
+
                     if (resp.completed) {
-                        //완료로 내부에도 저장
+                        // 완료로 내부에도 저장
                         authRepository.setInterestCompleted(true)
                         onCompleted(resp.selectedCount)
+                    } else {
+                        onError("완료 상태를 확인하지 못했어요")
                     }
-                    else onError("완료 상태를 확인하지 못했어요")
                 }
                 .onFailure { e ->
                     _state.update { it.copy(submitInProgress = false) }
-                    onError(e.message ?: "네트워크 오류가 발생했어요")
+                    onError(mapErrorMessage(e))
                 }
         }
     }
 
     /**
-    * '건너뛰기' 제출
-    * - 서버가 idempotent 처리 → 이미 완료된 유저도 completed=true 반환
-    */
+     * '건너뛰기' 제출
+     * - 서버가 idempotent 처리 → 이미 완료된 유저도 completed=true 반환
+     */
     fun submitSkip(
         accessToken: String,
         onCompleted: (selectedCount: Int) -> Unit,
@@ -109,15 +157,22 @@ class OnBoardingInterestViewModel @Inject constructor(
 
         viewModelScope.launch {
             _state.update { it.copy(submitInProgress = true) }
-            runCatching { repo.submitSkip(accessToken) }
+
+            runCatching {
+                repo.submitSkip()
+            }
                 .onSuccess { resp ->
                     _state.update { it.copy(submitInProgress = false) }
-                    if (resp.completed) onCompleted(resp.selectedCount)
-                    else onError("완료 상태를 확인하지 못했어요")
+
+                    if (resp.completed) {
+                        onCompleted(resp.selectedCount)
+                    } else {
+                        onError("완료 상태를 확인하지 못했어요")
+                    }
                 }
                 .onFailure { e ->
                     _state.update { it.copy(submitInProgress = false) }
-                    onError(e.message ?: "네트워크 오류가 발생했어요")
+                    onError(mapErrorMessage(e))
                 }
         }
     }

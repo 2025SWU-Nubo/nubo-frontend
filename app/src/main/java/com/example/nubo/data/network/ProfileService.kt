@@ -31,7 +31,5 @@ interface ProfileService {
     // 회원 탈퇴 (204 No Content)
     @Headers("Content-Type: application/json")
     @DELETE("/api/user/me")
-    suspend fun deleteMe(
-        @Header("Authorization") bearer: String
-    ): retrofit2.Response<Unit>
+    suspend fun deleteMe(): retrofit2.Response<Unit>
 }

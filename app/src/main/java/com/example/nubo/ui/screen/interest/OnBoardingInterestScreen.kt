@@ -65,7 +65,7 @@ fun OnBoardingInterestScreen(
 
     // 토큰 준비 시 보드 목록 조회 / load boards once token is ready
     LaunchedEffect(tokenFromVm) {
-        tokenFromVm?.let { viewModel.loadBoards(it) }
+        tokenFromVm?.let { viewModel.loadBoards() }
     }
 
     Scaffold(
@@ -183,7 +183,7 @@ fun OnBoardingInterestScreen(
                     ) {
                         Text(state.error ?: "오류", style = AppTextStyles.b3_regular_14, color = Color.Red)
                         Spacer(Modifier.height(8.dp))
-                        OutlinedButton(onClick = { tokenFromVm?.let { viewModel.loadBoards(it) } }) {
+                        OutlinedButton(onClick = { tokenFromVm?.let { viewModel.loadBoards() } }) {
                             Text("다시 시도")
                         }
                     }
