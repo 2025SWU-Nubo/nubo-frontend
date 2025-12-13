@@ -68,8 +68,8 @@ class HomeViewModel @Inject constructor(
     private val _chips = MutableLiveData<List<RecommendChipItem>>(emptyList())
     val chips: LiveData<List<RecommendChipItem>> = _chips
 
-    private val _selectedChipId = MutableLiveData("all")
-    val selectedChipId: LiveData<String> = _selectedChipId
+    private val _selectedChipIds = MutableLiveData<Set<String>>(setOf("all"))
+    val selectedChipIds: LiveData<Set<String>> = _selectedChipIds
 
     // --- notifications ---
     val hasUnread: StateFlow<Boolean> = notiRepository.hasUnread
@@ -120,16 +120,18 @@ class HomeViewModel @Inject constructor(
         loadUnreadFlag()
     }
 
-    fun refreshForCurrentSelection(){
+    fun refreshForCurrentSelection() {
         val token = authRepository.getAccessToken() ?: return
-        val sel = _selectedChipId.value ?: "all"
+        val selected = _selectedChipIds.value ?: setOf("all")
 
-        if(sel == "all"){
+        if ("all" in selected) {
+            _isLoading.value = true
+
             cardPage = 0
             cardPageSize = 20
             cardIsLast = true
 
-            cardRepository.getUnviewedAllCards( limit = 20)
+            cardRepository.getUnviewedAllCards(limit = 20)
                 .enqueue(object : Callback<List<CardResponse>> {
                     override fun onResponse(
                         call: Call<List<CardResponse>>,
@@ -139,53 +141,60 @@ class HomeViewModel @Inject constructor(
                         if (response.isSuccessful) {
                             val list = response.body().orEmpty()
                             _cards.value = list
-                            Log.d("HomeViewModel", "✅ ALL chip: unviewed-all loaded size=${list.size}")
+                            Log.d("HomeViewModel", "✅ ALL: loaded size=${list.size}")
                         } else {
                             _cards.value = emptyList()
-                            Log.e("HomeViewModel", "❌ ALL chip: failed code=${response.code()}")
+                            Log.e("HomeViewModel", "❌ ALL: failed code=${response.code()}")
                         }
                     }
 
                     override fun onFailure(call: Call<List<CardResponse>>, t: Throwable) {
                         _isLoading.value = false
                         _cards.value = emptyList()
-                        Log.e("HomeViewModel", "❌ ALL chip: request failed: ${t.localizedMessage}", t)
+                        Log.e("HomeViewModel", "❌ ALL: request failed: ${t.localizedMessage}", t)
                     }
                 })
+
             return
-        }else{
-            val boardId = sel.toLongOrNull() ?: return
-            _isLoading.value = true
-
-            // 미시청 카드 조회
-            cardRepository.getUnviewedCardsByBoard(boardId = boardId, limit = 10)
-                .enqueue(object : Callback<List<CardResponse>> {
-                    override fun onResponse(call: Call<List<CardResponse>?>, response: Response<List<CardResponse>?>) {
-                        _isLoading.value = false
-                        if (response.isSuccessful) {
-                            val list = response.body().orEmpty()
-                            if (list.isEmpty()) {
-                                Log.d("HomeViewModel", "❌ No unviewed cards for board $boardId")
-                            }
-                            _cards.value = list
-                            // 보드 칩 모드에서는 전체 페이징과 무관하게 고정
-                            cardPage = 0
-                            cardIsLast = true
-                            Log.d("HomeViewModel", "✅ Board $boardId cards loaded: size=${list.size}")
-                        } else {
-                            _cards.value = emptyList()
-                            Log.e("HomeViewModel", "❌ Failed to load board $boardId cards: code=${response.code()}")
-                        }
-                    }
-
-                    override fun onFailure(call: Call<List<CardResponse>?>, t: Throwable) {
-                        _isLoading.value = false
-                        _cards.value = emptyList()
-                        Log.e("HomeViewModel", "❌ Board $boardId cards request failed: ${t.localizedMessage}", t)
-                    }
-                })
         }
+
+        val boardIds = selected.mapNotNull { it.toLongOrNull() }.distinct()
+        if (boardIds.isEmpty()) {
+            _selectedChipIds.value = setOf("all")
+            _chips.value = _chips.value.orEmpty().map { it.copy(isSelected = it.id == "all") }
+            refreshForCurrentSelection()
+            return
+        }
+
+        _isLoading.value = true
+
+        cardRepository.getUnviewedCardsByBoards(boardIds = boardIds, limit = 15)
+            .enqueue(object : Callback<List<CardResponse>> {
+                override fun onResponse(
+                    call: Call<List<CardResponse>>,
+                    response: Response<List<CardResponse>>
+                ) {
+                    _isLoading.value = false
+                    if (response.isSuccessful) {
+                        val list = response.body().orEmpty()
+                        _cards.value = list
+                        cardPage = 0
+                        cardIsLast = true
+                        Log.d("HomeViewModel", "✅ BOARDS $boardIds loaded size=${list.size}")
+                    } else {
+                        _cards.value = emptyList()
+                        Log.e("HomeViewModel", "❌ BOARDS $boardIds failed code=${response.code()}")
+                    }
+                }
+
+                override fun onFailure(call: Call<List<CardResponse>>, t: Throwable) {
+                    _isLoading.value = false
+                    _cards.value = emptyList()
+                    Log.e("HomeViewModel", "❌ BOARDS request failed: ${t.localizedMessage}", t)
+                }
+            })
     }
+
 
 
     fun loadCards(reset: Boolean = false) {
@@ -226,12 +235,6 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun loadMoreCardsIfPossible() {
-        // only works for "전체" chip
-        if (_selectedChipId.value != "all") return
-        loadCards(reset = false)
-    }
-
     fun loadRecentBoards(){
         viewModelScope.launch {
             val token = authRepository.getAccessToken() ?: run {
@@ -249,15 +252,15 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun loadBoards(){
+    fun loadBoards() {
         viewModelScope.launch {
             val token = authRepository.getAccessToken() ?: run {
                 Log.d("HomeViewModel", "❌ Token is null, cannot load boards")
-                return@launch}
+                return@launch
+            }
 
-            boardRepository.getHomeBoards( sort = "LATEST")
+            boardRepository.getHomeBoards(sort = "LATEST")
                 .onSuccess { list ->
-                    // 홈 보드 응답을 칩으로 변환
                     val built = buildList {
                         add(RecommendChipItem(id = "all", title = "전체", isSelected = false))
                         list.forEach { b ->
@@ -270,33 +273,56 @@ class HomeViewModel @Inject constructor(
                             )
                         }
                     }
-                    val current = _selectedChipId.value ?: "all"
-                    val adjusted = if (current == "all" || built.any { it.id == current }) {
-                        built.map { it.copy(isSelected = it.id == current) }
+
+                    val selected = _selectedChipIds.value ?: setOf("all")
+
+                    // If "all" is selected, enforce single selection
+                    val normalized = if ("all" in selected || selected.isEmpty()) {
+                        setOf("all")
                     } else {
-                        _selectedChipId.value = "all"
-                        built.map { it.copy(isSelected = it.id == "all") }
+                        // Keep only ids that exist in the built list
+                        selected.filter { id -> built.any { it.id == id } }.toSet().ifEmpty { setOf("all") }
                     }
-                    _chips.value = adjusted
-                    Log.d("HomeViewModel", "✅ Chips from /api/home/boards loaded: size=${list.size}")
+
+                    _selectedChipIds.value = normalized
+                    _chips.value = built.map { it.copy(isSelected = it.id in normalized) }
+
+                    Log.d("HomeViewModel", "✅ Chips loaded size=${list.size}")
                 }
                 .onFailure { e ->
                     _chips.value = listOf(RecommendChipItem("all", "전체", isSelected = true))
-                    _selectedChipId.value = "all"
-                    Log.e("HomeViewModel", "❌ Failed to load home boards for chips: ${e.localizedMessage}", e)
+                    _selectedChipIds.value = setOf("all")
+                    Log.e("HomeViewModel", "❌ Failed to load home boards: ${e.localizedMessage}", e)
                 }
         }
     }
 
+
     fun onChipClick(chip: RecommendChipItem) {
-        _selectedChipId.value = chip.id
-        // Update selection flags in chips
-        _chips.value = _chips.value.orEmpty().map { it.copy(isSelected = it.id == chip.id) }
-        Log.d("HomeViewModel", "Chip clicked: id=${chip.id}, title=${chip.title}")
+        val current = _selectedChipIds.value ?: setOf("all")
+        val next = current.toMutableSet()
 
-        //새로고침
+        if (chip.id == "all") {
+            // Selecting "all" clears everything else
+            next.clear()
+            next.add("all")
+        } else {
+            // Selecting any board clears "all"
+            next.remove("all")
+
+            // Toggle behavior
+            if (next.contains(chip.id)) next.remove(chip.id) else next.add(chip.id)
+
+            // If nothing selected, fallback to "all"
+            if (next.isEmpty()) next.add("all")
+        }
+
+        _selectedChipIds.value = next.toSet()
+        _chips.value = _chips.value.orEmpty().map { it.copy(isSelected = it.id in next) }
+
+        Log.d("HomeViewModel", "Chip toggled: id=${chip.id}, selected=$next")
+
         refreshForCurrentSelection()
-
     }
 
 

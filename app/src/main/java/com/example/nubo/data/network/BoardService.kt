@@ -86,10 +86,9 @@ interface BoardService {
     ): List<RecentBoardResponse>
 
     // 보드 + 섹션 트리 조회
+    @Headers("Accept: application/json")
     @GET("api/board/with-sections")
-    suspend fun getBoardsWithSections(
-        @Header("Accept") accept: String = "application/json"
-    ): Response<List<BoardWithSectionsResponse>>
+    suspend fun getBoardsWithSections(): Response<List<BoardWithSectionsResponse>>
 
     // 일괄 복제
     @POST("/api/board/{sourceBoardId}/bulk-copy")

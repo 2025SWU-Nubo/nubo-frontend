@@ -5,7 +5,6 @@ import com.example.components.toast.AppToastType
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 
-// Toast event data model for global bus
 data class GlobalToastEvent(
     val message: String,
     val type: AppToastType = AppToastType.NORMAL,
@@ -16,22 +15,27 @@ data class GlobalToastEvent(
     val onAction: (() -> Unit)? = null, // For service usage, usually null
 )
 
-// Simple global toast bus
 object GlobalToastBus {
-
 
     // Extra buffer so service can emit without suspending
     private val _events = MutableSharedFlow<GlobalToastEvent>(extraBufferCapacity = 32)
     val events: SharedFlow<GlobalToastEvent> = _events
 
-    // Non-suspending emit for use from Service or anywhere
+    // Whether Compose toast host is mounted and collecting events
+    @Volatile
+    private var hostReady: Boolean = false
+
+    fun setHostReady(ready: Boolean) {
+        hostReady = ready
+    }
+
+    fun isHostReady(): Boolean = hostReady
 
     fun emit(event: GlobalToastEvent) {
         android.util.Log.d("GlobalToastBus", "emit message=${event.message}, type=${event.type}")
         _events.tryEmit(event)
     }
 
-    // Convenience helpers
     fun showMessage(
         message: String,
         type: AppToastType = AppToastType.NORMAL,
@@ -48,4 +52,3 @@ object GlobalToastBus {
         )
     }
 }
-

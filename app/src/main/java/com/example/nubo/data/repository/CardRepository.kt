@@ -35,9 +35,9 @@ class CardRepository @Inject constructor(
         )
     }
 
-    fun getUnviewedCardsByBoard(boardId: Long, limit: Int = 10): Call<List<CardResponse>> {
-        return apiService.getUnviewedCardsByBoard(
-            boardId = boardId,
+    fun getUnviewedCardsByBoards( boardIds: List<Long>, limit: Int? = null): Call<List<CardResponse>> {
+        return apiService.getUnviewedCardsByBoards(
+            boardIds = boardIds,
             limit = limit
         )
     }

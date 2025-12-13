@@ -382,9 +382,8 @@ class BoardDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _boards.value = BoardsState.Loading
             try {
-                val token = "Bearer ${authRepository.getAccessToken()}"
                 // videoService 대신 boardService를 사용하도록 수정
-                val res = boardService.getBoardsWithSections(token)
+                val res = boardService.getBoardsWithSections()
 
                 if (res.isSuccessful) {
                     val body = res.body().orEmpty()

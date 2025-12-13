@@ -100,6 +100,7 @@ import kotlinx.coroutines.launch
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import com.example.components.toast.LocalAppToastHostState
+import com.example.nubo.ui.component.toast.GlobalToastBinder
 import com.example.nubo.ui.component.toast.GlobalToastBus
 import com.example.nubo.ui.screen.learn.LearnScreenBerry
 import com.example.nubo.ui.screen.onBoadingTutorial.OnBoardingTutorialRoute
@@ -156,6 +157,8 @@ class MainActivity : AppCompatActivity() {
 
                     // 3  MainScreen 위에 전역 토스트 오버레이를 항상 깔아둠
                     Box(Modifier.fillMaxSize()) {
+                        GlobalToastBinder(hostState = toastHost)
+
                         MainScreen(deepLinkEvents = deepLinkEvents)
                         key(toastHost.overlayVisible) {
                             if (toastHost.overlayVisible) {
@@ -323,23 +326,6 @@ fun MainScreen(
             return@LaunchedEffect
         }
     }
-
-    // Listen global toast bus (for Service etc.) and show via host
-    LaunchedEffect(Unit) {
-        GlobalToastBus.events.collectLatest { event ->
-            toastHost.show(
-                title = AnnotatedString(event.message),
-                type = event.type,
-                layout = event.layout,
-                durationMillis = event.durationMillis,
-                preDelayMillis = event.preDelayMillis,
-                actionLabel = event.actionLabel,
-                onAction = event.onAction
-            )
-        }
-    }
-
-
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route

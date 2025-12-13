@@ -18,6 +18,7 @@ import com.example.nubo.data.model.CardUploadResponse
 import com.example.nubo.data.repository.CardRepository
 import com.example.nubo.ui.component.toast.GlobalToastBus
 import com.example.nubo.utils.AppForegroundTracker
+import com.example.nubo.utils.AppUiTracker
 import dagger.hilt.android.AndroidEntryPoint
 import retrofit2.Call
 import retrofit2.Callback
@@ -92,22 +93,29 @@ class CardUploadService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    private fun toastOnMain(msg: String, type: AppToastType = AppToastType.NORMAL) {
-        if (AppForegroundTracker.isForeground) {
-            // 앱이 포그라운드일 때만 커스텀 토스트
-            GlobalToastBus.showMessage(
-                message = msg,
-                type = type,
-                durationMillis = 2200,
-                preDelayMillis = 350
-            )
-        } else {
-            // 앱이 떠 있지 않을 때는 시스템 토스트만
-            Handler(Looper.getMainLooper()).post {
+    private fun toastOnMain(
+        msg: String,
+        type: AppToastType = AppToastType.NORMAL
+    ) {
+        Handler(Looper.getMainLooper()).post {
+            val canShowCustom =
+                AppUiTracker.isResumed &&
+                    GlobalToastBus.isHostReady()
+
+            if (canShowCustom) {
+                GlobalToastBus.showMessage(
+                    message = msg,
+                    type = type,
+                    durationMillis = 2200,
+                    preDelayMillis = 350
+                )
+            } else {
                 Toast.makeText(applicationContext, msg, Toast.LENGTH_SHORT).show()
             }
         }
     }
+
+
 
     // 진행 중 알림 생성
     private fun createProgressNotification(): Notification {
@@ -144,6 +152,17 @@ class CardUploadService : Service() {
                         stopForeground(true)
                         toastOnMain(
                             msg = "이미 추가된 영상이에요",
+                            type = AppToastType.NEGATIVE
+                        )
+                        stopSelf()
+                        return
+                    }
+
+                    if(response.code() == 400){
+                        Log.w("CardUploadService", "유효하지 않은 형식(400)")
+                        stopForeground(true)
+                        toastOnMain(
+                            msg = "유효하지 않은 링크 형식이에요.",
                             type = AppToastType.NEGATIVE
                         )
                         stopSelf()

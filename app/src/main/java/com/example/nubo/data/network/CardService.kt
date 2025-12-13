@@ -18,6 +18,7 @@ import com.example.nubo.data.model.RecommendCardDetailResponse
 import com.example.nubo.data.model.RecommendCardResponse
 import com.example.nubo.data.model.SaveRecommendationCardRequest
 import com.example.nubo.data.model.SaveRecommendationCardResponse
+import com.example.nubo.data.model.UnviewedCardsByBoardsRequest
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.http.Body
@@ -56,10 +57,10 @@ interface CardService {
     ): Call<CardDetailResponse>
 
     @Headers("Accept: application/json")
-    @GET("/api/home/boards/{boardId}/unviewed-cards")
-    fun getUnviewedCardsByBoard(
-        @Path("boardId") boardId: Long,
-        @Query("limit") limit: Int = 10
+    @GET("/api/home/boards/unviewed-cards")
+    fun getUnviewedCardsByBoards(
+        @Query("boardIds") boardIds: List<Long>,
+        @Query("limit") limit: Int? = null
     ): Call<List<CardResponse>>
 
     @GET("/api/home/boards/all/unviewed-cards")

@@ -106,7 +106,7 @@ fun HomeScreen(
 
     val cards by vm.cards.observeAsState(emptyList())
     val chips by vm.chips.observeAsState(emptyList())
-    val selectedChipId by vm.selectedChipId.observeAsState("all")
+    val selectedChipIds by vm.selectedChipIds.observeAsState(setOf("all"))
 
     // 최근 본 보드
     val recentBoards by vm.recentBoards.observeAsState(emptyList())
@@ -219,11 +219,8 @@ fun HomeScreen(
                 UnviewedVideosSection(
                     cards = cards,
                     chips = chips,
-                    selectedChipId = selectedChipId,
                     onChipClick = { vm.onChipClick(it) },
-                    onCardClick = { item ->
-                        onOpenCardDetail(item.id)
-                    }
+                    onCardClick = { item -> onOpenCardDetail(item.id) }
                 )
                 Spacer(Modifier.height(80.dp))
             }
@@ -426,7 +423,6 @@ fun RecommendVideoSection(
 fun UnviewedVideosSection(
     cards: List<CardResponse>,
     chips: List<RecommendChipItem>,
-    selectedChipId: String,
     onChipClick: (RecommendChipItem) -> Unit,
     onCardClick: (CardItem) -> Unit
 ) {
