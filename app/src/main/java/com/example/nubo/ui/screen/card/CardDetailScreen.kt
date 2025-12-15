@@ -449,34 +449,32 @@ private fun DetailBodyMarkdown(
 ) {
     var isExpanded by remember { mutableStateOf(false) }
 
-    // 1) 서버에서 온 마크다운을 에디터와 동일하게 정규화
+    // 1) 서버에서 온 마크다운을 한 번만 정규화
     val normalizedMd = remember(description) {
         standardizeMarkdown(description)
     }
 
-    // 2) 접힘 상태일 때 사용할 "잘린 마크다운"
-    val collapsedMd = remember(normalizedMd, maxCollapseLines) {
-        val lines = normalizedMd.lines()
-        lines.take(minOf(lines.size, maxCollapseLines)).joinToString("\n")
-    }
-
-    val mdToShow = if (isExpanded) normalizedMd else collapsedMd
-
-
-    // 3) compose-rich-editor 의 RichTextState 사용 (읽기 전용 용도)
+    // 2) RichTextState는 재구성(recomposition)돼도 유지
     val richTextState = rememberRichTextState()
 
-    // 4) mdToShow 가 바뀔 때만 setMarkdown 호출 (무한 루프 방지)
-    LaunchedEffect(mdToShow) {
-        if (richTextState.toMarkdown() != mdToShow) {
-            richTextState.setMarkdown(mdToShow)
+    // 3) 핵심: 접기/펼치기와 무관하게 "원본 마크다운"이 바뀔 때만 setMarkdown 호출
+    //    (접기/펼치기 때마다 setMarkdown 하면 파싱/레이아웃 계산이 계속 돌아서 재렌더링처럼 보임)
+    LaunchedEffect(normalizedMd) {
+        if (richTextState.toMarkdown() != normalizedMd) {
+            richTextState.setMarkdown(normalizedMd)
         }
     }
 
-    // 5) 접기/펼치기 가능 여부
+    // 4) 접기/펼치기가 필요한지 계산
     val canCollapse = remember(normalizedMd, maxCollapseLines) {
         normalizedMd.lineSequence().count() > maxCollapseLines
     }
+
+    // 5) 접힘 상태에서 보여줄 최대 높이 계산
+    //    ProvideTextStyle의 lineHeight(22.sp)와 동일하게 맞춰야 줄 수 기반으로 안정적으로 잘림
+    val density = LocalDensity.current
+    val lineHeightDp = with(density) { 22.sp.toDp() }
+    val collapsedMaxHeight = lineHeightDp * maxCollapseLines + 8.dp // 약간의 버퍼
 
     Card(
         modifier = modifier
@@ -495,6 +493,17 @@ private fun DetailBodyMarkdown(
             Spacer(Modifier.height(8.dp))
 
             Box(modifier = Modifier.fillMaxWidth()) {
+                // 6) 핵심: 내용(md)을 바꾸지 말고 "높이만 제한 + clip"으로 접기 구현
+                val bodyModifier =
+                    if (isExpanded || !canCollapse) {
+                        Modifier.fillMaxWidth()
+                    } else {
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = collapsedMaxHeight) // 접힘 상태 높이 제한
+                            .clipToBounds() // 넘친 내용은 잘라서 숨김
+                    }
+
                 ProvideTextStyle(
                     value = MaterialTheme.typography.bodyMedium.copy(
                         lineHeight = 22.sp,
@@ -507,10 +516,11 @@ private fun DetailBodyMarkdown(
                 ) {
                     RichText(
                         state = richTextState,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = bodyModifier
                     )
                 }
 
+                // 7) 접힘 상태에서만 하단 그라데이션 오버레이 표시
                 if (!isExpanded && canCollapse) {
                     Box(
                         modifier = Modifier
@@ -530,11 +540,12 @@ private fun DetailBodyMarkdown(
                 }
             }
 
+            // 8) 접기/펼치기 버튼
             if (canCollapse) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { isExpanded = !isExpanded }
+                        .clickable { isExpanded = !isExpanded } // 상태만 토글
                         .padding(top = 20.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
@@ -555,6 +566,7 @@ private fun DetailBodyMarkdown(
         }
     }
 }
+
 
 @Composable
 private fun CardKeyword(

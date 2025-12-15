@@ -817,7 +817,7 @@ fun ToastDemoScreen(
 @Composable
 fun AppToastOverlay(
     hostState: AppToastHostState,
-    extraBottomOffset: Dp = 12.dp,
+    extraBottomOffset: Dp = 4.dp,
 ) {
     if (!hostState.overlayVisible) return
 

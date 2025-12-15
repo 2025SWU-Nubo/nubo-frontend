@@ -276,7 +276,7 @@ fun EditCardScreen(
             message = msg,
             type = AppToastType.POSITIVE,
             durationMillis = 2000,
-            preDelayMillis = 0
+            preDelayMillis = 400
         )
 
         viewModel.consumeToast()

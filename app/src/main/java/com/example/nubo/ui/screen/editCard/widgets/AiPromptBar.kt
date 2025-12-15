@@ -89,6 +89,7 @@ fun AiPromptBar(
     val canSend by remember(loading, value) { mutableStateOf(!loading && value.isNotBlank()) }
     val chipEnabled = !loading                           // 프리셋 칩 enable 기준
     val undoEnabled = !loading && canUndo               // 되돌리기 칩 enable 기준
+    val showUndoChip = !loading && canUndo
 
     Surface(
         tonalElevation = 4.dp,
@@ -109,6 +110,28 @@ fun AiPromptBar(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // ── 되돌리기 칩 ──
+                if (showUndoChip) {
+                    IconOnlyChip(
+                        enabled = true,
+                        onClick = {
+                            onUndo()
+                            selectedPreset = null
+                            focusRequester.requestFocus()
+                        },
+                        modifier = Modifier.height(CHIP_HEIGHT),
+                        containerColor = Purple100,
+                        contentColor = PurpleMain500,
+                        borderColor = PurpleMain500
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.replay),
+                            contentDescription = "되돌리기",
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
                 presets.forEachIndexed { index, preset ->
                     val selected = selectedPreset == index
 
@@ -153,24 +176,7 @@ fun AiPromptBar(
                     )
                 }
 
-                // ── 되돌리기 칩 ──
-                val undoBorderColor =
-                    if (!undoEnabled) Grey30 else if (canUndo) PurpleMain500 else null
 
-                IconOnlyChip(
-                    enabled = undoEnabled,
-                    onClick = {
-                        onUndo()
-                        selectedPreset = null
-                        focusRequester.requestFocus()
-                    },
-                    modifier = Modifier.height(CHIP_HEIGHT),
-                    containerColor = if (canUndo) Purple100 else Grey20,
-                    contentColor = if (canUndo) PurpleMain500 else Grey200,
-                    borderColor = undoBorderColor
-                ) {
-                    Icon(painter = painterResource(R.drawable.replay), contentDescription = "되돌리기", modifier = Modifier.size(18.dp))
-                }
             }
 
             // 입력 + 전송
