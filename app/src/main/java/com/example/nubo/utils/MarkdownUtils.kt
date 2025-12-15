@@ -798,54 +798,46 @@ fun clearHeadingMarkdown(state: RichTextState): Int {
  * - 이미 같은 level 헤딩 → 본문으로 되돌림
  * - H2 <-> H3 변경도 지원
  */
-fun toggleHeadingMarkdown(state: RichTextState, level: Int): Int {
+// English comment: Do NOT adjust caret by markdown prefix length, selection is based on displayed text
+fun toggleHeadingMarkdown(state: RichTextState, level: Int) {
     val beforeMd = state.toMarkdown()
-    val beforeCursor = state.selection.end
-
     val mapping = mapCursorToMarkdownLine(state)
 
-    val indent = Regex("^\\s*").find(mapping.mdLine)?.value ?: ""
-    val lineNoIndent = mapping.mdLine.removePrefix(indent)
-
-    // "### 제목" 또는 "## 제목" 같은 패턴에서
-    //   groupValues[1] : "### " 부분
-    //   groupValues[2] : 나머지 내용
-    val prefixMatch = Regex("^(#{1,6}\\s+)?(.*)$").find(lineNoIndent)
-    val currentPrefix = prefixMatch?.groupValues?.get(1) ?: ""
-    val content = prefixMatch?.groupValues?.get(2) ?: lineNoIndent
+    val rawLine = mapping.mdLine
+    val trimmed = rawLine.trimStart()
 
     val currentLevel = when {
-        currentPrefix.startsWith("### ") -> 3
-        currentPrefix.startsWith("## ") || currentPrefix.startsWith("# ") -> 2
+        trimmed.startsWith("### ") -> 3
+        trimmed.startsWith("## ") || trimmed.startsWith("# ") -> 2
         else -> null
     }
 
-    // 동일 레벨을 다시 누르면 본문으로
     val newPrefix =
         if (currentLevel == level) ""
         else "#".repeat(level.coerceIn(2, 3)) + " "
 
-    val newLine = indent + newPrefix + content
+    val content = stripMdLineMarkers(rawLine)
+    val newLine = newPrefix + content
 
     val mdLines = beforeMd.split('\n').toMutableList()
     mdLines[mapping.matchedLineIndex] = newLine
 
-    val newMd = mdLines.joinToString("\n")
-    state.setMarkdown(newMd)
-
-    // 커서 위치 보정 (접두사 길이 차이 만큼 이동)
-    val oldPrefixLen = currentPrefix.length
-    val newPrefixLen = newPrefix.length
-    val prefixDelta = newPrefixLen - oldPrefixLen
-
-    val displayLineStart = mapping.displayLineStart
-    val cursorOffsetInLine = beforeCursor - displayLineStart
-    val newDisplayText = state.annotatedString.text
-    val newLineStart =
-        lineStartInAnnotated(newDisplayText, beforeCursor.coerceAtMost(newDisplayText.length))
-    val newCursor =
-        (newLineStart + cursorOffsetInLine + prefixDelta).coerceIn(0, newDisplayText.length)
-
-    state.selection = TextRange(newCursor)
-    return newCursor
+    state.setMarkdown(mdLines.joinToString("\n"))
 }
+
+// English comment: Strip heading and list markers to keep only the plain text content
+private fun stripMdLineMarkers(line: String): String {
+    var s = line.trimStart()
+
+    // Remove heading markers first
+    s = s.replaceFirst(Regex("^#{1,6}\\s+"), "")
+
+    // Remove ordered list marker like "1. "
+    s = s.replaceFirst(Regex("^\\d+\\.\\s+"), "")
+
+    // Remove unordered list marker like "- " or bullets
+    s = s.replaceFirst(Regex("^[-*+•●○◦▪▫]\\s+"), "")
+
+    return s.trimStart()
+}
+

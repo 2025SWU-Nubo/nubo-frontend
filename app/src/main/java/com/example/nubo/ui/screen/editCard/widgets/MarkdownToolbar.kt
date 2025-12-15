@@ -26,6 +26,7 @@ import com.example.nubo.ui.theme.*
 import com.mohamedrejeb.richeditor.model.RichTextState
 import com.example.nubo.utils.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private val CHIP_HEIGHT = 38.dp
 private val CHIP_LONG_WIDTH = 60.dp
@@ -41,6 +42,10 @@ fun MarkdownToolbar(
     var currentListType by remember { mutableStateOf<ListType?>(null) }
     var isBoldSelected by remember { mutableStateOf(false) }
     var hasSelection by remember { mutableStateOf(false) }
+
+    val scope = rememberCoroutineScope()
+
+    val restoreCaret = rememberCaretRestorer(rtState)
 
     LaunchedEffect(rtState.annotatedString, rtState.selection) {
         val state = detectLineMarkdown(rtState)
@@ -70,9 +75,9 @@ fun MarkdownToolbar(
                 isSelected = currentHeadingLevel == 2,
                 onClick = {
                     editorFocusRequester.requestFocus()
-                    val pos = toggleHeadingMarkdown(rtState, 2)
-                    rtState.selection = TextRange(pos)
-                    Log.d("Toolbar", "H2 clicked caret=$pos")
+                    val before = rtState.selection
+                    toggleHeadingMarkdown(rtState, 2)
+                    restoreCaret(before)
                 },
                 textSize = AppTextStyles.b1_bold_18
             )
@@ -83,9 +88,9 @@ fun MarkdownToolbar(
                 isSelected = currentHeadingLevel == 3,
                 onClick = {
                     editorFocusRequester.requestFocus()
-                    val pos = toggleHeadingMarkdown(rtState, 3)
-                    rtState.selection = TextRange(pos)
-                    Log.d("Toolbar", "H3 clicked caret=$pos")
+                    val before = rtState.selection
+                    toggleHeadingMarkdown(rtState, 3)
+                    restoreCaret(before)
                 },
                 textSize = AppTextStyles.label_semibold_14
             )
@@ -214,3 +219,21 @@ private fun HeadingButton(
         )
     }
 }
+
+// English comment: Restore caret AFTER RichTextEditor finishes parsing markdown
+@Composable
+private fun rememberCaretRestorer(rtState: RichTextState): (TextRange) -> Unit {
+    val scope = rememberCoroutineScope()
+    return remember(rtState) {
+        { target: TextRange ->
+            scope.launch {
+                // wait a couple frames to avoid being overwritten by internal parsing
+                withFrameNanos { }
+                withFrameNanos { }
+                val len = rtState.annotatedString.text.length
+                rtState.selection = TextRange(target.end.coerceIn(0, len))
+            }
+        }
+    }
+}
+
