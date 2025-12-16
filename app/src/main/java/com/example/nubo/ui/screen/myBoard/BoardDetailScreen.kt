@@ -507,55 +507,8 @@ fun BoardDetailScreen(
                                         navController.navigate("section_detail/${section.id}/$encodedTitle/$encodedBoardTitle")
                                     }
                                 },
-                                onCardLongClick = { cardId ->
-                                    if (!isSelectionMode) {
-                                        selectionFromMenu = false
-                                        // 공유 보드에서 mine == false 카드면 선택 모드 진입 자체를 막음
-                                        if (isSharedBoard && !selectableCardIds.contains(cardId)) {
-                                            // 카드 선택 안내 토스트 띄우기
-                                            triggerSelectWarning(SelectWarningType.CARD)
-                                            return@BoardDetailContent
-                                        }
-                                        // 공유보드일 때만 섹션 선택과 모드 분리
-                                        selectionModeType = if (isSharedBoard) SelectionModeType.CARD else null
-                                        isSelectionMode = true
-                                        bottomSheetType = BottomSheetType.SELECTION
-                                        selectedCards = setOf(cardId) // 롱클릭한 카드를 첫 선택 항목으로 지정
-                                    }
-                                },
-                                onSectionLongClick = { section ->
-                                    if (!isSelectionMode) {
-                                        selectionFromMenu = false
-
-                                        if (isSharedBoard) {
-                                            val sectionMine =
-                                                boardState.sections
-                                                    ?.firstOrNull { it.id.toInt() == section.id }
-                                                    ?.mine == true
-
-                                            val boardOwner = ui.board?.owner == true
-
-                                            // 섹션 생성자 또는 보드 소유자만 선택 모드 진입 가능
-                                            val canSelectSection = sectionMine || boardOwner
-
-                                            if (!canSelectSection) {
-                                                triggerSelectWarning(SelectWarningType.SECTION)
-                                                return@BoardDetailContent
-                                            }
-                                        }
-                                        // 공유보드일 때만 카드 선택과 모드 분리
-                                        selectionModeType = if (isSharedBoard) SelectionModeType.SECTION else null
-                                        isSelectionMode = true
-
-                                        // --- 공유보드 일 때 바텀바 -> 보드 바텀바  ---
-                                        bottomSheetType = if (isSharedBoard) {
-                                            BottomSheetType.BOARD_SELECTION    // 공유보드 → 보드 선택 시트
-                                        } else {
-                                            BottomSheetType.SELECTION          // 개인보드 → 기존 선택 시트
-                                        }
-                                        selectedSections = setOf(section.id)
-                                    }
-                                },
+                                onCardLongClick = null ,
+                                onSectionLongClick = null,
                                 onFavoriteClick = { section: BoardItem ->
                                     viewModel.toggleSectionFavorite(
                                         sectionId = section.id,

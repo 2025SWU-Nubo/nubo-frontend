@@ -2,6 +2,7 @@ package com.example.nubo.ui.component
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,7 +38,7 @@ fun MyCardContent(
     cards: List<MyCardItem>,
     cardHeights: List<Dp>,
     onCardClick: (Int) -> Unit,
-    onCardLongClick: (Int) -> Unit,
+    onCardLongClick: ((Int) -> Unit)? = null,
     // 선택 관련 파라미터
     isSelectionMode: Boolean,
     selectedCardIds: Set<Int>,
@@ -66,7 +67,7 @@ fun MyCardContent(
                     height = height,
                     imageUrl = item.imageUrl,
                     onClick = { onCardClick(item.id) },
-                    onLongClick = { onCardLongClick(item.id) },
+                    onLongClick = onCardLongClick?.let { { it(item.id) } },
                     isSelectionMode = isSelectionMode,
                     isSelected = isSelected,
                     isFavorite = item.isFavorite,
@@ -86,7 +87,7 @@ fun MyCardContent(
                     height = height,
                     imageUrl = item.imageUrl,
                     onClick = { onCardClick(item.id) },
-                    onLongClick = { onCardLongClick(item.id) },
+                    onLongClick = onCardLongClick?.let { { it(item.id) } },
                     isSelectionMode = isSelectionMode,
                     isSelected = isSelected,
                     isFavorite = item.isFavorite,
@@ -103,23 +104,28 @@ fun MyMasonryCard(
     height: Dp,
     imageUrl: String,
     onClick: () -> Unit,
-    onLongClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     // 선택 관련 파라미터
     isSelectionMode: Boolean,
     isSelected: Boolean,
     isFavorite: Boolean,
     isSelectable: Boolean = true
 ) {
+    val clickModifier = if (onLongClick != null) {
+        Modifier.combinedClickable(
+            onClick = { onClick() },
+            onLongClick = { onLongClick() }
+        )
+    } else {
+        Modifier.clickable { onClick() }
+    }
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(height)
-            .clip(RoundedCornerShape(6.dp)) // CardContent와 동일하게 6dp로 변경 (기존 8dp)
+            .clip(RoundedCornerShape(6.dp))
             .background(Grey50)
-            .combinedClickable(
-                onClick = { onClick() },
-                onLongClick = onLongClick
-            ),
+            .then(clickModifier),
         contentAlignment = Alignment.Center
     ) {
         // 높이가 300dp일 때만 이미지를 1.2배 확대하는 Modifier 적용

@@ -25,6 +25,7 @@ import com.example.nubo.ui.theme.PurpleMain500
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.keyframes
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
@@ -56,6 +57,7 @@ import com.example.nubo.data.service.CardUploadService
 
 @Composable
 fun AddVideoSheet(
+    onBack: () -> Unit,
     onClose: () -> Unit,
     viewModel: AddVideoViewModel = hiltViewModel(),          // ViewModel with video validation
     cardUploadViewModel: CardUploadViewModel = hiltViewModel(), // Existing upload ViewModel
@@ -154,6 +156,21 @@ fun AddVideoSheet(
         }
     }
 
+    val handleBack = {
+        if (page == SheetPage.PICK_BOARD) {
+            page = SheetPage.SAVE_VIDEO
+            checkedIds = emptySet()
+            boardToastVisible = false
+            networkErrorToastVisible = false
+            toastVisible = false
+            showError = false
+        } else {
+            onBack()
+        }
+    }
+
+    BackHandler { handleBack() }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -168,6 +185,19 @@ fun AddVideoSheet(
                 .fillMaxWidth()
                 .padding(horizontal = 0.dp, vertical = 0.dp)
         ) {
+            IconButton(
+                onClick = { handleBack() },
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .offset(x = (-10).dp)
+                    .size(48.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_arrow_back),
+                    contentDescription = "뒤로가기",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
             Text(
                 text = when (page) {
                     SheetPage.SAVE_VIDEO -> "영상 추가하기"

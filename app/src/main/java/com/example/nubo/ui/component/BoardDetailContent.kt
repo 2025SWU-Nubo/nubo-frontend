@@ -35,9 +35,9 @@ fun BoardDetailContent(
     cardItems: List<CardItem>,
     cardHeights: List<Dp>,
     onCardClick: (Int) -> Unit,
-    onCardLongClick: (Int) -> Unit,
+    onCardLongClick: ((Int) -> Unit)? = null,
     onSectionClick: (BoardItem) -> Unit,
-    onSectionLongClick: (BoardItem) -> Unit,
+    onSectionLongClick: ((BoardItem) -> Unit)? = null,
     onFavoriteClick: (BoardItem) -> Unit,
     // 선택 관련 상태 파라미터들
     isSelectionMode: Boolean,
@@ -81,7 +81,7 @@ fun BoardDetailContent(
                     BoardCardWithText(
                         board = rowItems[0], // 첫 번째 아이템
                         onClick = { onSectionClick(rowItems[0]) },
-                        onLongClick = { onSectionLongClick(rowItems[0]) },
+                        onLongClick = onSectionLongClick?.let { { it(rowItems[0]) } },
                         onFavoriteClick = onFavoriteClick,
                         isSelectionMode = isSelectionMode,
                         // id로 선택 여부 확인
@@ -100,7 +100,7 @@ fun BoardDetailContent(
                         BoardCardWithText(
                             board = rowItems[1], // 두 번째 아이템
                             onClick = { onSectionClick(rowItems[1]) },
-                            onLongClick = { onSectionLongClick(rowItems[1]) },
+                            onLongClick = onSectionLongClick?.let { { it(rowItems[0]) } },
                             onFavoriteClick = onFavoriteClick,
                             isSelectionMode = isSelectionMode,
                             // id로 선택 여부 확인
@@ -132,7 +132,7 @@ fun BoardDetailContent(
                     height = height,
                     imageUrl = item.imageUrl,
                     onClick = { onCardClick(item.id) },
-                    onLongClick = { onCardLongClick(item.id) },
+                    onLongClick = onCardLongClick?.let { { it(item.id) } },
                     isSelectionMode = isSelectionMode,
                     isSelected = selectedCards.contains(item.id),
                     isFavorite = item.isFavorite,
@@ -151,7 +151,7 @@ fun BoardDetailContent(
                     height = height,
                     imageUrl = item.imageUrl,
                     onClick = { onCardClick(item.id) },
-                    onLongClick = { onCardLongClick(item.id) },
+                    onLongClick = onCardLongClick?.let { { it(item.id) } },
                     isSelectionMode = isSelectionMode,
                     isSelected = selectedCards.contains(item.id),
                     isFavorite = item.isFavorite,

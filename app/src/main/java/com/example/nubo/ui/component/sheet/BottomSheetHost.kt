@@ -262,6 +262,7 @@ fun BottomSheetHost(
                     }
                     )
                 SheetRoute.AddVideo -> AddVideoSheet(
+                    onBack = onBackToAddMenu,
                     onClose = onDismiss,
                     showToast = { msg, type, duration ->
                         // 바텀시트 안에서 호출한 토스트를

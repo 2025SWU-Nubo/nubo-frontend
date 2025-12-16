@@ -334,20 +334,7 @@ fun SectionDetailScreen(
                                         navController.navigate("card_detail/$cardId")
                                     }
                                 },
-                                onCardLongClick = { cardId ->
-                                    if (!isSelectionMode) {
-                                        // 공유 보드에서 mine=false 카드면 선택 모드 진입 자체를 막고 토스트
-                                        if (isShared && selectableCardIds?.contains(cardId) == false) {
-                                            triggerSelectWarning(SelectWarningType.CARD)
-                                            return@MyCardContent
-                                        }
-
-                                        selectionFromMenu = false
-                                        isSelectionMode = true
-                                        bottomSheetType = BottomSheetType.SELECTION
-                                        selectedCards = setOf(cardId)
-                                    }
-                                },
+                                onCardLongClick = null,
                                 isSelectionMode = isSelectionMode,
                                 selectedCardIds = selectedCards,
                                 selectableCardIds = selectableCardIds

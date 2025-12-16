@@ -2,6 +2,7 @@ package com.example.nubo.ui.component
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -141,17 +142,22 @@ fun BoardCardWithText(
     isSelectionMode: Boolean,
     isSelected: Boolean,
     isSelectable: Boolean = true,
-    onLongClick: () -> Unit // 길게 클릭
+    onLongClick: (() -> Unit)? = null
 ) {
+    val clickModifier = if (onLongClick != null) {
+        Modifier.combinedClickable(
+            onClick = onClick,
+            onLongClick = onLongClick
+        )
+    } else {
+        Modifier.clickable(onClick = onClick)
+    }
     Box(
         modifier = Modifier
             .width(182.dp)
             .clip(RoundedCornerShape(6.dp))
             .background(Color.White)
-            .combinedClickable( // 일반 클릭과 롱클릭을 함께 처리
-                onClick = { onClick() },
-                onLongClick = onLongClick
-            )
+            .then(clickModifier)
             .padding(top = 4.dp, bottom = 4.dp)
     ) {
         Column(
@@ -256,7 +262,7 @@ fun BoardCardWithText(
                         modifier = Modifier
                             .matchParentSize()
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color.White.copy(alpha = 0.6f))
+                            .background(Color.White.copy(alpha = 0.7f))
                     )
                 }
 
