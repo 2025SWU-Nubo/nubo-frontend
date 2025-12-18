@@ -53,10 +53,14 @@ import com.example.nubo.ui.screen.cardupload.CardUploadViewModel
 import com.example.nubo.ui.theme.AppTextStyles.b2_bold_16
 import com.example.nubo.ui.theme.GreyMain100
 import com.example.nubo.data.service.CardUploadService
+import com.example.nubo.ui.theme.GreyMain300
+import com.example.nubo.ui.theme.Purple100
+import com.example.nubo.ui.theme.Purple300
 
 @Composable
 fun AddVideoSheet(
     onClose: () -> Unit,
+    onBack:() -> Unit,
     viewModel: AddVideoViewModel = hiltViewModel(),          // ViewModel with video validation
     cardUploadViewModel: CardUploadViewModel = hiltViewModel(), // Existing upload ViewModel
     showToast: (String, AppToastType, Int) -> Unit = { _, _, _ -> }
@@ -159,30 +163,61 @@ fun AddVideoSheet(
             .fillMaxWidth()
             .navigationBarsPadding()
             .imePadding()
-            .padding(start = 8.dp, end = 8.dp),
+            .padding(start = 10.dp,end=10.dp, top = 0.dp, bottom = 15.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Header
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 0.dp, vertical = 0.dp)
+                .padding(10.dp),
+            contentAlignment = Alignment.Center
         ) {
+
+            val backSlotModifier = Modifier
+                .align(Alignment.CenterStart)
+                .offset(x = (-18).dp)
+                .size(48.dp)
+
+            // 왼쪽 뒤로가기
+            if (page == SheetPage.SAVE_VIDEO) {
+                IconButton(
+                    onClick = {
+                        onBack() },
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .offset(x = (-18).dp)
+                        .size(48.dp)           // touch target 확보
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_arrow_back),
+                        contentDescription = "뒤로가기",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }else {
+                Spacer(modifier = backSlotModifier)
+            }
+
+
             Text(
                 text = when (page) {
                     SheetPage.SAVE_VIDEO -> "영상 추가하기"
                     SheetPage.PICK_BOARD -> "보드 선택"
                 },
-                style = AppTextStyles.b1_semibold_18,
-                modifier = Modifier.align(Alignment.Center)
+                style = AppTextStyles.b1_semibold_18
             )
         }
 
-        // Content
+        Spacer(
+            Modifier.height(
+                if (page == SheetPage.PICK_BOARD) 4.dp else 12.dp
+            )
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 20.dp)
         ) {
             when (page) {
                 SheetPage.SAVE_VIDEO -> {
@@ -227,38 +262,40 @@ fun AddVideoSheet(
                             )
                         )
 
-                        // Reset error highlight when user edits text
                         LaunchedEffect(textState.text) {
                             if (showError) showError = false
                         }
 
+                        val isLoading = validateState is AddVideoViewModel.ValidateState.Loading
+                        val hasText = currentText.isNotBlank()
+
+                        val disabledContainer = if (isLoading) Purple100 else Grey10
+                        val disabledContent = if (isLoading) GreyMain300 else Grey1000
+
                         // "추가" button
                         Button(
                             onClick = {
+                                if (isLoading) return@Button
+
+                                showError = false
+                                toastVisible = false
+                                networkErrorToastVisible = false
+
                                 viewModel.validate(currentText.trim())
                             },
-                            enabled = currentText.isNotBlank() &&
-                                validateState !is AddVideoViewModel.ValidateState.Loading,
+                            enabled = hasText && !isLoading,
                             modifier = Modifier.height(42.dp),
                             shape = RoundedCornerShape(28.dp),
-                            border = if (currentText.isNotBlank()) null else BorderStroke(1.dp, Grey50),
+                            border = if (!hasText) BorderStroke(1.dp, Grey50) else null,
                             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = PurpleMain500,
                                 contentColor = Grey0,
-                                disabledContainerColor = Grey10,
-                                disabledContentColor = Grey1000
+                                disabledContainerColor = disabledContainer,
+                                disabledContentColor = disabledContent
                             )
                         ) {
-                            if (validateState is AddVideoViewModel.ValidateState.Loading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp,
-                                    color = Grey0
-                                )
-                            } else {
-                                Text("추가", style = AppTextStyles.b3_medium_14)
-                            }
+                            Text("추가", style = AppTextStyles.b3_medium_14)
                         }
                     }
 
@@ -276,15 +313,15 @@ fun AddVideoSheet(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(1f)
+                                .weight(1f),
                         ) {
                             when (boardsState) {
                                 AddVideoViewModel.BoardsState.Idle,
                                 AddVideoViewModel.BoardsState.Loading -> {
-                                    LinearProgressIndicator(
-                                        modifier = Modifier
-                                            .align(Alignment.TopCenter)
-                                            .fillMaxWidth()
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Grey0
                                     )
                                 }
 
@@ -369,7 +406,9 @@ fun AddVideoSheet(
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = PurpleMain500,
-                                contentColor = Grey0
+                                contentColor = Grey0,
+                                disabledContainerColor = Purple300,
+                                disabledContentColor = GreyMain100
                             )
                         ) {
                             Text("추가하기", style = AppTextStyles.b1_bold_18)
@@ -411,7 +450,7 @@ fun AddVideoSheet(
     // Board guide toast
     if (boardToastVisible) {
         val fixedHeight = 340.dp
-        val offsetFromBottom = fixedHeight + 150.dp
+        val offsetFromBottom = fixedHeight + 120.dp
 
         val annotatedTitle = buildAnnotatedString {
             append("선택하지 않아도 ")
@@ -485,7 +524,7 @@ private fun BoardNodeItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
+                .padding(start = 16.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             val arrowSize = Modifier.size(24.dp)
