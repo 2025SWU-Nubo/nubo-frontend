@@ -236,7 +236,8 @@ fun BottomSheetHost(
                     nameError = ui.nameError,
                     onSubmit = { nameText ->           // ← 시그니처 바뀜 (아래 3번 참고)
                         createBoardViewModel.submitWith(nameText)
-                    } ,
+                    },
+                    onImeDone = createBoardViewModel::onImeDone
                 )
                 SheetRoute.Invite -> InviteSheet(
                     onClose = onDismiss,

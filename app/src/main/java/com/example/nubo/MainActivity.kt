@@ -512,7 +512,8 @@ fun MainScreen(
                         onBack = { navController.popBackStack() },
                         onMyInfo = { navController.navigate("information") },
                         modifier = Modifier.padding(innerPadding),
-                        onNotification = { navController.navigate("notificationSet") }
+                        onNotification = { navController.navigate("notificationSet") },
+                        
                     )
                 }
 

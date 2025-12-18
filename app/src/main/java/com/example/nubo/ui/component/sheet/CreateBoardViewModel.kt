@@ -23,7 +23,7 @@ class CreateBoardViewModel @Inject constructor(
     val ui: StateFlow<CreateBoardUiState>  = _ui.asStateFlow()
 
     fun resetForNewBoard() {
-        // Reset all UI state to initial
+//        ui 초기화
         _ui.value = CreateBoardUiState()
     }
 
@@ -39,6 +39,80 @@ class CreateBoardViewModel @Inject constructor(
         _ui.update { it.copy(invitedEmails = emails) }
     }
 
+    fun comsumeCreated(){
+        _ui.update {
+            it.copy(
+                created = null,
+                name = "",
+                isShared = false,
+                invitedEmails = emptyList()
+            )
+        }
+    }
+
+    fun onImeDone() {
+        // IME action should never submit
+        // You can optionally set a local error trigger flag in UI layer
+        _ui.update { it } // no-op by design
+    }
+
+    fun onCompleteClick(currentName: String) {
+        // 완료 버튼 클릭시
+        submitInternal(currentName)
+    }
+
+    private fun submitInternal(rawName: String) {
+        val name = rawName.trim()
+
+        // Prevent double submit
+        if (_ui.value.isLoading) return
+
+        if (name.isEmpty()) {
+            _ui.update { it.copy(nameError = "보드 이름을 입력해주세요.") }
+            return
+        }
+
+        viewModelScope.launch {
+            _ui.update { it.copy(isLoading = true, nameError = null) }
+
+            val available = boardRepository
+                .isBoardNameAvailable(name = name)
+                .getOrElse { false }
+
+            if (!available) {
+                _ui.update {
+                    it.copy(
+                        isLoading = false,
+                        nameError = "이미 존재하는 보드 이름이에요. 다른 이름을 입력해주세요."
+                    )
+                }
+                return@launch
+            }
+
+            val emails = _ui.value.invitedEmails
+                .takeIf { _ui.value.isShared && it.isNotEmpty() }
+
+            val createResult = boardRepository.createBoard(
+                name = name,
+                shared = _ui.value.isShared,
+                memberEmails = emails
+            )
+
+            createResult
+                .onSuccess { item ->
+                    _ui.update { it.copy(isLoading = false, created = item) }
+                }
+                .onFailure {
+                    _ui.update {
+                        it.copy(
+                            isLoading = false,
+                            nameError = "요청 처리 중 오류가 발생했어요. 잠시 후 다시 시도해주세요."
+                        )
+                    }
+                }
+        }
+    }
+
     fun submit(){
         val name = _ui.value.name.trim()
         if(name.isEmpty()){
@@ -48,8 +122,6 @@ class CreateBoardViewModel @Inject constructor(
 
         viewModelScope.launch {
             _ui.update { it.copy(isLoading = true, nameError = null) }
-
-            val token = "Bearer ${authRepository.getAccessToken()}"
 
             // 보드 이름 중복 확인
             val available = boardRepository
