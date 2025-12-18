@@ -817,41 +817,23 @@ fun ToastDemoScreen(
 @Composable
 fun AppToastOverlay(
     hostState: AppToastHostState,
-    extraBottomOffset: Dp = 4.dp,
+    extraBottomOffset: Dp = 12.dp,
 ) {
-    if (!hostState.overlayVisible) return
-
     val bottomInset = WindowInsets.navigationBars
         .asPaddingValues()
         .calculateBottomPadding()
 
-    Popup(
-        alignment = Alignment.BottomCenter,
-        properties = PopupProperties(
-            focusable = false,
-            dismissOnBackPress = false,
-            dismissOnClickOutside = false,
-            excludeFromSystemGesture = false,   // ← 이것도 터치 막힘 방지
-            usePlatformDefaultWidth = false
-        )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = bottomInset + extraBottomOffset),
+        contentAlignment = Alignment.BottomCenter
     ) {
-        // **터치를 소비하지 않는 Box**
-        Box(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(bottom = bottomInset + extraBottomOffset)
-                    .fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                AppToastHost(
-                    hostState = hostState,
-                    matchParentSize = false,
-                    contentAlignment = Alignment.BottomCenter
-                )
-            }
-        }
+        AppToastHost(
+            hostState = hostState,
+            matchParentSize = false,
+            contentAlignment = Alignment.BottomCenter
+        )
     }
 }
 

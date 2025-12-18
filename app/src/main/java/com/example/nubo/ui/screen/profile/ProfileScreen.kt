@@ -270,7 +270,7 @@ fun ProfileScreen(
 
                 Spacer(Modifier.height(15.dp))
 
-                SettingsItem(title = "도움말", onClick = onHㅌelp)
+                SettingsItem(title = "도움말", onClick = onHelp)
                 SettingsItem(title = "개인정보 처리방침", onClick = onPrivacy)
             }
         }

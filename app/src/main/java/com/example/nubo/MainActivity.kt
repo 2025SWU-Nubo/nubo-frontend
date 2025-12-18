@@ -104,6 +104,8 @@ import com.example.nubo.ui.component.toast.GlobalToastBinder
 import com.example.nubo.ui.component.toast.GlobalToastBus
 import com.example.nubo.ui.screen.learn.LearnScreenBerry
 import com.example.nubo.ui.screen.onBoadingTutorial.OnBoardingTutorialRoute
+import com.example.nubo.ui.screen.profile.HelpRoute
+import com.example.nubo.ui.screen.profile.PrivacyPolicyRoute
 import com.example.nubo.ui.screen.recommendCard.RecommendCardDetailScreen
 import com.example.nubo.ui.screen.recommendCard.RecommendCardDetailViewModel
 import com.example.nubo.ui.screen.recommendCard.RecommendDetailUiState
@@ -160,11 +162,7 @@ class MainActivity : AppCompatActivity() {
                         GlobalToastBinder(hostState = toastHost)
 
                         MainScreen(deepLinkEvents = deepLinkEvents)
-                        key(toastHost.overlayVisible) {
-                            if (toastHost.overlayVisible) {
-                                AppToastOverlay(toastHost)
-                            }
-                        }
+                        AppToastOverlay(toastHost)
                     }
                 }
             }
@@ -513,7 +511,21 @@ fun MainScreen(
                         onMyInfo = { navController.navigate("information") },
                         modifier = Modifier.padding(innerPadding),
                         onNotification = { navController.navigate("notificationSet") },
-                        
+                        onHelp = { navController.navigate("help") },
+                        onPrivacy = { navController.navigate("privacy") }
+                    )
+                }
+
+                composable("help") {
+                    HelpRoute(
+                        onBack = { navController.popBackStack() },
+                        modifier = Modifier.padding(innerPadding),
+                    )
+                }
+                composable("privacy") {
+                    PrivacyPolicyRoute(
+                        onBack = { navController.popBackStack() },
+                        modifier = Modifier.padding(innerPadding),
                     )
                 }
 
