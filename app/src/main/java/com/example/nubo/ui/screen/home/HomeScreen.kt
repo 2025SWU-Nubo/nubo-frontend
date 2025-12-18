@@ -85,6 +85,7 @@ import com.example.nubo.ui.theme.PurpleMain500
 import formatIsoDateToDisplayLegacy
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.collectAsState
+import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.Purple50
 
 
@@ -222,7 +223,7 @@ fun HomeScreen(
                     onChipClick = { vm.onChipClick(it) },
                     onCardClick = { item -> onOpenCardDetail(item.id) }
                 )
-                Spacer(Modifier.height(80.dp))
+
             }
         }
 
@@ -243,13 +244,15 @@ fun CustomTopBar(
         navigationIcon = {
             //  누보 로고
             IconButton(
-                onClick = { onLogoClick?.invoke() },
-                modifier = Modifier.size(96.dp).padding(start = 16.dp)
+                onClick = {},
+                modifier = Modifier.size(96.dp).padding(start = 16.dp),
+                enabled = false,
             ) {
                 Icon(
                     painter = painterResource(R.drawable.nubo_logo),
                     contentDescription = "앱 로고",
                     tint = PurpleMain500,
+
 
                 )
             }
@@ -431,14 +434,52 @@ fun UnviewedVideosSection(
     }
     Spacer(modifier = Modifier.height(12.dp))
     //칩 컨포넌트
-    RecommendationChipsRow(
-        chips = chips,
-        onChipClick = onChipClick
-    )
+//    RecommendationChipsRow(
+//        chips = chips,
+//        onChipClick = onChipClick
+//    )
+//
+//    Spacer(modifier = Modifier.height(10.dp))
 
-    Spacer(modifier = Modifier.height(10.dp))
+    if (cards.isEmpty()) {
+        // 카드가 없을 경우 칩도 안보이게
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                modifier = Modifier.padding(vertical = 80.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.add_card),
+                    contentDescription = "앱 로고",
+                    tint = Grey200,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "안 본 영상이 없어요",
+                    style = AppTextStyles.b3_regular_14,
+                    color = GreyMain300
+                )
+            }
+        }
+    } else {
+        //칩 컨포넌트
+        RecommendationChipsRow(
+            chips = chips,
+            onChipClick = onChipClick
+        )
 
-    Column(modifier = Modifier.padding(horizontal = 14.dp))
-    {     CardContent(cards = cards, onCardClick = onCardClick) }
+        Spacer(modifier = Modifier.height(10.dp))
 
+        // 카드 컨텐츠
+        Column(modifier = Modifier.padding(horizontal = 14.dp)) {
+            CardContent(cards = cards, onCardClick = onCardClick)
+        }
+
+        Spacer(Modifier.height(80.dp))
+    }
 }
