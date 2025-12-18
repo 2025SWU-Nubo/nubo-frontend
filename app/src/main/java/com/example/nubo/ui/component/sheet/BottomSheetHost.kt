@@ -4,22 +4,43 @@ package com.example.nubo.ui.component.sheet
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.components.toast.AppToastLayout
 import com.example.components.toast.AppToastOverlay
@@ -114,15 +135,17 @@ fun BottomSheetHost(
         createBoardViewModel.resetForNewBoard()
     }
 
+
+
     ModalBottomSheet(
         onDismissRequest = {
             resetAllBoardSheetState()
             onDismiss()
         },
         sheetState = sheetState,
+        dragHandle = {CompactDragHandle()},
         containerColor = Color.White,
         contentColor = MaterialTheme.colorScheme.onSurface,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
         modifier = modifier
     ) {
         // Invite 시트일 때만 시스템 뒤로가기를 가로채서
@@ -172,105 +195,156 @@ fun BottomSheetHost(
                 pendingToastMessage = null // 토스트를 띄웠으므로 상태를 비움
             }
         }
+        val density = LocalDensity.current
+        val offsetPx = with(density) { 28.dp.roundToPx() } // 이동량은 고정 dp로, 너무 크지 않게
+
         AnimatedContent(
             targetState = route,
             transitionSpec = {
-                if (isForwardFrom(initialState, targetState)) {
-                    // forward: 아래에서 위로 등장, 기존 것은 위로 사라짐
-                    slideInVertically(
-                        animationSpec = tween(200)
-                    ) { fullHeight -> fullHeight } togetherWith
-                        slideOutVertically(
-                            animationSpec = tween(200)
-                        ) { fullHeight -> -fullHeight }
+                val enterDelay = 60   // 시작 지연
+                val exitDelay = 0     // 보통 exit은 지연 없이 빠르게 빼는 게 자연스러움
+
+                val enterSlide = tween<IntOffset>(
+                    durationMillis = 120,
+                    delayMillis = enterDelay,
+                    easing = FastOutSlowInEasing
+                )
+
+                val exitSlide = tween<IntOffset>(
+                    durationMillis = 120,
+                    delayMillis = exitDelay,
+                    easing = FastOutSlowInEasing
+                )
+                val enterFade = tween<Float>(durationMillis = 180, delayMillis = enterDelay)
+                val exitFade = tween<Float>(durationMillis = 120)
+//
+
+                val forward = isForwardFrom(initialState, targetState)
+
+                // Shared axis 느낌: 짧은 이동 + fade + 미세 scale
+                val enter = if (forward) {
+                    slideInVertically(animationSpec = enterSlide) { offsetPx } +
+                        fadeIn(animationSpec = enterFade) +
+                        scaleIn(initialScale = 0.985f, animationSpec = tween(180, delayMillis = enterDelay))
                 } else {
-                    // backward: 위에서 아래로 등장, 기존 것은 아래로 사라짐
-                    slideInVertically(
-                        animationSpec = tween(280)
-                    ) { fullHeight -> -fullHeight } togetherWith
-                        slideOutVertically(
-                            animationSpec = tween(280)
-                        ) { fullHeight -> fullHeight }
-                }.using(
-                    SizeTransform(clip = false) // avoid clipping during animation
+                    slideInVertically(animationSpec = enterSlide) { -offsetPx } +
+                        fadeIn(animationSpec = enterFade) +
+                        scaleIn(initialScale = 0.985f, animationSpec = tween(180, delayMillis = enterDelay))
+                }
+
+                val exit = if (forward) {
+                    slideOutVertically(animationSpec = exitSlide) { -offsetPx } +
+                        fadeOut(animationSpec = exitFade) +
+                        scaleOut(targetScale = 0.985f, animationSpec = tween(120))
+                } else {
+                    slideOutVertically(animationSpec = exitSlide) { offsetPx } +
+                        fadeOut(animationSpec = exitFade) +
+                        scaleOut(targetScale = 0.985f, animationSpec = tween(120))
+                }
+
+                (enter togetherWith exit).using(
+                    SizeTransform(
+                        clip = false,
+                        sizeAnimationSpec = { _, _ ->
+                            spring(
+                                dampingRatio = 0.95f,
+                                stiffness = Spring.StiffnessLow
+                            )
+                        }
+                    )
                 )
             },
             label = "BottomSheetSwitch"
         ) { target ->
-            when (target) {
-                SheetRoute.AddMenu -> AddMenuSheet(
-                    onClose = {
-                        // Treat close button as full sheet dismiss
-                        resetAllBoardSheetState()
-                        onDismiss()
-                    },
-                    onVideoClick = onGoAddVideo,
-                    onBoardClick = {
-                        // "보드 만들기"를 새로 시작하면 무조건 새 플로우
-                        resetAllBoardSheetState()
-                        onGoCreateBoard()
-                    }
-                )
-                SheetRoute.CreateBoard -> CreateBoardSheet(
-                    onClose = onDismiss,
-                    onBack = {
-                        resetAllBoardSheetState()
-                        onBackToAddMenu()
-                    },
-                    onInviteClick = onGoInvite,
-                    onCreate = {_,_ ->},
-                    name = ui.name,
-                    isShared = ui.isShared,
-                    invitedEmails = ui.invitedEmails,
-                    invitedUsers = invitedUserPreview,
-                    onNameChange = createBoardViewModel::onNameChange,
-                    onSharedChange = { shared ->
-                        if (ui.isShared && !shared) {
-//                            invitedEmails = emptyList()
-                            inviteResetVersion++
-                            createBoardViewModel.setInvitedEmails(emptyList())
-                        }
-                        createBoardViewModel.onSharedChange(shared)
-                    },
-                    isLoading = ui.isLoading,
-                    nameError = ui.nameError,
-                    onSubmit = { nameText ->           // ← 시그니처 바뀜 (아래 3번 참고)
-                        createBoardViewModel.submitWith(nameText)
-                    },
-                    onImeDone = createBoardViewModel::onImeDone
-                )
-                SheetRoute.Invite -> InviteSheet(
-                    onClose = onDismiss,
-                    onBack = onBackToCreateBoard,
-                    onInvite = onInvite,
-                    resetSignal = inviteResetVersion,
-                    initialSelected = ui.invitedEmails,
-                    onComplete = { emails, users ->
-                        invitedUserPreview = users
-                        // 1) 부모에 초대 이메일 전달(서버 전송은 부모/VM에서 처리 권장)
-                        createBoardViewModel.setInvitedEmails(emails)
-                        onInviteComplete(emails)
 
-                        // 2) 시트 전환 직후 자연스럽게 띄우기
-                        val count = emails.size
-                        if (count > 0) {
-                            pendingToastMessage = "참여자 ${count}명 초대 완료!"
-                        }
-
-                        // 3) CreateBoard 시트로 되돌아가기
-                        onBackToCreateBoard()
-
-                    }
+            // 높이 변화가 있는 화면 전환에서 "툭" 튀는 걸 한 번 더 잡아줌
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(
+                        animationSpec = spring(
+                            dampingRatio = 0.95f,
+                            stiffness = Spring.StiffnessLow
+                        )
                     )
-                SheetRoute.AddVideo -> AddVideoSheet(
-                    onClose = onDismiss,
-                    showToast = { msg, type, duration ->
-                        // 바텀시트 안에서 호출한 토스트를
-                        // MainScreen 에서 만든 전역 토스트로 전달
-                        showToast(msg, type, duration, 900, null, null )   // preDelay = 0
-                    }
-                )
+            ) {
+                when (target) {
+                    SheetRoute.AddMenu -> AddMenuSheet(
+                        onClose = {
+                            // Treat close button as full sheet dismiss
+                            resetAllBoardSheetState()
+                            onDismiss()
+                        },
+                        onVideoClick = onGoAddVideo,
+                        onBoardClick = {
+                            // "보드 만들기"를 새로 시작하면 무조건 새 플로우
+                            resetAllBoardSheetState()
+                            onGoCreateBoard()
+                        }
+                    )
+                    SheetRoute.CreateBoard -> CreateBoardSheet(
+                        onClose = onDismiss,
+                        onBack = {
+                            resetAllBoardSheetState()
+                            onBackToAddMenu()
+                        },
+                        onInviteClick = onGoInvite,
+                        onCreate = {_,_ ->},
+                        name = ui.name,
+                        isShared = ui.isShared,
+                        invitedEmails = ui.invitedEmails,
+                        invitedUsers = invitedUserPreview,
+                        onNameChange = createBoardViewModel::onNameChange,
+                        onSharedChange = { shared ->
+                            if (ui.isShared && !shared) {
+//                            invitedEmails = emptyList()
+                                inviteResetVersion++
+                                createBoardViewModel.setInvitedEmails(emptyList())
+                            }
+                            createBoardViewModel.onSharedChange(shared)
+                        },
+                        isLoading = ui.isLoading,
+                        nameError = ui.nameError,
+                        onSubmit = { nameText ->           // ← 시그니처 바뀜 (아래 3번 참고)
+                            createBoardViewModel.submitWith(nameText)
+                        },
+                        onImeDone = createBoardViewModel::onImeDone
+                    )
+                    SheetRoute.Invite -> InviteSheet(
+                        onClose = onDismiss,
+                        onBack = onBackToCreateBoard,
+                        onInvite = onInvite,
+                        resetSignal = inviteResetVersion,
+                        initialSelected = ui.invitedEmails,
+                        onComplete = { emails, users ->
+                            invitedUserPreview = users
+                            // 1) 부모에 초대 이메일 전달(서버 전송은 부모/VM에서 처리 권장)
+                            createBoardViewModel.setInvitedEmails(emails)
+                            onInviteComplete(emails)
+
+                            // 2) 시트 전환 직후 자연스럽게 띄우기
+                            val count = emails.size
+                            if (count > 0) {
+                                pendingToastMessage = "참여자 ${count}명 초대 완료!"
+                            }
+
+                            // 3) CreateBoard 시트로 되돌아가기
+                            onBackToCreateBoard()
+
+                        }
+                    )
+                    SheetRoute.AddVideo -> AddVideoSheet(
+                        onClose = onDismiss,
+                        onBack = {onBackToAddMenu()},
+                        showToast = { msg, type, duration ->
+                            // 바텀시트 안에서 호출한 토스트를
+                            // MainScreen 에서 만든 전역 토스트로 전달
+                            showToast(msg, type, duration, 900, null, null )   // preDelay = 0
+                        }
+                    )
+                }
             }
+
         }
     }
 }
@@ -284,6 +358,29 @@ fun isForwardFrom(from: SheetRoute, to: SheetRoute): Boolean {
         SheetRoute.AddVideo
     )
     return order.indexOf(to) > order.indexOf(from)
+}
+
+//커스텀 바텀 시트 핸들러
+@Composable
+private fun CompactDragHandle(
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp, bottom = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // 핸들바
+        Box(
+            modifier = Modifier
+                .size(width = 40.dp, height = 3.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                )
+        )
+    }
 }
 
 

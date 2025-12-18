@@ -44,7 +44,7 @@ fun AddMenuSheet(
         ) {
             Text(
                 text = "추가 생성하기",
-                style = AppTextStyles.b2_semibold_16
+                style = AppTextStyles.b1_semibold_18
             )
         }
 

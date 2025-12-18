@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
@@ -149,21 +150,28 @@ class MainActivity : AppCompatActivity() {
 
         setContent {
             NuboAppTheme {
-                // 1  전역 토스트 호스트를 Activity 루트에서 remember
-                val toastHost = rememberAppToastHostState()
+                CompositionLocalProvider(
+//                    전역으로 앱 내 리플 효과 끄기
+                    LocalRippleConfiguration provides null 
+                ) {
+
+                    // 1  전역 토스트 호스트를 Activity 루트에서 remember
+                    val toastHost = rememberAppToastHostState()
 
 
-                // 2  CompositionLocal로 전체 앱에 제공
-                CompositionLocalProvider(LocalAppToastHostState provides toastHost) {
-                    RequestNotificationPermissionOnce()
+                    // 2  CompositionLocal로 전체 앱에 제공
+                    CompositionLocalProvider(LocalAppToastHostState provides toastHost) {
+                        RequestNotificationPermissionOnce()
 
-                    // 3  MainScreen 위에 전역 토스트 오버레이를 항상 깔아둠
-                    Box(Modifier.fillMaxSize()) {
-                        GlobalToastBinder(hostState = toastHost)
+                        // 3  MainScreen 위에 전역 토스트 오버레이를 항상 깔아둠
+                        Box(Modifier.fillMaxSize()) {
+                            GlobalToastBinder(hostState = toastHost)
 
-                        MainScreen(deepLinkEvents = deepLinkEvents)
-                        AppToastOverlay(toastHost)
+                            MainScreen(deepLinkEvents = deepLinkEvents)
+                            AppToastOverlay(toastHost)
+                        }
                     }
+
                 }
             }
         }
