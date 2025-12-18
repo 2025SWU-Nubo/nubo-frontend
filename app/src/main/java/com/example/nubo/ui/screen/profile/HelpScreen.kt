@@ -2,6 +2,13 @@ package com.example.nubo.ui.screen.profile
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,6 +39,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -65,23 +73,23 @@ fun HelpRoute(
     val sections = listOf(
         HelpSection(
             title = "카드는 어떻게 저장하나요?",
-            body = "공유하기에서 Nubo를 선택하면 자동으로 카드가 생성돼요\n또한 앱 내 하단 콘텐츠 추가 버튼을 이용해 영상 링크를 넣어 추가하는 방법도 있어요"
+            body = "공유하기에서 Nubo를 선택하면 자동으로 카드가 생성돼요. 또한 앱 내 하단 콘텐츠 추가 버튼을 이용해 영상 링크를 넣어 추가하는 방법도 있어요."
         ),
         HelpSection(
             title = "보드와 섹션은 어떻게 다른건가요?",
-            body = "섹션은 보드 내 2차 분류를 위한 기능이에요\n보드는 AI가 자동 생성하는 보드와 사용자가 직접 생성하는 보드로 이루어져 있지만\n섹션은 사용자만 직접 추가할 수 있어요"
+            body = "섹션은 보드 내 2차 분류를 위한 기능이에요. \n보드는 AI가 자동 생성하는 보드와 사용자가 직접 생성하는 보드로 이루어져 있지만 섹션은 사용자만 직접 추가할 수 있어요"
         ),
         HelpSection(
             title = "공유보드에서 다른 사람의 카드를 수정할 수 있나요?",
-            body = "아니요\n카드는 직접 추가한 사용자만 자신의 카드를 수정할 수 있어요"
+            body = "아니요. 카드는 직접 추가한 사용자만 자신의 카드를 수정할 수 있어요"
         ),
         HelpSection(
             title = "공유보드로 바뀌면 되돌릴 수 있나요?",
-            body = "아니요\n공유보드로 생성하거나 변경한 보드는 개인 보드로 되돌릴 수 없어요"
+            body = "아니요. 공유보드로 생성하거나 변경한 보드는 개인 보드로 되돌릴 수 없어요."
         ),
         HelpSection(
             title = "알림이 안 와요?",
-            body = "휴대폰 설정에서 알림 권한이 켜져 있는지 확인해요\n앱 내 알림 설정도 함께 확인해요"
+            body = "휴대폰 설정에서 알림 권한이 켜져 있는지 확인해주세요. 추가로 앱 내 알림 설정도 함께 확인해주세요."
         )
     )
 
@@ -201,6 +209,16 @@ private fun HelpToggleItem(
     expanded: Boolean,
     onToggle: () -> Unit
 ) {
+//    토글 리스트 아이콘 회전 인터랙션
+    val rotation by animateFloatAsState(
+        targetValue = if (expanded) 90f else 0f,
+        animationSpec = tween(
+            durationMillis = 240,
+            easing = FastOutSlowInEasing
+        ),
+        label = "toggleIconRotation"
+    )
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -216,7 +234,8 @@ private fun HelpToggleItem(
                 text = title,
                 style = AppTextStyles.b1_semibold_18,
                 color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).padding(end = 8.dp)
+
             )
 
             Icon(
@@ -224,12 +243,26 @@ private fun HelpToggleItem(
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
-                    .size(18.dp)
-                    .rotate(if (expanded) 90f else 0f)
+                    .size(16.dp)
+                    .rotate(rotation)
             )
         }
 
-        AnimatedVisibility(visible = expanded) {
+        AnimatedVisibility(
+            visible = expanded,
+            enter = expandVertically(
+                expandFrom = Alignment.Top,
+                animationSpec = tween(240, easing = FastOutSlowInEasing)
+            ) + fadeIn(
+                animationSpec = tween(160, delayMillis = 40)
+            ),
+            exit = shrinkVertically(
+                shrinkTowards = Alignment.Top,
+                animationSpec = tween(220, easing = FastOutSlowInEasing)
+            ) + fadeOut(
+                animationSpec = tween(160, delayMillis = 110)
+            )
+        ) {
             Column {
                 Spacer(Modifier.height(10.dp))
                 Text(
