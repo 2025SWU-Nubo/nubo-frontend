@@ -75,6 +75,8 @@ import com.example.components.toast.AppToastType
 import com.example.components.toast.LocalAppToastHostState
 import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles.b2_medium_16
+import com.example.nubo.ui.theme.Grey50
+import com.example.nubo.ui.theme.Purple100
 
 // 어떤 다이얼로그를 띄울지 구분하기 위한 sealed class
 sealed class InputDialogMode {
@@ -863,15 +865,19 @@ fun BoardDetailScreen(
                 SheetTopToast(
                     title = buildAnnotatedString {
                         append("카드 삭제ㆍ복제ㆍ이동은 ")
-                        withStyle(SpanStyle(color = PurpleMain500)) { append("생성자만 ") }
+                        withStyle(SpanStyle(color = Color.White)) { append("생성자만 ") }
                         append("가능해요.")
                     },
                     message = "다른 참여자가 생성한 카드는 선택할 수 없어요.",
                     visible = showSelectWarning,
                     onDismiss = { showSelectWarning = false },
                     durationMillis = 3500L,
-                    bottomOffset = toastOffsetDp
+                    bottomOffset = toastOffsetDp,
+                    containerColor = Color(0xFF9696A4),
+                    titleColor = Color.White,
+                    messageColor = Grey50
                 )
+
             }
 
             SelectWarningType.SECTION -> {

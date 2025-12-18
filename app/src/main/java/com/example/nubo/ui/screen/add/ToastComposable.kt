@@ -1,6 +1,7 @@
 package com.example.nubo.ui.screen.add
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -35,8 +36,13 @@ fun SheetTopToast(
     visible: Boolean,
     onDismiss: () -> Unit,
     bottomOffset: Dp = 180.dp,
-    durationMillis: Long = 3000L // 기본 3초
-) {
+    durationMillis: Long = 3000L, // 기본 3초
+
+    // 토스트 스타일 커스텀 파라미터
+    containerColor: Color = Color(0xE6FFFFFF),
+    titleColor: Color = Grey1000,
+    messageColor: Color = Grey500,
+    ) {
     if (visible) {
         // 자동 dismiss
         LaunchedEffect(Unit) {
@@ -67,33 +73,26 @@ fun SheetTopToast(
                         .width(391.dp)
                         .height(95.dp)
                         .background(
-                            color = Color(0xE6FFFFFF),
+                            color = containerColor,
                             shape = RoundedCornerShape(size = 16.dp)
                         )
-                        .padding(
-                            start = 16.dp,
-                            top = 16.dp,
-                            end = 16.dp,
-                            bottom = 16.dp
-                        ),
+                        .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = title,
-                            style = AppTextStyles.b2_bold_16,   // Title style
-                            color = Grey1000,
+                            style = AppTextStyles.b2_bold_16,
+                            color = titleColor,
                             textAlign = TextAlign.Center
                         )
 
-                        Spacer(modifier = Modifier.height(8.dp))   // 타이틀-메시지 간격
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         Text(
                             text = message,
-                            style = AppTextStyles.b3_regular_14,    // Message style
-                            color = Grey500,
+                            style = AppTextStyles.b3_regular_14,
+                            color = messageColor,
                             textAlign = TextAlign.Center
                         )
                     }
@@ -102,4 +101,3 @@ fun SheetTopToast(
         }
     }
 }
-

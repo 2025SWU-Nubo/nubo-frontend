@@ -719,7 +719,7 @@ fun FilterSearchStickyHeader(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
 
@@ -727,7 +727,7 @@ fun FilterSearchStickyHeader(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .height(36.dp)
+                        .height(43.dp)
                         .clip(RoundedCornerShape(7.dp))
                         .background(Color.White)
                         .border(
@@ -745,7 +745,7 @@ fun FilterSearchStickyHeader(
                     ) {
 
                         Icon(
-                            painter = painterResource(id = R.drawable.ic_board_search),
+                            painter = painterResource(id = R.drawable.ic_search),
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
@@ -758,7 +758,7 @@ fun FilterSearchStickyHeader(
                                 .weight(1f)
                                 .onFocusChanged { searchFocused = it.isFocused },
                             singleLine = true,
-                            textStyle = AppTextStyles.b3_medium_14.copy(
+                            textStyle = AppTextStyles.b2_medium_16.copy(
                                 color = MaterialTheme.colorScheme.onSurface
                             ),
                             cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
@@ -771,7 +771,7 @@ fun FilterSearchStickyHeader(
                                     if (searchText.isEmpty()) {
                                         Text(
                                             text = placeholderText,
-                                            style = AppTextStyles.label_medium_12,
+                                            style = AppTextStyles.b3_medium_14,
                                             color = Grey200
                                         )
                                     }

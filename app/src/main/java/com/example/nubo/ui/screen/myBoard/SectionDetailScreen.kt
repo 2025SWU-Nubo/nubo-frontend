@@ -343,7 +343,7 @@ fun SectionDetailScreen(
                     }
                 }
                 // 4) 로딩 인디케이터
-                if (ui.isLoading) {
+                if (ui.isLoading && detailState != null) {
                     item {
                         Box(
                             modifier = Modifier

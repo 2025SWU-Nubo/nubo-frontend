@@ -58,7 +58,7 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("https://janae-nontenantable-endosmotically.ngrok-free.dev")
+            .baseUrl("https://nubo-backend.fly.dev")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
