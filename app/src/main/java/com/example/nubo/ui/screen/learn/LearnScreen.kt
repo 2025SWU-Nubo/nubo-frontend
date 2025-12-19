@@ -115,6 +115,11 @@ fun LearnScreen(
                     todayVideoCount = 3, // 에러 시 보여줄 기본 값 (필요에 따라 수정)
                     level = 3
                 )
+                TopBar(
+                    title = "성장보드",
+                    onClickInfo = { showInfoPopup = true }
+                )
+
                 // 화면 진입 시 커스텀 토스트 호출 (1회성)
 //                LaunchedEffect(Unit) {
 //                    toastHostState.show(
