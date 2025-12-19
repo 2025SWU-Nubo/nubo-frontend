@@ -79,7 +79,6 @@ fun LearnScreenInformation(
     val pagerState = rememberPagerState(pageCount = { totalPages })
     val scope = rememberCoroutineScope()
 
-    // 배경 어둡게
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -96,40 +95,29 @@ fun LearnScreenInformation(
             colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            // [변경 1] 너비를 알기 위해 BoxWithConstraints 사용
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                val cardWidth = maxWidth // 카드의 전체 너비
+                val cardWidth = maxWidth
                 val density = LocalDensity.current
 
-                // [변경 2] 고정 UI(버튼 등)의 위치(Offset) 계산
+                // 1페이지부터 고정될 하단 버튼의 위치 계산 (닫기 버튼은 제외됨)
                 val uiTranslationX by remember {
                     derivedStateOf {
                         val currentScrollPosition = pagerState.currentPage + pagerState.currentPageOffsetFraction
-
-                        // 1페이지 기준으로 거리 계산:
-                        // 0페이지일 때: (1 - 0) = 1 (너비의 100% 만큼 오른쪽으로 밀어냄 -> 안보임)
-                        // 0.5페이지일 때: (1 - 0.5) = 0.5 (너비의 50% 만큼 오른쪽 -> 따라 들어오는 효과)
-                        // 1페이지 이상일 때: (1 - 1.x) = 음수 -> 0으로 고정 (제자리 고정)
                         val distanceFactor = (1f - currentScrollPosition).coerceAtLeast(0f)
-
-                        // 픽셀 단위로 변환
                         with(density) { (distanceFactor * cardWidth.toPx()).toDp() }
                     }
                 }
 
-                // --- [1] 슬라이드되는 콘텐츠 영역 (이미지, 텍스트) ---
+                // --- [1] 콘텐츠 영역 ---
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize()
                 ) { page ->
                     when (page) {
-                        // 0번 페이지: 기존 완성된 UI
                         0 -> LearnInfoPageFirst(
-                            onClose = onClose,
                             onNext = { scope.launch { pagerState.animateScrollToPage(1) } }
                         )
-
-                        // 1, 2, 3번 페이지: 내용(Content)만 있는 컴포저블
+                        // ... 나머지 페이지 (동일)
                         1 -> LearnInfoInnerContent(
                             title = "식물 키우는 법",
                             description = "카드 열람 1회마다 물방울이 1개 만들어집니다\n물방울 5개면 다음 단계로 성장해요",
@@ -148,37 +136,20 @@ fun LearnScreenInformation(
                     }
                 }
 
-                // --- [2] 1번 페이지부터 고정될 UI 그룹 (닫기 버튼 + 하단 버튼) ---
-                // [변경 3] AnimatedVisibility 대신 Box에 offset 적용
+                // --- [2] 하단 버튼 그룹 (슬라이드 애니메이션 적용) ---
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .offset(x = uiTranslationX) // 계산된 위치만큼 이동
+                        .offset(x = uiTranslationX) // 하단 버튼만 슬라이드 됨
                 ) {
-                    // (1) 우상단 고정 닫기 버튼
-                    IconButton(
-                        onClick = onClose,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 16.dp, end = 18.dp)
-                            .size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "닫기",
-                            tint = Grey1000
-                        )
-                    }
-
-                    // (2) 하단 고정 버튼 그룹 (이전 / 다음)
                     Row(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 24.dp),
+                            .padding(horizontal = 18.dp, vertical = 24.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // [이전] 버튼
+                        // 이전 버튼
                         Button(
                             onClick = {
                                 scope.launch {
@@ -186,9 +157,7 @@ fun LearnScreenInformation(
                                     if (prevPage >= 0) pagerState.animateScrollToPage(prevPage)
                                 }
                             },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(41.dp),
+                            modifier = Modifier.weight(1f).height(41.dp),
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFFF2F2F7),
@@ -198,21 +167,14 @@ fun LearnScreenInformation(
                             Text("이전", style = label_semibold_14)
                         }
 
-                        // [다음/완료] 버튼
+                        // 다음/완료 버튼
                         val isLastPage = pagerState.currentPage == totalPages - 1
                         Button(
                             onClick = {
-                                if (isLastPage) {
-                                    onClose() // 마지막 페이지면 닫기
-                                } else {
-                                    scope.launch {
-                                        pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                                    }
-                                }
+                                if (isLastPage) onClose()
+                                else scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
                             },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(41.dp),
+                            modifier = Modifier.weight(1f).height(41.dp),
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (isLastPage) PurpleMain500 else Purple100,
@@ -223,6 +185,22 @@ fun LearnScreenInformation(
                         }
                     }
                 }
+
+                // --- [3] 닫기 버튼 (완전 고정 - 애니메이션 없음) ---
+                // BoxWithConstraints의 직계 자식이므로 페이저나 오프셋과 상관없이 항상 위에 뜸
+                IconButton(
+                    onClick = onClose,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 16.dp, end = 18.dp)
+                        .size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "닫기",
+                        tint = Grey1000
+                    )
+                }
             }
         }
     }
@@ -231,7 +209,6 @@ fun LearnScreenInformation(
 // 성장보드 첫번째 인포 페이지
 @Composable
 private fun LearnInfoPageFirst(
-    onClose: () -> Unit,
     onNext: () -> Unit
 ) {
     // 카드 전체를 배경 이미지로 채움
@@ -258,24 +235,6 @@ private fun LearnInfoPageFirst(
                 .padding(start = 18.dp, end=18.dp,top = 16.dp,bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 상단 닫기 버튼
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = onClose,
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "닫기",
-                        tint = Grey1000
-                    )
-                }
-            }
-
             Spacer(modifier = Modifier.height(235.dp))
 
             // 타이틀 텍스트
@@ -315,9 +274,6 @@ private fun LearnInfoPageFirst(
             ) {
                 Text("다음", style = label_semibold_14, color = Color.White)
             }
-
-
-            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
@@ -343,7 +299,7 @@ private fun LearnInfoInnerContent(
         // 이미지 카드
         Card(
             modifier = Modifier.fillMaxWidth()
-            .height(153.dp),
+            .height(168.dp),
             shape = RoundedCornerShape(24.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
