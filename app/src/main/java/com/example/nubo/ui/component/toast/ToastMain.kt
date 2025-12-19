@@ -722,9 +722,14 @@ fun ToastDemoScreen(
     val host = rememberAppToastHostState()
     val scope = rememberCoroutineScope()
 
+    val bottomInset = WindowInsets.navigationBars
+        .asPaddingValues()
+        .calculateBottomPadding()
+
+
     Scaffold { inner ->
         Box(Modifier.fillMaxSize().padding(inner)) {
-            Column(Modifier.padding(20.dp)) {
+            Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = bottomInset + 24.dp)) {
                 Button(onClick = {
                     scope.launch {
                         host.show(
@@ -817,7 +822,7 @@ fun ToastDemoScreen(
 @Composable
 fun AppToastOverlay(
     hostState: AppToastHostState,
-    extraBottomOffset: Dp = 12.dp,
+    extraBottomOffset: Dp = 24.dp,
 ) {
     val bottomInset = WindowInsets.navigationBars
         .asPaddingValues()
