@@ -60,7 +60,6 @@ import com.example.nubo.ui.theme.Purple300
 
 @Composable
 fun AddVideoSheet(
-    onBack: () -> Unit,
     onClose: () -> Unit,
     onBack:() -> Unit,
     viewModel: AddVideoViewModel = hiltViewModel(),          // ViewModel with video validation
