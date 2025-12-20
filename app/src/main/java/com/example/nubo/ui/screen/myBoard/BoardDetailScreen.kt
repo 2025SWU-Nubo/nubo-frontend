@@ -75,6 +75,8 @@ import com.example.components.toast.AppToastType
 import com.example.components.toast.LocalAppToastHostState
 import com.example.nubo.ui.component.noRippleClickable
 import com.example.nubo.ui.theme.AppTextStyles.b2_medium_16
+import com.example.nubo.ui.theme.Grey50
+import com.example.nubo.ui.theme.Purple100
 
 // 어떤 다이얼로그를 띄울지 구분하기 위한 sealed class
 sealed class InputDialogMode {
@@ -507,55 +509,8 @@ fun BoardDetailScreen(
                                         navController.navigate("section_detail/${section.id}/$encodedTitle/$encodedBoardTitle")
                                     }
                                 },
-                                onCardLongClick = { cardId ->
-                                    if (!isSelectionMode) {
-                                        selectionFromMenu = false
-                                        // 공유 보드에서 mine == false 카드면 선택 모드 진입 자체를 막음
-                                        if (isSharedBoard && !selectableCardIds.contains(cardId)) {
-                                            // 카드 선택 안내 토스트 띄우기
-                                            triggerSelectWarning(SelectWarningType.CARD)
-                                            return@BoardDetailContent
-                                        }
-                                        // 공유보드일 때만 섹션 선택과 모드 분리
-                                        selectionModeType = if (isSharedBoard) SelectionModeType.CARD else null
-                                        isSelectionMode = true
-                                        bottomSheetType = BottomSheetType.SELECTION
-                                        selectedCards = setOf(cardId) // 롱클릭한 카드를 첫 선택 항목으로 지정
-                                    }
-                                },
-                                onSectionLongClick = { section ->
-                                    if (!isSelectionMode) {
-                                        selectionFromMenu = false
-
-                                        if (isSharedBoard) {
-                                            val sectionMine =
-                                                boardState.sections
-                                                    ?.firstOrNull { it.id.toInt() == section.id }
-                                                    ?.mine == true
-
-                                            val boardOwner = ui.board?.owner == true
-
-                                            // 섹션 생성자 또는 보드 소유자만 선택 모드 진입 가능
-                                            val canSelectSection = sectionMine || boardOwner
-
-                                            if (!canSelectSection) {
-                                                triggerSelectWarning(SelectWarningType.SECTION)
-                                                return@BoardDetailContent
-                                            }
-                                        }
-                                        // 공유보드일 때만 카드 선택과 모드 분리
-                                        selectionModeType = if (isSharedBoard) SelectionModeType.SECTION else null
-                                        isSelectionMode = true
-
-                                        // --- 공유보드 일 때 바텀바 -> 보드 바텀바  ---
-                                        bottomSheetType = if (isSharedBoard) {
-                                            BottomSheetType.BOARD_SELECTION    // 공유보드 → 보드 선택 시트
-                                        } else {
-                                            BottomSheetType.SELECTION          // 개인보드 → 기존 선택 시트
-                                        }
-                                        selectedSections = setOf(section.id)
-                                    }
-                                },
+                                onCardLongClick = null ,
+                                onSectionLongClick = null,
                                 onFavoriteClick = { section: BoardItem ->
                                     viewModel.toggleSectionFavorite(
                                         sectionId = section.id,
@@ -910,15 +865,19 @@ fun BoardDetailScreen(
                 SheetTopToast(
                     title = buildAnnotatedString {
                         append("카드 삭제ㆍ복제ㆍ이동은 ")
-                        withStyle(SpanStyle(color = PurpleMain500)) { append("생성자만 ") }
+                        withStyle(SpanStyle(color = Color.White)) { append("생성자만 ") }
                         append("가능해요.")
                     },
                     message = "다른 참여자가 생성한 카드는 선택할 수 없어요.",
                     visible = showSelectWarning,
                     onDismiss = { showSelectWarning = false },
                     durationMillis = 3500L,
-                    bottomOffset = toastOffsetDp
+                    bottomOffset = toastOffsetDp,
+                    containerColor = Color(0xFF9696A4),
+                    titleColor = Color.White,
+                    messageColor = Grey50
                 )
+
             }
 
             SelectWarningType.SECTION -> {

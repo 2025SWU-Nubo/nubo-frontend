@@ -138,7 +138,7 @@ fun InviteSheet (
         Column(
             horizontalAlignment = Alignment.Start,
         ) {
-            Text("이메일", style = AppTextStyles.b2_medium_16)
+            Text("이메일", style = AppTextStyles.b2_medium_16, modifier = Modifier.padding(start=3.dp))
             Spacer(Modifier.height(8.dp))
 
             OutlinedTextField(
@@ -149,7 +149,7 @@ fun InviteSheet (
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 shape = RoundedCornerShape(40.dp),      // pill
                 textStyle = TextStyle(fontSize = 14.sp, lineHeight = 18.sp),
-                leadingIcon = { Icon(painter = painterResource(R.drawable.search), contentDescription = "검색") },
+                leadingIcon = { Icon(painter = painterResource(R.drawable.ic_search), contentDescription = "검색") },
                 placeholder = { Text("이메일로 검색",style = AppTextStyles.b3_regular_14 ,color = Grey200) },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = PurpleMain500,

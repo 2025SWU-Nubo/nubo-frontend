@@ -60,7 +60,6 @@ object NetworkModule {
         return Retrofit.Builder()
             .baseUrl("https://nubo-backend.fly.dev")
   //          .baseUrl("https://janae-nontenantable-endosmotically.ngrok-free.dev")
-
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

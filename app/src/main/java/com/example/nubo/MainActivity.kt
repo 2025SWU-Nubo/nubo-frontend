@@ -2,6 +2,7 @@ package com.example.nubo
 
 import android.Manifest
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -591,7 +592,7 @@ fun MainScreen(
                         },
                         onWithdraw = { /* no-op */ },
                         onEditName = { current ->
-                            navController.navigate("edit_name?initial=${java.net.URLEncoder.encode(current, "UTF-8")}")
+                            navController.navigate("edit_name?initial=${Uri.encode(current)}")
                         },
                         modifier = Modifier
                             .padding(innerPadding)

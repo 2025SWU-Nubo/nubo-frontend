@@ -25,6 +25,7 @@ import com.example.nubo.ui.theme.PurpleMain500
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.keyframes
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
@@ -59,6 +60,7 @@ import com.example.nubo.ui.theme.Purple300
 
 @Composable
 fun AddVideoSheet(
+    onBack: () -> Unit,
     onClose: () -> Unit,
     onBack:() -> Unit,
     viewModel: AddVideoViewModel = hiltViewModel(),          // ViewModel with video validation
@@ -158,6 +160,21 @@ fun AddVideoSheet(
         }
     }
 
+    val handleBack = {
+        if (page == SheetPage.PICK_BOARD) {
+            page = SheetPage.SAVE_VIDEO
+            checkedIds = emptySet()
+            boardToastVisible = false
+            networkErrorToastVisible = false
+            toastVisible = false
+            showError = false
+        } else {
+            onBack()
+        }
+    }
+
+    BackHandler { handleBack() }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -173,7 +190,6 @@ fun AddVideoSheet(
                 .padding(10.dp),
             contentAlignment = Alignment.Center
         ) {
-
             val backSlotModifier = Modifier
                 .align(Alignment.CenterStart)
                 .offset(x = (-18).dp)
@@ -198,7 +214,6 @@ fun AddVideoSheet(
             }else {
                 Spacer(modifier = backSlotModifier)
             }
-
 
             Text(
                 text = when (page) {
