@@ -10,6 +10,8 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.json.JSONObject
+import java.io.IOException
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -67,7 +69,7 @@ class TokenInterceptor @Inject constructor(
 
                 return if (!tokenAfterWait.isNullOrBlank()) {
                     Log.d("TOKEN_INTERCEPTOR", "🔁 Using refreshed access token after wait")
-                    return retryRequest(chain, tokenAfterWait)
+                    retryRequest(chain, tokenAfterWait)
                 } else {
                     Log.e(
                         "TOKEN_INTERCEPTOR",
@@ -84,7 +86,7 @@ class TokenInterceptor @Inject constructor(
         }
 
         // 5) 실제 리프레시 호출
-        newAccess = tryRefreshToken(prefs)
+        newAccess = tryRefreshToken(prefs, chain.request())
 
         synchronized(refreshLock) {
             isRefreshing = false
@@ -94,8 +96,22 @@ class TokenInterceptor @Inject constructor(
             Log.d("TOKEN_INTERCEPTOR", "✅ Refresh success → retrying original request")
             retryRequest(chain, newAccess)
         } else {
-            Log.e("TOKEN_INTERCEPTOR", "❌ Refresh failed → clearing tokens")
-            prefs.edit().clear().apply()
+            // refresh 실패는 2가지가 있음
+            // 1) refreshToken 자체가 만료/무효 → 토큰 clear 해야 함
+            // 2) 네트워크/서버 장애(ngrok 오프라인 같은) → 토큰 clear 하면 안 됨
+            Log.e("TOKEN_INTERCEPTOR", "❌ Refresh failed")
+
+            // tryRefreshToken 안에서 "무효 refresh"일 때만 clearAuthDataNeeded=true 로 처리
+            val shouldClear = prefs.getBoolean("refresh_clear_needed", false)
+            prefs.edit().remove("refresh_clear_needed").apply()
+
+            if (shouldClear) {
+                Log.e("TOKEN_INTERCEPTOR", "❌ Refresh invalid → clearing tokens")
+                prefs.edit().clear().apply()
+            } else {
+                Log.e("TOKEN_INTERCEPTOR", "⚠️ Refresh failed but not clearing tokens (network/server issue)")
+            }
+
             // 실패했으니 원래 요청을 또 보내봤자 의미가 없음 → 그냥 401/403 상황으로 돌려보냄
             chain.proceed(chain.request())
         }
@@ -112,7 +128,10 @@ class TokenInterceptor @Inject constructor(
     }
 
     /** Refresh API 실제 호출 */
-    private fun tryRefreshToken(prefs: android.content.SharedPreferences): String? {
+    private fun tryRefreshToken(
+        prefs: android.content.SharedPreferences,
+        originalRequest: Request
+    ): String? {
         val refresh = prefs.getString("refresh_token", null) ?: return null
 
         Log.d("TOKEN_INTERCEPTOR", "👉 Calling /auth/refresh with refreshToken")
@@ -120,18 +139,34 @@ class TokenInterceptor @Inject constructor(
         val body = """{"refreshToken":"$refresh"}"""
             .toRequestBody("application/json".toMediaType())
 
+        // refresh 도 원본 요청의 host/scheme 를 그대로 사용
+        val refreshUrl = originalRequest.url.newBuilder()
+            .encodedPath("/api/auth/refresh")
+            .query(null)
+            .fragment(null)
+            .build()
+
         val request = Request.Builder()
-            .url("https://janae-nontenantable-endosmotically.ngrok-free.dev/api/auth/refresh")
+            .url(refreshUrl)
             .post(body)
             .build()
 
-        val client = OkHttpClient.Builder().build()
+        val client = OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .writeTimeout(20, TimeUnit.SECONDS)
+            .build()
 
         return try {
             val response = client.newCall(request).execute()
             Log.d("TOKEN_INTERCEPTOR", "refresh response code=${response.code}")
 
             if (!response.isSuccessful) {
+                // 401/403 은 refreshToken 무효 가능성이 높으니 토큰 clear 필요 플래그
+                if (response.code == 401 || response.code == 403) {
+                    prefs.edit().putBoolean("refresh_clear_needed", true).apply()
+                }
+
                 Log.e("TOKEN_INTERCEPTOR", "refresh not successful, body=${response.body?.string()}")
                 return null
             }
@@ -142,7 +177,10 @@ class TokenInterceptor @Inject constructor(
             val newAccess = json.getString("accessToken")
             val newRefresh = json.getString("refreshToken")
 
-            Log.d("TOKEN_INTERCEPTOR", "refresh success, newAccess=${newAccess.take(15)}..., newRefresh=${newRefresh.take(15)}...")
+            Log.d(
+                "TOKEN_INTERCEPTOR",
+                "refresh success, newAccess=${newAccess.take(15)}..., newRefresh=${newRefresh.take(15)}..."
+            )
 
             prefs.edit().apply {
                 putString("access_token", newAccess)
@@ -151,6 +189,10 @@ class TokenInterceptor @Inject constructor(
             }
 
             newAccess
+        } catch (e: IOException) {
+            // 네트워크 장애는 clear 하면 안 됨
+            Log.e("TOKEN_INTERCEPTOR", "refresh network error", e)
+            null
         } catch (e: Exception) {
             Log.e("TOKEN_INTERCEPTOR", "refresh error", e)
             null

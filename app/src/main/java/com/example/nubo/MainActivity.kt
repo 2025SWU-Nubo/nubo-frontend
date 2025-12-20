@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
@@ -105,6 +106,8 @@ import com.example.nubo.ui.component.toast.GlobalToastBinder
 import com.example.nubo.ui.component.toast.GlobalToastBus
 import com.example.nubo.ui.screen.learn.LearnScreenBerry
 import com.example.nubo.ui.screen.onBoadingTutorial.OnBoardingTutorialRoute
+import com.example.nubo.ui.screen.profile.HelpRoute
+import com.example.nubo.ui.screen.profile.PrivacyPolicyRoute
 import com.example.nubo.ui.screen.recommendCard.RecommendCardDetailScreen
 import com.example.nubo.ui.screen.recommendCard.RecommendCardDetailViewModel
 import com.example.nubo.ui.screen.recommendCard.RecommendDetailUiState
@@ -148,25 +151,28 @@ class MainActivity : AppCompatActivity() {
 
         setContent {
             NuboAppTheme {
-                // 1  전역 토스트 호스트를 Activity 루트에서 remember
-                val toastHost = rememberAppToastHostState()
+                CompositionLocalProvider(
+//                    전역으로 앱 내 리플 효과 끄기
+                    LocalRippleConfiguration provides null 
+                ) {
+
+                    // 1  전역 토스트 호스트를 Activity 루트에서 remember
+                    val toastHost = rememberAppToastHostState()
 
 
-                // 2  CompositionLocal로 전체 앱에 제공
-                CompositionLocalProvider(LocalAppToastHostState provides toastHost) {
-                    RequestNotificationPermissionOnce()
+                    // 2  CompositionLocal로 전체 앱에 제공
+                    CompositionLocalProvider(LocalAppToastHostState provides toastHost) {
+                        RequestNotificationPermissionOnce()
 
-                    // 3  MainScreen 위에 전역 토스트 오버레이를 항상 깔아둠
-                    Box(Modifier.fillMaxSize()) {
-                        GlobalToastBinder(hostState = toastHost)
+                        // 3  MainScreen 위에 전역 토스트 오버레이를 항상 깔아둠
+                        Box(Modifier.fillMaxSize()) {
+                            GlobalToastBinder(hostState = toastHost)
 
-                        MainScreen(deepLinkEvents = deepLinkEvents)
-                        key(toastHost.overlayVisible) {
-                            if (toastHost.overlayVisible) {
-                                AppToastOverlay(toastHost)
-                            }
+                            MainScreen(deepLinkEvents = deepLinkEvents)
+                            AppToastOverlay(toastHost)
                         }
                     }
+
                 }
             }
         }
@@ -513,7 +519,22 @@ fun MainScreen(
                         onBack = { navController.popBackStack() },
                         onMyInfo = { navController.navigate("information") },
                         modifier = Modifier.padding(innerPadding),
-                        onNotification = { navController.navigate("notificationSet") }
+                        onNotification = { navController.navigate("notificationSet") },
+                        onHelp = { navController.navigate("help") },
+                        onPrivacy = { navController.navigate("privacy") }
+                    )
+                }
+
+                composable("help") {
+                    HelpRoute(
+                        onBack = { navController.popBackStack() },
+                        modifier = Modifier.padding(innerPadding),
+                    )
+                }
+                composable("privacy") {
+                    PrivacyPolicyRoute(
+                        onBack = { navController.popBackStack() },
+                        modifier = Modifier.padding(innerPadding),
                     )
                 }
 

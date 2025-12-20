@@ -257,7 +257,7 @@ fun InviteSheet (
             )) {
             val countText = if (hasSelection) "(${selected.size})" else ""
 
-            Text(text = "완료하기", style = AppTextStyles.b1_bold_18)
+            Text(text = "추가하기", style = AppTextStyles.b1_bold_18)
         }
         Spacer(Modifier.height(25.dp))
     }

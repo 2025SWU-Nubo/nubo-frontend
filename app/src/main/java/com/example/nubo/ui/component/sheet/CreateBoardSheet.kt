@@ -66,6 +66,8 @@ import com.example.nubo.ui.theme.Grey200
 import com.example.nubo.ui.theme.RedError
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import com.example.components.toast.AppToastType
 import com.example.nubo.domain.model.InviteUser
 import com.example.nubo.ui.screen.profile.ProfileEvent
@@ -86,6 +88,7 @@ fun CreateBoardSheet(
     isLoading: Boolean,
     nameError: String?,
     onSubmit: (String) -> Unit,
+    onImeDone: () -> Unit,
     showToast: (String, AppToastType, Int) -> Unit = { _, _, _ -> }
 ){
 
@@ -113,6 +116,9 @@ fun CreateBoardSheet(
         showLocalError -> "보드 이름을 입력해주세요."           // 로컬 공란/길이 등
         else -> null
     }
+
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
 
     Column(
         modifier = Modifier
@@ -212,7 +218,9 @@ fun CreateBoardSheet(
                 keyboardActions = KeyboardActions(
                     onDone = {
                         touched = true
-                        if (nameTrim.isNotEmpty() && !isLoading) onSubmit(nameTrim)
+                        onImeDone() // never submit
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
                     }
                 )
             )
@@ -248,7 +256,7 @@ fun CreateBoardSheet(
             Spacer(Modifier.height(8.dp))
             Row (
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ){
                 SegButton(
                     text ="개인 보드",
